@@ -1,0 +1,8 @@
+{% if node_info[inventory_hostname].networks.inter.dns['search']  is defined %}
+search {{ node_info[inventory_hostname].networks.inter.dns['search'] }}
+{% endif %}
+{% if node_info[inventory_hostname].networks.inter.dns['nameserver'] is defined %}
+{% for dns in node_info[inventory_hostname].networks.inter.dns['nameserver'] %}
+nameserver {{ dns }}
+{% endfor %}
+{% endif %}

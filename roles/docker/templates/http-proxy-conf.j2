@@ -1,0 +1,2 @@
+[Service]
+Environment={% if "http_proxy" in calc_proxy_env %}"HTTP_PROXY={{ calc_proxy_env.http_proxy }}" {% endif %}  {% if "https_proxy" in calc_proxy_env %}  "HTTPS_PROXY={{ calc_proxy_env.https_proxy }}" {% endif %}  {% if "http_proxy" in calc_proxy_env or "https_proxy" in calc_proxy_env %}  "NO_PROXY=localhost,10.0.0.0/8,192.168.0.0/16,127.0.0.0/8" {% endif %}

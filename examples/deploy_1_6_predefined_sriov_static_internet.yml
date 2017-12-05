@@ -1,0 +1,54 @@
+---
+# All configurable items are in ``groups_vars/all/all.yml``
+# Some default parameters shown for reference
+
+pod_network_type: flannel
+
+use_predefined_network: true
+multus_map: multus-sriov
+
+node_info:
+  master-1:
+    networks:
+      mgmt:
+        interface: eno2
+        boot_protocol: static
+        ip_address: 192.168.201.10
+        prefix: 24
+      inter:
+        interface: eno1
+        boot_protocol: static
+        ip_address: 192.168.11.10
+        prefix: 24
+        gateway: 192.168.11.1
+        dns:
+          search: domain.com
+          nameserver:
+            - 8.8.8.8
+            - 8.8.4.4
+    tenant_networks:
+      virtual-1:
+        interface: enp26s0f0
+        boot_protocol: none
+  minion-1:
+    networks:
+      mgmt:
+        interface: eno2
+        boot_protocol: static
+        ip_address: 192.168.201.11
+        prefix: 24
+      inter:
+        interface: eno1
+        boot_protocol: static
+        ip_address: 192.168.11.11
+        prefix: 24
+        gateway: 192.168.11.1
+        dns:
+          search: domain.com
+          nameserver:
+            - 8.8.8.8
+            - 8.8.4.4
+    tenant_networks:
+      virtual-1:
+        interface: enp26s0f0
+        boot_protocol: none

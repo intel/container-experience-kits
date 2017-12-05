@@ -1,0 +1,22 @@
+#jinja2: lstrip_blocks: True
+
+{% if item.value.boot_protocol == 'static' %}
+auto {{ item.value.interface }}
+iface {{ item.value.interface }} inet static
+
+    {% if item.value.ip_address is defined %}
+address {{ item.value.ip_address }}
+    {% endif %}
+    {% if item.value.prefix is defined %}
+{# use python custom Jinaj2 filter to convert prefix to netmask #}
+netmask {{ item.value.prefix|prefix_to_netmask }}
+    {% endif %}
+    {% if item.value.gateway is defined %}
+gateway {{ item.value.gateway }}
+    {% endif %}
+
+{% elif item.value.boot_protocol == 'dhcp' %}
+auto {{ item.value.interface }}
+iface {{ item.value.interface }} inet dhcp
+{% endif %}
+

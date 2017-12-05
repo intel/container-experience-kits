@@ -1,0 +1,7 @@
+---
+hugepage_param_regex: '^GRUB_CMDLINE_LINUX="\$GRUB_CMDLINE_LINUX.*# added by ces hugepages role'
+hugepage_param: 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX default_hugepagesz={{ hps_map[huge_page_size_mb] }} hugepagesz={{ hps_map[huge_page_size_mb] }} hugepages={{ role_num_hugepages }}"  # added by ces hugepages role'
+
+update_grub:
+  Debian: "update-grub2"
+  RedHat: "grub2-mkconfig -o {% if efi.stat.exists %}/boot/efi/EFI/{{ ansible_distribution|lower }}/grub.cfg{% else %}/boot/grub2/grub.cfg{% endif %}"

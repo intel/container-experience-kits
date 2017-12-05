@@ -1,0 +1,3 @@
+---
+  - name: Install EPEL if needed
+    action: "{{ ansible_pkg_mgr }} name={{ epel_rpm_el7 }} state=present"

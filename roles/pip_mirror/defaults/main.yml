@@ -1,0 +1,4 @@
+---
+proxy_users:
+  - dest: "/root"
+    user: "root"

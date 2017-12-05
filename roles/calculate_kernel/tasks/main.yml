@@ -1,0 +1,33 @@
+---
+  - debug: var=ansible_distribution
+    name: calculating kernel for distribution
+
+  - debug: var=ansible_distribution_version
+    name: calculating kernel for version
+
+  - name: detect kernel for specific distribution version
+    set_fact:
+      kernel_data: "{{ kernel_info[ansible_distribution][ansible_distribution_version] }}"
+
+  - name: get kernel type
+    set_fact:
+      kernel_type: "{{ kernel_data.kernel_to_use }}"
+
+  - name: assure kernel data set for inbox type
+    set_fact:
+      kernel_data: "{{ {}.__class__(kernel_data, **{kernel_type: {'kernel_base_url': '', 'kernel_version': ansible_kernel}}) }}"
+    when: kernel_type == 'inbox'
+
+  - name: assure kernel data set for latest type
+    set_fact:
+      kernel_data: "{{ {}.__class__(kernel_data, **{kernel_type: {'kernel_base_url': '', 'kernel_version': ''}}) }}"
+    when: kernel_type == 'latest'
+
+  - name: debug kernel_type
+    debug: msg="using kernel type = {{ kernel_type }}"
+
+  - set_fact:
+      kernel_data: "{{ kernel_data[kernel_type] }}"
+
+  - debug: var=kernel_data
+    name: calculated kernel values

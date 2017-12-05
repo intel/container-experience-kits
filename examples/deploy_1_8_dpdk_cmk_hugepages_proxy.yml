@@ -1,0 +1,54 @@
+---
+# All configurable items are in ``groups_vars/all/all.yml``
+# Some default parameters shown for reference
+
+use_dpdk: true
+
+kubernetes_version: "1.8.4"
+
+pod_network_type: flannel
+
+use_k8s_native_hugepages: true
+
+use_sriov: true
+num_virtual_functions: 7
+
+use_cmk: true
+cmk_img: "cmk:v1.2.1"
+num_dp_cores: 4
+num_cp_cores: 1
+
+proxy_env:
+  http_proxy: http://proxy.example.com:8080
+  https_proxy: http://proxy.example.com:8080
+  no_proxy: "localhost"
+
+node_info:
+  master-1:
+    networks:
+      mgmt:
+        interface: eno2
+        boot_protocol: static
+        ip_address: 192.168.201.10
+        prefix: 24
+      inter:
+        interface: eno1
+        boot_protocol: dhcp
+    tenant_networks:
+  minion-1:
+    networks:
+      mgmt:
+        interface: eno2
+        boot_protocol: static
+        ip_address: 192.168.201.11
+        prefix: 24
+      inter:
+        interface: eno1
+        boot_protocol: dhcp
+    tenant_networks:
+      virtual-1:
+        interface: enp26s0f0
+        boot_protocol: none
+      virtual-2:
+        interface: enp26s0f1
+        boot_protocol: none

@@ -1,0 +1,74 @@
+# Copyright (c) 2016-2017, Intel Corporation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#     * Redistributions of source code must retain the above copyright notice,
+#       this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of Intel Corporation nor the names of its contributors
+#       may be used to endorse or promote products derived from this software
+#       without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+---
+  # we always have to reboot in order to make sure drivers are loaded
+  - debug: var=target_kernel_version
+
+  - name: restart machine in one minute
+    # we have to wait to reboot in one minute so that ansible can get the results back over ssh
+    shell: shutdown -r +1 "Ansible updates triggered" &
+    # shutdown should exit quickly
+    async: 120
+    # don't wait for it to finish
+    poll: 0
+    ignore_errors: true
+    tags: reboot_and_check_kernel_version
+
+  - name: waiting for server to come back
+    # delay and don't start polling ssh_port port immediately
+    # we can't just wait for the ssh port,
+    # we need the search_regex, because the port can be present
+    # before OpenSSH is serving
+    # This might be due to systemd socket activation
+    wait_for:
+      host: "{{ ansible_host }}"
+      port: "{{ ansible_port|default(22) }}"
+      search_regex: OpenSSH
+      state: started
+      delay: 120
+      timeout: 900
+    become: false
+    tags: reboot_and_check_kernel_version
+    delegate_to: localhost
+
+  # somehow sshd can start but we still can't login to the host
+  # loop gather facts until it successfully logs in and runs
+  - name: Gather facts after reboot
+    action: setup
+    register: gather_facts_result
+    until: gather_facts_result|success
+    retries: 5
+    delay: 10
+    tags: reboot_and_check_kernel_version
+
+  - debug: var=ansible_kernel
+
+  - debug: msg="{{ ansible_kernel }} != {{ target_kernel_version }}"
+  - debug: msg="{{ ansible_kernel != target_kernel_version }}"
+
+  - debug: msg="Fail if the kernel we booted wasn't the one we installed"
+    when: "target_kernel_version is defined and target_kernel_version != ansible_kernel"
+    tags: reboot_and_check_kernel_version
+

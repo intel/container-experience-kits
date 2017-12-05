@@ -1,0 +1,215 @@
+---
+# DPDK
+# Builds DPDK and allows use with Multus
+#
+# default: default is enabled
+use_dpdk: true
+
+# Hugepage configuration
+# Dual socket platform with 16GB RAM,3072*2048kB hugepages leaves ~4G for the system.
+# Dual socket platform with 64GB RAM,14336*2048kB hugepages leaves ~6G for the system.
+# Num of hugepages:
+# Use 16 for 1G hugepage size
+# Use 8192 for 2M hugepage size or
+# For automatic calculations
+# Use 'auto' & `huge_page_size_mb: 2`, will calculate based on the following formula:
+# (ansible_memtotal_mb - reserved_mem_mb) / (ansible_processor_count * huge_page_size_mb)
+num_hugepages: 16
+
+# Max num of hugepages
+max_num_hugepages: 8192
+
+# Hugepagesizes 1024 (1GB) or 2 (2MB), must be int
+huge_page_size_mb: 1024
+
+# 8GB, must be int
+reserved_mem_mb: 8192
+
+# Kubernetes version
+# kubelet, kubeadm
+#
+# CMK will be dependent on kubernetes versions (below)
+#
+# supported versions 1.6.6,1.8.4
+kubernetes_version: "1.6.6"
+
+# Native Kubernetes hugepage enablement
+# Requires kubernetes 1.8.x+
+#
+#  default: default is disabled
+use_k8s_native_hugepages: false
+
+# Pod networks:
+#   flannel - simple overlay network (VxLAN)
+#   multus-cni is enabled by default
+#   Other (ie: weave, calico, etc.. tbd for future))
+#
+# note: default is flannel
+pod_network_type: flannel
+
+# Multus predefined templates
+# Predefined templates require master and minion to have matching interface counts and names
+# use udev rules below for consistent master minion network interface names (if applicable)
+# Multus can still be custom configured
+#
+#   multus-sriov = (1 tenant interface) sriov
+#   multus-dpdk = (2 tenant interfaces) dpdk dpdk - up to 128 vf
+#   multus-dpdk-4 = (4 tenant interfaces) dpdk dpdk - up to 256 vf
+#   multus-dpdk-8 = (8 tenant interfaces) dpdk dpdk - up to 256 vf
+#
+#  note: use_multus_predefined is disabled
+#
+#  note: default is multus-dpdk
+#
+use_multus_predefined: false
+multus_map: multus-sriov
+
+# Enable sriov: true or false
+# Configure number of VFs, setting is universal across all tenant network interfaces
+# Enables and configures SRIOV to be used with Multus
+# 
+# note: default is true 
+use_sriov: true
+num_virtual_functions: 7
+
+# CMK - CPU Manager for Kubernetes
+# Enable cmk: true or false
+#   cmk_img = image to use
+#   num_dp_cores = number of dataplane cores (4)
+#   num_cp_cores = number of control plane cores (1)
+#
+# cmk_img versions and k8s version requirements:
+#  - cmk:v1.2.1 - k8s v1.8.4
+#  - cmk:v1.1.0 - k8s v1.6.6
+#
+#  note: default is false
+use_cmk: false
+cmk_img: "cmk:v1.1.0"
+num_dp_cores: 4
+num_cp_cores: 1
+
+
+# list of user defined NTP server names or IP addresses
+# note: leave it empty if no user defined NTP server
+# Example
+#ntp_server_names:
+#  - 0.fedora.pool.ntp.org
+#  - 1.fedora.pool.ntp.org
+
+#ntp_server_names:
+#  -
+
+#### if HTTP/HTTPS proxy is used specify proxy settings below
+
+# require empty dict by default
+proxy_env: {}
+
+## if proxies are needed set them in proxy_env dictionary
+# HTTP proxy full URL
+# !!!! NOTE ansible does not support https:// for https_proxy, only http://
+# Configure socks proxy if required for git:// protocol
+# If in proxy env, uncomment no_proxy as its used to make exceptions and specify,
+# which domains or IP addresses should be reached directly
+
+#proxy_env:
+#  http_proxy: http://proxy.example.com:8080
+#  https_proxy: http://proxy.example.com:8080
+#  socks_proxy: http://proxy.example.com:1080
+#  no_proxy: "localhost,{{ inventory_hostname }}"
+
+# If you wish for devstack to use a local devpi pypi caching mirror, define it here
+# must be define, empty by default
+pip_mirror_url: ""
+
+# udev
+# if interface names on systems don't match, udev can be enabled
+# if using udev:
+#   - uncomment and enter mac_address of interface
+#   - use naming scheme so interface name are consistent through out
+#
+# note: default is false
+use_udev: false
+
+######
+# Kubernetes network topology
+# Define all your master and minion here
+# The name must match the hostname in the inventory
+# See examples below
+
+node_info: {}
+
+#node_info:
+#  # must match master hostname in inventory and is not an IP address
+#  # hostnames cannot contain underscores
+#  master-1:
+#    networks:
+#      mgmt:
+#        # network interface (e.g, em1) - for management network, using static address
+#        # enter IP address and netmask for this interface
+#        interface: eno2
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: static
+#        ip_address: 192.168.201.10
+#        prefix: 24
+#      inter:
+#        # internet accessible network interface (e.g., em2), can be either dhcp/static
+#        # used by ansible to connect to
+#        interface: eno1
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: dhcp
+#        ### EXAMPLE OF static ###
+#        ### configure minion if needed ###
+#        #nm_controlled: no
+#        #ip_address: 192.168.100.10
+#        #prefix: 24
+#        #gateway: 192.168.100.1
+#        #dns:
+#          #search:
+#          #nameserver:
+#            #- 8.8.8.8
+#            #- 8.8.8.8
+#    tenant_networks:
+#      # tenant network interfaces does not need to have an address
+#      virtual-1:
+#        interface: enp26s0f0
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: none
+#      virtual-2:
+#        interface: enp26s0f1
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: none
+#  # must match minion(s) hostname in inventory and is not an IP address
+#  minion-1:
+#    networks:
+#      mgmt:
+#        # kubernetes management network interface (e.g, em1), with static address
+#        # enter IP address and netmask for this interface
+#        interface: eno1
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: static
+#        ip_address: 192.168.201.11
+#        prefix: 24
+#      inter:
+#        # internet accessible network interface (e.g., em2), can be either dhcp/static
+#        # used by ansible to connect to
+#        interface: eno2
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: dhcp
+#    tenant_networks:
+#      # tenant network interfaces does not need to have an address
+#      virtual-1:
+#        interface: enp26s0f0
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: none
+#      virtual-2:
+#        interface: enp26s0f1
+#        # use_udev configure mac address otherwise leave commented out
+#        #mac_address: "00:00:5E:00:53:10"
+#        boot_protocol: none

@@ -1,0 +1,12 @@
+---
+  - template:
+      src: udev-rules.j2
+      dest: /etc/udev/rules.d/70-persistent-net.rules
+
+  - copy:
+      dest: /etc/udev/rules.d/75-persistent-net-generator.rules
+      content: "# DO NOT DELETE. It is needed to disable net-generator"
+
+  # don't trigger, rely on reboot
+#  - name: udevadm trigger
+#    command: udevadm trigger --action=add

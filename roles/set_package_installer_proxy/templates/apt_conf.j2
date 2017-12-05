@@ -1,0 +1,3 @@
+{% if "http_proxy" in calc_proxy_env %}
+Acquire::http::Proxy "{{ calc_proxy_env.http_proxy }}";
+{% endif %}

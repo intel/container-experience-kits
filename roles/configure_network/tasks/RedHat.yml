@@ -1,0 +1,76 @@
+# Copyright (c) 2016-2017, Intel Corporation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#     * Redistributions of source code must retain the above copyright notice,
+#       this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of Intel Corporation nor the names of its contributors
+#       may be used to endorse or promote products derived from this software
+#       without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+---
+  - name: Copy standard DNS information
+    template: src=resolv.j2 dest=/etc/resolv.conf
+    when: node_info[inventory_hostname].networks.inter['dns']|default(False)
+
+  - name: debug dump dict
+    debug: var=item.value.networks
+    with_dict : "{{ node_info }}"
+
+  - name: debug master mgmt ip
+    debug: msg="master mgmt ip = {{ node_info[groups['master'][0]].networks['mgmt'].ip_address }}"
+    when: "'master' in group_names"
+
+  # don't restart the network, wait for reboot
+  - name: Create ethernet configuration files
+    template:
+      src: ifcfg-eth.j2
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.value.interface }}"
+    with_dict : "{{ node_info[inventory_hostname].networks }}"
+
+  - name: Create ethernet configuration files for tenant_networks
+    template:
+      src: tenant_ifcfg-eth.j2
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.value.interface }}"
+    with_dict : "{{ node_info[inventory_hostname].tenant_networks|iternary(node_info[inventory_hostname].tenant_networks, {}) }}"
+    #when: node_info[inventory_hostname].tenant_networks is defined
+
+  - name: Create ethernet configuration files for bond slaves
+    template:
+      src: tenant_ifcfg-eth.j2
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.value.interface }}"
+    when: node_info[inventory_hostname].tenant_bonded
+    with_dict: "{{ node_info[inventory_hostname].get('bond_slaves', {}) }}"
+
+  - name: Disable firewall
+    service: name=firewalld state=stopped enabled=no
+    # does not have to be always present
+    ignore_errors: yes
+
+  - name: Ensure network service is enabled and NetworkManager is disabled
+    service: name={{ item.service }} state={{ item.state }} enabled={{ item.enabled }}
+    # we have to ignore errors because 'inter' interface can't be renamed while it is up
+    # we have to wait until we reboot after kernel upgrade
+    ignore_errors: yes
+    # Try to do this in one loop to keep it as tight as possible
+    with_items:
+      - service: NetworkManager
+        state: stopped
+        enabled: no
+      - service: "{{ network_service[ansible_os_family] }}"
+        state: started
+        enabled: yes

@@ -1,0 +1,55 @@
+# Copyright (c) 2016-2017, Intel Corporation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#     * Redistributions of source code must retain the above copyright notice,
+#       this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of Intel Corporation nor the names of its contributors
+#       may be used to endorse or promote products derived from this software
+#       without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+---
+  - name: set hostname
+    hostname: name={{ inventory_hostname }}
+
+#  - name: Display all variables/facts known for a host
+#    debug: var=hostvars[inventory_hostname] verbosity=4
+
+  - name: create hosts_to_add from template
+    template: "src=hosts_to_add.j2 dest=/etc/hosts_to_add"
+
+  - name: get play_hosts
+    command: cat /etc/hosts_to_add
+
+  - name: check backup /etc/hosts.orig
+    stat: path=/etc/hosts.orig
+    register: backup_hosts_orig_stat
+
+  - name: backup /etc/hosts
+    command: cp /etc/hosts /etc/hosts.orig
+    when: not backup_hosts_orig_stat.stat.exists
+
+  - name: create new /etc/hosts from /etc/hosts.orig
+    command: cp /etc/hosts.orig /etc/hosts
+
+  - name: comment out loopback for {{ ansible_hostname }} in /etc/hosts
+    lineinfile: dest=/etc/hosts regexp='^(.*){{ ansible_hostname }}(.*)$' line='#\1{{ ansible_hostname }}\2' backrefs=yes
+
+  - name: add hosts_to_add to /etc/hosts
+    shell: cat /etc/hosts_to_add >> /etc/hosts
+
+

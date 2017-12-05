@@ -1,0 +1,5 @@
+#jinja2: lstrip_blocks: True
+
+{% for host in play_hosts %}
+{{ node_info[host].networks['mgmt'].ip_address }} {{ host }}
+{% endfor %}

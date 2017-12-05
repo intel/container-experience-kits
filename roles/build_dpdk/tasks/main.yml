@@ -1,0 +1,97 @@
+# Copyright (c) 2016-2017, Intel Corporation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#     * Redistributions of source code must retain the above copyright notice,
+#       this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of Intel Corporation nor the names of its contributors
+#       may be used to endorse or promote products derived from this software
+#       without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+---
+  - name: set local dpdk directory path
+    set_fact:
+      dpdk_dir: "/opt/dpdk"
+
+  - name: Clone DPDK
+    git:
+      repo: "{{ git_repos['DPDK_REPO'] }}"
+      dest: "{{ dpdk_dir }}"
+      version: "{{ git_repos['DPDK_BRANCH'] }}"
+      update: no
+      force: yes
+
+  - name: Config DPDK kernel modules
+    make:
+      chdir: "{{ dpdk_dir }}"
+      target: config
+      params:
+        T: x86_64-native-linuxapp-gcc
+
+  - name: modify for pcap
+    replace:
+      regexp: "PMD_PCAP=n"
+      replace: "PMD_PCAP=y"
+      dest: "{{ dpdk_dir }}/build/.config"
+
+  - name: Build DPDK kernel modules
+    make:
+      target: install
+      chdir: "{{ dpdk_dir }}"
+      params:
+        T: x86_64-native-linuxapp-gcc
+        DESTDIR: install
+
+  - name: Build DPDK example binaries
+    make:
+      chdir: "{{ dpdk_dir }}/examples"
+      params:
+        RTE_SDK: "{{ dpdk_dir }}"
+        RTE_TARGET: "x86_64-native-linuxapp-gcc"
+        O: "{{ dpdk_dir }}/x86_64-native-linuxapp-gcc/examples"
+
+  - name: find dpdk tools
+    find:
+      path: "{{ dpdk_dir }}"
+      patterns: "dpdk-devbind.py"
+      recurse: yes
+    register: dpdk_tools_dir
+
+  - set_fact:
+      dpdk_tools: "{{ dpdk_tools_dir.files[0].path }}"
+
+  - name: load vfio-pci module
+    modprobe:
+      name: vfio_pci
+      state: present
+
+  - name: Mount hugepages fs
+    mount:
+      name: /mnt/huge
+      fstype: hugetlbfs
+      src: nodev
+      state: mounted
+      opts: "pagesize={{ huge_page_size_mb }}M"
