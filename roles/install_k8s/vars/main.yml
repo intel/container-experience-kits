@@ -32,9 +32,11 @@ k8s_packages:
     - kubelet-{{ kubernetes_version }}
     - kubectl-{{ kubernetes_version }}
     - kubeadm-{{ kubernetes_version }}
+    - kubernetes-cni-{{ kubernetes_cni_version }}
     - go
   "Debian":
     - kubelet={{ kubernetes_version }}*
     - kubectl={{ kubernetes_version }}*
     - kubeadm={{ kubernetes_version }}*
+    - kubernetes-cni={{ kubernetes_cni_version }}*
     - golang-go
