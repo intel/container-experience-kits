@@ -32,12 +32,22 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---
-  - set_fact:
-      cmk_version: "{% if '1.1' in cmk_img %}1_6_{% endif %}"
+  - name: create cmk rbac rules
+    command: "{{ kube_create }} {{ cmk_dir}}/resources/authorization/cmk-rbac-rules.yaml"
+    environment:
+      KUBECONFIG: "{{ kubeconfig }}"
+    ignore_errors: true
 
-  - debug: var=cmk_version
+  - name: create cmkservice account
+    command: "{{ kube_create }} {{ cmk_dir }}/resources/authorization/cmk-serviceaccount.yaml"
+    environment:
+      KUBECONFIG: "{{ kubeconfig }}"
+    ignore_errors: true
 
-  - include:  "{{ cmk_version|default({}) }}cmk.yml"
+  - name: copy cmk init template
+    template:
+      dest: "{{ kube_config_dir }}/cmk-cluster-init-pod.yaml"
+      src: "cmk-cluster-init-pod.yaml"
 
   - name: run cmk cluster init
     command: "{{ kube_create }} {{ kube_config_dir }}/cmk-cluster-init-pod.yaml"

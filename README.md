@@ -8,7 +8,7 @@ Preparing Kubernetes bare-metal nodes using Ansible
 
 Ansible is a configuration management utility.  It runs on a system separate from the Kubernetes nodes to configure networking, drivers and handle system reboots.
 
-Instructions in this readme have been tested with Ansible version 2.3.1+i(<2.4.x).
+Instructions in this readme have been tested with Ansible version 2.3.1+(<2.4.x).
 
 1. Install Ansible 2.3.1+(<2.4.0) on a deployment system (VM or physical) separate from the nodes to be used for deployment.
    Do not use Ansible 2.4.x

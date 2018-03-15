@@ -32,14 +32,6 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---
-  - debug: var=git_repos
-
-  - set_fact:
-      git_repos: "{{ git_repos|combine(git_repos_1_6) }}"
-    when: "'1.6' in kubernetes_version"
-
-  - debug: var=git_repos
-
   - name: Create cmk dir
     file: "path={{ cmk_dir }} state=directory"
 

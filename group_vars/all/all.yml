@@ -30,12 +30,13 @@ reserved_mem_mb: 8192
 #
 # CMK will be dependent on kubernetes versions (below)
 #
-# supported versions 1.6.6,1.8.4
-kubernetes_version: "1.6.6"
+# supported versions 1.8.4,1.9.1
+# additional minor versions might work
+kubernetes_version: "1.9.1"
 
-# supported versions 0.5.1, 0.6.0
-# kubernetes <=1.8.4 will require 0.5.1
-kubernetes_cni_version: "0.5.1"
+# supported versions 0.6.0
+# kubernetes =>1.8.4 will require 0.6.0
+kubernetes_cni_version: "0.6.0"
 
 # Native Kubernetes hugepage enablement
 # Requires kubernetes 1.8.x+
@@ -83,12 +84,11 @@ num_virtual_functions: 7
 #   num_cp_cores = number of control plane cores (1)
 #
 # cmk_img versions and k8s version requirements:
-#  - cmk:v1.2.1 - k8s v1.8.4
-#  - cmk:v1.1.0 - k8s v1.6.6
+#  - cmk:v1.2.1 - k8s =>v1.8.4
 #
 #  note: default is false
 use_cmk: false
-cmk_img: "cmk:v1.1.0"
+cmk_img: "cmk:v1.2.1"
 num_dp_cores: 4
 num_cp_cores: 1
 

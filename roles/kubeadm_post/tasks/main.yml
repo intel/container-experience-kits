@@ -35,7 +35,7 @@
       KUBECONFIG: "{{ kubeconfig }}"
     ignore_errors: true
 
-  - name: k8s 1.6 iptables cni allow traffic
+  - name: k8s =>1.6 iptables cni allow traffic
     iptables:
       chain: FORWARD
       policy: ACCEPT

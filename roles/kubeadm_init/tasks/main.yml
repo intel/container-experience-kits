@@ -28,7 +28,7 @@
       pod_network_cidr: "{{ pod_network_cidr_default }}"
 
   - set_fact:
-      k8s_version: "--kubernetes_version v{{ kubernetes_version|default('1.6.6') }}"
+      k8s_version: "--kubernetes_version v{{ kubernetes_version|default('1.9.1') }}"
 
   - name: create kube config dir
     file:

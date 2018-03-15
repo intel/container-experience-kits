@@ -12,13 +12,4 @@ git_repos:
   SRIOV_CNI_REPO: http://github.com/Intel-Corp/sriov-cni
   VHOSTUSER_CNI_BRANCH: 99b62b1115f499632ec8a6af7396028d53f984b6
   VHOSTUSER_CNI_REPO: https://github.com/intel/vhost-user-net-plugin
-
-# kubernetes 1.6.6 specific commit ids
-git_repos_1_6:
-  CMK_BRANCH: c7d59be0fa0f446434cc0288c09bbd3396d798d9
-  CMK_REPO: http://github.com/Intel-Corp/CPU-Manager-for-Kubernetes
-  MULTUS_CNI_BRANCH: 1aec06ca558883f80cde72ccc5f8f5e1b1725335
-  MULTUS_CNI_REPO: http://github.com/Intel-Corp/multus-cni
-  VHOSTUSER_CNI_BRANCH: 99b62b1115f499632ec8a6af7396028d53f984b6
-  VHOSTUSER_CNI_REPO: https://github.com/intel/vhost-user-net-plugin
 # 20171201

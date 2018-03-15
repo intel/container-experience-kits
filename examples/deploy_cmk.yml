@@ -2,7 +2,7 @@
 # All configurable items are in ``groups_vars/all/all.yml``
 # Some default parameters shown for reference
 
-kubernetes_version: "1.8.4"
+kubernetes_version: "1.9.1"
 
 pod_network_type: "flannel"
 

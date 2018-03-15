@@ -4,7 +4,7 @@
 
 use_dpdk: true
 
-kubernetes_version: "1.8.4"
+kubernetes_version: "1.9.1"
 
 pod_network_type: flannel
 

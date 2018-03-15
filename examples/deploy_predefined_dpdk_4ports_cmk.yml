@@ -4,7 +4,7 @@
 
 use_dpdk: true
 
-kubernetes_version: "1.6.6"
+kubernetes_version: "1.9.1"
 
 pod_network_type: flannel
 
@@ -23,13 +23,13 @@ pod_network_type: flannel
 #  note: default is multus-dpdk
 #
 use_multus_predefined: true
-multus_predefined_map: multus-dpdk-4
+multus_map: multus-dpdk-4
 
 use_sriov: true
 num_virtual_functions: 7
 
 use_cmk: true
-cmk_img: "cmk:v1.1.0"
+cmk_img: "cmk:v1.2.1"
 num_dp_cores: 4
 num_cp_cores: 1
 
