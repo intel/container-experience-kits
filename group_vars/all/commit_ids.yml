@@ -1,6 +1,6 @@
 ---
 git_repos:
-  CMK_BRANCH: 945b10c5039a4cabdf91a90957afe1e5bc65a4b2
+  CMK_BRANCH: 476b0fd90a77091e97cfc5c19312094c175b6603
   CMK_REPO: http://github.com/Intel-Corp/CPU-Manager-for-Kubernetes
   DPDK_BRANCH: b2b58b51df4943bcab770b1eb66912eaa41e1306
   DPDK_REPO: http://dpdk.org/git/dpdk
