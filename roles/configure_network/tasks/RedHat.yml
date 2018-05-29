@@ -46,7 +46,7 @@
     template:
       src: tenant_ifcfg-eth.j2
       dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.value.interface }}"
-    with_dict : "{{ node_info[inventory_hostname].tenant_networks|iternary(node_info[inventory_hostname].tenant_networks, {}) }}"
+    with_dict : "{{ node_info[inventory_hostname].tenant_networks|ternary(node_info[inventory_hostname].tenant_networks, {}) }}"
     #when: node_info[inventory_hostname].tenant_networks is defined
 
   - name: Create ethernet configuration files for bond slaves
