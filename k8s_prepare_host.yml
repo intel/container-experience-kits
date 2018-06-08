@@ -43,7 +43,8 @@
       when: calc_proxy_env
     - role: pip_mirror
       when: calc_proxy_env or pip_mirror_url is defined
-    - disable_apparmor_ufw
+    - role: disable_apparmor_ufw
+      when: ansible_os_family == "Debian"
     - install_dependencies
     - configure_ntp
     - configure_etc_hosts

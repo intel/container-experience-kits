@@ -48,3 +48,4 @@ install_dependencies:
   - libedit-dev
   - libncursesw5-dev
   - jq
+  - ebtables
