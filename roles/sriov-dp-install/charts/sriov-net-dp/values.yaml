@@ -1,0 +1,12 @@
+---
+namespace: kube-system
+
+image:
+  repository: nfvpe/sriov-device-plugin
+  tag: v2.1.0
+  pullPolicy: IfNotPresent
+
+configPath: /etc/pcidp/config.json
+
+log:
+  level: 10

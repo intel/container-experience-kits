@@ -1,3 +1,0 @@
----
-pkg_mgr_retries: 3
-epel_rpm_el7: https://download.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm

@@ -1,0 +1,17 @@
+{
+ "proxies":
+ {
+   "default":
+   {
+{% if "http_proxy" in proxy_env %}
+     "httpProxy": "{{ proxy_env.http_proxy }}",
+{% endif %}
+{% if "https_proxy" in proxy_env %}
+     "httpsProxy": "{{ proxy_env.https_proxy }}",
+{% endif %}
+{% if "no_proxy" in proxy_env %}
+     "noProxy": "{{ proxy_env.no_proxy | quote }}"
+   }
+{% endif %}
+ }
+}

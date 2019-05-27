@@ -1,0 +1,15 @@
+---
+dpdk_url: http://fast.dpdk.org/rel/dpdk-18.11.1.tar.xz
+dpdk_target: x86_64-native-linuxapp-gcc
+
+install_dependencies:
+  Debian:
+    - build-essential
+    - libnuma-dev
+    - libpcap-dev
+    - linux-headers-{{ ansible_kernel }}
+  RedHat:
+    - numactl-devel
+    - libpcap-devel
+    - kernel-devel
+    - "@Development tools"

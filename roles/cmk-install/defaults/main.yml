@@ -1,0 +1,4 @@
+---
+cmk_git_url: "https://github.com/intel/CPU-Manager-for-Kubernetes.git"
+cmk_version: "master" # or v1.3.1
+cmk_dir: "/usr/src/cmk"

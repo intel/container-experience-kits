@@ -1,0 +1,47 @@
+---
+# Kubernetes node configuration
+
+sriov_enabled: false
+# sriov_nics: PF interfaces names
+sriov_nics: []
+sriov_numvfs: 0
+sriov_cni_enabled: true
+
+# If sriov_net_dp_autogenerate is set to "true", config.json will be generated
+# automatically all sriov_nics will be added to a single resource pool named "sriov_net"
+# with deviceType and sriovMode set as configured below.
+#
+# Otherwise the configuration set under sriov_net_dp_config variable will be applied.
+sriov_net_dp_autogenerate: true
+sriov_net_dp_device_type: netdevice
+sriov_net_dp_sriov_mode: false
+#sriov_net_dp_config:
+#- resource_name: "sriov_net_a" # name of the resource
+#  root_devices: ["00:07.0"]    # array of the PCI addresses of root devices to be added to the resource pool
+#  device_type: "netdevice"     # available options:  "netdevice", "uio", "vfio"
+#  sriov_mode: "true"           # "true" or "false" - whether the root devices are SRIOV capable or not
+#- resource_name: "sriov_net_b"
+#  root_devices: ["00:08.0"]
+#  device_type: "vfio"
+#  sriov_mode: "false"
+
+userspace_cni_enabled: true
+vpp_enabled: true
+ovs_dpdk_enabled: true
+# CPU mask for OVS-DPDK PMD threads
+ovs_dpdk_lcore_mask: 0x1
+# Huge memory pages allocated by OVS-DPDK per NUMA node in megabytes
+# example 1: "256,512" will allocate 256MB from node 0 abd 512MB from node 1
+# example 2: "1024" will allocate 1GB fron node 0 on a single socket board, e.g. in a VM
+ovs_dpdk_socket_mem: "256,0"
+
+force_nic_drivers_update: true
+
+hugepages_enabled: true
+# hugepages size available: 2M, 1G
+default_hugepage_size: 2M
+hugepages_1G: 0
+hugepages_2M: 128
+
+isolcpus_enabled: true
+isolcpus: "4-7"

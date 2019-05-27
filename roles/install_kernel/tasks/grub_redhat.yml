@@ -1,4 +1,0 @@
----
-  - name: Set default kernel for RedHat OS
-    shell: grub2-set-default 0
-    when: ansible_os_family == "RedHat"

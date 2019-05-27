@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-intel-qat-plugin-config
+data:
+  DPDK_DRIVER: "{{ .Values.drivers.dpdk }}"
+  KERNEL_VF_DRIVERS: "{{ .Values.drivers.kernel }}"
+  MAX_NUM_DEVICES: "{{ .Values.maxNumDevices }}"
+  DEBUG: "{{ .Values.debug }}"

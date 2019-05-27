@@ -1,0 +1,1 @@
+deb [trusted=yes] https://packagecloud.io/fdio/{{ vpp_version }}/ubuntu/ {{ansible_distribution_release}} main

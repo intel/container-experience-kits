@@ -1,6 +1,0 @@
-{% for port in node_info[inventory_hostname].networks.itervalues() %}
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="{{ port.mac_address }}", NAME="{{ port.interface }}"
-{% endfor %}
-{% for port in node_info[inventory_hostname].tenant_networks.itervalues() %}
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="{{ port.mac_address }}", NAME="{{ port.interface }}"
-{% endfor %}
