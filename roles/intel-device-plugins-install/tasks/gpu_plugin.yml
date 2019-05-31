@@ -1,0 +1,44 @@
+---
+- name: build Intel GPU Device Plugin image
+  make:
+    target: intel-gpu-plugin
+    chdir: "{{ intel_dp_dir }}"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: tag Intel GPU Device Plugin image
+  command: docker tag intel-gpu-plugin:devel {{ registry_local_address }}/intel-gpu-plugin:latest
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: push Intel GPU Device Plugin image to local registry
+  command: docker push {{ registry_local_address }}/intel-gpu-plugin:latest
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: copy Helm chart to the master node
+  copy:
+    src: "{{ role_path }}/charts/intel-gpu-plugin"
+    dest: "/usr/src/charts/"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: set values for Helm charts
+  set_fact:
+    gpu_dp_image: "{{ registry_local_address }}/intel-gpu-plugin"
+    gpu_dp_version: latest
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: populate Intel GPU Plugin Helm chart values template and push to master node
+  template:
+    src: "gpu_values.yml.j2"
+    dest: "/usr/src/charts/intel-gpu-plugin-values.yml"
+    force: yes
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: install Intel GPU Plugin Helm chart
+  command: helm upgrade --install intel-gpu-plugin -f /usr/src/charts/intel-gpu-plugin-values.yml --namespace {{ gpu_dp_namespace }} /usr/src/charts/intel-gpu-plugin
+  when:
+    - inventory_hostname == groups['kube-master'][0]

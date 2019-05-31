@@ -1,0 +1,93 @@
+---
+- name: install epel-release on Red Hat based OS
+  yum: name=epel-release
+  when: ansible_os_family == 'RedHat'
+
+- name : install dependencies
+  include_role:
+    name: install-dependencies
+
+- name: install Python dependencies
+  pip:
+    name:
+      - setuptools
+      - docker
+
+- name: clone CMK repository
+  git:
+    repo: "{{ cmk_git_url }}"
+    dest: "{{ cmk_dir }}"
+    version: "{{ cmk_version }}"
+    force: yes
+
+- name: set proxy in Dockerfile
+  lineinfile:
+    path: "{{ cmk_dir }}/Dockerfile"
+    regexp: "^ENV {{ item.key }}"
+    line: "ENV {{ item.key }} {{ item.value }}"
+    insertafter: '^FROM'
+    state: present
+  with_dict: "{{ proxy_env }}"
+  when:
+    - '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+
+- name: read current CMK version
+  command: git describe --abbrev=0 --tags
+  args:
+    chdir: "{{ cmk_dir }}"
+  register: cmk_img_version
+
+- name: build CMK image
+  make:
+    chdir: "{{ cmk_dir }}"
+
+# NOTE(przemeklal): this fixes problem in CMK with ImagePullPolicy hardcoded to Never and the pod is scheduled on master node
+- name: tag CMK image
+  command: docker tag cmk:{{ cmk_img_version.stdout }} {{ registry_local_address }}/cmk:{{ cmk_img_version.stdout }}
+
+- name: push CMK image to local registry
+  command: docker push {{ registry_local_address }}/cmk:{{ cmk_img_version.stdout }}
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: create Helm charts directory if needed
+  file:
+    path: /usr/src/charts
+    state: directory
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: copy CMK Helm chart to the master node
+  copy:
+    src: "{{ role_path }}/charts/cpu-manager-for-kubernetes"
+    dest: "/usr/src/charts/"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+# adds all kube-nodes to the list of CMK nodes
+- name: build list of CMK hosts
+  set_fact:
+    cmk_hosts_list: "{{ groups['kube-node'] | join(',') }}"
+  when:
+    - cmk_use_all_hosts != true
+    - (cmk_hosts_list is undefined) or (cmk_hosts_list | length == 0)
+
+- name: set values for CMK Helm chart values
+  set_fact:
+    cmk_image: "{{ registry_local_address }}/cmk"
+    cmk_tag: "{{ cmk_img_version.stdout }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: populate NFD Helm chart values template and push to master node
+  template:
+    src: "helm_values.yml.j2"
+    dest: "/usr/src/charts/cmk-values.yml"
+    force: yes
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: install CMK helm chart
+  command: helm upgrade --install cmk -f /usr/src/charts/cmk-values.yml /usr/src/charts/cpu-manager-for-kubernetes
+  when:
+    - inventory_hostname == groups['kube-master'][0]

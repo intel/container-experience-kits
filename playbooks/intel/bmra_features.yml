@@ -1,0 +1,40 @@
+---
+# installs all Intel BMRA features
+- hosts: k8s-cluster
+  tasks: []
+  roles:
+    - role: golang-install
+      tags: golang
+    - role: multus-cni-install
+      when: (inventory_hostname == groups['kube-master'][0]) and (force_external_multus_installation | default(false))
+      tags: multus
+    - role: net-attach-defs-create
+      tags: net-attach-defs
+      when: inventory_hostname == groups['kube-master'][0]
+    - role: nfd-install
+      tags: nfd
+      when: nfd_enabled | default(true)
+    - role: sriov-dp-install
+      tags: sriov-net-dp
+      when: sriov_net_dp_enabled | default(true)
+    - role: intel-device-plugins-install
+      when: (qat_dp_enabled | default(true)) or (gpu_dp_enabled | default(true))
+      tags: intel-device-plugins
+    - role: cmk-install
+      tags: cmk
+      when: cmk_enabled | default(true)
+  environment: "{{ proxy_env | d({}) }}"
+
+- hosts: kube-node
+  tasks: []
+  roles:
+    - role: dpdk-install
+      when: ovs_dpdk_enabled
+      tags: dpdk
+    - role: sriov-cni-install
+      when: sriov_cni_enabled | default(true)
+      tags: sriov-cni
+    - role: userspace-cni-install
+      when: userspace_cni_enabled | default(true)
+      tags: userspace-cni
+  environment: "{{ proxy_env | d({}) }}"

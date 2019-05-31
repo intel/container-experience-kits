@@ -1,0 +1,6 @@
+---
+install_dependencies:
+  Debian:
+    - python-pip
+  RedHat:
+    - python-pip

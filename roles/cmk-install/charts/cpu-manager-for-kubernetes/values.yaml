@@ -1,0 +1,20 @@
+---
+namespace: default
+
+image:
+  repository: localhost:5000/cmk
+  tag: v1.3.1
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  name: cmk-serviceaccount
+
+hosts:
+  all: false # if set to false, you need to provide list of nodes in the hosts.list
+  list: node1,node2 # provide list of nodes to deploy CMK on, e.g. "node1,node2,node3", note: this setting is ignored if hosts.all is set to "true"
+
+sharedMode: packed
+numSharedCores: 2
+
+exclusiveMode: packed
+numExclusiveCores: 2

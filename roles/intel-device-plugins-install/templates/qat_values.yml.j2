@@ -1,0 +1,13 @@
+---
+image:   
+   repository: {{ qat_dp_image }}
+   tag: {{ qat_dp_version }}
+pullPolicy: IfNotPresent
+
+drivers:
+  dpdk: {{ qat_dp_dpdk_drivers }}
+  kernel: {{ qat_dp_kernel_drivers }}
+
+maxNumDevices: {{ qat_dp_max_num_devices }}
+
+debug: {{ qat_dp_debug | default("false") }}

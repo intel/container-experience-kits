@@ -1,7 +1,0 @@
-[dockerrepo]
-name=Docker Repository
-# $releasever for RHEL 7 is '7Server' so we can't use $releasever
-baseurl={{ docker_project_url }}/repo/main/{{ ansible_distribution|lower|regex_replace('redhat', 'centos') }}/{{ ansible_distribution_major_version }}/
-enabled=1
-gpgcheck=1
-gpgkey={{ docker_project_url }}/gpg

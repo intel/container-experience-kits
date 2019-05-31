@@ -1,0 +1,11 @@
+---
+namespace: default
+
+image:
+   name: quay.io/kubernetes_incubator/node-feature-discovery
+   version: v0.3.0 
+
+serviceAccount:
+   name: node-feature-discovery 
+
+sleepInterval: "60s"

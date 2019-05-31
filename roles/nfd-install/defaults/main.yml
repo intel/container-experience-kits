@@ -1,0 +1,8 @@
+---
+nfd_git_url: "https://github.com/kubernetes-sigs/node-feature-discovery.git"
+nfd_git_ref: "v0.3.0"
+nfd_dir: "/usr/src/nfd"
+
+nfd_build_image_locally: true
+nfd_namespace: "default"
+nfd_sleep_interval: "30s"

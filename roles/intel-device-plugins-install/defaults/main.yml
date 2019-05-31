@@ -1,0 +1,18 @@
+---
+intel_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
+intel_dp_git_ref: "master"
+intel_dp_dir: "/usr/src/intel-device-plugins-for-kubernetes"
+
+registry_local_address: "localhost:5000"
+
+qat_dp_image: "{{ registry_local_address }}/intel-qat-plugin"
+qat_dp_version: "latest"
+qat_dp_namespace: "kube-system"
+qat_dp_dpdk_drivers: "vfio-pci"
+qat_dp_kernel_drivers: "dh895xccvf,c6xxvf,c3xxxvf,d15xxvf"
+qat_dp_max_num_devices: 32
+qat_dp_debug: "false"
+
+gpu_dp_image: "{{ registry_local_address }}/intel-gpu-plugin"
+gpu_dp_version: "latest"
+gpu_dp_namespace: "kube-system"

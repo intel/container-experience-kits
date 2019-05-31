@@ -1,0 +1,47 @@
+---
+- name: install dependencies
+  include_role:
+    name: install-dependencies
+
+- name: install VPP
+  include: vpp-install.yml
+  when: vpp_enabled | default(true)
+
+- name: install OVS-DPDK
+  include: ovs-install.yml
+  when: ovs_dpdk_enabled | default(true)
+
+- name: create /opt/cni/bin
+  file:
+   path: "/opt/cni/bin"
+   state: directory
+   recurse: yes
+
+- name: set path to the Userspace CNI plugin sources
+  set_fact:
+    userspace_cni_path: "{{ ansible_env.HOME }}/go/src/github.com/intel/userspace-cni-network-plugin"
+
+- name: clone Userspace CNI Plugin repository
+  git:
+    repo: "{{ userspace_cni_git_url }}"
+    version: "{{ userspace_cni_version }}"
+    dest: "{{ userspace_cni_path }}"
+    force: true
+
+- name: build Userspace CNI plugin
+  shell: >
+    source /etc/profile.d/golang.sh;
+    {% if vpp_enabled %}
+    make install-deps;
+    {% endif %}
+    make install;
+    make;
+  args:
+    chdir: "{{ userspace_cni_path }}"
+    creates: "{{ userspace_cni_path }}/userspace/userspace"
+
+- name: copy built Userspace CNI plugin binary to the CNI bin dir
+  copy:
+    remote_src: yes
+    src: "{{ userspace_cni_path }}/userspace/userspace"
+    dest: "/opt/cni/bin/userspace"

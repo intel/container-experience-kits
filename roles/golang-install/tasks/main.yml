@@ -1,0 +1,35 @@
+---
+- name: uninstall existing golang
+  file:
+    path: /usr/local/go
+    state: absent
+
+- name: download golang tarball
+  get_url:
+    url: "{{ golang_download_url }}"
+    dest: /usr/src
+  register: golang_download
+
+- name: untar downloaded golang tarball
+  unarchive:
+    src: "{{ golang_download.dest }}"
+    dest: /usr/local
+    copy: no
+
+- name: set GOPATH env and add golang bin to PATH for all users
+  copy:
+    content: |
+      export GOROOT=/usr/local/go
+      export GOPATH=$HOME/go
+      export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+    dest: /etc/profile.d/golang.sh
+
+- name: create symlinks to golang binaries
+  file:
+    state: link
+    src: /usr/local/go/bin/{{ item }}
+    dest: /usr/local/bin/{{ item }}
+  with_items:
+    - go
+    - godoc
+    - gofmt

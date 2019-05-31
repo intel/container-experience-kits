@@ -1,0 +1,51 @@
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-kube-sriov-device-plugin-amd64
+  namespace: {{ .Values.namespace }}
+  labels:
+    tier: node
+    app: sriovdp
+spec:
+  template:
+    metadata:
+      labels:
+        tier: node
+        app: sriovdp
+    spec:
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      serviceAccountName: {{ .Release.Name }}-sriov-device-plugin
+      tolerations:
+      - effect: NoSchedule
+        key: cmk
+        operator: Equal
+        value: "true"
+      containers:
+      - name: kube-sriovdp
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        args:
+        - --log-level={{ .Values.log.level }}
+        securityContext:
+          privileged: false
+        volumeMounts:
+        - name: devicesock
+          mountPath: /var/lib/kubelet/device-plugins/
+          readOnly: false
+        - name: sysfs
+          mountPath: /sys
+          readOnly: true
+        - name: config
+          mountPath: /etc/pcidp/config.json
+          readOnly: true
+      volumes:
+        - name: devicesock
+          hostPath:
+            path: /var/lib/kubelet/device-plugins/
+        - name: sysfs
+          hostPath:
+            path: /sys
+        - name: config
+          hostPath:
+            path: {{ .Values.configPath }}

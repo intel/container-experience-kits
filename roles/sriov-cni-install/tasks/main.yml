@@ -1,0 +1,29 @@
+---
+- name: install dependencies
+  include_role:
+    name: install-dependencies
+
+- name: install glide
+  shell: go get github.com/Masterminds/glide && go install github.com/Masterminds/glide
+
+- name: clone sriov-cni repository
+  git:
+    repo: https://github.com/intel/sriov-cni.git
+    dest: /usr/src/sriov-cni
+    version: "{{ sriov_cni_version }}"
+
+- name: build sriov-cni plugin
+  make:
+    chdir: /usr/src/sriov-cni
+
+- name: create /opt/cni/bin
+  file:
+   path: "/opt/cni/bin"
+   state: directory
+   recurse: yes
+
+- name: install sriov-cni binary to /opt/cni/bin directory
+  copy:
+    src: /usr/src/sriov-cni/build/sriov
+    dest: /opt/cni/bin/sriov
+    remote_src: yes

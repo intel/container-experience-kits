@@ -1,0 +1,13 @@
+SRIOV-DP Helm Chart Status:
+
+The {{ .Chart.Name}}-{{.Chart.Version}} was installed.
+Your release {{.Release.Name}} is named 
+
+To learn more about the release, try:
+
+ $ helm status  {{.Release.Name}}
+ $ helm get  {{.Release.Name}}
+ 
+Deployment notes:
+- go to /etc/pcidp to view the config.json and make sure configurations options are in place.
+

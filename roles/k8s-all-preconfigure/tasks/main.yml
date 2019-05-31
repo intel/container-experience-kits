@@ -1,0 +1,117 @@
+---
+- name: preconfigure all kubernetes cluster servers
+  debug: msg="preconfigure all cluster servers"
+
+- name: set /etc/environment proxy settings
+  lineinfile:
+    path: /etc/environment
+    state: present
+    regexp: '^{{ item.key }}'
+    line: '{{ item.key }}={{ item.value }}'
+    create: yes
+    owner: root
+    group: root
+    mode: 0644
+  with_dict: "{{ proxy_env }}"
+  when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+
+- name: set .bashrc proxy settings
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    state: present
+    regexp: '^{{ item.key }}'
+    line: '{{ item.key }}={{ item.value }}'
+    create: yes
+    owner: root
+    group: root
+    mode: 0644
+  with_dict: "{{ proxy_env }}"
+  when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+  become: yes
+
+- name: ensure Docker config directory exists
+  file: path={{ ansible_env.HOME }}/.docker state=directory
+- name: create Docker config.json file with proxy setttings
+  template:
+    src: docker_config.json.j2
+    dest: "{{ ansible_env.HOME }}/.docker/config.json"
+    force: yes
+  when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+
+- name: update all packages on Red Hat OS family
+  yum:
+    name: '*'
+    state: latest
+  when: ansible_os_family == "RedHat"
+
+- name: perform dist-upgrade on Debian OS family
+  apt:
+    upgrade: dist
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: update to the latest kernel and kernel headers on the Red Hat OS family
+  yum:
+    name:
+    - kernel
+    - kernel-devel
+    state: latest
+  notify:
+    - reboot server
+  when: ansible_os_family == "RedHat"
+
+- name: put selinux in permissive mode
+  selinux:
+    policy: targeted
+    state: permissive
+  when: ansible_os_family == "RedHat"
+
+- name: disable swap
+  command: swapoff -a
+  become: yes
+
+- name: remove swap from /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: '^/[\S]+\s+none\s+swap '
+    state: absent
+  become: yes
+
+- name: stop and disable firewall service
+  systemd:
+    name: "{{ firewall_svc[ansible_distribution] }}"
+    state: stopped
+    enabled: no
+  vars:
+    firewall_svc:
+      CentOS: firewalld
+      RedHat: firewalld
+      Fedora: firewalld
+      Debian: firewall
+      Ubuntu: ufw
+  become: yes
+
+# note: this uses "failed_when: false" for the cases where br_netfilter is built Linux into kernel and not listed as a module
+# please see here for more information: https://github.com/kubernetes/kubernetes/issues/23385
+- name: load br_netfilter module
+  modprobe:
+    name: br_netfilter
+    state: present
+  become: yes
+  failed_when: false
+
+- name: enable IP forwarding on the fly
+  command: sysctl -w net.ipv4.ip_forward=1
+  become: yes
+
+- name: add IP forwarding to sysctl.conf
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: 'net.ipv4.ip_forward = 1'
+    regexp: '^net\.ipv4\.ip_forward'
+    state: present
+  become: yes
+
+- name: apply sysctl.conf
+  command: sysctl -p /etc/sysctl.conf
+  become: yes

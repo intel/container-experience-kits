@@ -1,0 +1,56 @@
+---
+## BMRA master playbook variables ##
+
+# Node Feature Discovery
+nfd_enabled: true
+nfd_build_image_locally: true
+nfd_namespace: kube-system
+nfd_sleep_interval: 30s
+
+# Intel CPU Manager for Kubernetes
+cmk_enabled: true
+cmk_namespace: kube-system
+cmk_use_all_hosts: false # 'true' will deploy CMK on the master nodes too
+#cmk_hosts_list: node1,node2 # allows to control where CMK nodes will run, leave this option commented out to deploy on all K8s nodes
+cmk_shared_num_cores: 2 # number of CPU cores to be assigned to the "shared" pool on each of the nodes
+cmk_exclusive_num_cores: 2 # number of CPU cores to be assigned to the "exclusive" pool on each of the nodes
+#cmk_shared_mode: packed # choose between: packed, spread, default: packed
+#cmk_exclusive_mode: packed # choose between: packed, spread, default: packed
+
+# Intel SRIOV Network Device Plugin
+sriov_net_dp_enabled: true
+sriov_net_dp_namespace: kube-system
+# whether to build and store image locally or use one from public external registry
+sriov_net_dp_build_image_locally: false
+
+# Intel Device Plugins for Kubernetes
+qat_dp_enabled: true
+qat_dp_namespace: kube-system
+gpu_dp_enabled: true
+gpu_dp_namespace: kube-system
+
+# Forces installation of the Multus CNI from the official Github repo on top of the Kubespray built-in one
+force_external_multus_installation: true
+
+## Proxy configuration ##
+#proxy_env:
+#  http_proxy: "http://proxy.example.com:1080"
+#  https_proxy: "http://proxy.example.com:1080"
+#  no_proxy: "localhost,127.0.0.1,.example.com,10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4,10.0.0.5,10.0.0.0/24"
+
+## Kubespray variables ##
+
+# default network plugins and kube-proxy configuration
+kube_network_plugin_multus: true
+multus_version: v3.2
+kube_network_plugin: flannel
+kube_pods_subnet: 10.244.0.0/16
+kube_proxy_mode: iptables
+
+# please leave it set to "true", otherwise Intel BMRA features deployed as Helm charts won't be installed
+helm_enabled: true
+
+# Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
+registry_enabled: true
+registry_storage_class: null
+registry_local_address: "localhost:5000"

@@ -1,0 +1,38 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+  tasks: []
+  roles:
+    - { role: kubespray-install }
+
+# FIXME(przemeklal): ugly workaround here
+- hosts: k8s-cluster
+  tasks:
+    - name: create /etc/cni/net.d
+      file:
+        path: /etc/cni/net.d
+        state: directory
+    - name: copy patched Multus config
+      copy:
+        dest: /etc/cni/net.d/00-fixed-portmapping-multus.conf
+        src: roles/kubespray-install/files/multus.conf
+        owner: root
+        group: root
+        mode: 0644
+      when: kube_network_plugin_multus | default(true)
+
+- name: run kubespray
+  import_playbook: kubespray/cluster.yml
+  vars:
+    kubeadm_enabled: true
+    kube_api_anonymous_auth: true
+    docker_iptables_enabled: true
+    http_proxy: "{{ proxy_env.http_proxy | default('') }}"
+    https_proxy: "{{ proxy_env.https_proxy | default('') }}"
+    additional_no_proxy: "{{ proxy_env.no_proxy | default('') }},"
+
+- hosts: k8s-cluster
+  tasks:
+    - name: restart docker daemon to recreate iptables rules
+      systemd: name=docker state=restarted
+      become: yes

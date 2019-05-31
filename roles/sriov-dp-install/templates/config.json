@@ -1,0 +1,12 @@
+{
+    "resourceList": [
+{% for resource in sriov_net_dp_config %}
+    {
+        "resourceName": "{{ resource.resource_name }}",
+        "rootDevices": {{ resource.root_devices | to_json }},
+        "device_type": "{{ resource.device_type }}",
+        "sriovMode": {{ resource.sriov_mode | bool | to_json }}
+    }{{ "," if not loop.last else "" }}
+{% endfor %}
+    ]
+}
