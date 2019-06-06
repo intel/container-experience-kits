@@ -33,10 +33,9 @@ gpu_dp_namespace: kube-system
 force_external_multus_installation: true
 
 ## Proxy configuration ##
-#proxy_env:
-#  http_proxy: "http://proxy.example.com:1080"
-#  https_proxy: "http://proxy.example.com:1080"
-#  no_proxy: "localhost,127.0.0.1,.example.com,10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4,10.0.0.5,10.0.0.0/24"
+http_proxy: "http://proxy.example.com:1080"
+https_proxy: "http://proxy.example.com:1080"
+no_proxy: "localhost,127.0.0.1,.example.com,10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4,10.0.0.5,10.0.0.0/24"
 
 ## Kubespray variables ##
 
@@ -52,5 +51,5 @@ helm_enabled: true
 
 # Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
 registry_enabled: true
-registry_storage_class: null
+registry_storage_class: ""
 registry_local_address: "localhost:5000"
