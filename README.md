@@ -29,7 +29,7 @@ cp -r examples/group_vars examples/host_vars .
 
 5. Update group and host vars to match your desired configuration.
 
-Note: Please pay special attention to the `http_proxy`, `https_proxy` and `no_proxy` vars in the `proxy_env` dictionary if your behind proxy. Don't forget to add all cluster nodes IP addresses to the `no_proxy` to avoid many potential problems!
+Note: Please pay special attention to the `http_proxy`, `https_proxy` and `no_proxy` vars if you're behind proxy. Don't forget to add all cluster nodes IP addresses to the `no_proxy` to avoid many potential problems!
 
 6. Execute `ansible-playbook`.
 ```
@@ -38,7 +38,7 @@ ansible-playbook -i inventory.ini playbooks/cluster.yml
 
 ## Requirements
 * Python 2 present on the target servers.
-* Ansible 2.7.1 (or newer) installed on the Ansible machine (the one you run these playbooks from).
+* Ansible >=2.7.1,<=2.7.10 installed on the Ansible machine (the one you run these playbooks from).
 * pip==9.0.3 installed on the Ansible machine.
 * SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).
 * Internet access on all target servers is mandatory. Proxy is supported.
