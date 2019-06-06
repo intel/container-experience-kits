@@ -1,6 +1,7 @@
 - hosts: k8s-cluster
   tasks: []
   roles:
+    - { role: cluster-defaults }
     - { role: k8s-all-preconfigure }
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
@@ -8,6 +9,7 @@
 - hosts: kube-node
   tasks: []
   roles:
+    - { role: cluster-defaults }
     - { role: k8s-node-preconfigure }
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

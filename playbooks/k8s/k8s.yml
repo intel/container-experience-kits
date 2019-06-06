@@ -27,9 +27,6 @@
     kubeadm_enabled: true
     kube_api_anonymous_auth: true
     docker_iptables_enabled: true
-    http_proxy: "{{ proxy_env.http_proxy | default('') }}"
-    https_proxy: "{{ proxy_env.https_proxy | default('') }}"
-    additional_no_proxy: "{{ proxy_env.no_proxy | default('') }},"
 
 - hosts: k8s-cluster
   tasks:

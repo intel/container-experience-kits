@@ -1,0 +1,4 @@
+---
+- name: Set defaults
+  debug:
+    msg: "Setting defaults from roles/cluster-defaults/defaults/main.yml"
