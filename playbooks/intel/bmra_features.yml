@@ -3,6 +3,8 @@
 - hosts: k8s-cluster
   tasks: []
   roles:
+    - role: cluster-defaults
+      tags: defaults
     - role: golang-install
       tags: golang
     - role: multus-cni-install
@@ -28,6 +30,8 @@
 - hosts: kube-node
   tasks: []
   roles:
+    - role: cluster-defaults
+      tags: defaults
     - role: dpdk-install
       when: ovs_dpdk_enabled
       tags: dpdk

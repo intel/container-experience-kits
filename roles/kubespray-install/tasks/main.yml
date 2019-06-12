@@ -16,4 +16,4 @@
 
 - name: install kubespray python requirements
   pip:
-    requirements: "{{ playbook_dir }}/kubespray/requirements.txt"
+    requirements: "{{ role_path }}/files/requirements.txt"

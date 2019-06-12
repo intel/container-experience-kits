@@ -90,6 +90,7 @@
       Debian: firewall
       Ubuntu: ufw
   become: yes
+  failed_when: false # some distros don't include any firewall services, we try to disable them here in best effort mode
 
 # note: this uses "failed_when: false" for the cases where br_netfilter is built Linux into kernel and not listed as a module
 # please see here for more information: https://github.com/kubernetes/kubernetes/issues/23385
