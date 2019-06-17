@@ -13,20 +13,6 @@
     - inventory_hostname == groups['kube-node'][0]
     - nfd_build_image_locally
 
-- name: set proxy in Dockerfile
-  lineinfile:
-    path: "{{ nfd_dir }}/Dockerfile"
-    regexp: "^ENV {{ item.key }}"
-    line: "ENV {{ item.key }} {{ item.value }}"
-    insertafter: '^FROM'
-    state: present
-    firstmatch: yes
-  with_dict: "{{ proxy_env }}"
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - nfd_build_image_locally
-    - '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
-
 - name: build NFD image
   make:
     target: all
@@ -76,6 +62,14 @@
     nfd_version: "{{ hostvars[groups['kube-node'][0]].nfd_img_version.stdout }}"
   when:
     - nfd_build_image_locally
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: set values for NFD Helm chart values for external image
+  set_fact:
+    nfd_image: "{{ nfd_external_image_name }}"
+    nfd_version: "{{ nfd_external_image_tag }}"
+  when:
+    - nfd_build_image_locally == false
     - inventory_hostname == groups['kube-master'][0]
 
 - name: populate NFD Helm chart values template and push to master node
