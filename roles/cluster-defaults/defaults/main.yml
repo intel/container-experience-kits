@@ -1,5 +1,22 @@
 ---
+fallback_ips_yaml: |
+  ---
+  {% for item in groups['k8s-cluster'] + groups['etcd'] | d([]) | unique %}
+  {{ item }}: "{{ hostvars[item].get('ansible_default_ipv4', {'address': '127.0.0.1'})['address'] }}"
+  {% endfor %}
+fallback_ips: "{{ fallback_ips_yaml | from_yaml }}"
+dns_domain: "{{ cluster_name }}"
+
+no_proxy: >-
+  {%- if http_proxy is defined or https_proxy is defined %}
+  {%- for item in (groups['k8s-cluster'] + groups['etcd'] | d([])) | unique -%}
+  {{ hostvars[item]['access_ip'] | d(hostvars[item]['ip'] | d(fallback_ips[item])) }},{{ item }},{{ item }}.{{ dns_domain }},
+  {%- endfor -%}
+  {%- if additional_no_proxy is defined -%}{{ additional_no_proxy }},{%- endif -%}
+  127.0.0.1,localhost
+  {%- endif %}
+
 proxy_env:
-  http_proxy: "{{ http_proxy | default ('') }}"
-  https_proxy: "{{ https_proxy | default ('') }}"
-  no_proxy: "{{ no_proxy | default ('') }}"
+  http_proxy: "{{ http_proxy | d('') }}"
+  https_proxy: "{{ https_proxy | d ('') }}"
+  no_proxy: "{{ no_proxy | d('') }}"
