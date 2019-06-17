@@ -3,7 +3,7 @@
 
 # Node Feature Discovery
 nfd_enabled: true
-nfd_build_image_locally: true
+nfd_build_image_locally: false
 nfd_namespace: kube-system
 nfd_sleep_interval: 30s
 
@@ -11,7 +11,7 @@ nfd_sleep_interval: 30s
 cmk_enabled: true
 cmk_namespace: kube-system
 cmk_use_all_hosts: false # 'true' will deploy CMK on the master nodes too
-#cmk_hosts_list: node1,node2 # allows to control where CMK nodes will run, leave this option commented out to deploy on all K8s nodes
+cmk_hosts_list: node1,node2 # allows to control where CMK nodes will run, leave this option commented out to deploy on all K8s nodes
 cmk_shared_num_cores: 2 # number of CPU cores to be assigned to the "shared" pool on each of the nodes
 cmk_exclusive_num_cores: 2 # number of CPU cores to be assigned to the "exclusive" pool on each of the nodes
 #cmk_shared_mode: packed # choose between: packed, spread, default: packed
@@ -32,10 +32,19 @@ gpu_dp_namespace: kube-system
 # Forces installation of the Multus CNI from the official Github repo on top of the Kubespray built-in one
 force_external_multus_installation: true
 
+# Create reference net-attach-def objects
+example_net_attach_defs:
+  userspace_ovs_dpdk: true
+  userspace_vpp: true
+  sriov_net_dp: true
+
 ## Proxy configuration ##
-http_proxy: "http://proxy.example.com:1080"
-https_proxy: "http://proxy.example.com:1080"
-no_proxy: "localhost,127.0.0.1,.example.com,10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4,10.0.0.5,10.0.0.0/24"
+#http_proxy: "http://proxy.example.com:1080"
+#https_proxy: "http://proxy.example.com:1080"
+#additional_no_proxy: ".example.com"
+
+# Kubernetes cluster name, also will be used as DNS domain
+cluster_name: cluster.local
 
 ## Kubespray variables ##
 
