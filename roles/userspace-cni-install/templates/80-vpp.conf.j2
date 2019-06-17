@@ -1,0 +1,5 @@
+{% if default_hugepage_size == "1G" %}
+vm.nr_hugepages={{ hugepages_1G }}
+{% else %}
+vm.nr_hugepages={{ hugepages_2M }}
+{% endif %}

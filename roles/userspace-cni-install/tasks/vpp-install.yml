@@ -27,6 +27,14 @@
   when: ansible_os_family == "RedHat"
   register: vpp_sh_rh
 
+- name: write sys config with hugepages and memory settings
+  template:
+    src: 80-vpp.conf.j2
+    dest: /etc/sysctl.d/80-vpp.conf
+
+- name: apply sysctl config
+  command: sysctl -p --load=/etc/sysctl.d/80-vpp.conf
+
 - name: install vpp packages on Red Hat
   yum:
     name:
