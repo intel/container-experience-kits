@@ -1,0 +1,10 @@
+---
+- name: remove sriov-cni sources
+  file:
+    state: absent
+    path: /usr/src/sriov-cni
+
+- name: remove sriov-cni plugin from /opt/cni/bin
+  file:
+    state: absent
+    path: /opt/cni/bin/sriov

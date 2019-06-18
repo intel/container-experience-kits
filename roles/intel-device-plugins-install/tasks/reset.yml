@@ -1,0 +1,5 @@
+---
+- name: remove files
+  file:
+    state: absent
+    path: "{{ intel_dp_dir }}"

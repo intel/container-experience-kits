@@ -1,0 +1,81 @@
+---
+- name: remove userspace cni binary
+  file:
+    state: absent
+    path: /opt/cni/bin/userspace
+
+- name: set path to the Userspace CNI plugin sources
+  set_fact:
+    userspace_cni_path: "{{ ansible_env.HOME }}/go/src/github.com/intel/userspace-cni-network-plugin"
+
+- name: remove userspace sources directory
+  file:
+    state: absent
+    path: "{{ userspace_cni_path }}"
+
+- name: check if OVS Makefile exists
+  stat: path={{ ovs_dir }}/Makefile
+  register: ovs_makefile_status
+
+- name: stop OVS
+  command: '/usr/local/share/openvswitch/scripts/ovs-ctl stop'
+  register: ovs_stop
+  failed_when: "ovs_stop.rc not in [0, 2]"
+
+- name: uninstall OVS
+  command: make uninstall
+  args:
+    chdir: "{{ ovs_dir }}"
+  when: ovs_makefile_status.stat.exists == true
+
+- name: remove OVS sources
+  file:
+    state: absent
+    path: "{{ ovs_dir }}"
+
+- name: stop VPP service
+  systemd:
+    name: vpp
+    state: stopped
+  failed_when: false
+
+- name: disable VPP service
+  systemd:
+    name: vpp
+    enabled: no
+  failed_when: false
+
+- name: remove vpp packages on RedHat
+  yum:
+    name:
+      - vpp
+      - vpp-plugins
+      - vpp-devel
+      - vpp-api-python
+      - vpp-api-lua
+      - vpp-api-java
+    state: absent
+  when: ansible_os_family == "RedHat"
+
+- name: remove vpp packages on Debian
+  apt:
+    name:
+      - vpp
+      - vpp-plugins
+      - vpp-dev
+      - vpp-lib
+      - vpp-dbg
+      - vpp-api-python
+      - vpp-api-lua
+      - vpp-api-java
+    state: absent
+  when: ansible_os_family == "Debian"
+
+- name: remove some VPP files
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - /etc/apt/sources.list.d/99fd.io.list
+    - /etc/yum.repos.d/fdio.repo
+    - /etc/sysctl.d/80-vpp.conf

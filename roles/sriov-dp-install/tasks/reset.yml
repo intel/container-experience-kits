@@ -1,0 +1,29 @@
+---
+- name: purge SR-IOV Net DP Helm deployment
+  command: helm delete --purge sriov-net-dp
+  failed_when: false
+  register: helm_result
+  changed_when: "helm_result == 0"
+  delegate_to: "{{ groups['kube-master']|first }}"
+
+- name: remove cloned SR-IOV Net DP repostory
+  file:
+    state: absent
+    path: "{{ sriov_net_dp_dir }}"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: remove SR-IOV Net DP Helm files
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - "/usr/src/charts/sriov-net-dp-values.yml"
+    - "/usr/src/charts/sriov-net-dp"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: remove device plugin config file
+  file:
+    state: absent
+    path: "/etc/pcidp"

@@ -1,0 +1,18 @@
+---
+- name: remove files
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - /usr/src/charts/intel-qat-plugin
+    - /usr/src/charts/intel-qat-plugin-values.yml
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: purge Helm deployment
+  command: helm delete --purge intel-qat-plugin
+  failed_when: false
+  register: helm_result
+  changed_when: "helm_result == 0"
+  when:
+    - inventory_hostname == groups['kube-master'][0]

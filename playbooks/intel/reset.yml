@@ -1,0 +1,5 @@
+---
+- hosts: k8s-cluster
+  tasks: []
+  roles:
+    - role: reset

@@ -1,0 +1,26 @@
+---
+- name: purge NFD Helm deployment
+  command: helm delete --purge nfd
+  failed_when: false
+  register: helm_result
+  changed_when: "helm_result == 0"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: remove cloned NFD repostory
+  file:
+    state: absent
+    path: "{{ nfd_dir }}"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - nfd_build_image_locally
+
+- name: remove NFD Helm values file
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - "/usr/src/charts/nfd-values.yml"
+    - "/usr/src/charts/node-feature-discovery"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
