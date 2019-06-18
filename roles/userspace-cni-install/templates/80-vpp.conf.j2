@@ -1,5 +1,4 @@
-{% if default_hugepage_size == "1G" %}
-vm.nr_hugepages={{ hugepages_1G }}
-{% else %}
-vm.nr_hugepages={{ hugepages_2M }}
-{% endif %}
+vm.nr_hugepages={{ vpp_nr_hugepages }}
+vm.max_map_count={{ vpp_max_map_count }}
+kernel.shmmax={{ vpp_shmmax }}
+vm.hugetlb_shm_group=0

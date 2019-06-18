@@ -27,6 +27,23 @@
   when: ansible_os_family == "RedHat"
   register: vpp_sh_rh
 
+- name: capture sysctl configuration
+  command: sysctl -n kernel.shmmax vm.nr_hugepages vm.max_map_count
+  register: original_sysctl
+
+- name: calc intermediate VPP sysctl entries values
+  set_fact:
+    vpp_orig_shmmax: "{{ original_sysctl.stdout_lines[0] }}"
+    vpp_orig_max_map_count: "{{  original_sysctl.stdout_lines[2] }}"
+    vpp_calc_shmmax: "{{ (default_hugepage_size == '2M') | ternary(hugepages_2M*2048*1024, hugepages_1G*1024*1024*1024) }}"
+    vpp_calc_max_map_count: "{{ (default_hugepage_size == '2M') | ternary(hugepages_2M*3, hugepages_1G*3) }}"
+
+- name: pick final sysctl entries values
+  set_fact:
+    vpp_nr_hugepages: "{{  original_sysctl.stdout_lines[1] }}"
+    vpp_shmmax: "{{ [vpp_calc_shmmax|int, vpp_orig_shmmax|int] | max }}"
+    vpp_max_map_count: "{{ [vpp_orig_max_map_count|int, vpp_calc_max_map_count|int] | max }}"
+
 - name: install vpp packages on Red Hat
   yum:
     name:
