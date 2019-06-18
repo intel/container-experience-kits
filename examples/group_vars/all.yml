@@ -34,9 +34,9 @@ force_external_multus_installation: true
 
 # Create reference net-attach-def objects
 example_net_attach_defs:
-  userspace_ovs_dpdk: true
-  userspace_vpp: true
-  sriov_net_dp: true
+  userspace_ovs_dpdk: false
+  userspace_vpp: false
+  sriov_net_dp: false
 
 ## Proxy configuration ##
 #http_proxy: "http://proxy.example.com:1080"
