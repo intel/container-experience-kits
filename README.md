@@ -29,7 +29,7 @@ cp -r examples/group_vars examples/host_vars .
 
 5. Update group and host vars to match your desired configuration.
 
-Note: Please pay special attention to the `http_proxy`, `https_proxy` and `no_proxy` vars if you're behind proxy. Don't forget to add all cluster nodes IP addresses to the `no_proxy` to avoid many potential problems!
+Note: Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
 
 6. Execute `ansible-playbook`.
 ```

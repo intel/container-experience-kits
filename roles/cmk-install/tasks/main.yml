@@ -20,17 +20,6 @@
     version: "{{ cmk_version }}"
     force: yes
 
-- name: set proxy in Dockerfile
-  lineinfile:
-    path: "{{ cmk_dir }}/Dockerfile"
-    regexp: "^ENV {{ item.key }}"
-    line: "ENV {{ item.key }} {{ item.value }}"
-    insertafter: '^FROM'
-    state: present
-  with_dict: "{{ proxy_env }}"
-  when:
-    - '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
-
 - name: read current CMK version
   command: git describe --abbrev=0 --tags
   args:
