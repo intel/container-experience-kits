@@ -8,6 +8,7 @@ install_dependencies:
     - libtool
     - shtool
     - python-six
+    - wget
   RedHat:
     - git
     - gcc
@@ -17,6 +18,7 @@ install_dependencies:
     - libtool
     - shtool
     - python-six
+    - wget
 
 ovs_dpdk_lcore_mask: 0x1
 ovs_dpdk_pmd_mask: 0x2

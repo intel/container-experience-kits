@@ -26,4 +26,5 @@
   copy:
     src: /usr/src/sriov-cni/build/sriov
     dest: /opt/cni/bin/sriov
+    mode: 0755
     remote_src: yes

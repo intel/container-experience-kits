@@ -45,3 +45,4 @@
     remote_src: yes
     src: "{{ userspace_cni_path }}/userspace/userspace"
     dest: "/opt/cni/bin/userspace"
+    mode: 0755
