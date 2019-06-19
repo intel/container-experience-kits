@@ -38,6 +38,22 @@
     force: yes
   when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
 
+- name: install epel-release
+  yum:
+    name: epel-release
+  when: ansible_os_family == "RedHat"
+
+- name: install the 'Development tools' package group
+  yum:
+    name: "@Development tools"
+  when: ansible_os_family == "RedHat"
+
+- name: install build-esential package
+  apt:
+    name: build-essential
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
 - name: update all packages on Red Hat OS family
   yum:
     name: '*'
@@ -58,6 +74,21 @@
     state: latest
   notify:
     - reboot server
+  when: ansible_os_family == "RedHat"
+
+#note(przemeklal): fixes issue with missing selinux in packet.net CentOS images
+- name: ensure selinux is installed
+  yum:
+    name:
+    - policycoreutils
+    - policycoreutils-python
+    - selinux-policy
+    - selinux-policy-targeted
+    - libselinux-utils
+    - setools
+    - setools-console
+    - shtool
+    state: present
   when: ansible_os_family == "RedHat"
 
 - name: put selinux in permissive mode
