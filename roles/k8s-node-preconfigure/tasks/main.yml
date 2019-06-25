@@ -3,6 +3,14 @@
 - include: "i40e-drivers-update.yml"
   when: force_nic_drivers_update | default(false) | bool
 
+- name: backup /etc/default/grub
+  copy:
+    remote_src: yes
+    mode: preserve
+    src: /etc/default/grub
+    dest: /usr/src/.etc_default_grub.bak
+  become: yes
+
 - name: set default grub flags values
   set_fact:
     hugepages_flags: ""

@@ -1,0 +1,54 @@
+---
+- name: record /etc/default/grub backup checksum
+  stat:
+    path : "/usr/src/.etc_default_grub.bak"
+  register: backup_stat
+- name: record /etc/default/grub current version checksum
+  stat:
+    path : "/etc/default/grub"
+  register: current_stat
+- name: get backup SHA1
+  set_fact:
+    bak_sha1: "{{ backup_stat.stat.checksum }}"
+- name: get current SHA1
+  set_fact:
+    cur_sha1: "{{ current_stat.stat.checksum }}"
+
+- name: restore /etc/default/grub
+  copy:
+    remote_src: yes
+    mode: preserve
+    src: /usr/src/.etc_default_grub.bak
+    dest: /etc/default/grub
+  become: yes
+  register: default_grub_restore
+  when: bak_sha1 != cur_sha1
+
+- name: update grub.cfg
+  command: update-grub
+  when:
+    - ansible_os_family == "Debian"
+    - bak_sha1 != cur_sha1
+
+- name: update grub.cfg
+  command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  when:
+    - ansible_os_family == "RedHat"
+    - bak_sha1 != cur_sha1
+
+- name: reboot with the new kernel parameters
+  reboot: { reboot_timeout: 1200 }
+  when: bak_sha1 != cur_sha1
+
+- name: discover QAT Physical Functions
+  shell: for i in 0435 37c8 19e2 6f54 18a0; do lspci -d 8086:$i -D | awk '{ print $1 }'; done
+  register: qat_pf
+
+- name: reset SR-IOV Virtual Functions for QAT devices
+  shell: echo 0 > /sys/bus/pci/devices/{{ item }}/sriov_numvfs
+  with_items: "{{ qat_pf | json_query('stdout_lines[]') }}"
+  failed_when: false
+
+- name: reset SR-IOV Virtual Functions
+  shell: echo 0 > /sys/class/net/{{ item }}/device/sriov_numvfs
+  with_items: "{{ sriov_nics }}"

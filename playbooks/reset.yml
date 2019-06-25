@@ -1,6 +1,7 @@
 ---
 - name: remove Intel Container Experience Kits features
   import_playbook: intel/reset.yml
+  tags: intel
 
 - name: run kubespray reset playbook
   import_playbook: k8s/kubespray/reset.yml
@@ -9,3 +10,7 @@
     kubeadm_enabled: true
     kube_api_anonymous_auth: true
     docker_iptables_enabled: true
+
+- name: remove Intel Container Experience Kits features
+  import_playbook: infra/reset.yml
+  tags: infra

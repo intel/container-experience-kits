@@ -1,0 +1,23 @@
+---
+- name: unset proxy in the /etc/environment files
+  lineinfile:
+    path: /etc/environment
+    state: absent
+    regexp: '^{{ item }}='
+    create: yes
+    owner: root
+    group: root
+    mode: 0644
+  with_items: ["http_proxy", "https_proxy", "no_proxy"]
+
+- name: unset proxy in the ~/.bashrc files
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    state: absent
+    regexp: '^{{ item }}='
+    create: yes
+    owner: root
+    group: root
+    mode: 0644
+  with_items: ["http_proxy", "https_proxy", "no_proxy"]
+  become: yes

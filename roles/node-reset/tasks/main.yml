@@ -1,0 +1,16 @@
+---
+- name: reset changes made on the host OS on worker nodes
+  import_role:
+    name: k8s-node-preconfigure
+    tasks_from: reset
+  tags: node
+  when: inventory_hostname in groups['kube-node']
+
+- name: reset changes made on the host OS on all types of nodes
+  import_role:
+    name: k8s-all-preconfigure
+    tasks_from: reset
+  tags:
+    - node
+    - master
+  when: inventory_hostname in groups['k8s-cluster']
