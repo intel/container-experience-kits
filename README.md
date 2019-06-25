@@ -36,6 +36,14 @@ Note: Please pay special attention to the `http_proxy`, `https_proxy` and `addit
 ansible-playbook -i inventory.ini playbooks/cluster.yml
 ```
 
+## Cluster reset
+
+To perform full cluster reset execute:
+```
+ansible-playbook -i inventory.ini playbooks/reset.yml
+```
+It's also possible to remove only selected features - for example a single CNI or Device Plugin only. Full documentation of the reset playbook usage is available in the [cluster reset guide](docs/reset.md).
+
 ## Requirements
 * Python 2 present on the target servers.
 * Ansible >=2.7.1,<=2.7.10 installed on the Ansible machine (the one you run these playbooks from).
