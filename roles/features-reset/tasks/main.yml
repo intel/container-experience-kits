@@ -1,48 +1,48 @@
 ---
 - name: remove NFD
-  include_role:
+  import_role:
     name: nfd-install
     tasks_from: reset
   tags: nfd
 
 - name: remove CMK
-  include_role:
+  import_role:
     name: cmk-install
     tasks_from: reset
   tags: cmk
 
 - name: remove Intel QAT DP
-  include_role:
+  import_role:
     name: intel-device-plugins-install
     tasks_from: reset_qat_plugin
   tags: qat
 
 - name: remove Intel GPU DP
-  include_role:
+  import_role:
     name: intel-device-plugins-install
     tasks_from: reset_qat_plugin
   tags: gpu
 
 - name: remove common Intel Device Plugins files
-  include_role:
+  import_role:
     name: intel-device-plugins-install
     tasks_from: reset
   tags: intel-dp
 
 - name: remove Intel SRIOV Network DP
-  include_role:
+  import_role:
     name: sriov-dp-install
     tasks_from: reset
   tags: sriov-dp
 
 - name: remove SR-IOV CNI plugin
-  include_role:
+  import_role:
     name: sriov-cni-install
     tasks_from: reset
   tags: sriov-cni
 
 - name: remove Userspace CNI plugin and virtual switches
-  include_role:
+  import_role:
     name: userspace-cni-install
     tasks_from: reset
   tags: userspace
