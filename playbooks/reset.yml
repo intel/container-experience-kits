@@ -11,6 +11,6 @@
     kube_api_anonymous_auth: true
     docker_iptables_enabled: true
 
-- name: remove Intel Container Experience Kits features
+- name: reset initial system configuration
   import_playbook: infra/reset.yml
   tags: infra
