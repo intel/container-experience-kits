@@ -77,6 +77,6 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: install CMK helm chart
-  command: helm upgrade --install cmk -f /usr/src/charts/cmk-values.yml /usr/src/charts/cpu-manager-for-kubernetes
+  command: helm upgrade --install cmk --namespace {{ cmk_namespace }} -f /usr/src/charts/cmk-values.yml /usr/src/charts/cpu-manager-for-kubernetes
   when:
     - inventory_hostname == groups['kube-master'][0]
