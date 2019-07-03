@@ -1,0 +1,18 @@
+---
+- name: run kubespray remove-node playbook
+  import_playbook: k8s/kubespray/remove-node.yml
+  tags: kubespray
+  vars:
+    # NOTE(przemeklal): bin_dir is always this, as we don't support CoreOS
+    bin_dir: /usr/local/bin
+    kubeadm_enabled: true
+    kube_api_anonymous_auth: true
+    docker_iptables_enabled: true
+
+- name: remove Intel Container Experience Kits features
+  import_playbook: intel/remove-node.yml
+  tags: intel
+
+- name: reset system configuration performed on the node
+  import_playbook: infra/remove-node.yml
+  tags: infra

@@ -1,0 +1,4 @@
+---
+- hosts: "{{ node | default('kube-node') }}"
+  roles:
+    - { role: features-reset }
