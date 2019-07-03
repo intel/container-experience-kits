@@ -1,0 +1,57 @@
+---
+#NOTE(przemeklal): for the remove-node use case we don't need to care about setting anti-affinity in the ds spec as
+#                  kubespray will drain that node first, we only need to clean up CMK reports, labels and files
+
+- name: delete Helm deployment
+  command: helm delete --purge cmk
+  failed_when: false
+  register: helm_result
+  changed_when: "helm_result.rc == 0"
+  delegate_to: "{{ groups['kube-master'] | first }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: untaint nodes
+  command: kubectl taint node "{{ inventory_hostname }}" cmk-
+  failed_when: false
+  register: untaint_result
+  changed_when: "untaint_result.rc == 0"
+  delegate_to: "{{ groups['kube-master']|first }}"
+
+- name: unlabel nodes
+  command: kubectl label node "{{ inventory_hostname }}" cmk.intel.com/cmk-node-
+  failed_when: false
+  register: unlabel_result
+  changed_when: "unlabel_result.rc == 0"
+  delegate_to: "{{ groups['kube-master']|first }}"
+
+- name: remove CMK reports
+  command: kubectl delete "{{ item }}"
+  with_items:
+    - "cmk-nodereports.intel.com/{{ inventory_hostname }}"
+    - "cmk-reconcilereports.intel.com/{{ inventory_hostname }}"
+  failed_when: false
+  register: delete_report_result
+  changed_when: "delete_report_result.rc == 0"
+  delegate_to: "{{ groups['kube-master']|first }}"
+
+- name: remove CRDs
+  command: kubectl delete crd "{{ item }}"
+  with_items:
+    - "cmk-nodereports.intel.com"
+    - "cmk-reconcilereports.intel.com"
+  failed_when: false
+  register: delete_crd_result
+  changed_when: "delete_crd_result.rc == 0"
+  delegate_to: "{{ groups['kube-master']|first }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: remove files
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - "/etc/cmk"
+    - "/opt/bin/cmk"
+    - "{{ cmk_dir }}"
+    - "/usr/src/charts/cmk-values.yml"
+    - "/usr/src/charts/cpu-manager-for-kubernetes"
