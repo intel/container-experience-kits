@@ -2,7 +2,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: {{ .Release.Name }}-cmk-third-party-resource-controller
+  name: {{ include "cmk.fullname" . }}-third-party-resource-controller
 rules:
 - apiGroups: ["cmk.intel.com"]
   resources: ["*"]
@@ -14,7 +14,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: {{ .Release.Name }}-cmk-custom-resource-definition-controller
+  name: {{ include "cmk.fullname" . }}-custom-resource-definition-controller
 rules:
 - apiGroups: ["intel.com"]
   resources: ["*"]
@@ -26,7 +26,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: {{ .Release.Name }}-cmk-daemonset-controller
+  name: {{ include "cmk.fullname" . }}-daemonset-controller
 rules:
 - apiGroups: ["extensions"]
   resources: ["daemonsets", "daemonsets.extensions"]
@@ -35,7 +35,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: {{ .Release.Name }}-cmk-version-controller
+  name: {{ include "cmk.fullname" . }}-version-controller
 rules:
   - nonResourceURLs: ["*"]
     verbs:
@@ -44,7 +44,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: {{ .Release.Name }}-cmk-webhook-installer
+  name: {{ include "cmk.fullname" . }}-webhook-installer
 rules:
 - apiGroups: ["", "apps", "extensions", "admissionregistration.k8s.io"]
   resources: ["secrets", "configmaps", "deployments", "services", "mutatingwebhookconfigurations"]
@@ -53,77 +53,77 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-cmk-role-binding-daemonset
+  name: {{ include "cmk.fullname" . }}-role-binding-daemonset
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-cmk-daemonset-controller
+  name: {{ include "cmk.fullname" . }}-daemonset-controller
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Values.namespace }}
+  name: {{ include "cmk.fullname" . }}
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-cmk-role-binding-node
+  name: {{ include "cmk.fullname" . }}-role-binding-node
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: system:node
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Values.namespace }}
+  name: {{ include "cmk.fullname" . }}
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-cmk-role-binding-tpr
+  name: {{ include "cmk.fullname" . }}-role-binding-tpr
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-cmk-third-party-resource-controller
+  name: {{ include "cmk.fullname" . }}-third-party-resource-controller
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Values.namespace }}
+  name: {{ include "cmk.fullname" . }}
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-cmk-role-binding-crd
+  name: {{ include "cmk.fullname" . }}-role-binding-crd
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-cmk-custom-resource-definition-controller
+  name: {{ include "cmk.fullname" . }}-custom-resource-definition-controller
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Values.namespace }}
+  name: {{ include "cmk.fullname" . }}
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-cmk-role-binding-version
+  name: {{ include "cmk.fullname" . }}-role-binding-version
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-cmk-version-controller
+  name: {{ include "cmk.fullname" . }}-version-controller
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Values.namespace }}
+  name: {{ include "cmk.fullname" . }}
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-cmk-role-binding-webhook-installer
+  name: {{ include "cmk.fullname" . }}-role-binding-webhook-installer
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-cmk-webhook-installer
+  name: {{ include "cmk.fullname" . }}-webhook-installer
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Values.namespace }}
+  name: {{ include "cmk.fullname" . }}
+  namespace: {{ .Release.Namespace }}

@@ -68,7 +68,7 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
-- name: populate NFD Helm chart values template and push to master node
+- name: populate CMK Helm chart values template and push to master node
   template:
     src: "helm_values.yml.j2"
     dest: "/usr/src/charts/cmk-values.yml"
@@ -77,6 +77,29 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: install CMK helm chart
-  command: helm upgrade --install cmk -f /usr/src/charts/cmk-values.yml /usr/src/charts/cpu-manager-for-kubernetes
+  command: helm upgrade --install cmk --namespace {{ cmk_namespace }} -f /usr/src/charts/cmk-values.yml /usr/src/charts/cpu-manager-for-kubernetes
   when:
     - inventory_hostname == groups['kube-master'][0]
+
+# this will mean that nodes are ready to be untainted
+- name: wait for all cmk daemonset pods to be running
+  shell: kubectl get pods -n {{ cmk_namespace }} -l name=cmk -o jsonpath={.items[*].status.phase}
+  register: kubectl_cmk_running
+  until: "['Running'] == kubectl_cmk_running.stdout.split() | unique"
+  retries: 24
+  delay: 5
+  when:
+    - inventory_hostname in cmk_hosts_list.split(',')
+    - cmk_untaint_nodes
+  delegate_to: "{{ groups['kube-master']|first }}"
+  failed_when: false
+
+- name: untaint nodes
+  command: kubectl taint node "{{ inventory_hostname }}" cmk-
+  failed_when: false
+  register: untaint_result
+  changed_when: "untaint_result.rc == 0"
+  when:
+    - inventory_hostname in cmk_hosts_list.split(',')
+    - cmk_untaint_nodes
+  delegate_to: "{{ groups['kube-master']|first }}"

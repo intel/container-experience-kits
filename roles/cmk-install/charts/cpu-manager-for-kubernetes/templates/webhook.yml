@@ -1,0 +1,137 @@
+{{ $ca := genCA "cmk-webhook-ca" 365 }}
+{{ $altNames := list ( printf "%s.%s" (include "cmk.fullname" .) .Release.Namespace ) ( printf "%s.%s.svc" (include "cmk.fullname" .) .Release.Namespace ) }}
+{{ $cert := genSignedCert ( include "cmk.fullname" . ) nil $altNames 365 $ca }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "cmk.fullname" . }}-webhook
+data:
+  cert.pem: {{ $cert.Cert | b64enc }}
+  key.pem: {{ $cert.Key | b64enc }}
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cmk.fullname" . }}-webhook
+data:
+  server.yaml: |
+    server:
+      binding-address: "0.0.0.0"
+      port: 443
+      cert: "/etc/ssl/cert.pem"
+      key: "/etc/ssl/key.pem"
+      mutations: "/etc/webhook/mutations.yaml"
+  mutations.yaml: |
+    mutations:
+      perPod:
+        metadata:
+          annotations:
+            cmk.intel.com/resources-injected: "true"
+        spec:
+          #serviceAccount: cmk-serviceaccount
+          tolerations:
+          - key: cmk
+            operator: Exists
+          volumes:
+          - name: cmk-host-proc
+            hostPath:
+              path: "/proc"
+          - name: cmk-config-dir
+            hostPath:
+              path: "/etc/cmk"
+          - name: cmk-install-dir
+            hostPath:
+              path: "/opt/bin"
+      perContainer:
+        env:
+        - name: CMK_PROC_FS
+          value: "/host/proc"
+        volumeMounts:
+        - name: cmk-host-proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: cmk-config-dir
+          mountPath: /etc/cmk
+        - name: cmk-install-dir
+          mountPath: /opt/bin
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  labels:
+    app: {{ include "cmk.fullname" . }}-webhook
+  name: {{ include "cmk.fullname" . }}-webhook
+webhooks:
+- clientConfig:
+    caBundle: {{ $cert.Cert | b64enc }}
+    service:
+      name: {{ include "cmk.fullname" . }}-webhook
+      namespace: {{ .Release.Namespace }}
+      path: /mutate
+  failurePolicy: Ignore
+  name: cmk.intel.com
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - pods
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cmk.fullname" . }}-webhook
+  labels:
+    app: {{ include "cmk.fullname" . }}-webhook
+spec:
+  ports:
+  - port: 443
+    targetPort: 443
+  selector:
+    app: {{ include "cmk.fullname" . }}-webhook
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ include "cmk.fullname" . }}-webhook
+  name: {{ include "cmk.fullname" . }}-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "cmk.fullname" . }}-webhook
+  template:
+    metadata:
+      labels:
+        app: {{ include "cmk.fullname" . }}-webhook
+    spec:
+      tolerations:
+      - key: cmk
+        operator: "Exists"
+      containers:
+      - args:
+        - "/cmk/cmk.py webhook --conf-file /etc/webhook/server.yaml"
+        command:
+        - "/bin/bash"
+        - "-c"
+        image: cmk:v1.3.1
+        name: cmk-webhook
+        volumeMounts:
+        - mountPath: /etc/webhook
+          name: cmk-webhook-configmap
+        - mountPath: /etc/ssl
+          name: cmk-webhook-certs
+          readOnly: True
+      volumes:
+      - name: cmk-webhook-configmap
+        configMap:
+          name: {{ include "cmk.fullname" . }}-webhook
+      - name: cmk-webhook-certs
+        secret:
+          secretName: {{ include "cmk.fullname" . }}-webhook
