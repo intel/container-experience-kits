@@ -36,6 +36,18 @@ Note: Please pay special attention to the `http_proxy`, `https_proxy` and `addit
 ansible-playbook -i inventory.ini playbooks/cluster.yml
 ```
 
+## Remove node
+
+You may want to remove worker nodes from your existing cluster after it has been deployed. This can be done by running the `playbooks/remove-node.yml` playbook.
+
+> Note: The node you want to remove needs to be present in the inventory file. Also, it is highly recommended to use the same configuration defined in the group\_vars and host\_vars as during the deployment or cluster scale up.
+
+Use `--extra-vars "node=<nodenameX>,<nodenameY>"` in the below `ansible-playbook` command to select the node or nodes you want to delete, for example:
+```
+ansible-playbook -i inventory/inventory.ini playbooks/remove-node.yml \
+                 --extra-vars "node=node2,node4"
+```
+
 ## Requirements
 * Python 2 present on the target servers.
 * Ansible >=2.7.1,<=2.7.10 installed on the Ansible machine (the one you run these playbooks from).
