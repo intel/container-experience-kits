@@ -1,0 +1,39 @@
+---
+- hosts: k8s-cluster
+  tasks: []
+  roles:
+    - role: cluster-defaults
+      tags: defaults
+      # NOTE(przemeklal): sriov-dp needs config file to be present on the target node,
+      # consider move to a separate tasks file, so we don't need to rerun whole role here
+    - role: multus-cni-install
+      when: (inventory_hostname == groups['kube-master'][0]) and (force_external_multus_installation | default(false))
+      tags: multus
+    - role: sriov-dp-install
+      tags: sriov-net-dp
+      when: sriov_net_dp_enabled | default(true)
+      # NOTE(przemeklal): helm upgrade needs to update nodeAffinity if cmk_hosts_list changed
+    - role: cmk-install
+      tags: cmk
+      when:
+        - cmk_enabled | default(true)
+        - not cmk_use_all_hosts
+  environment: "{{ proxy_env | d({}) }}"
+
+- hosts: kube-node
+  tasks: []
+  roles:
+    - role: cluster-defaults
+      tags: defaults
+    - role: golang-install
+      tags: golang
+    - role: dpdk-install
+      when: ovs_dpdk_enabled
+      tags: dpdk
+    - role: sriov-cni-install
+      when: sriov_cni_enabled | default(true)
+      tags: sriov-cni
+    - role: userspace-cni-install
+      when: userspace_cni_enabled | default(true)
+      tags: userspace-cni
+  environment: "{{ proxy_env | d({}) }}"

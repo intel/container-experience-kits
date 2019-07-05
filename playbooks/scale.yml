@@ -1,0 +1,7 @@
+---
+- name: preconfigure target nodes
+  import_playbook: infra/scale.yml
+- name: scale Kubernetes cluster using kubespray
+  import_playbook: k8s/scale.yml
+- name: install Intel BMRA Container Experience Kit features
+  import_playbook: intel/scale.yml
