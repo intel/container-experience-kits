@@ -36,6 +36,19 @@ Note: Please pay special attention to the `http_proxy`, `https_proxy` and `addit
 ansible-playbook -i inventory.ini playbooks/cluster.yml
 ```
 
+## Scaling up
+
+In order to add extra master or worker nodes to your existing cluster you can either rerun the `playbooks/cluster.yml` playbook or run the `playbooks/scale.yml` to install bare minimum needed to get kubelet and some other components up and running on the worker node.
+
+1. Add new node to the `inventory.ini` file and include it in the appropriate group.
+
+2. Update host\_vars and group\_vars according to match your desired configuration.
+
+3. Execute `ansible-playbook`.
+```
+ansible-playbook -i inventory/inventory.ini playbooks/scale.yml
+```
+
 ## Requirements
 * Python 2 present on the target servers.
 * Ansible >=2.7.1,<=2.7.10 installed on the Ansible machine (the one you run these playbooks from).
