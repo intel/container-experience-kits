@@ -30,6 +30,14 @@
 
 - hosts: k8s-cluster
   tasks:
+    - import_role:
+        name: kubespray/roles/kubespray-defaults
+    - name: copy missing plugins
+      unarchive:
+        src: "{{ local_release_dir }}/cni-plugins-{{ image_arch }}-{{ cni_version }}.tgz"
+        dest: "/opt/cni/bin"
+        mode: 0755
+        remote_src: yes
     - name: restart docker daemon to recreate iptables rules
       systemd: name=docker state=restarted
       become: yes
