@@ -1,4 +1,4 @@
-ansible>=2.7.6,<=2.7.10
+ansible==2.7.12
 jinja2>=2.9.6
 netaddr
 pbr>=1.6
