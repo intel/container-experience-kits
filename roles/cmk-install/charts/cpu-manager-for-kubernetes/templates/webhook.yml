@@ -1,6 +1,6 @@
 {{ $ca := genCA "cmk-webhook-ca" 365 }}
-{{ $altNames := list ( printf "%s.%s" (include "cmk.fullname" .) .Release.Namespace ) ( printf "%s.%s.svc" (include "cmk.fullname" .) .Release.Namespace ) }}
-{{ $cert := genSignedCert ( include "cmk.fullname" . ) nil $altNames 365 $ca }}
+{{ $altNames := list ( printf "%s-webhook.%s" (include "cmk.fullname" .) .Release.Namespace ) ( printf "%s-webhook.%s.svc" (include "cmk.fullname" .) .Release.Namespace ) }}
+{{ $cert := genSignedCert ( printf "%s-webhook" (include "cmk.fullname" .) ) nil $altNames 365 $ca }}
 ---
 apiVersion: v1
 kind: Secret
