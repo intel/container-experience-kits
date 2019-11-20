@@ -1,3 +1,0 @@
----
-kubespray_git_url: "https://github.com/kubernetes-sigs/kubespray.git"
-kubespray_version: "v2.8.0"
