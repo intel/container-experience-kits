@@ -43,6 +43,11 @@ example_net_attach_defs:
 #https_proxy: "http://proxy.example.com:1080"
 #additional_no_proxy: ".example.com"
 
+#Topology Manager flags
+kubelet_node_custom_flags:
+  - "--feature-gates=TopologyManager=true"
+  - "--topology-manager-policy=best-effort"
+
 # Kubernetes cluster name, also will be used as DNS domain
 cluster_name: cluster.local
 
