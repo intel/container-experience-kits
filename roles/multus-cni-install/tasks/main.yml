@@ -32,6 +32,6 @@
     replace: '00-multus.conf'
 
 - name: apply Multus and Flannel Kubernetes spec files
-  shell: kubectl apply -f multus-daemonset.yml -f flannel-daemonset.yml
+  shell: kubectl apply -f multus-daemonset.yml
   args:
     chdir: /usr/src/multus-cni/images

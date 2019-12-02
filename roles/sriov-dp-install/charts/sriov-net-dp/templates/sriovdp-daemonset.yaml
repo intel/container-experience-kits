@@ -21,6 +21,7 @@ spec:
   template:
     metadata:
       labels:
+        name: sriov-device-plugin
         tier: node
         app: sriovdp
     spec:
