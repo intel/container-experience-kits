@@ -50,7 +50,7 @@ cluster_name: cluster.local
 
 # default network plugins and kube-proxy configuration
 kube_network_plugin_multus: true
-multus_version: v3.2
+multus_version: v3.3
 kube_network_plugin: flannel
 kube_pods_subnet: 10.244.0.0/16
 kube_proxy_mode: iptables
