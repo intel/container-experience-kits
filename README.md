@@ -27,7 +27,7 @@ In `all_system_facts.txt` file you will find details about your hardware, operat
 cp -r examples/group_vars examples/host_vars .
 ```
 
-5. Update group and host vars to match your desired configuration.
+5. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
 
 Note: Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
 
@@ -35,6 +35,11 @@ Note: Please pay special attention to the `http_proxy`, `https_proxy` and `addit
 ```
 ansible-playbook -i inventory.ini playbooks/cluster.yml
 ```
+
+## Configuration
+
+Refer to the documentation linked below to see configuration details for selected components:
+- [SRIOV Network Device Plugin and SRIOV CNI plugin](docs/sriov.md)
 
 ## Requirements
 * Python 2 present on the target servers.
