@@ -1,5 +1,12 @@
 ---
-apiVersion: extensions/v1beta1
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sriov-device-plugin
+  namespace: kube-system
+
+---
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ .Release.Name }}-kube-sriov-device-plugin-amd64
@@ -8,44 +15,51 @@ metadata:
     tier: node
     app: sriovdp
 spec:
+  selector:
+    matchLabels:
+      name: sriov-device-plugin
   template:
     metadata:
       labels:
+        name: sriov-device-plugin
         tier: node
         app: sriovdp
     spec:
+      hostNetwork: true
+      hostPID: true
       nodeSelector:
         beta.kubernetes.io/arch: amd64
-      serviceAccountName: {{ .Release.Name }}-sriov-device-plugin
       tolerations:
-      - effect: NoSchedule
-        key: cmk
-        operator: Equal
-        value: "true"
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      serviceAccountName: {{ .Release.Name }}-sriov-device-plugin
       containers:
       - name: kube-sriovdp
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
-        - --log-level={{ .Values.log.level }}
+        - --log-dir=sriovdp
+        - --log-level= {{ .Values.log.level }}
         securityContext:
-          privileged: false
+          privileged: true
         volumeMounts:
         - name: devicesock
-          mountPath: /var/lib/kubelet/device-plugins/
+          mountPath: /var/lib/kubelet/
           readOnly: false
-        - name: sysfs
-          mountPath: /sys
-          readOnly: true
-        - name: config
-          mountPath: /etc/pcidp/config.json
-          readOnly: true
+        - name: log
+          mountPath: /var/log
+        - name: config-volume
+          mountPath: /etc/pcidp
       volumes:
         - name: devicesock
           hostPath:
-            path: /var/lib/kubelet/device-plugins/
-        - name: sysfs
+            path: /var/lib/kubelet/
+        - name: log
           hostPath:
-            path: /sys
-        - name: config
-          hostPath:
-            path: {{ .Values.configPath }}
+            path: /var/log
+        - name: config-volume
+          configMap:
+            name: {{ .Release.Name }}-sriovdp-config
+            items:
+            - key: config.json
+              path: config.json

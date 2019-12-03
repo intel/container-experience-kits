@@ -33,7 +33,7 @@ gpu_dp_namespace: kube-system
 force_external_multus_installation: true
 
 # Create reference net-attach-def objects
-example_net_attach_defs:
+
   userspace_ovs_dpdk: false
   userspace_vpp: false
   sriov_net_dp: false
@@ -43,6 +43,11 @@ example_net_attach_defs:
 #https_proxy: "http://proxy.example.com:1080"
 #additional_no_proxy: ".example.com"
 
+#Topology Manager flags
+kubelet_node_custom_flags:
+  - "--feature-gates=TopologyManager=true"        
+  - "--topology-manager-policy=best-effort"
+
 # Kubernetes cluster name, also will be used as DNS domain
 cluster_name: cluster.local
 
@@ -50,7 +55,7 @@ cluster_name: cluster.local
 
 # default network plugins and kube-proxy configuration
 kube_network_plugin_multus: true
-multus_version: v3.2
+multus_version: v3.3
 kube_network_plugin: flannel
 kube_pods_subnet: 10.244.0.0/16
 kube_proxy_mode: iptables
