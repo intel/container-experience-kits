@@ -27,6 +27,8 @@
     kubeadm_enabled: true
     kube_api_anonymous_auth: true
     docker_iptables_enabled: true
+    docker_dns_servers_strict: false
+    override_system_hostname: false
 
 - hosts: k8s-cluster
   tasks:

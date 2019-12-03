@@ -1,0 +1,42 @@
+---
+- name: check whether VFs exist for specified PFs
+  slurp:
+    src: "/sys/class/net/{{ item }}/device/sriov_numvfs"
+  with_items: "{{ sriov_net_dp_config | json_query('[].pfnames') }}"
+  register: vfs
+
+- name: fail if VFs are missing for specified PFs
+  fail:
+    msg: "Specified PF {{ item.item }} does not have VFs configured - make sure it is specified in sriov_nics"
+  when: item.content | b64decode | trim == '0'
+  loop: "{{ vfs.results }}"
+
+- name: fetch VFs pci addresses for i40evf driver
+  shell: "for vf in /sys/class/net/{{ item }}/device/virtfn*;do basename $(readlink -f $vf);done"
+  with_items: "{{ sriov_net_dp_config | json_query('[?driver==`i40evf`].pfnames') | join (' ') }}"
+  register: pciids_i40evf
+
+- name: bind VFs to i40evf driver
+  command: "{{ dpdk_tools }} -b i40evf {{ item.stdout_lines | join (' ') }}"
+  loop: "{{ pciids_i40evf.results }}"
+  when: pciids_i40evf
+
+- name: fetch VFs pci addresses for vfio-pci driver
+  shell: "for vf in /sys/class/net/{{ item }}/device/virtfn*;do basename $(readlink -f $vf);done"
+  with_items: "{{ sriov_net_dp_config | json_query('[?driver==`vfio-pci`].pfnames') | join (' ') }}"
+  register: pciids_vfio
+
+- name: bind VFs to vfio-pci userspace driver
+  command: "{{ dpdk_tools }} -b vfio-pci {{ item.stdout_lines | join (' ') }}"
+  loop: "{{ pciids_vfio.results }}"
+  when: pciids_vfio
+
+- name: fetch VFs pci addresses for igb_uio driver
+  shell: "for vf in /sys/class/net/{{ item }}/device/virtfn*;do basename $(readlink -f $vf);done"
+  with_items: "{{ sriov_net_dp_config | json_query('[?driver==`igb_uio`].pfnames') | join (' ') }}"
+  register: pciids_igb
+ 
+- name: bind VFs to igb_uio userspace driver
+  command: "{{ dpdk_tools }} -b igb_uio {{ item.stdout_lines | join (' ') }}"
+  loop: "{{ pciids_igb.results }}"
+  when: pciids_igb

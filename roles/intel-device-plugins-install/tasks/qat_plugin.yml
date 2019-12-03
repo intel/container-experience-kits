@@ -7,7 +7,7 @@
     - inventory_hostname == groups['kube-node'][0]
 
 - name: tag Intel QAT Device Plugin image
-  command: docker tag intel-qat-plugin:devel {{ registry_local_address }}/intel-qat-plugin:latest
+  command: docker tag intel/intel-qat-plugin:{{ intel_dp_version }} {{ registry_local_address }}/intel-qat-plugin:latest
   when:
     - inventory_hostname == groups['kube-node'][0]
 
