@@ -1,20 +1,23 @@
 ---
 # Kubernetes node configuration
 
+# Enable SR-IOV networking related setup
 sriov_enabled: false
-# sriov_nics: PF interfaces names
-sriov_nics: []
-sriov_numvfs: 0
+
+# sriov_nics: SR-IOV PF specific configuration list
+sriov_nics:
+  - name: enp24s0f0              # PF interface names
+    sriov_numvfs: 2              # number of VFs to create for this PF(enp24s0f0)
+    vf_driver: vfio-pci          # VF driver to be attached for all VFs under this PF(enp24s0f0), "i40evf", "iavf", "vfio-pci", "igb_uio"
+    ddp_profile: "gtp.pkgo"      # DDP package name to be loaded into the NIC
+  - name: enp24s0f1
+    sriov_numvfs: 4
+    vf_driver: iavf
+
 sriov_cni_enabled: true
 
-# If sriov_net_dp_enabled=true in all.yml adjust and uncomment below configuration:
-#sriov_net_dp_config:
-#- pfnames: ["enp175s0f0"]     # PF interface names - their VFs will be attached to specific driver
-#  driver: "i40evf"            # available options:  "i40evf", "vfio-pci", "igb_uio"
-#- pfnames: ["enp175s0f1"]     # PF interface names - their VFs will be attached to specific driver
-#  driver: "vfio-pci"          # available options:  "i40evf", "vfio-pci", "igb_uio"
-#- pfnames: ["enp175s0f2"]     # PF interface names - their VFs will be attached to specific driver
-#  driver: "igb_uio"           # available options:  "i40evf", "vfio-pci", "igb_uio"
+# install DPDK
+install_dpdk: true # DPDK installation is required for sriov_enabled:true; default to false
 
 userspace_cni_enabled: true
 vpp_enabled: true
@@ -28,6 +31,9 @@ ovs_dpdk_socket_mem: "256,0"
 
 # Set to 'true' to update i40e and i40evf kernel modules
 force_nic_drivers_update: true
+
+# install Intel x700 & x800 series NICs DDP packages
+install_ddp_packages: true
 
 # Enables hugepages support
 hugepages_enabled: true

@@ -1,0 +1,27 @@
+---
+
+# First off - check if the selected driver module is available on host
+- name: Check that selected driver module is loaded
+  shell: "modinfo {{ vf_driver }}"
+  register: shell_result
+
+# Get a list of VFs PCI addresses
+- name: attach VFs driver
+  block:
+    - name: fetch VFs pci addresses for a PF
+      shell: "for vf in /sys/class/net/{{ pfname }}/device/virtfn*;do basename $(readlink -f $vf);done"
+      register: vf_pciids
+
+    - name: Bind VF drivers
+      include_role: 
+        name: devbind
+      vars:
+        pci_address: "{{ this_item }}"
+        driver: "{{ vf_driver }}"
+      loop: "{{ vf_pciids.stdout_lines }}"
+      loop_control:
+        loop_var: this_item
+      when:
+        - vf_pciids.stderr|string == ""
+        - vf_pciids.stdout_lines|length > 0
+  when: shell_result.stderr == ""

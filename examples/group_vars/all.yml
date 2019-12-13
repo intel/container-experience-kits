@@ -22,6 +22,29 @@ sriov_net_dp_enabled: true
 sriov_net_dp_namespace: kube-system
 # whether to build and store image locally or use one from public external registry
 sriov_net_dp_build_image_locally: false
+# SR-IOV network device plugin configuration.
+# For more information on supported configuration refer to: https://github.com/intel/sriov-network-device-plugin#configurations
+sriovdp_config_data: |
+    {
+        "resourceList": [{
+                "resourceName": "intel_sriov_netdevice",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed"],
+                    "drivers": ["iavf", "i40evf", "ixgbevf"]
+                }
+            },
+            {
+                "resourceName": "intel_sriov_dpdk",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed"],
+                    "drivers": ["vfio-pci"]
+                }
+            }
+        ]
+    }
+
 
 # Intel Device Plugins for Kubernetes
 qat_dp_enabled: true
