@@ -1,0 +1,11 @@
+# DDP profile search path:
+nic: ""
+ddp_search_path:
+  i40e: "/lib/firmware/intel/i40e/ddp/"
+  # need to double check 800 series(ice) path
+  ice: "/lib/firmware/intel/ice/ddp/"
+install_dependencies:
+  Debian:
+    - ethtool
+  RedHat:
+    - ethtool
