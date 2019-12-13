@@ -1,0 +1,28 @@
+# Install dependencies(ethtool)
+- name: install dependencies
+  include_role:
+    name: install-dependencies
+
+# Check if the selected DDP profile is available in Host
+- name: Check that the DDP profile exists
+  stat:
+    path: "{{ ddp_path }}"
+  register: stat_result
+
+- name: Fail if selected DDP profile not found
+  fail:
+    msg: "Selected DDP profile {{ item.ddp_profile }} is not found."
+  when: not stat_result.stat.exists
+
+# All looks good; lets install the profile into the NIC
+# assuming that the NIC is in fact the PF0
+
+# First, we roll back any existing profile
+- name: Rolling back any existing DDP profile from the NIC...
+  shell: ethtool -f {{ item.name }} - 100 2> /dev/null
+  ignore_errors: true
+
+# Install new profile into the NIC
+- name: Installing selected DDP profile into the NIC...
+  command: ethtool -f {{ item.name }} {{ item.ddp_profile }} 100
+  register: ethtool_output

@@ -8,3 +8,24 @@ sriov_net_dp_namespace: kube-system
 
 
 registry_local_address: "localhost:5000"
+sriovdp_config_data: |
+    {
+        "resourceList": [{
+                "resourceName": "intel_sriov_netdevice",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed"],
+                    "drivers": ["iavf", "i40evf", "ixgbevf"]
+                }
+            },
+            {
+                "resourceName": "intel_sriov_dpdk",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed"],
+                    "drivers": ["vfio-pci"]
+                }
+            }
+        ]
+    }
+

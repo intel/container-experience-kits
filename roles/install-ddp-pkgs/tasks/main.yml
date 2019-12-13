@@ -1,0 +1,45 @@
+---
+# This role installs Intel DDP packages for X700 and X800 series NICs.
+# 
+# It depends on package variables defined in vars/main.yml
+# The "ddp_pkgs" is map of a list of NIC specific package definition.
+#
+# Each list expected to provide "nic_driver": <e.g. i40e for X700 & ice 
+# for x800>, "install_dir":<where to install>, and "pkgurls":<a list 
+# of URLs of relevant packages>.
+# 
+# latest list of available packages can be found here:
+# https://downloadcenter.intel.com/search?keyword=Dynamic+Device+Personalization
+#
+# All packages will be downloaded, uncompressed and placed in NICs
+# driver specific location so that these packages are available to be
+# loaded onto a NIC adapter on demand.
+# 
+# Example configurations:
+#   ddp_pkgs:
+#     - nic_driver: i40e
+#       install_dir: /lib/firmware/intel/i40e/ddp
+#       pkgurls:
+#         - "https://downloadmirror.intel.com/27587/eng/gtp.zip"
+#         - "https://downloadmirror.intel.com/28940/eng/mplsogreudp.zip"
+#         - "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
+
+# Download and install ddp pkgs listed given in vars/main.yml file
+- name: download and install all listed DDP packages
+  block:
+    - name: calling install_pkgs.yml
+      include: install_pkgs.yml
+      vars:
+        install_dir: "{{ item.install_dir }}"
+        pkgurls: "{{ item.pkgurls }}"
+        tmp_placeholder: "/tmp/ddp/{{ item.nic_driver }}"
+      with_items: "{{ ddp_pkgs }}"
+  when:
+    - ddp_pkgs|length > 0
+
+# Do clean up
+- name: clean up temp DDP directory
+  become: yes
+  file:
+    path: /tmp/ddp
+    state: absent

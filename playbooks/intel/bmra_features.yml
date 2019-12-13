@@ -33,8 +33,10 @@
     - role: cluster-defaults
       tags: defaults
     - role: dpdk-install
-      when: ovs_dpdk_enabled
+      when: ovs_dpdk_enabled or install_dpdk | default(false)
       tags: dpdk
+    - role: sriov-nic-init
+      when: sriov_enabled | default(false) and install_dpdk | default(false)
     - role: sriov-cni-install
       when: sriov_cni_enabled | default(true)
       tags: sriov-cni
