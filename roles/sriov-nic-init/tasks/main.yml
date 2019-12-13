@@ -1,0 +1,18 @@
+---
+## Initialize SR-IOV NICs: create virtual functions, bring PF up & bind VFs drivers as specified in host_vars
+
+- name: Create VFs
+  include_tasks: create_vfs.yml
+  with_items: "{{ sriov_nics }}"
+
+- name: bring up PF interfaces
+  command: ip link set {{ item.name }} up
+  with_items: "{{ sriov_nics }}"
+
+- name: Set VFs driver
+  include: bind_vf_driver.yml
+  vars:
+    pfname: "{{ item.name }}"
+    vf_driver: "{{ item.vf_driver }}"
+  when: item.vf_driver|default("") != ""
+  with_items: "{{ sriov_nics }}"

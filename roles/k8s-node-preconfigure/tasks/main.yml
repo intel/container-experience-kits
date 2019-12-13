@@ -115,16 +115,3 @@
   shell: echo {{ sriov_numvfs }} > "/sys/bus/pci/devices/{{ item }}/sriov_numvfs"
   with_items: "{{ qat_pf | json_query('stdout_lines[]') }}"
   failed_when: false
-
-# in case SR-IOV VFs have been already configured we reset it first to avoid "device or resource busy" error
-- name: reset SR-IOV Virtual Functions
-  shell: echo 0 > /sys/class/net/{{ item }}/device/sriov_numvfs
-  with_items: "{{ sriov_nics }}"
-
-- name: enable SR-IOV Virtual Functions
-  shell: echo {{ sriov_numvfs }} > /sys/class/net/{{ item }}/device/sriov_numvfs
-  with_items: "{{ sriov_nics }}"
-
-- name: bring up PF interfaces
-  command: ip link set {{ item }} up
-  with_items: "{{ sriov_nics }}"
