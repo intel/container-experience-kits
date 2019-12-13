@@ -65,9 +65,3 @@
   command: "insmod {{ dpdk_dir }}install/lib/modules/{{ ansible_kernel }}/extra/dpdk/igb_uio.ko"
   register: result
   failed_when: "'No such file or directory' in result.stderr"
-
-- name: bind VFs to specified drivers for sriov-net-dp
-  include: prepare_vfs.yml
-  when:
-    - sriov_enabled
-    - sriov_net_dp_enabled

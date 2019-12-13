@@ -1,0 +1,22 @@
+---
+## Create SR-IOV Virtual Function if they are not equal to desired numbers
+
+- name: Checking supported maximum VFs
+  shell: cat /sys/class/net/{{ item.name }}/device/sriov_totalvfs
+  register: total_vfs
+
+- name: Checking existing VFs
+  shell: cat /sys/class/net/{{ item.name }}/device/sriov_numvfs
+  register: existing_vfs
+
+- block:
+    # in case SR-IOV VFs have been already configured we reset it first to avoid "device or resource busy" error
+    - name: reset SR-IOV Virtual Functions
+      shell: echo 0 > /sys/class/net/{{ item.name }}/device/sriov_numvfs
+
+    - name: enable SR-IOV Virtual Functions
+      shell: echo {{ item.sriov_numvfs }} > /sys/class/net/{{ item.name }}/device/sriov_numvfs
+  when: 
+    - existing_vfs.stdout|int != item.sriov_numvfs|default(0)|int
+    - item.sriov_numvfs|default(0)|int != 0
+    - item.sriov_numvfs|default(0)|int <= total_vfs.stdout|int 
