@@ -27,11 +27,15 @@ example_net_attach_defs:
 
 There's also a set of configuration options that are applied in per-node manner.
 
-First set of variables enables SRIOV for selected network adapters, by setting `sriov_enabled` as `true` and passing names of the physical function interfaces. There's also an option to define how many virtual functions should be created for each physical function. In below example SRIOV will be enabled with 16 VFs for enp175s0f0, enp175s0f1 and enp175s0f2 interfaces each. It will also add IOMMU kernel flags, and as a result will reboot the target worket node during deployment.
+First set of variables enables SRIOV for selected network adapters, by setting `sriov_enabled` as `true` and passing names of the physical function interfaces. There's also an option to define how many virtual functions should be created for each physical function. In below example `sriov_nics` configuration will create 4 VFs for enp175s0f0 PF interface and attach them to vfio-pci driver and 2 VFs for enp175s0f1 PF interface and attach them to kernel mode iavf driver. It will also add IOMMU kernel flags, and as a result will reboot the target worker node during deployment.
 ```
-sriov_enabled: true
-sriov_nics: ["enp175s0f0", "enp175s0f1", "enp175s0f2"]
-sriov_numvfs: 16
+sriov_nics:
+  - name: enp175s0f0
+    sriov_numvfs: 4
+    vf_driver: vfio-pci
+  - name: enp175s0f1
+    sriov_numvfs: 2
+    vf_driver: iavf
 ```
 
 Next option defines whether the SRIOV CNI plugin will be installed on the target worker node. Setting it to `true` will cause the Ansible scripts to build and install SRIOV CNI plugin in the `/opt/cni/bin` directory on the target server.

@@ -1,0 +1,8 @@
+---
+ddp_pkgs:
+  - nic_driver: i40e
+    install_dir: /lib/firmware/intel/i40e/ddp
+    pkgurls:
+      - "https://downloadmirror.intel.com/27587/eng/gtp.zip"
+      - "https://downloadmirror.intel.com/28940/eng/mplsogreudp.zip"
+      - "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
