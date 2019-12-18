@@ -1,5 +1,6 @@
 ---
 dpdk_drivers:
 - igb_uio
-- vfio_pci
+- vfio-pci
 - uio_pci_generic
+
