@@ -7,9 +7,6 @@
       tags: defaults
     - role: golang-install
       tags: golang
-    - role: multus-cni-install
-      when: (inventory_hostname == groups['kube-master'][0]) and (force_external_multus_installation | default(false))
-      tags: multus
     - role: net-attach-defs-create
       tags: net-attach-defs
       when: inventory_hostname == groups['kube-master'][0]
