@@ -8,13 +8,13 @@
 # FIXME(przemeklal): ugly workaround here
 - hosts: k8s-cluster
   tasks:
-    - name: create /etc/cni/net.d
+    - name: create /etc/cni/net.d/templates
       file:
-        path: /etc/cni/net.d
+        path: /etc/cni/net.d/templates
         state: directory
     - name: copy patched Multus config
       copy:
-        dest: /etc/cni/net.d/00-fixed-portmapping-multus.conf
+        dest: /etc/cni/net.d/templates/00-multus.conf
         src: roles/kubespray-install/files/multus.conf
         owner: root
         group: root
@@ -26,6 +26,7 @@
   vars:
     kubeadm_enabled: true
     kube_api_anonymous_auth: true
+    multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
     docker_iptables_enabled: true
     docker_dns_servers_strict: false
     override_system_hostname: false
