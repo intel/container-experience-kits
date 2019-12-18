@@ -22,6 +22,13 @@
       dev_info: "{{ lspci.stdout | replace('\t',' ') | from_yaml }}"
       interfaces: []
 
+  - name: set current driver info
+    set_fact:
+      current_driver: "{{ dev_info.Driver | default('') }}"
+
+- name: find network links of the device
+  when: driver != current_driver
+  block:
   - name: find network interfaces associated with the device
     find:
       paths: '{{ "/sys/bus/pci/devices/" + pci_address + "/net" }}'
@@ -31,14 +38,20 @@
 
   - name: create list of network interfaces names
     set_fact:
-      interfaces: "{{ interfaces + [(item | basename)] }}"
-    with_items: "{{ ls.files | map(attribute='path') | list }}"
+      interfaces: "{{ interfaces + [(link_path | basename)] }}"
+    loop: "{{ ls.files | map(attribute='path') | list }}"
+    loop_control:
+      loop_var: link_path
 
   - name: add network interfaces names to device info
     set_fact:
       dev_info: "{{ dev_info | combine({ 'Interfaces': interfaces }) }}"
 
+- name: display device information
+  debug: var=dev_info
+
 - name: fail if network device is active in the routing table
+  when: driver != current_driver
   block:
   - name: get routing table
     shell: ip -o route
@@ -50,15 +63,15 @@
 
   - name: assert that none of the interfaces are active in the routing table
     assert:
-      that: "routes | select('search', item) | list | length == 0"
-      fail_msg: "{{ item }} is active in the routing table, refusing further actions"
-      success_msg: "{{ item }} isn't active in the routing table, continuing..."
-    with_items: "{{ dev_info.Interfaces }}"
-
-  - name: display device information
-    debug: var=dev_info
+      that: "routes | select('search', iface) | list | length == 0"
+      fail_msg: "{{ iface }} is active in the routing table, refusing further actions"
+      success_msg: "{{ iface }} isn't active in the routing table, continuing..."
+    loop: "{{ dev_info.Interfaces }}"
+    loop_control:
+      loop_var: iface
 
 - name: bind device to the driver
+  when: driver != current_driver
   block:
   - name: ensure that kernel module is loaded
     modprobe:
