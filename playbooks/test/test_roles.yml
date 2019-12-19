@@ -1,0 +1,13 @@
+---
+# A playbook to test individual roles on a subset of host(s).
+# To test a role just update the hosts and role info and run it as a usual playbook
+# $ ansible-playbook -i inventory.ini playbooks/test/test_roles.yml
+#
+# Note: exclude this changes from your git commit :)
+#
+- hosts: node1
+  tasks: []
+  roles:
+    - role: sriov-nic-init
+  environment: "{{ proxy_env | d({}) }}"
+
