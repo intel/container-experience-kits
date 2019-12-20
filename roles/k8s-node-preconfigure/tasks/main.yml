@@ -3,6 +3,11 @@
 - include: "i40e-drivers-update.yml"
   when: force_nic_drivers_update | default(false) | bool
 
+- include_role:
+    name: install-ddp-pkgs
+  when:
+    - install_ddp_packages | default(false) | bool
+
 - name: set default grub flags values
   set_fact:
     hugepages_flags: ""
