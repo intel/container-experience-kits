@@ -31,6 +31,9 @@ ovs_dpdk_socket_mem: "256,0"
 # Set to 'true' to update i40e and i40evf kernel modules
 force_nic_drivers_update: true
 
+# install Intel x700 & x800 series NICs DDP packages
+install_ddp_packages: true
+
 # Enables hugepages support
 hugepages_enabled: true
 
