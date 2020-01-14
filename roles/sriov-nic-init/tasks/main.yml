@@ -1,5 +1,20 @@
 ---
-## Initialize SR-IOV NICs: create virtual functions, bring PF up & bind VFs drivers as specified in host_vars
+## Initialize SR-IOV NICs:
+# ------------------------
+# Load DDP profile, create virtual functions, bring PF up & bind VFs drivers
+# as specified in host_vars under "sriov_nics:"
+
+- name: Load DDP profile
+  include_tasks: load_ddp.yml
+  # DDP profile can be installed on PF0 only, specifying under other PF will be ignored.
+  # Check if the selected NIC is a PF0 (PCI address ends with xx:00.0)
+  vars:
+    nic_module: "{{ ansible_facts[item.name]['module'] }}"
+    ddp_path: "{{ ddp_search_path[nic_module] }}/{{ item.ddp_profile }}"
+  when:
+    - ansible_facts[item.name]['pciid'].endswith(':00.0')
+    - item.ddp_profile|default("") != ""
+  with_items: "{{ sriov_nics }}"
 
 - name: Create VFs
   include_tasks: create_vfs.yml

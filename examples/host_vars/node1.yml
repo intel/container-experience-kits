@@ -9,6 +9,7 @@ sriov_nics:
   - name: enp24s0f0              # PF interface names
     sriov_numvfs: 2              # number of VFs to create for this PF(enp24s0f0)
     vf_driver: vfio-pci          # VF driver to be attached for all VFs under this PF(enp24s0f0), "i40evf", "iavf", "vfio-pci", "igb_uio"
+    ddp_profile: "gtp.pkgo"      # DDP package name to be loaded into the NIC
   - name: enp24s0f1
     sriov_numvfs: 4
     vf_driver: iavf
