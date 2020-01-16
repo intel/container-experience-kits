@@ -54,6 +54,22 @@
     update_cache: yes
   when: ansible_os_family == "Debian"
 
+- name: install pip
+  yum:
+    name: python-pip
+  when: ansible_os_family == "RedHat"
+
+- name: install pip
+  apt:
+    name: python-pip
+  when: ansible_os_family == "Debian"
+
+- name: install python-netaddr on Ansible host
+  package:
+    name: python-netaddr
+  delegate_to: localhost
+  become: yes
+
 - name: update all packages on Red Hat OS family
   yum:
     name: '*'
