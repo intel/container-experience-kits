@@ -30,12 +30,13 @@
 
 - name: build Userspace CNI plugin
   shell: >
-    source /etc/profile.d/golang.sh;
+    source /etc/profile.d/golang.sh &&
+    make clean &&
     {% if vpp_enabled %}
-    make install-deps;
+    make install-dep &&
     {% endif %}
-    make install;
-    make;
+    make install &&
+    make
   args:
     chdir: "{{ userspace_cni_path }}"
     creates: "{{ userspace_cni_path }}/userspace/userspace"
