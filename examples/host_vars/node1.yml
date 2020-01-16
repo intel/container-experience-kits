@@ -33,7 +33,7 @@ force_nic_drivers_update: true
 hugepages_enabled: true
 
 # Hugepage sizes available: 2M, 1G
-default_hugepage_size: 2M
+default_hugepage_size: 1G
 
 # Sets how many hugepages of each size should be created
 hugepages_1G: 0

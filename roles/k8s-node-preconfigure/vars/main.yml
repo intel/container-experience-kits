@@ -1,6 +1,4 @@
 ---
-default_hugepage_size: "2M"
-
 install_dependencies:
   Debian:
     - build-essential
