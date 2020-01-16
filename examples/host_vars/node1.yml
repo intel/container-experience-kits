@@ -33,11 +33,11 @@ force_nic_drivers_update: true
 hugepages_enabled: true
 
 # Hugepage sizes available: 2M, 1G
-default_hugepage_size: 2M
+default_hugepage_size: 1G
 
 # Sets how many hugepages of each size should be created
-hugepages_1G: 0
-hugepages_2M: 128
+hugepages_1G: 4
+hugepages_2M: 0
 
 # CPU isolation from Linux scheduler
 isolcpus_enabled: true
