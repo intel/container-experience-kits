@@ -1,6 +1,7 @@
 ---
 cmk_git_url: "https://github.com/intel/CPU-Manager-for-Kubernetes.git"
-cmk_version: "v1.4.0"
+# use CMK v1.4.0 + Python 3.4 deprecation fix
+cmk_version: "2ce79a64354b766dd28ff709365b9af18fee8c8a"
 cmk_dir: "/usr/src/cmk"
 
 cmk_untaint_nodes: true
