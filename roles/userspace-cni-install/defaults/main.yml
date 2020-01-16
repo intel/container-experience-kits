@@ -1,6 +1,6 @@
 ---
 userspace_cni_git_url: "https://github.com/intel/userspace-cni-network-plugin.git"
-userspace_cni_version: "master" # NOTE: or v1.1?
+userspace_cni_version: "v1.2"
 
 vpp_version: 1807
 
