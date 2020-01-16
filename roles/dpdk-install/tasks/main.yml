@@ -71,3 +71,5 @@
   when:
     - sriov_enabled
     - sriov_net_dp_enabled
+    - sriov_net_dp_config is defined
+    - sriov_net_dp_config | length > 0
