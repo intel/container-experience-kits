@@ -29,9 +29,6 @@ qat_dp_namespace: kube-system
 gpu_dp_enabled: true
 gpu_dp_namespace: kube-system
 
-# Forces installation of the Multus CNI from the official Github repo on top of the Kubespray built-in one
-force_external_multus_installation: true
-
 # Create reference net-attach-def objects
 example_net_attach_defs:
   userspace_ovs_dpdk: false
