@@ -40,8 +40,9 @@ example_net_attach_defs:
 #https_proxy: "http://proxy.example.com:1080"
 #additional_no_proxy: ".example.com"
 
-#Topology Manager flags
-kubelet_node_custom_flags:
+# Custom Kubelet flags with Topology Manager flags included.
+# There are four supported policies: none, best-effort, restricted, single-numa-node.
+kubelet_custom_flags:
   - "--feature-gates=TopologyManager=true"
   - "--topology-manager-policy=best-effort"
 
