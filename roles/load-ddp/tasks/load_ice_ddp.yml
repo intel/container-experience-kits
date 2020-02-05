@@ -1,0 +1,3 @@
+- name: install DDP for Intel 810 series NICs
+  debug:
+    msg: "Not implemented yet. nic: {{ nic }} nic_module: {{ nic_module }} ddp_profile: {{ ddp_profile }}"

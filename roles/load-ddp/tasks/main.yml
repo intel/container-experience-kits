@@ -1,0 +1,19 @@
+- name: Load DDP profile with i40e module (Intel X710)
+  include_tasks: load_i40e_ddp.yml
+  vars:
+    ddp_path: "{{ ddp_search_path[nic_module] }}/{{ ddp_profile }}"
+  when:
+    - nic != ""
+    - nic_module != ""
+    - nic_module == "i40e"
+    - ddp_profile != ""
+
+- name: Load DDP profile with ice module (Intel X810)
+  include_tasks: load_ice_ddp.yml
+  vars:
+    ddp_path: "{{ ddp_search_path[nic_module] }}/{{ ddp_profile }}"
+  when:
+    - nic != ""
+    - nic_module != ""
+    - nic_module == "ice"
+    - ddp_profile != ""
