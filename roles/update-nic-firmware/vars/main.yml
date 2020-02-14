@@ -1,0 +1,10 @@
+nvmupdate_pkg_url: https://downloadmirror.intel.com/25791/eng/700Series_NVMUpdatePackage_v7_20_Linux.tar.gz
+nvmupdate_pkg_checksum: md5:2d429c8eda73378a86af6d6ec6247f0d
+min_supported_fw_version: v7.20
+
+# dependencies
+install_dependencies:
+  Debian:
+    - ethtool
+  RedHat:
+    - ethtool
