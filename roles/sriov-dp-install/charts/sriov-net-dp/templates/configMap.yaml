@@ -5,22 +5,4 @@ metadata:
   namespace: {{ .Values.namespace }}
 data:
   config.json: |
-    {
-        "resourceList": [{
-                "resourceName": "intel_sriov_netdevice",
-                "selectors": {
-                    "vendors": ["8086"],
-                    "devices": ["154c", "10ed"],
-                    "drivers": ["i40evf", "ixgbevf"]
-                }
-            },
-            {
-                "resourceName": "intel_sriov_dpdk",
-                "selectors": {
-                    "vendors": ["8086"],
-                    "devices": ["154c", "10ed"],
-                    "drivers": ["vfio-pci"]
-                }
-            }
-        ]
-    }
+    {{ .Values.sriovdp_config_data }}
