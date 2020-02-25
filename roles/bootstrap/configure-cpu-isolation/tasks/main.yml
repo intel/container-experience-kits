@@ -1,0 +1,44 @@
+---
+- name: set default grub flags values
+  set_fact:
+    isolcpus_flags: ""
+
+- name: validate isolcpus settings
+  assert:
+    that: isolcpus | length > 0
+    fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
+  when: isolcpus_enabled
+
+- name: set isolcpus flag
+  set_fact:
+    isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }}"
+  when:
+    - isolcpus_enabled | default(false)
+
+- name: set kernel boot flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="(?!.* isolcpus=)(.*)"'
+    line: 'GRUB_CMDLINE_LINUX="\1 {{ isolcpus_flags }}"'
+    state: present
+    backrefs: yes
+  register: isolcpus_parameters
+  when:
+    - isolcpus_flags | length > 0
+
+- name: update grub.cfg
+  command: update-grub
+  notify:
+   - reboot server
+  when:
+    - ansible_os_family == "Debian"
+    - isolcpus_parameters.changed
+
+# TODO: make it work with EFI
+- name: update grub.cfg
+  command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  notify:
+   - reboot server
+  when:
+    - ansible_os_family == "RedHat"
+    - isolcpus_parameters.changed

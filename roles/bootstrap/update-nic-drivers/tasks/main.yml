@@ -1,0 +1,17 @@
+---
+- name: install dependencies
+  include_role:
+    name: install-dependencies
+  when: force_nic_drivers_update | default(false) | bool
+
+# update i40e drivers
+- include: i40e.yml
+  when: force_nic_drivers_update | default(false) | bool
+
+# update i40evf drivers
+- include: i40evf.yml
+  when: force_nic_drivers_update | default(false) | bool
+
+# update iavf drivers
+- include: iavf.yml
+  when: force_nic_drivers_update | default(false) | bool

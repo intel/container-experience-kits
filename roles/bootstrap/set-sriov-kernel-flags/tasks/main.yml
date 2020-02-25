@@ -1,0 +1,37 @@
+---
+- name: set default grub flags values
+  set_fact:
+    sriov_flags: ""
+
+- name: set kernel flags required for SR-IOV
+  set_fact:
+    sriov_flags: "intel_iommu=on iommu=pt pci=realloc pci=assign-busses"
+  when:
+    - sriov_enabled | default(false)
+
+- name: set sriov kernel boot flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="(?!.* intel_iommu=)(.*)"'
+    line: 'GRUB_CMDLINE_LINUX="\1 {{ sriov_flags }}"'
+    state: present
+    backrefs: yes
+  register: sriov_parameters
+  when:
+    - sriov_flags | length > 0
+
+- name: update grub.cfg
+  command: update-grub
+  notify:
+   - reboot server
+  when:
+    - ansible_os_family == "Debian"
+    - sriov_parameters.changed
+
+- name: update grub.cfg
+  command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  notify:
+   - reboot server
+  when:
+    - ansible_os_family == "RedHat"
+    - sriov_parameters.changed

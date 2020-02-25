@@ -1,0 +1,39 @@
+---
+- name: get current i40e driver version
+  command: modinfo iavf -F version
+  register: iavf_installed_version
+
+- name: download iavf drivers
+  get_url:
+    url: "{{ iavf_drivers_url }}"
+    dest: /usr/src
+  register: iavf_download
+  when: iavf_installed_version != iavf_drivers_version
+
+- name: unload iavf module
+  modprobe:
+    name: iavf
+    state: absent
+  when: iavf_installed_version != iavf_drivers_version
+
+- name: untar iavf driver sources
+  unarchive:
+    src: "{{ iavf_download.dest }}"
+    dest: /usr/src
+    remote_src: yes
+    list_files: yes
+  become: yes
+  register: iavf_untar
+  when: iavf_installed_version != iavf_drivers_version
+
+- name: build and install iavf drivers
+  make:
+    chdir: "{{ iavf_untar.dest }}/{{ iavf_untar.files[0] }}/src"
+    target: install
+  become: yes
+  when: iavf_installed_version != iavf_drivers_version
+
+- name: ensure iavf module is loaded
+  modprobe:
+    name: iavf
+    state: present

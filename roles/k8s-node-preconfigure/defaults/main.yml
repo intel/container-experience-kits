@@ -1,8 +1,0 @@
----
-sriov_numvfs: 16
-
-i40e_drivers_version: 2.7.29
-i40evf_drivers_version: 3.6.15
-
-i40e_drivers_url: https://sourceforge.net/projects/e1000/files/i40e%20stable/{{i40e_drivers_version}}/i40e-{{i40e_drivers_version}}.tar.gz
-i40evf_drivers_url: https://sourceforge.net/projects/e1000/files/i40evf%20stable/{{i40evf_drivers_version}}/i40evf-{{i40evf_drivers_version}}.tar.gz

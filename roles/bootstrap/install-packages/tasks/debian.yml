@@ -1,0 +1,26 @@
+---
+- name: install build-essential package
+  apt:
+    name: build-essential
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: install pip
+  apt:
+    name: python-pip
+  when: ansible_os_family == "Debian"
+
+- name: install python-netaddr on Ansible host
+  apt:
+    name: python-netaddr
+  delegate_to: localhost
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: perform dist-upgrade on Debian OS family
+  apt:
+    upgrade: dist
+    update_cache: yes
+  when:
+    - ansible_os_family == "Debian"
+    - update_all_packages | default(true)

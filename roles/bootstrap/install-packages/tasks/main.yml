@@ -1,0 +1,10 @@
+---
+- name: install packages on RHEL-based distro
+  include_tasks: rhel.yml
+
+- name: install packages on Debian-based distro
+  include_tasks: debian.yml
+
+- name: install jmespath
+  pip:
+    name: jmespath
