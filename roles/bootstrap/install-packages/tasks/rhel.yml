@@ -1,0 +1,59 @@
+---
+- name: install epel-release
+  yum:
+    name: epel-release
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution != "Fedora"
+
+- name: install the 'Development tools' package group
+  yum:
+    name: "@Development tools"
+  when: ansible_os_family == "RedHat"
+
+- name: install pip
+  yum:
+    name: python-pip
+  when: ansible_os_family == "RedHat"
+
+- name: install python-netaddr on Ansible host
+  package:
+    name: python-netaddr
+  delegate_to: localhost
+  become: yes
+  when: ansible_os_family == "RedHat"
+
+- name: update all packages on Red Hat OS family
+  yum:
+    name: '*'
+    state: latest
+  when:
+    - ansible_os_family == "RedHat"
+    - update_all_packages | default(true)
+
+- name: update to the latest kernel and kernel headers on the Red Hat OS family
+  yum:
+    name:
+    - kernel
+    - kernel-devel
+    state: latest
+  notify:
+    - reboot server
+  when:
+    - ansible_os_family == "RedHat"
+    - update_kernel | default(true)
+
+#note(przemeklal): fixes issue with missing selinux in packet.net CentOS images
+- name: ensure selinux is installed
+  yum:
+    name:
+    - policycoreutils
+    - policycoreutils-python
+    - selinux-policy
+    - selinux-policy-targeted
+    - libselinux-utils
+    - setools
+    - setools-console
+    - shtool
+    state: present
+  when: ansible_os_family == "RedHat"

@@ -1,6 +1,6 @@
 ---
-- name: preconfigure target hosts
-  import_playbook: infra/infra_setup.yml
+- name: configure target hosts OS layer
+  import_playbook: infra/advanced.yml
 - name: provision Kubernetes cluster using kubespray
   import_playbook: k8s/k8s.yml
 - name: install Intel BMRA Container Experience Kit features

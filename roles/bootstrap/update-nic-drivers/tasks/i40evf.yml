@@ -1,0 +1,39 @@
+---
+- name: get current i40e driver version
+  command: modinfo i40evf -F version
+  register: i40evf_installed_version
+
+- name: download i40evf drivers
+  get_url:
+    url: "{{ i40evf_drivers_url }}"
+    dest: /usr/src
+  register: i40evf_download
+  when: i40evf_installed_version != i40evf_drivers_version
+
+- name: unload i40evf module
+  modprobe:
+    name: i40evf
+    state: absent
+  when: i40evf_installed_version != i40evf_drivers_version
+
+- name: untar i40evf driver sources
+  unarchive:
+    src: "{{ i40evf_download.dest }}"
+    dest: /usr/src
+    remote_src: yes
+    list_files: yes
+  become: yes
+  register: i40evf_untar
+  when: i40evf_installed_version != i40evf_drivers_version
+
+- name: build and install i40evf drivers
+  make:
+    chdir: "{{ i40evf_untar.dest }}/{{ i40evf_untar.files[0] }}/src"
+    target: install
+  become: yes
+  when: i40evf_installed_version != i40evf_drivers_version
+
+- name: ensure i40evf module is loaded
+  modprobe:
+    name: i40evf
+    state: present
