@@ -3,7 +3,7 @@
   yum: name=epel-release
   when: ansible_os_family == 'RedHat'
 
-- name : install dependencies
+- name: install dependencies
   include_role:
     name: install-dependencies
 
