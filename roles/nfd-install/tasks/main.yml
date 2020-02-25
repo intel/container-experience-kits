@@ -1,5 +1,5 @@
 ---
-- name : install dependencies
+- name: install dependencies
   include_role:
     name: install-dependencies
 
