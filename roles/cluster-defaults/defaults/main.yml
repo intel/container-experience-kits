@@ -13,7 +13,7 @@ no_proxy: >-
   {{ hostvars[item]['access_ip'] | d(hostvars[item]['ip'] | d(fallback_ips[item])) }},{{ item }},{{ item }}.{{ dns_domain }},
   {%- endfor -%}
   {%- if additional_no_proxy is defined -%}{{ additional_no_proxy }},{%- endif -%}
-  127.0.0.1,localhost
+  127.0.0.1,localhost,.svc,{{ kube_service_addresses }},{{ kube_pods_subnet }}
   {%- endif %}
 
 proxy_env:
