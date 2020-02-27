@@ -1,0 +1,39 @@
+---
+# Role for updating git on RHEL7-based distros to resolve 'go get' issues on some projects
+
+# install deps
+- name: install deps
+  yum:
+    name:
+      - gettext-devel
+      - openssl-devel
+      - perl-CPAN
+      - perl-devel
+      - zlib-devel
+      - curl-devel
+    state: present
+
+- name: download git tarball
+  unarchive:
+    src: "{{ git_tarball_url }}"
+    dest: /usr/src/
+    remote_src: yes
+
+- name: make configure
+  make:
+    target: configure
+    chdir: "/usr/src/git-{{ git_version }}"
+
+- name: configure
+  shell: ./configure --prefix=/usr/local
+  args:
+    chdir: "/usr/src/git-{{ git_version }}"
+
+- name: build
+  make:
+    chdir: "/usr/src/git-{{ git_version }}"
+ 
+- name: install
+  make:
+    target: install
+    chdir: "/usr/src/git-{{ git_version }}"

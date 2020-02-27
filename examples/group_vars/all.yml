@@ -52,6 +52,12 @@ qat_dp_namespace: kube-system
 gpu_dp_enabled: true
 gpu_dp_namespace: kube-system
 
+# Intel Telemetry Aware Scheduling
+tas_enabled: true
+tas_namespace: kube-system
+# create default TAS policy: [true, false]
+tas_create_policy: true
+
 # Forces installation of the Multus CNI from the official Github repo on top of the Kubespray built-in one
 force_external_multus_installation: true
 
@@ -76,6 +82,7 @@ kube_network_plugin_multus: true
 multus_version: v3.2
 kube_network_plugin: flannel
 kube_pods_subnet: 10.244.0.0/16
+kube_service_addresses: 10.233.0.0/18
 kube_proxy_mode: iptables
 
 # please leave it set to "true", otherwise Intel BMRA features deployed as Helm charts won't be installed
