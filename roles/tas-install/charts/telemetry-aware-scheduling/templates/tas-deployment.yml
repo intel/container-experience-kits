@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "telemetry-aware-scheduling.fullname" . }}
+  namespace: {{ .Values.namespace }} 
+  labels:
+{{ include "telemetry-aware-scheduling.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "telemetry-aware-scheduling.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+{{ include "telemetry-aware-scheduling.labels" . | indent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ template "telemetry-aware-scheduling.serviceAccountName" . }}
+      containers:
+      - name: tas-controller
+        command:
+        - /controller
+        - --syncPeriod=2s
+        image: "{{ .Values.controllerImage.repository }}:{{ .Values.controllerImage.tag }}"
+        imagePullPolicy: {{ .Values.controllerImage.pullPolicy }}
+      - name: tas-extender
+        command:
+        - /extender
+        {{- if .Values.tls.enabled }}
+        - --cert=/tas/cert/tls.crt
+        - --key=/tas/cert/tls.key
+        {{- else }}
+        - --unsafe
+        {{- end }}
+        image: "{{ .Values.extenderImage.repository }}:{{ .Values.extenderImage.tag }}"
+        imagePullPolicy: {{ .Values.extenderImage.pullPolicy }}
+        {{- if .Values.tls.enabled }}
+        volumeMounts:
+        - name: certs
+          mountPath: /tas/cert
+      volumes:
+      - name: certs
+        secret:
+          secretName: {{ .Values.tls.secretName }}
+      {{- end}}
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
