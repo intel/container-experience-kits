@@ -21,7 +21,7 @@
     - name: make sure that rc.local exists and has correct permissions
       file:
         path: /etc/rc.d/rc.local
-        state: present
+        state: file
         owner: root
         group: root
         mode: '0755'
