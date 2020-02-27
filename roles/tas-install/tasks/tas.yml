@@ -1,0 +1,100 @@
+---
+- name: build TAS
+  make:   
+    target: build
+    chdir: "{{ tas_dir }}"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+  
+- name: build TAS image
+  make:   
+    target: image
+    chdir: "{{ tas_dir }}"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: tag TAS-controller image
+  command: docker tag tas-controller:{{ tas_version }} {{ registry_local_address }}/tas-controller:{{ tas_version }}
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: push TAS-controller image to local registry
+  command: docker push {{ registry_local_address }}/tas-controller:{{ tas_version }}
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: tag TAS-extender image
+  command: docker tag tas-extender:{{ tas_version }} {{ registry_local_address }}/tas-extender:{{ tas_version }}
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: push TAS-extender image to local registry
+  command: docker push {{ registry_local_address }}/tas-extender:{{ tas_version }}
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: set values for tas-controller
+  set_fact:
+    tas_controller_image: "{{ registry_local_address }}/tas-controller"
+    tas_controller_version: latest
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: set values for tas-extender
+  set_fact:
+    tas_extender_image: "{{ registry_local_address }}/tas-extender"
+    tas_extender_version: latest
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: delete extender-secret if exists
+  command: kubectl delete secret extender-secret
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: generate extender-secret
+  command: kubectl create secret tls extender-secret --cert /etc/kubernetes/pki/ca.crt --key /etc/kubernetes/pki/ca.key
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: change file access rights
+  file:
+    path: "{{ extender_dir }}/configure-scheduler.sh"
+    group: root
+    owner: root
+    mode: '0711'
+
+- name: configure Scheduler
+  command: sh configure-scheduler.sh
+  args:
+    chdir: "{{ extender_dir }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: create descheduler directory if needed
+  file:
+    path: "{{ sigs_k8s_io_dir }}"
+    state: directory
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: clone Descheduler for Kubernetes
+  git:
+    repo: "{{ descheduler_git_url }}"
+    dest: "{{ descheduler_dir }}"
+    force: yes
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: install descheduler
+  make:
+    chdir: "{{ descheduler_dir }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+  
+- name: deploy TAS
+  command: kubectl apply -f deploy/
+  args:
+    chdir: "{{ tas_dir }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]

@@ -52,6 +52,9 @@ qat_dp_namespace: kube-system
 gpu_dp_enabled: true
 gpu_dp_namespace: kube-system
 
+# Intel Telemetry Aware Scheduling
+tas_enabled: true
+
 # Create reference net-attach-def objects
 example_net_attach_defs:
   userspace_ovs_dpdk: false

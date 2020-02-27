@@ -1,0 +1,24 @@
+image:
+  repository: quay.io/prometheus/node-exporter
+  tag: {{ prometheus_node_exporter_tag | default("v0.15.2") }}
+  pullPolicy: IfNotPresent
+
+podAnnotations: 
+  scheduler.alpha.kubernetes.io/critical-pod: ''
+
+podLabels: 
+  k8s-app: {{ prometheus_node_exporter_name | default("node-exporter") }}
+  kubernetes.io/cluster-service: "true"
+  addonmanager.kubernetes.io/mode: Reconcile
+  version: v0.15.2
+
+extraArgs: 
+  - --collector.textfile.directory=/host/node-metrics
+
+extraHostVolumeMounts: 
+  - name: node-metrics
+    hostPath: /tmp/node-metrics
+    mountPath: /host/node-metrics
+    readOnly: true
+
+namespaceOverride: {{ prometheus_node_exporter_namespace | default("kube-system") }}

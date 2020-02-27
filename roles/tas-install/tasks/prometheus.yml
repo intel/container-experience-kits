@@ -1,0 +1,25 @@
+---
+- name: create a custom-metrics namespace
+  k8s:
+    name: "{{ prometheus_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  when:
+    inventory_hostname == groups['kube-master'][0]
+
+- name: populate Prometheus Helm chart values template and push to master node
+  template:
+    src: "prometheus-values.yml.j2"
+    dest: "/usr/src/charts/prometheus-values.yml"
+    force: yes
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: install Prometheus Helm chart
+  command: helm upgrade --install --namespace {{ prometheus_namespace }} {{ prometheus_name }} -f prometheus-values.yml stable/prometheus
+  args:
+    chdir: "/usr/src/charts/"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+

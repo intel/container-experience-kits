@@ -1,0 +1,33 @@
+---
+tas_git_url: "https://github.com/intel/telemetry-aware-scheduling.git"
+tas_dir: "/usr/src/telemetry-aware-scheduling"
+
+extender_dir: "/usr/src/telemetry-aware-scheduling/deploy/extender-configuration/"
+
+descheduler_git_url: https://github.com/kubernetes-sigs/descheduler.git
+descheduler_dir: "/usr/src/sigs.k8s.io/descheduler"
+sigs_k8s_io_dir: "/usr/src/sigs.k8s.io"
+
+node_metrics_path: "/tmp/node-metrics"
+
+registry_local_address: "localhost:5000"
+
+tas_controller_image: "{{ registry_local_address }}/tas-controller"
+tas_extender_image: "{{ registry_local_address }}/tas-extender"
+tas_version: "latest"
+
+prometheus_custom_metrics_namespace: "custom-metrics"
+prometheus_custom_metrics_name: "custom-metrics"
+prometheus_adapter_service_account_name: "custom-metrics-apiserver"
+prometheus_adapter_loglevel: "10"
+prometheus_adapter_tag: "v0.6.0"
+prometheus_node_resource_reader: "prometheus-adapter-tas-resource-reader"
+
+prometheus_node_exporter_namespace: "kube-system"
+prometheus_node_exporter_name: "node-exporter"
+prometheus_node_exporter_tag: "v0.15.2"
+
+prometheus_namespace: "monitoring"
+prometheus_name: "health-metrics"
+prometheus_image: "v2.15.2"
+prometheus_url: "http://{{ prometheus_name }}-prometheus-server.{{ prometheus_namespace }}.svc"
