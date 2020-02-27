@@ -16,12 +16,11 @@
     name: python-pip
   when: ansible_os_family == "RedHat"
 
-- name: install python-netaddr on Ansible host
-  package:
-    name: python-netaddr
+- name: install netaddr on Ansible host
+  pip:
+    name: netaddr==0.7.19
   delegate_to: localhost
   become: yes
-  when: ansible_os_family == "RedHat"
 
 - name: update all packages on Red Hat OS family
   yum:
