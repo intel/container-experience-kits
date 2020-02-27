@@ -32,7 +32,6 @@
     - role: bootstrap/configure-cpu-isolation
     - role: bootstrap/set-sriov-kernel-flags
     - role: bootstrap/update-nic-drivers
-    - role: bootstrap/configure-qat
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -47,6 +46,7 @@
       when: install_ddp_packages | default(false) | bool
     - role: sriov-nic-init
       when: sriov_enabled | default(false) and install_dpdk | default(false)
+    - role: bootstrap/configure-qat
     - role: sst-bf-configure
       when: sst_bf_configuration_enabled | default(true)
       tags: sst-bf
