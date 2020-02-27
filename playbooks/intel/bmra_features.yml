@@ -22,6 +22,9 @@
     - role: cmk-install
       tags: cmk
       when: cmk_enabled | default(true)
+    - role: tas-install
+      tags: tas-install
+      when: tas_enabled | default(true)
   environment: "{{ proxy_env | d({}) }}"
 
 - hosts: kube-node

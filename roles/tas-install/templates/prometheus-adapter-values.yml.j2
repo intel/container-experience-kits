@@ -1,0 +1,91 @@
+image:
+  repository: directxman12/k8s-prometheus-adapter-amd64
+  tag: v0.6.0
+
+logLevel: {{ prometheus_adapter_loglevel | default("10") }}
+
+prometheus:
+  url: {{ prometheus_url | default("http://health-metrics-prometheus-server.monitoring.svc") }}
+  port: 9090
+
+serviceAccount:
+  name: {{ prometheus_adapter_service_account_name | default("custom-metrics-apiserver") }}
+
+rules:
+  default: false
+  custom: 
+  - seriesQuery: '{__name__=~"^container_.*",container_name!="POD",namespace!="",pod_name!=""}'
+    seriesFilters: []
+    resources:
+      overrides:
+        namespace:
+          resource: namespace
+        pod_name:
+          resource: pod
+    name:
+      matches: ^container_(.*)_seconds_total$
+      as: ""
+    metricsQuery: sum(rate(<<.Series>>{<<.LabelMatchers>>,container_name!="POD"}[1m])) by (<<.GroupBy>>)
+  - seriesQuery: '{__name__=~"^container_.*",container_name!="POD",namespace!="",pod_name!=""}'
+    seriesFilters:
+    - isNot: ^container_.*_seconds_total$
+    resources:
+      overrides:
+        namespace:
+          resource: namespace
+        pod_name:
+          resource: pod
+    name:
+      matches: ^container_(.*)_total$
+      as: ""
+    metricsQuery: sum(rate(<<.Series>>{<<.LabelMatchers>>,container_name!="POD"}[1m])) by (<<.GroupBy>>)
+  - seriesQuery: '{__name__=~"^container_.*",container_name!="POD",namespace!="",pod_name!=""}'
+    seriesFilters:
+    - isNot: ^container_.*_total$
+    resources:
+      overrides:
+        namespace:
+          resource: namespace
+        pod_name:
+          resource: pod
+    name:
+      matches: ^container_(.*)$
+      as: ""
+    metricsQuery: sum(<<.Series>>{<<.LabelMatchers>>,container_name!="POD"}) by (<<.GroupBy>>)
+  - seriesQuery: '{namespace!="",__name__!~"^container_.*"}'
+    seriesFilters:
+    - isNot: .*_total$
+    resources:
+      template: <<.Resource>>
+    name:
+      matches: ""
+      as: ""
+    metricsQuery: sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)
+  - seriesQuery: '{namespace!="",__name__!~"^container_.*"}'
+    seriesFilters:
+    - isNot: .*_seconds_total
+    resources:
+      template: <<.Resource>>
+    name:
+      matches: ^(.*)_total$
+      as: ""
+    metricsQuery: sum(rate(<<.Series>>{<<.LabelMatchers>>}[1m])) by (<<.GroupBy>>)
+  - seriesQuery: '{namespace!="",__name__!~"^container_.*"}'
+    seriesFilters: []
+    resources:
+      template: <<.Resource>>
+    name:
+      matches: ^(.*)_seconds_total$
+      as: ""
+    metricsQuery: sum(<<.Series>>{<<.LabelMatchers>>}[1m]) by (<<.GroupBy>>)
+  - seriesQuery: '{__name__=~"^node_.*"}'
+    resources:
+      overrides:
+        instance:
+          resource: node
+    name:
+      matches: ^node_(.*)
+    metricsQuery: <<.Series>>
+
+tls:
+  enable: false
