@@ -16,22 +16,44 @@
     line: 'GRUB_CMDLINE_LINUX="\1 {{ sriov_flags }}"'
     state: present
     backrefs: yes
-  register: sriov_parameters
+  register: kernel_parameters
+  notify:
+   - reboot server
   when:
     - sriov_flags | length > 0
 
 - name: update grub.cfg
   command: update-grub
-  notify:
-   - reboot server
   when:
     - ansible_os_family == "Debian"
-    - sriov_parameters.changed
+    - kernel_parameters.changed
 
-- name: update grub.cfg
-  command: grub2-mkconfig -o /boot/grub2/grub.cfg
-  notify:
-   - reboot server
+- name: check if grub2.cfg config file exists (MBR variant)
+  stat:
+    path: /etc/grub2.cfg
+  register: grub_mbr_cfg
   when:
     - ansible_os_family == "RedHat"
-    - sriov_parameters.changed
+    - kernel_parameters.changed
+
+- name: update MBR grub2.cfg
+  command: grub2-mkconfig -o /etc/grub2.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - kernel_parameters.changed
+  - grub_mbr_cfg.stat.exists
+
+- name: check if grub2-efi.cfg config file exists (EFI variant)
+  stat:
+    path: /etc/grub2-efi.cfg
+  register: grub_efi_cfg
+  when:
+    - ansible_os_family == "RedHat"
+    - kernel_parameters.changed
+
+- name: update MBR grub2-efi.cfg
+  command: grub2-mkconfig -o /etc/grub2-efi.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - kernel_parameters.changed
+  - grub_efi_cfg.stat.exists
