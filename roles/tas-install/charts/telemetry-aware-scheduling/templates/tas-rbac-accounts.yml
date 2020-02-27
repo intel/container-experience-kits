@@ -1,0 +1,37 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "telemetry-aware-scheduling.fullname" . }}-policy-handler
+rules:
+- apiGroups: ["telemetry.intel.com"]
+  resources: ["taspolicies"]
+  verbs: ["get", "watch", "list", "delete", "update"]
+- apiGroups: ["custom.metrics.k8s.io"]
+  resources: ["*"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch", "update"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "telemetry-aware-scheduling.fullname" . }}-handle-policies
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "telemetry-aware-scheduling.fullname" . }}-policy-handler
+subjects:
+- kind: ServiceAccount
+  name: {{ template "telemetry-aware-scheduling.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ template "telemetry-aware-scheduling.serviceAccountName" . }}
+  labels:
+{{ include "telemetry-aware-scheduling.labels" . | indent 4 }}
