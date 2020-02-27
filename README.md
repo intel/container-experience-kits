@@ -43,7 +43,7 @@ Refer to the documentation linked below to see configuration details for selecte
 
 ## Requirements
 * Python 2 present on the target servers.
-* Ansible 2.7.12 installed on the Ansible machine (the one you run these playbooks from).
+* Ansible 2.7.16 installed on the Ansible machine (the one you run these playbooks from).
 * pip==9.0.3 installed on the Ansible machine.
 * SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).
 * Internet access on all target servers is mandatory. Proxy is supported.
