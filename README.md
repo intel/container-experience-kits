@@ -1,6 +1,6 @@
-# Intel Container Environment Setup Scripts
+# Intel Container Experience Kits Setup Scripts
 
-Intel Container Environment Setup Sctipts provide a simplified mechanism for installing and configuring Kubernetes on Intel Architecture using Ansible.
+Intel Container Experience Kits Setup Scripts provide a simplified mechanism for installing and configuring Kubernetes clusters on Intel Architecture using Ansible.
 
 ## Quickstart guide
 1. Initialize git submodules to download Kubespray code.
@@ -8,37 +8,44 @@ Intel Container Environment Setup Sctipts provide a simplified mechanism for ins
 git submodule update --init
 ```
 
-2. Copy example inventory file to the project root dir.
+2. Decide which deployment profile you want to use and optinonally export environmental variable. (Note: It will be used only for easier execution of below steps.)
+- For **Advanced** deployment:
 ```
-cp examples/inventory.ini .
+export PROFILE=advanced
 ```
 
-3. Update inventory file with your environment details.
+3. Copy example inventory file to the project root dir.
+```
+cp examples/${PROFILE}/inventory.ini .
+```
+
+4. Update inventory file with your environment details.
 
 Note: at this stage you can inspect your target environment by running:
 ```
-ansible -i inventory.ini -m setup all  > all_system_facts.txt
+ansible -i inventory.ini -m setup all > all_system_facts.txt
 ```
 In `all_system_facts.txt` file you will find details about your hardware, operating system and network interfaces, which will help to properly configure Ansible variables in the next steps.
 
 
-4. Copy group\_vars and host\_vars directories.
+5. Copy group_vars and host_vars directories.
 ```
-cp -r examples/group_vars examples/host_vars .
+cp -r examples/${PROFILE}/group_vars examples/${PROFILE}/host_vars .
 ```
 
-5. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
+6. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
 
 Note: Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
 
-6. Execute `ansible-playbook`.
+7. Execute `ansible-playbook`.
 ```
-ansible-playbook -i inventory.ini playbooks/cluster.yml
+ansible-playbook -i inventory.ini playbooks/${PROFILE}.yml
 ```
 
 ## Configuration
 
-Refer to the documentation linked below to see configuration details for selected components:
+Refer to the documentation linked below to see configuration details for selected capabilities and deployment profiles.
+
 - [SRIOV Network Device Plugin and SRIOV CNI plugin](docs/sriov.md)
 
 ## Requirements
