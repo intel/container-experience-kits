@@ -20,6 +20,10 @@ sriov_cni_enabled: true
 install_dpdk: true # DPDK installation is required for sriov_enabled:true; default to false
 
 userspace_cni_enabled: true
+
+# Intel Bond CNI Plugin
+bond_cni_enabled: true
+
 vpp_enabled: true
 ovs_dpdk_enabled: true
 # CPU mask for OVS-DPDK PMD threads
