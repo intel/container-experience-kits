@@ -43,4 +43,7 @@
     - role: userspace-cni-install
       when: userspace_cni_enabled | default(true)
       tags: userspace-cni
+    - role: bond-cni-install
+      when: bond_cni_enabled | default(true)
+      tags: bond-cni
   environment: "{{ proxy_env | d({}) }}"
