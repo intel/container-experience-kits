@@ -54,6 +54,9 @@ gpu_dp_namespace: kube-system
 
 # Intel Telemetry Aware Scheduling
 tas_enabled: true
+tas_namespace: kube-system
+# create default TAS policy: [true, false]
+tas_create_policy: true
 
 # Create reference net-attach-def objects
 example_net_attach_defs:

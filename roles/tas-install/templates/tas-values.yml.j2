@@ -1,0 +1,61 @@
+# Default values for telemetry-aware-scheduling.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+controllerImage:
+  repository: {{ tas_controller_image | default("localhost:5000/tas-controller") }}
+  tag: {{ tas_version | default("latest") }}
+  pullPolicy: IfNotPresent
+
+extenderImage:
+  repository: {{ tas_extender_image | default("localhost:5000/tas-extender") }}
+  tag: {{ tas_version | default("latest") }}
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+namespace: {{ tas_namespace | default("default") }}
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+
+service:
+  type: ClusterIP
+  port: 9001
+
+tls: 
+  enabled: {{ tas_tls_enabled | default("false") }}
+  # secretName: {{ tas_extender_secret_name | default("extender-secret") }}
+  # key: |- 
+  #   -----BEGIN RSA PRIVATE KEY-----
+  #   <private key>
+  #   -----END RSA PRIVATE KEY-----
+  # certificate: |-
+  #   -----BEGIN CERTIFICATE-----
+  #   <certificate>
+  #   -----END CERTIFICATE-----
+
+taspolicy:
+  create: {{ tas_create_policy | default("false") }}
+  deschedule:
+    enabled: true
+    rules:
+    - name: "health_metric"
+      operator: "Equals"
+      target: 2
+  dontschedule:
+    enabled: true
+    rules:
+    - name: "health_metric"
+      operator: "Equals"
+      target: 1
+    - name: "health_metric"
+      operator: "Equals"
+      target: 2
+  scheduleonmetric:
+    enabled: true
+    rules:
+      name: "health_metric"
+      operator: "LessThan"

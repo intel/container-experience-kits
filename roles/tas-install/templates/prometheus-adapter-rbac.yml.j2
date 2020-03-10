@@ -24,3 +24,4 @@ subjects:
 - kind: ServiceAccount
   name: {{ prometheus_adapter_service_account_name | default("custom-metrics-apiserver") }}
   namespace: {{ prometheus_custom_metrics_namespace | default("custom-metrics") }}
+

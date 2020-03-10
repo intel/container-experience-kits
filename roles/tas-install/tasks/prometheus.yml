@@ -1,10 +1,6 @@
 ---
 - name: create a custom-metrics namespace
-  k8s:
-    name: "{{ prometheus_namespace }}"
-    api_version: v1
-    kind: Namespace
-    state: present
+  command: kubectl create namespace {{ prometheus_namespace }}
   when:
     inventory_hostname == groups['kube-master'][0]
 

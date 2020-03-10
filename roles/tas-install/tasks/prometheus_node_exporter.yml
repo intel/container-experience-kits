@@ -13,3 +13,4 @@
     chdir: "/usr/src/charts/"
   when:
     - inventory_hostname == groups['kube-master'][0]
+
