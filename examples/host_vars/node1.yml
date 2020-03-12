@@ -52,3 +52,12 @@ hugepages_2M: 0
 # CPU isolation from Linux scheduler
 isolcpus_enabled: true
 isolcpus: "4-7"
+
+# Intel CommsPowerManagement
+sst_bf_configuration_enabled: true
+# Option sst_bf_mode requires sst_bf_configuration_enabled to be set to 'true'.
+# There are three configuration modes:
+# [s] Set SST-BF config (set min/max to 2700/2700 and 2100/2100)
+# [m] Set P1 on all cores (set min/max to 2300/2300)
+# [r] Revert cores to min/Turbo (set min/max to 800/3900)
+sst_bf_mode: s
