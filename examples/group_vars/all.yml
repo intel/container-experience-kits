@@ -85,6 +85,7 @@ kube_network_plugin_multus: true
 multus_version: v3.3
 kube_network_plugin: flannel
 kube_pods_subnet: 10.244.0.0/16
+kube_service_addresses: 10.233.0.0/18
 kube_proxy_mode: iptables
 
 # please leave it set to "true", otherwise Intel BMRA features deployed as Helm charts won't be installed

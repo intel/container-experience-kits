@@ -10,6 +10,7 @@
       - perl-CPAN
       - perl-devel
       - zlib-devel
+      - curl-devel
     state: present
 
 - name: download git tarball

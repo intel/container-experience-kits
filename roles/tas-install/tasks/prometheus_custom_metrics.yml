@@ -1,8 +1,13 @@
 ---
+- name: check if Prometheus Adapter namespace exists
+  command: kubectl get namespace {{ prometheus_custom_metrics_namespace }}
+  register: ns_exists
+  failed_when: no
+  when: inventory_hostname == groups['kube-master'][0]
+
 - name: create a namespace for Prometheus Adapter
   command: kubectl create namespace {{ prometheus_custom_metrics_namespace }}
-  when:
-    inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube-master'][0] and "NotFound" in ns_exists.stderr
 
 - name: populate Prometheus Adapter Helm chart values template and push to master node
   template:

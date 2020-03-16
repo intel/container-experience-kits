@@ -13,4 +13,4 @@
     chdir: "/usr/src/charts/"
   when:
     - inventory_hostname == groups['kube-master'][0]
-
+  register: node_exporter_installation

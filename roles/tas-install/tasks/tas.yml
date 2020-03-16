@@ -3,28 +3,29 @@
   include_role:
     name: install-dependencies
 
+- name: update to git2 on RHEL 7 based distros
+  include_role:
+    name: git2-install
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+    - ansible_distribution_version < '8'
+
 - name: clone TAS repository
   git:
     repo: "{{ tas_git_url }}"
     dest: "{{ tas_dir }}"
     force: yes
-  when:
-    - inventory_hostname == groups['kube-master'][0]
 
 - name: make build and make image - TAS 
   make:   
     target: "{{ item }}"
     chdir: "{{ tas_dir }}"
-  when:
-    - inventory_hostname == groups['kube-master'][0]
   loop:
     - build
     - image
 
 - name: tag TAS-controller and TAS-extender
   command: docker tag {{ item }}:{{ tas_version }} {{ registry_local_address }}/{{ item }}:{{ tas_version }}
-  when:
-    - inventory_hostname == groups['kube-master'][0]
   loop:
     - tas-controller
     - tas-extender
@@ -32,7 +33,7 @@
 - name: push TAS-controller and TAS-extender image to local registry
   command: docker push {{ registry_local_address }}/{{item}}:{{ tas_version }}
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube-node'][0]
   loop:
     - tas-controller
     - tas-extender
@@ -43,6 +44,8 @@
     group: root
     owner: root
     mode: '0711'
+  when:
+    - inventory_hostname == groups['kube-master'][0]
 
 - name: configure Scheduler
   command: sh configure-scheduler.sh
