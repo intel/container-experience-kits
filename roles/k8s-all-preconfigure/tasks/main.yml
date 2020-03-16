@@ -65,8 +65,8 @@
   when: ansible_os_family == "Debian"
 
 - name: install python-netaddr on Ansible host
-  package:
-    name: python-netaddr
+  pip:
+    name: netaddr==0.7.19
   delegate_to: localhost
   become: yes
 
