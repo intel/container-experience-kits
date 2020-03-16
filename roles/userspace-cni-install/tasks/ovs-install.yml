@@ -1,9 +1,25 @@
 ---
+- name: install Python3 from epel-release
+  yum:
+    name:
+      - python36
+      - python36-devel
+    enablerepo: "epel"
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+    - ansible_distribution_version < '8'
+
+- name: assert that hugepages are enabled
+  assert:
+    that: hugepages_enabled | default(false)
+    fail_msg: "Hugepages are disabled. Please configure hugepages in the host vars or disable OVS-DPDK installation."
+
 - name: clone OVS git repository
   git:
     repo: '{{ ovs_repo }}'
     dest: '{{ ovs_dir }}'
     version: '{{ ovs_version | default("master") }}'
+    force: yes
   register: ovs_changed
 
 - name: check whether bootstrap is required
