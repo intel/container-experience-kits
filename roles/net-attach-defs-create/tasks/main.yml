@@ -7,9 +7,11 @@
   include_role:
     name: install-dependencies
 
-- name: upgrade Python setuptools
+- name: upgrade Python wheel and setuptools
   pip:
-    name: setuptools
+    name:
+      - wheel==0.34.2
+      - setuptools<=44
     extra_args: --upgrade
 
 - name: install pip module to manage K8s objects (satisfy requirement of the k8s_raw module)
