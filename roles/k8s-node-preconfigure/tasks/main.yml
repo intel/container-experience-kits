@@ -101,11 +101,35 @@
     - ansible_os_family == "Debian"
     - parameters_changed
 
-- name: update grub.cfg
-  command: grub2-mkconfig -o /boot/grub2/grub.cfg
+- name: check if grub2.cfg config file exists (MBR variant)
+  stat:
+    path: /etc/grub2.cfg
+  register: grub_mbr_cfg
   when:
     - ansible_os_family == "RedHat"
     - parameters_changed
+
+- name: update MBR grub2.cfg
+  command: grub2-mkconfig -o /etc/grub2.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - parameters_changed
+  - grub_mbr_cfg.stat.exists
+
+- name: check if grub2-efi.cfg config file exists (EFI variant)
+  stat:
+    path: /etc/grub2-efi.cfg
+  register: grub_efi_cfg
+  when:
+    - ansible_os_family == "RedHat"
+    - parameters_changed
+
+- name: update MBR grub2-efi.cfg
+  command: grub2-mkconfig -o /etc/grub2-efi.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - parameters_changed
+  - grub_efi_cfg.stat.exists
 
 - name: reboot with the new kernel parameters
   reboot: { reboot_timeout: 1200 }
