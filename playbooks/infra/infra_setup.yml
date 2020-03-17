@@ -11,5 +11,8 @@
   roles:
     - { role: cluster-defaults }
     - { role: k8s-node-preconfigure }
+    - role: sst-bf-configure
+      when: sst_bf_configuration_enabled | default(true)
+      tags: sst-bf
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

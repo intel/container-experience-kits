@@ -1,0 +1,24 @@
+---
+- name: Clone CommsPowerManagement repository
+  git: 
+    repo: "{{ sstbf_git_url }}"
+    dest: "{{ sstbf_dir }}"
+    force: yes
+  when: sst_bf_configuration_enabled
+
+- name: copy scripts to /usr/local/bin
+  copy:
+    src: "{{ sstbf_dir }}/sst_bf.py"
+    dest: "/usr/local/bin/sst_bf.py"
+    mode: 0755
+    remote_src: yes
+  when: sst_bf_configuration_enabled
+
+- assert:
+    that: sst_bf_mode in ['s', 'm', 'r']
+    fail_msg: "The 'sst_bf_mode' variable must be set to 's', 'm' or 'r'. Please update your host vars."
+  when: sst_bf_configuration_enabled
+
+- name: configure CPU on node
+  command: sst_bf.py -{{ sst_bf_mode }}
+  when: sst_bf_configuration_enabled
