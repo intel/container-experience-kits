@@ -30,10 +30,6 @@
     docker_iptables_enabled: true
     docker_dns_servers_strict: false
     override_system_hostname: false
-    dockerproject_rh_repo_base_url: 'https://download.docker.com/linux/centos/7/$basearch/stable'
-    dockerproject_rh_repo_gpgkey: 'https://download.docker.com/linux/centos/gpg'
-    dockerproject_apt_repo_base_url: 'https://download.docker.com/linux/ubuntu'
-    dockerproject_apt_repo_gpgkey: 'https://download.docker.com/linux/ubuntu/gpg'
 
 - hosts: k8s-cluster
   tasks:
