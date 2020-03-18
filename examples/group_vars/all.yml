@@ -52,6 +52,12 @@ qat_dp_namespace: kube-system
 gpu_dp_enabled: true
 gpu_dp_namespace: kube-system
 
+# Intel Telemetry Aware Scheduling
+tas_enabled: true
+tas_namespace: kube-system
+# create default TAS policy: [true, false]
+tas_create_policy: true
+
 # Create reference net-attach-def objects
 example_net_attach_defs:
   userspace_ovs_dpdk: false
@@ -79,6 +85,7 @@ kube_network_plugin_multus: true
 multus_version: v3.3
 kube_network_plugin: flannel
 kube_pods_subnet: 10.244.0.0/16
+kube_service_addresses: 10.233.0.0/18
 kube_proxy_mode: iptables
 
 # please leave it set to "true", otherwise Intel BMRA features deployed as Helm charts won't be installed

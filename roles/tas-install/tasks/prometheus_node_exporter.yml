@@ -1,0 +1,16 @@
+---
+- name: populate Prometheus Node Exporter Helm chart values template and push to master node
+  template:
+    src: "node-exporter-values.yml.j2"
+    dest: "/usr/src/charts/node-exporter-values.yml"
+    force: yes
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: install Prometheus Node Exporter Helm chart
+  command: helm upgrade --install --namespace {{ prometheus_node_exporter_namespace }} {{ prometheus_node_exporter_name }} -f node-exporter-values.yml stable/prometheus-node-exporter
+  args:
+    chdir: "/usr/src/charts/"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+  register: node_exporter_installation
