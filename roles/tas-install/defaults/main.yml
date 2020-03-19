@@ -2,7 +2,7 @@
 # Telemetry Aware Scheduler
 tas_git_url: "https://github.com/intel/telemetry-aware-scheduling.git"
 tas_dir: "/usr/src/telemetry-aware-scheduling"
-
+tas_git_version: "0da14b00a97cb56a91ecc135a32e2d9d40f93bb7"
 # TAS extender configuration directory
 extender_dir: "/usr/src/telemetry-aware-scheduling/deploy/extender-configuration/"
 
