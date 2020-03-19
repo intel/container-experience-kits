@@ -39,22 +39,6 @@
     - tas-controller
     - tas-extender
 
-- name: change file access rights
-  file:
-    path: "{{ extender_dir }}/configure-scheduler.sh"
-    group: root
-    owner: root
-    mode: '0711'
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-
-- name: configure Scheduler
-  command: sh configure-scheduler.sh
-  args:
-    chdir: "{{ extender_dir }}"
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-
 - name: create descheduler directory if needed
   file:
     path: "{{ sigs_k8s_io_dir }}"
@@ -112,7 +96,24 @@
   register: result
   until: result.rc == 0
 
+- name: Remove arguments from Kubernetes Scheduler file if they exist - policy-configmap
+  command: "sed -i '/^    - --policy-configmap/d' /etc/kubernetes/manifests/kube-scheduler.yaml"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: Remove arguments from Kubernetes Scheduler file if they exist - dnsPolicy
+  command: "sed -i '/^  dnsPolicy: ClusterFirstWithHostNet/d' /etc/kubernetes/manifests/kube-scheduler.yaml"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: Add arguments to our kube-scheduler manifest - configmap
+  command: 'sed -e "/    - kube-scheduler/a\\    - --policy-configmap={{ tas_name }}-telemetry-aware-scheduling-scheduler-extender-policy\n    - --policy-configmap-namespace={{ tas_namespace }}" /etc/kubernetes/manifests/kube-scheduler.yaml -i'
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: Add arguments to our kube-scheduler manifest - dnsPolicy
+  command: 'sed -e "/spec/a\\  dnsPolicy: ClusterFirstWithHostNet" /etc/kubernetes/manifests/kube-scheduler.yaml -i'
+  when: inventory_hostname == groups['kube-master'][0]
+
+# set demo health metric to 0 to allow scheduling by default
 - name: set demo health metric for all nodes
   copy: 
-    content='node_health_metric 1'
-    dest=/tmp/node-metrics/text.prom
+    content: "node_health_metric 0\n"
+    dest: /tmp/node-metrics/text.prom
