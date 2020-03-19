@@ -13,6 +13,7 @@
 - name: clone TAS repository
   git:
     repo: "{{ tas_git_url }}"
+    version: "{{ tas_git_version }}"
     dest: "{{ tas_dir }}"
     force: yes
 
