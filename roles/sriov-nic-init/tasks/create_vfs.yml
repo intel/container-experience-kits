@@ -30,7 +30,7 @@
       lineinfile:
         path: /etc/rc.d/rc.local
         line: "echo {{ item.sriov_numvfs }} > /sys/class/net/{{ item.name }}/device/sriov_numvfs"
-        regexp: "^echo(.*)\/sys\/class\/net\/{{ item.name }}\/device\/sriov_numvfs$"
+        regexp: '^echo(.*)\/sys\/class\/net\/{{ item.name }}\/device\/sriov_numvfs$'
         state: present
       become: yes
   when: 
