@@ -43,10 +43,16 @@
     - role: sriov-cni-install
       when: sriov_cni_enabled | default(true)
       tags: sriov-cni
-    - role: userspace-cni-install
-      when: userspace_cni_enabled | default(true)
-      tags: userspace-cni
     - role: bond-cni-install
       when: bond_cni_enabled | default(true)
       tags: bond-cni
+    # install Go 1.11.9 required by userspace-cni
+    - role: golang-install
+      tags: userspace-cni
+      when: userspace_cni_enabled | default(true)
+      vars:
+        golang_version: 1.11.9
+    - role: userspace-cni-install
+      when: userspace_cni_enabled | default(true)
+      tags: userspace-cni
   environment: "{{ proxy_env | d({}) }}"
