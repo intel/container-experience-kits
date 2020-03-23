@@ -1,5 +1,15 @@
 ---
 # installs all Intel BMRA features
+
+# note: start with the sriov-nic-init on the kube-node servers,
+# so that the NIC is ready before the SRIOV Net DP is deployed cluster-wide
+- hosts: kube-node
+  tasks: []
+  roles:
+    - role: sriov-nic-init
+      when: sriov_enabled | default(false) and install_dpdk | default(false)
+  environment: "{{ proxy_env | d({}) }}"
+
 - hosts: k8s-cluster
   tasks: []
   roles:
@@ -35,8 +45,6 @@
     - role: dpdk-install
       when: ovs_dpdk_enabled or install_dpdk | default(false)
       tags: dpdk
-    - role: sriov-nic-init
-      when: sriov_enabled | default(false) and install_dpdk | default(false)
     - role: sriov-cni-install
       when: sriov_cni_enabled | default(true)
       tags: sriov-cni
