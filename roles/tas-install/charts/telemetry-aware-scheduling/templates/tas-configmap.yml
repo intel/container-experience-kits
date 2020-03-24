@@ -10,12 +10,20 @@ data:
         "apiVersion" : "v1",
         "extenders" : [
             {
+              {{- if .Values.tls.enabled }}
               "urlPrefix": "https://{{ include "telemetry-aware-scheduling.fullname" . }}.{{ .Values.namespace }}.svc.{{ .Values.clusterName }}:{{ .Values.service.port }}",
+              {{- else }}
+              "urlPrefix": "http://{{ include "telemetry-aware-scheduling.fullname" . }}.{{ .Values.namespace }}.svc.{{ .Values.clusterName }}:{{ .Values.service.port }}",
+              {{- end }}
               "apiVersion": "v1",
               "prioritizeVerb": "scheduler/prioritize",
               "filterVerb": "scheduler/filter",
               "weight": 1,
+              {{- if .Values.tls.enabled }}
               "enableHttps": true,
+              {{- else }}
+              "enableHttps": false,
+              {{- end }}
               "managedResources": [
                    {
                      "name": "telemetry/scheduling",
