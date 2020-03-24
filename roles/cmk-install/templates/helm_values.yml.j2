@@ -12,3 +12,7 @@ sharedMode: {{ cmk_shared_mode | default("packed") }}
 numSharedCores: {{ cmk_shared_num_cores | default(1) }}
 exclusiveMode: {{ cmk_exclusive_mode | default("packed") }}
 numExclusiveCores: {{ cmk_exclusive_num_cores | default(1) }}
+
+webhook:
+  cert: {{ cmk_webhook_cert }}
+  key: {{ cmk_webhook_key }}

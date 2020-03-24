@@ -13,3 +13,7 @@ numSharedCores: 2
 
 exclusiveMode: packed
 numExclusiveCores: 2
+
+webhook:
+  key:
+  cert:
