@@ -83,21 +83,32 @@
     - driver in dpdk_drivers
     - ansible_kernel is version_compare('3.15', '>=')
 
+  - name: get device id
+    shell: lspci -n -s {{ pci_address }}  | awk '{print $3}' | sed 's/:/ /g'
+    when:
+    - driver in dpdk_drivers
+    - ansible_kernel is version_compare('3.15', '<')
+    register: dev_id
+
   - name: add device id to the driver
-    shell: echo -n {{ pci_address }} > /sys/bus/pci/drivers/{{ driver }}/new_id
+    shell: echo -n {{ dev_id.stdout }} > /sys/bus/pci/drivers/{{ driver }}/new_id
     when:
     - driver in dpdk_drivers
     - ansible_kernel is version_compare('3.15', '<')
 
   - name: bind device to the driver
     shell: echo -n {{ pci_address }} > /sys/bus/pci/drivers/{{ driver }}/bind
+    when:
+    - (driver not in dpdk_drivers and ansible_kernel is version_compare('3.15', '<')) or ansible_kernel is version_compare('3.15', '>=')
 
   - name: check if driver_override exists
     stat: path=/sys/bus/pci/devices/{{ pci_address }}/driver_override
     register: driver_override
+    when:
+      - ansible_kernel is version_compare('3.15', '>=')
 
   - name: write empty string to driver_override to allow binding to another drivers in the future
-    shell: echo -n "" > /sys/bus/pci/devices/{{ pci_address }}/driver_override
+    shell: echo -e '\00' > /sys/bus/pci/devices/{{ pci_address }}/driver_override
     when:
     - ansible_kernel is version_compare('3.15', '>=')
     - driver_override.stat.exists
