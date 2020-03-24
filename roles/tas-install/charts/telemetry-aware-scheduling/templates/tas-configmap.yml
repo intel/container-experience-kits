@@ -10,7 +10,7 @@ data:
         "apiVersion" : "v1",
         "extenders" : [
             {
-              "urlPrefix": "https://{{ include "telemetry-aware-scheduling.fullname" . }}.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.service.port }}",
+              "urlPrefix": "https://{{ include "telemetry-aware-scheduling.fullname" . }}.{{ .Values.namespace }}.svc.{{ .Values.clusterName }}:{{ .Values.service.port }}",
               "apiVersion": "v1",
               "prioritizeVerb": "scheduler/prioritize",
               "filterVerb": "scheduler/filter",
