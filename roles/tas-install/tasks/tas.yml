@@ -114,5 +114,5 @@
 
 - name: set demo health metric for all nodes
   copy: 
-    content='node_health_metric 1'
-    dest=/tmp/node-metrics/text.prom
+    content: "node_health_metric 1\n"
+    dest: /tmp/node-metrics/text.prom
