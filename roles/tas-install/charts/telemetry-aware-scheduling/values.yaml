@@ -17,6 +17,7 @@ extenderImage:
 nameOverride: ""
 namespace: default
 fullnameOverride: ""
+clusterName: "cluster.local"
 
 serviceAccount:
   create: true
