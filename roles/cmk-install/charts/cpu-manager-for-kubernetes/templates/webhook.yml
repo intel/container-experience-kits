@@ -6,10 +6,15 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: {{ include "cmk.fullname" . }}-webhook
+type: Opaque
 data:
+  {{ if and .Values.webhook.cert .Values.webhook.key -}}
+  cert.pem: {{ .Values.webhook.cert }}
+  key.pem: {{ .Values.webhook.key }}
+  {{ else -}}
   cert.pem: {{ $cert.Cert | b64enc }}
   key.pem: {{ $cert.Key | b64enc }}
-type: Opaque
+  {{ end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -65,7 +70,11 @@ metadata:
   name: {{ include "cmk.fullname" . }}-webhook
 webhooks:
 - clientConfig:
+    {{if and .Values.webhook.cert .Values.webhook.key -}}
+    caBundle: {{ .Values.webhook.cert }}
+    {{ else -}}
     caBundle: {{ $cert.Cert | b64enc }}
+    {{ end -}}
     service:
       name: {{ include "cmk.fullname" . }}-webhook
       namespace: {{ .Release.Namespace }}
