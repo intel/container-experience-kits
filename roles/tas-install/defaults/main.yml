@@ -19,7 +19,7 @@ tas_controller_image: "{{ registry_local_address }}/tas-controller"
 tas_extender_image: "{{ registry_local_address }}/tas-extender"
 tas_version: "latest"
 tas_name: "tas"
-tas_namespace: "kube-system"
+tas_namespace: "default"
 # tas_extender_secret_name: "extender-secret"
 # tas_tls_enabled: false
 

@@ -54,7 +54,7 @@ gpu_dp_namespace: kube-system
 
 # Intel Telemetry Aware Scheduling
 tas_enabled: true
-tas_namespace: kube-system
+tas_namespace: default
 # create default TAS policy: [true, false]
 tas_create_policy: true
 
