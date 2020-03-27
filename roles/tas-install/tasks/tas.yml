@@ -113,7 +113,12 @@
   when: inventory_hostname == groups['kube-master'][0]
 
 # set demo health metric to 0 to allow scheduling by default
+- name: ensure that node_metrics directory exists
+  file:
+    path: /var/lib/node-metrics
+    state: directory
+
 - name: set demo health metric for all nodes
   copy: 
     content: "node_health_metric 0\n"
-    dest: /tmp/node-metrics/text.prom
+    dest: /var/lib/node-metrics/text.prom
