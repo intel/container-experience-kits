@@ -29,6 +29,37 @@
 - name: find network links of the device
   when: driver != current_driver
   block:
+  - name: verify that module exists
+    shell: "modinfo {{ driver }}"
+    register: module_exists
+    failed_when: module_exists.rc not in [0, 1]
+    changed_when: false
+    when:
+     - driver in modules_to_load
+
+  - name: verify that modules-load.d exists
+    file:
+      path: /etc/modules-load.d
+      state: directory
+    when:
+      - driver in modules_to_load
+
+  - name: load module
+    modprobe:
+      name: "{{ driver }}"
+      state: present
+    when:
+    - module_exists.rc == 0
+    - driver in modules_to_load
+
+  - name: load module on startup
+    copy:
+      dest: "/etc/modules-load.d/{{ driver }}.conf"
+      content: "{{ driver }}"
+    when:
+      - module_exists.rc == 0
+      - driver in modules_to_load
+
   - name: find network interfaces associated with the device
     find:
       paths: '{{ "/sys/bus/pci/devices/" + pci_address + "/net" }}'
