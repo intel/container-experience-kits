@@ -1,9 +1,14 @@
 ---
 
 # First off - check if the selected driver module is available on host
-- name: Check that selected driver module is loaded
-  shell: "modinfo {{ vf_driver }}"
+- name: Check that selected driver module is available
+  # if modinfo fails, lookup loaded modules as modinfo might return error
+  # for igb_uio and potentially other modules not included with the kernel
+  shell: "modinfo {{ vf_driver }} || grep {{ vf_driver }} /proc/modules"
   register: shell_result
+  ignore_errors: yes
+  failed_when: no
+  changed_when: no
 
 # Get a list of VFs PCI addresses
 - name: attach VFs driver
@@ -24,4 +29,4 @@
       when:
         - vf_pciids.stderr|string == ""
         - vf_pciids.stdout_lines|length > 0
-  when: shell_result.stderr == ""
+  when: shell_result.rc == 0
