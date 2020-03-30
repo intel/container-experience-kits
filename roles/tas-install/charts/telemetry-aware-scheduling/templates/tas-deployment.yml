@@ -31,6 +31,7 @@ spec:
       - name: tas-extender
         command:
         - /extender
+        - --cacheEndpoint=http://127.0.0.1:8111/cache/
         {{- if .Values.tls.enabled }}
         - --cert=/tas/cert/tls.crt
         - --key=/tas/cert/tls.key
