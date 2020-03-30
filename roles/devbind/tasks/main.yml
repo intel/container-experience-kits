@@ -29,13 +29,11 @@
 - name: find network links of the device
   when: driver != current_driver
   block:
-  - name: verify that module exists
+  - name: check that loadable kernel provided module exists
     shell: "modinfo {{ driver }}"
     register: module_exists
     failed_when: module_exists.rc not in [0, 1]
     changed_when: false
-    when:
-     - driver in modules_to_load
 
   - name: verify that modules-load.d exists
     file:
