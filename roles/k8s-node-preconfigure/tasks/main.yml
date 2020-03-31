@@ -45,20 +45,31 @@
     fail_msg: "CPU isolation enabled, but no CPUs to isolate provided"
   when: isolcpus_enabled
 
-- name: set isolcpus flag
+- name: set isolcpus flags
   set_fact:
     isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }}"
   when:
     - isolcpus_enabled | default(false)
 
-- name: set kernel boot flags in /etc/default/grub
+- name: set isolcpus flags in /etc/default/grub if missing
   lineinfile:
     dest: /etc/default/grub
     regexp: '^GRUB_CMDLINE_LINUX="(?!.* isolcpus=)(.*)"'
     line: 'GRUB_CMDLINE_LINUX="\1 {{ isolcpus_flags }}"'
     state: present
     backrefs: yes
-  register: isolcpus_parameters
+  register: isolcpus_parameters_added
+  when:
+    - isolcpus_flags | length > 0
+
+- name: change isolcpus flags in /etc/default/grub if present
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX=(.*)(?:isolcpus=.* rcu_nocbs=.* nohz_full=(?:[0-9](?:-[0-9]+){0,1},{0,1})+)(.*)$'
+    line: 'GRUB_CMDLINE_LINUX=\1{{ isolcpus_flags }}\2'
+    state: present
+    backrefs: yes
+  register: isolcpus_parameters_changed
   when:
     - isolcpus_flags | length > 0
 
@@ -87,13 +98,24 @@
     line: 'GRUB_CMDLINE_LINUX="\1 {{ hugepages_flags }}"'
     state: present
     backrefs: yes
-  register: hugepages_parameters
+  register: hugepages_add
+  when:
+    - hugepages_flags | length > 0
+
+- name: update hugepages kernel boot flags in /etc/default/grub if needed
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX=(.*)(?:default_hugepagesz=(?:2M|1G)(?:[ ]+hugepagesz=(?:2M|1G)[ ]+hugepages=[0-9]+){1,2})(.*)$'
+    line: 'GRUB_CMDLINE_LINUX=\1{{ hugepages_flags }}\2'
+    state: present
+    backrefs: yes
+  register: hugepages_update
   when:
     - hugepages_flags | length > 0
 
 - name: check whether any grub parameters have changed
   set_fact:
-    parameters_changed: isolcpus_parameters.changed or sriov_parameters.changed or hugepages_parameters.changed
+    parameters_changed: isolcpus_parameters_changed.changed or isolcpus_parameters_added.changed or sriov_parameters.changed or hugepages_add.changed or hugepages_update.changed
 
 - name: update grub.cfg
   command: update-grub
