@@ -55,11 +55,17 @@
     fail_msg: "The 'sst_bf_mode' variable must be set to 's', 'm' or 'r'. Please update your host vars."
   when: sst_bf_configuration_enabled
 
+- pause:
+    prompt: "Warning: SST-BF configuration cannot be applied - Linux kernel version is lower than 5.1"
+    seconds: 10
+  when: ansible_kernel is version_compare('5.1','<')
+
 - name: configure CPU on node on Debian based distro
   command: sst_bf.py -{{ sst_bf_mode }}
   when:
     - sst_bf_configuration_enabled
     - ansible_os_family == "Debian"
+    - ansible_kernel is version_compare('5.1','>=')
 
 - name: configure CPU on node on RHEL 7 based distro
   shell: source /opt/rh/rh-python36/enable && /usr/local/bin/sst_bf.py -{{ sst_bf_mode }}
@@ -67,3 +73,4 @@
     - sst_bf_configuration_enabled
     - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
     - ansible_distribution_version < '8'
+    - ansible_kernel is version_compare('5.1','>=')
