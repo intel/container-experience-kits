@@ -1,11 +1,11 @@
 ---
 nfd_git_url: "https://github.com/kubernetes-sigs/node-feature-discovery.git"
-nfd_git_ref: "v0.3.0"
+nfd_git_ref: "v0.5.0"
 nfd_dir: "/usr/src/nfd"
 
 nfd_external_image_name: "quay.io/kubernetes_incubator/node-feature-discovery"
-nfd_external_image_tag: "v0.3.0"
+nfd_external_image_tag: "v0.5.0"
 
-nfd_build_image_locally: true
-nfd_namespace: "default"
-nfd_sleep_interval: "30s"
+nfd_build_image_locally: false
+nfd_namespace: "node-feature-discovery"
+nfd_sleep_interval: "60s"

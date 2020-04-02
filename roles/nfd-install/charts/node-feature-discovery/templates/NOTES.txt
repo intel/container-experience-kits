@@ -1,8 +1,16 @@
-{{ .Chart.Name }} was installed .                                                                    
+{{ .Chart.Name }} was installed.
 
-Your release is named {{ .Release.Name }}.                                                                            
+Your release is named {{ .Release.Name }}.
 
-To learn more about the release, try:                                                                                 
+To learn more about the release, try:
 
-  $ helm status {{ .Release.Name }}                                                                                   
-  $ helm get {{ .Release.Name }}                                                                                                                           
+  $ helm status {{ .Release.Name }}
+  $ helm get {{ .Release.Name }}
+
+To inspect node labels, try:
+
+  $ kubectl get node <NODE_NAME> -o json | jq .metadata.labels
+
+  or if jq is not installed:
+
+  $ kubectl get node <NODE_NAME> -o jsonpath="{.metadata.labels}"

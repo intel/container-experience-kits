@@ -1,11 +1,101 @@
 ---
-namespace: default
-
 image:
-   name: quay.io/kubernetes_incubator/node-feature-discovery
-   version: v0.3.0 
+   repository: quay.io/kubernetes_incubator/node-feature-discovery
+   tag: v0.5.0
+   pullPolicy: IfNotPresent
+
+sleepInterval: "120s"
 
 serviceAccount:
-   name: node-feature-discovery 
+   create: true
+   name: ""
 
-sleepInterval: "60s"
+rbac:
+   enabled: true
+
+tls:
+  enabled: true
+  # automatically generate self-signed certificate
+  generate: true
+  # base64-encoded nfd-master private TLS key, required when tls.enabled is true and tls.generate is false
+  masterKey: ""
+  # base64-encoded nfd-master private TLS certificate, required when tls.enabled is true and tls.generate is false
+  masterCert: ""
+  # base64-encoded nfd-worker private TLS key, required when tls.enabled is true and tls.generate is false
+  workerKey: ""
+  # base64-encoded nfd-worker private TLS certificate, required when tls.enabled is true and tls.generate is false
+  workerCert: ""
+  # base64-encoded additional CA certificate which will be used to validate peer certificates, required when tls.enabled is true and tls.generate is false
+  caCert: ""
+  
+
+#nameOverride: "node-feature-discovery"
+#fullnameOverride: "node-feature-discovery"
+
+config:
+#  sources:
+#    cpu:
+#      cpuid:
+#  #     NOTE: whitelist has priority over blacklist
+#        attributeBlacklist:
+#          - "BMI1"
+#          - "BMI2"
+#          - "CLMUL"
+#          - "CMOV"
+#          - "CX16"
+#          - "ERMS"
+#          - "F16C"
+#          - "HTT"
+#          - "LZCNT"
+#          - "MMX"
+#          - "MMXEXT"
+#          - "NX"
+#          - "POPCNT"
+#          - "RDRAND"
+#          - "RDSEED"
+#          - "RDTSCP"
+#          - "SGX"
+#          - "SSE"
+#          - "SSE2"
+#          - "SSE3"
+#          - "SSE4.1"
+#          - "SSE4.2"
+#          - "SSSE3"
+#        attributeWhitelist:
+#    kernel:
+#      kconfigFile: "/path/to/kconfig"
+#      configOpts:
+#        - "NO_HZ"
+#        - "X86"
+#        - "DMI"
+#    pci:
+#      deviceClassWhitelist:
+#        - "0200"
+#        - "03"
+#        - "12"
+#      deviceLabelFields:
+#        - "class"
+#        - "vendor"
+#        - "device"
+#        - "subsystem_vendor"
+#        - "subsystem_device"
+#    custom:
+#      - name: "my.kernel.feature"
+#        matchOn:
+#          - loadedKMod: ["example_kmod1", "example_kmod2"]
+#      - name: "my.pci.feature"
+#        matchOn:
+#          - pciId:
+#              class: ["0200"]
+#              vendor: ["15b3"]
+#              device: ["1014", "1017"]
+#          - pciId :
+#              vendor: ["8086"]
+#              device: ["1000", "1100"]
+#      - name: "my.combined.feature"
+#        matchOn:
+#          - pciId:
+#              vendor: ["15b3"]
+#              device: ["1014", "1017"]
+#            loadedKMod : ["vendor_kmod1", "vendor_kmod2"]
+#  

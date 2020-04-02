@@ -1,0 +1,91 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: {{ template "node-feature-discovery.fullname" . }}-worker
+{{ include "node-feature-discovery.labels" . | indent 4 }}
+  name: {{ template "node-feature-discovery.fullname" . }}-worker
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "node-feature-discovery.fullname" . }}-worker
+  template:
+    metadata:
+      labels:
+        app: {{ template "node-feature-discovery.fullname" . }}-worker
+{{ include "node-feature-discovery.labels" . | indent 8 }}
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          name: nfd-worker
+          command:
+            - "nfd-worker"
+          args:
+            - "--sleep-interval={{ .Values.sleepInterval }}"
+            - "--server={{ template "node-feature-discovery.fullname" . }}-master:8080"
+{{- if .Values.tls.enabled }}
+            - "--ca-file=/etc/kubernetes/node-feature-discovery/trust/ca.crt"
+            - "--key-file=/etc/kubernetes/node-feature-discovery/certs/tls.key"
+            - "--cert-file=/etc/kubernetes/node-feature-discovery/certs/tls.crt"
+{{- end }}
+          volumeMounts:
+            - name: host-boot
+              mountPath: "/host-boot"
+              readOnly: true
+            - name: host-os-release
+              mountPath: "/host-etc/os-release"
+              readOnly: true
+            - name: host-sys
+              mountPath: "/host-sys"
+{{- if .Values.config }}
+            - name: config
+              mountPath: "/etc/kubernetes/node-feature-discovery/"
+{{- end }}
+            - name: source-d
+              mountPath: "/etc/kubernetes/node-feature-discovery/source.d/"
+            - name: features-d
+              mountPath: "/etc/kubernetes/node-feature-discovery/features.d/"
+{{- if .Values.tls.enabled }}
+            - name: nfd-ca-cert
+              mountPath: "/etc/kubernetes/node-feature-discovery/trust"
+              readOnly: true
+            - name: nfd-worker-cert
+              mountPath: "/etc/kubernetes/node-feature-discovery/certs"
+{{- end }}
+      volumes:
+        - name: host-boot
+          hostPath:
+            path: "/boot"
+        - name: host-os-release
+          hostPath:
+            path: "/etc/os-release"
+        - name: host-sys
+          hostPath:
+            path: "/sys"
+{{- if .Values.config }}
+        - name: config
+          configMap:
+            name: {{ template "node-feature-discovery.fullname" . }}-worker-config
+{{- end }}
+        - name: source-d
+          hostPath:
+            path: "/etc/kubernetes/node-feature-discovery/source.d/"
+        - name: features-d
+          hostPath:
+            path: "/etc/kubernetes/node-feature-discovery/features.d/"
+{{- if .Values.tls.enabled }}
+        - name: nfd-ca-cert
+          configMap:
+            name: {{ include "node-feature-discovery.fullname" . }}-ca-cert
+        - name: nfd-worker-cert
+          secret:
+            secretName: {{ include "node-feature-discovery.fullname" . }}-worker-cert
+{{- end }}
