@@ -4,8 +4,8 @@
 # Node Feature Discovery
 nfd_enabled: true
 nfd_build_image_locally: false
-nfd_namespace: kube-system
-nfd_sleep_interval: 30s
+nfd_namespace: node-feature-discovery
+nfd_sleep_interval: 60s
 
 # Intel CPU Manager for Kubernetes
 cmk_enabled: true

@@ -1,0 +1,66 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ template "node-feature-discovery.fullname" . }}-master
+{{ include "node-feature-discovery.labels" . | indent 4 }}
+  name: {{ template "node-feature-discovery.fullname" . }}-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "node-feature-discovery.fullname" . }}-master
+  template:
+    metadata:
+      labels:
+        app: {{ template "node-feature-discovery.fullname" . }}-master
+{{ include "node-feature-discovery.labels" . | indent 8 }}
+    spec:
+      serviceAccount: {{ template "node-feature-discovery.saName" . }}
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: "node-role.kubernetes.io/master"
+                    operator: In
+                    values: [""]
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Equal"
+          value: ""
+          effect: "NoSchedule"
+      containers:
+        - env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: nfd-master
+          command:
+            - "nfd-master"
+            - --port={{ .Values.service.port }}
+{{- if .Values.tls.enabled }}
+          args:
+            - "--ca-file=/etc/kubernetes/node-feature-discovery/trust/ca.crt"
+            - "--key-file=/etc/kubernetes/node-feature-discovery/certs/tls.key"
+            - "--cert-file=/etc/kubernetes/node-feature-discovery/certs/tls.crt"
+          volumeMounts:
+            - name: nfd-ca-cert
+              mountPath: "/etc/kubernetes/node-feature-discovery/trust"
+              readOnly: true
+            - name: nfd-master-cert
+              mountPath: "/etc/kubernetes/node-feature-discovery/certs"
+              readOnly: true
+      volumes:
+        - name: nfd-ca-cert
+          configMap:
+            name: {{ include "node-feature-discovery.fullname" . }}-ca-cert
+        - name: nfd-master-cert
+          secret:
+            secretName: {{ include "node-feature-discovery.fullname" . }}-master-cert
+{{- end }}

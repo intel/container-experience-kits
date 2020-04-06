@@ -1,11 +1,7 @@
 ---
-namespace: {{ nfd_namespace | default("default") }}
-
 image:
-   name: {{ nfd_image | default("quay.io/kubernetes_incubator/node-feature-discovery") }}
-   version: {{ nfd_version | default("v0.3.0")}}
-
-serviceAccount:
-   name: node-feature-discovery 
+   repository: {{ nfd_image | default("quay.io/kubernetes_incubator/node-feature-discovery") }}
+   tag: {{ nfd_version | default("v0.5.0")}}
+   pullPolicy: IfNotPresent
 
 sleepInterval: {{ nfd_sleep_interval | default("60s")}}

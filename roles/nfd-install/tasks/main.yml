@@ -81,6 +81,6 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: install NFD helm chart
-  command: helm upgrade --install nfd -f /usr/src/charts/nfd-values.yml /usr/src/charts/node-feature-discovery
+  command: helm upgrade --install node-feature-discovery --namespace {{ nfd_namespace }} -f /usr/src/charts/nfd-values.yml /usr/src/charts/node-feature-discovery
   when:
     - inventory_hostname == groups['kube-master'][0]

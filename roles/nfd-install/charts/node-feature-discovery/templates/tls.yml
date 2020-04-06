@@ -1,0 +1,50 @@
+{{ $ca := genCA "nfd-ca" 1825 }}
+{{ $masterAltNames := list ( printf "%s-master" (include "node-feature-discovery.fullname" .) ) ( printf "%s-master.%s" (include "node-feature-discovery.fullname" .) .Release.Namespace ) ( printf "%s-master.%s.svc" (include "node-feature-discovery.fullname" .) .Release.Namespace ) }}
+{{ $masterCert := genSignedCert ( printf "%s-master" (include "node-feature-discovery.fullname" .) ) nil $masterAltNames 365 $ca }}
+{{ $workerAltNames := list ( printf "%s-worker" (include "node-feature-discovery.fullname" .) .Release.Namespace ) }}
+{{ $workerCert := genSignedCert ( printf "%s-worker" (include "node-feature-discovery.fullname" .) ) nil $workerAltNames 365 $ca }}
+---
+{{- if .Values.tls.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "node-feature-discovery.fullname" . }}-master-cert
+data:
+{{- if .Values.tls.generate }}
+  tls.crt: {{ $masterCert.Cert | b64enc }}
+  tls.key: {{ $masterCert.Key | b64enc }}
+{{- else }}
+  tls.crt: {{ .Values.tls.masterCert }}
+  tls.key: {{ .Values.tls.masterKey }}
+{{- end }}
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "node-feature-discovery.fullname" . }}-worker-cert
+data:
+{{- if .Values.tls.generate }}
+  tls.crt: {{ $workerCert.Cert | b64enc }}
+  tls.key: {{ $workerCert.Key | b64enc }}
+{{- else }}
+  tls.crt: {{ .Values.tls.workerCert }}
+  tls.key: {{ .Values.tls.workerKey }}
+{{- end }}
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "node-feature-discovery.fullname" . }}-ca-cert
+  labels:
+{{ include "node-feature-discovery.labels" . | indent 4 }}
+data:
+{{- if .Values.tls.generate }}
+  ca.crt: |
+{{ $ca.Cert | toString | indent 4 }}
+{{- else }}
+  ca.crt: |
+{{ .Values.tls.caCert | b64dec | toString | indent 4 }}
+{{- end }}
+{{- end }}
