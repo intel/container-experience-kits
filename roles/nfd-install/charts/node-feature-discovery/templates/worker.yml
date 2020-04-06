@@ -30,7 +30,7 @@ spec:
             - "nfd-worker"
           args:
             - "--sleep-interval={{ .Values.sleepInterval }}"
-            - "--server={{ template "node-feature-discovery.fullname" . }}-master:8080"
+            - "--server={{ template "node-feature-discovery.fullname" . }}-master:{{ .Values.service.port }}"
 {{- if .Values.tls.enabled }}
             - "--ca-file=/etc/kubernetes/node-feature-discovery/trust/ca.crt"
             - "--key-file=/etc/kubernetes/node-feature-discovery/certs/tls.key"

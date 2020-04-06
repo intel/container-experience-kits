@@ -27,7 +27,10 @@ tls:
   workerCert: ""
   # base64-encoded additional CA certificate which will be used to validate peer certificates, required when tls.enabled is true and tls.generate is false
   caCert: ""
-  
+
+service:
+   port: 8080
+   type: ClusterIP
 
 #nameOverride: "node-feature-discovery"
 #fullnameOverride: "node-feature-discovery"

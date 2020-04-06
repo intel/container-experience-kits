@@ -10,5 +10,5 @@ spec:
     app: {{ template "node-feature-discovery.fullname" . }}-master
   ports:
   - protocol: TCP
-    port: 8080
-  type: ClusterIP
+    port: {{ .Values.service.port }}
+  type: {{  .Values.service.type }}

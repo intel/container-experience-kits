@@ -43,6 +43,7 @@ spec:
           name: nfd-master
           command:
             - "nfd-master"
+            - --port={{ .Values.service.port }}
 {{- if .Values.tls.enabled }}
           args:
             - "--ca-file=/etc/kubernetes/node-feature-discovery/trust/ca.crt"
