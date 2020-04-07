@@ -1,7 +1,8 @@
 ---
-- name: get current i40e driver version
+- name: get current iavf driver version
   command: modinfo iavf -F version
   register: iavf_installed_version
+  changed_when: false
 
 - name: download iavf drivers
   get_url:

@@ -39,6 +39,6 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: install Intel GPU Plugin Helm chart
-  command: helm upgrade --install intel-gpu-plugin -f /usr/src/charts/intel-gpu-plugin-values.yml --namespace {{ gpu_dp_namespace }} /usr/src/charts/intel-gpu-plugin
+  command: helm upgrade -i intel-gpu-plugin -f /usr/src/charts/intel-gpu-plugin-values.yml --namespace {{ gpu_dp_namespace }} /usr/src/charts/intel-gpu-plugin
   when:
     - inventory_hostname == groups['kube-master'][0]

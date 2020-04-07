@@ -3,17 +3,17 @@
   vars:
     ddp_path: "{{ ddp_search_path[nic_module] }}/{{ ddp_profile }}"
   when:
-    - nic != ""
-    - nic_module != ""
+    - nic | length > 0
+    - nic_module | length > 0
     - nic_module == "i40e"
-    - ddp_profile != ""
+    - ddp_profile | length > 0
 
 - name: Load DDP profile with ice module (Intel X810)
   include_tasks: load_ice_ddp.yml
   vars:
     ddp_path: "{{ ddp_search_path[nic_module] }}/{{ ddp_profile }}"
   when:
-    - nic != ""
-    - nic_module != ""
+    - nic | length > 0
+    - nic_module | length > 0
     - nic_module == "ice"
-    - ddp_profile != ""
+    - ddp_profile | length > 0

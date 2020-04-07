@@ -1,5 +1,6 @@
 ---
-- set_fact:
+- name: set temporary DDP profiles path
+  set_fact:
     temp_ddp_path: "{{ tmp_placeholder }}/{{ pkgurl | regex_replace('^https?://.*/(.*).zip$', '\\1') }}"
 
 - name: Create temp placeholder for each DDP package

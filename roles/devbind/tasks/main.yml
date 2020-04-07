@@ -14,7 +14,7 @@
 - name: get PCI device details
   block:
   - name: get PCI device details
-    shell: lspci -vmmks {{ pci_address }}
+    command: lspci -vmmks {{ pci_address }}
     register: lspci
 
   - name: parse PCI device details
@@ -30,7 +30,7 @@
   when: driver != current_driver
   block:
   - name: check that loadable kernel provided module exists
-    shell: "modinfo {{ driver }}"
+    command: modinfo {{ driver }}
     register: module_exists
     failed_when: module_exists.rc not in [0, 1]
     changed_when: false
@@ -83,7 +83,7 @@
   when: driver != current_driver
   block:
   - name: get routing table
-    shell: ip -o route
+    command: ip -o route
     register: ip_route
 
   - name: filter link local routes
