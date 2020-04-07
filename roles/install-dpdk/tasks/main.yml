@@ -50,7 +50,8 @@
     recurse: yes
   register: dpdk_tools_dir
 
-- set_fact:
+- name: set path to dpdk usertools directory
+  set_fact:
     dpdk_tools: "{{ dpdk_tools_dir.files[0].path }}"
 
 - name: load userspace modules
@@ -65,3 +66,4 @@
   command: "insmod {{ dpdk_dir }}install/lib/modules/{{ ansible_kernel }}/extra/dpdk/igb_uio.ko"
   register: result
   failed_when: "'No such file or directory' in result.stderr"
+  changed_when: "'already bound' not in result.stderr"

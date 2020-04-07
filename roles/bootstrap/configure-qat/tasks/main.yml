@@ -2,13 +2,16 @@
 - name: discover QAT Physical Functions
   shell: for i in {{ qat_dev_ids|join(' ') }}; do lspci -d 8086:$i -D | awk '{ print $1 }'; done
   register: qat_pf
+  changed_when: false
 
 - name: reset SR-IOV Virtual Functions for QAT devices
   shell: echo 0 > /sys/bus/pci/devices/{{ item }}/sriov_numvfs
   with_items: "{{ qat_pf | json_query('stdout_lines[]') }}"
   failed_when: false
+  changed_when: true
 
 - name: enable SR-IOV Virtual Functions for QAT devices
   shell: echo {{ sriov_numvfs }} > "/sys/bus/pci/devices/{{ item }}/sriov_numvfs"
   with_items: "{{ qat_pf | json_query('stdout_lines[]') }}"
   failed_when: false
+  changed_when: true

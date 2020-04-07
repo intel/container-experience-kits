@@ -39,6 +39,6 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: install Intel QAT Plugin Helm chart
-  command: helm upgrade --install intel-qat-plugin -f /usr/src/charts/intel-qat-plugin-values.yml --namespace {{ qat_dp_namespace }} /usr/src/charts/intel-qat-plugin
+  command: helm upgrade -i intel-qat-plugin -f /usr/src/charts/intel-qat-plugin-values.yml --namespace {{ qat_dp_namespace }} /usr/src/charts/intel-qat-plugin
   when:
     - inventory_hostname == groups['kube-master'][0]

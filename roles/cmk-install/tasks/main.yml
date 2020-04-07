@@ -21,10 +21,11 @@
     force: yes
 
 - name: read current CMK version
-  command: git describe --abbrev=0 --tags
+  command: git describe --abbrev=0 --tags # noqa 303
   args:
     chdir: "{{ cmk_dir }}"
   register: cmk_img_version
+  changed_when: false
 
 - name: build CMK image
   make:
@@ -33,11 +34,13 @@
 # NOTE(przemeklal): this fixes problem in CMK with ImagePullPolicy hardcoded to Never and the pod is scheduled on master node
 - name: tag CMK image
   command: docker tag cmk:{{ cmk_img_version.stdout }} {{ registry_local_address }}/cmk:{{ cmk_img_version.stdout }}
+  changed_when: true
 
 - name: push CMK image to local registry
   command: docker push {{ registry_local_address }}/cmk:{{ cmk_img_version.stdout }}
   when:
     - inventory_hostname == groups['kube-node'][0]
+  changed_when: true
 
 - name: install cfssl
   command: go get -u github.com/cloudflare/cfssl/cmd/cfssl
@@ -49,12 +52,15 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
-- name: clean up any preexisting certs/key/CSRs
-  shell: rm -rf cmk-webhook-* && kubectl delete csr cmk-webhook.{{ cmk_namespace }}
-  args:
-    chdir: "/usr/src/"
-  when:
-    - inventory_hostname == groups['kube-master'][0]
+- name: clean up any preexisting certs/key/CSR files
+  file: path={{ item }} state=absent
+  with_fileglob: /usr/src/cmk-webhook-*
+  when: inventory_hostname == groups['kube-master'][0]
+  failed_when: false
+
+- name: delete any preexisting certs/key/CSR from Kubernetes
+  shell: kubectl delete csr cmk-webhook.{{ cmk_namespace }} # noqa 305
+  when: inventory_hostname == groups['kube-master'][0]
   failed_when: false
 
 - name: populate CMK CSR template
@@ -66,14 +72,14 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: generate key and CSR
-  shell: cfssl genkey cmk-webhook-csr.json | cfssljson -bare cmk-webhook-server
+  shell: set -o pipefail && cfssl genkey cmk-webhook-csr.json | cfssljson -bare cmk-webhook-server
   args:
     chdir: "/usr/src/"
   when:
     - inventory_hostname == groups['kube-master'][0]
 
 - name: read generated key
-  shell: cat cmk-webhook-server-key.pem
+  command: cat cmk-webhook-server-key.pem
   args:
     chdir: "/usr/src/"
   register: key
@@ -87,7 +93,7 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: read generated csr
-  shell: cat cmk-webhook-server.csr
+  command: cat cmk-webhook-server.csr
   args:
     chdir: "/usr/src/"
   register: csr
@@ -109,12 +115,12 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: send CSR to the Kubernetes API Server
-  shell: kubectl apply -f /usr/src/cmk-webhook-kube-csr.yml
+  shell: kubectl apply -f /usr/src/cmk-webhook-kube-csr.yml # noqa 305
   when:
     - inventory_hostname == groups['kube-master'][0]
 
 - name: approve request
-  shell: kubectl certificate approve cmk-webhook.{{ cmk_namespace }}
+  shell: kubectl certificate approve cmk-webhook.{{ cmk_namespace }}  # noqa 305
   when:
     - inventory_hostname == groups['kube-master'][0]
 
@@ -154,7 +160,7 @@
   set_fact:
     cmk_hosts_list: "{{ groups['kube-node'] | join(',') }}"
   when:
-    - cmk_use_all_hosts != true
+    - not cmk_use_all_hosts
     - (cmk_hosts_list is undefined) or (cmk_hosts_list | length == 0)
 
 - name: set values for CMK Helm chart values

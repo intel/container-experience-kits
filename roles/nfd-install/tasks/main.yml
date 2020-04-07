@@ -22,7 +22,7 @@
     - nfd_build_image_locally
 
 - name: read current NFD version
-  command: git describe --tags --dirty --always
+  command: git describe --tags --dirty --always # noqa 303
   args:
     chdir: "{{ nfd_dir }}"
   register: nfd_img_version
@@ -31,7 +31,7 @@
     - nfd_build_image_locally
 
 - name: tag NFD image
-  command: docker tag quay.io/kubernetes_incubator/node-feature-discovery:{{ nfd_img_version.stdout }} {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
+  command: docker tag {{ nfd_external_image_name }}:{{ nfd_img_version.stdout }} {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }} # noqa 204
   when:
     - inventory_hostname == groups['kube-node'][0]
     - nfd_build_image_locally
@@ -69,7 +69,7 @@
     nfd_image: "{{ nfd_external_image_name }}"
     nfd_version: "{{ nfd_external_image_tag }}"
   when:
-    - nfd_build_image_locally == false
+    - not nfd_build_image_locally
     - inventory_hostname == groups['kube-master'][0]
 
 - name: populate NFD Helm chart values template and push to master node
@@ -81,6 +81,6 @@
     - inventory_hostname == groups['kube-master'][0]
 
 - name: install NFD helm chart
-  command: helm upgrade --install node-feature-discovery --namespace {{ nfd_namespace }} -f /usr/src/charts/nfd-values.yml /usr/src/charts/node-feature-discovery
+  command: helm upgrade -i node-feature-discovery --namespace {{ nfd_namespace }} -f /usr/src/charts/nfd-values.yml /usr/src/charts/node-feature-discovery
   when:
     - inventory_hostname == groups['kube-master'][0]
