@@ -22,7 +22,20 @@
     line: 'GRUB_CMDLINE_LINUX="\1 {{ isolcpus_flags }}"'
     state: present
     backrefs: yes
-  register: kernel_parameters
+  register: isolcpus_add
+  notify:
+   - reboot server
+  when:
+    - isolcpus_flags | length > 0
+
+- name: change isolcpus flags in /etc/default/grub if present
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX=(.*)(?:isolcpus=.* rcu_nocbs=.* nohz_full=(?:[0-9](?:-[0-9]+){0,1},{0,1})+)(.*)$'
+    line: 'GRUB_CMDLINE_LINUX=\1{{ isolcpus_flags }}\2'
+    state: present
+    backrefs: yes
+  register: isolcpus_update
   notify:
    - reboot server
   when:
@@ -32,7 +45,7 @@
   command: update-grub
   when:
     - ansible_os_family == "Debian"
-    - kernel_parameters.changed
+    - isolcpus_add.changed or isolcpus_update.changed
 
 - name: check if grub2.cfg config file exists (MBR variant)
   stat:
@@ -40,13 +53,13 @@
   register: grub_mbr_cfg
   when:
     - ansible_os_family == "RedHat"
-    - kernel_parameters.changed
+    - isolcpus_add.changed or isolcpus_update.changed
 
 - name: update MBR grub2.cfg
   command: grub2-mkconfig -o /etc/grub2.cfg
   when:
   - ansible_os_family == "RedHat"
-  - kernel_parameters.changed
+  - isolcpus_add.changed or isolcpus_update.changed
   - grub_mbr_cfg.stat.exists
 
 - name: check if grub2-efi.cfg config file exists (EFI variant)
@@ -55,11 +68,11 @@
   register: grub_efi_cfg
   when:
     - ansible_os_family == "RedHat"
-    - kernel_parameters.changed
+    - isolcpus_add.changed or isolcpus_update.changed
 
 - name: update MBR grub2-efi.cfg
   command: grub2-mkconfig -o /etc/grub2-efi.cfg
   when:
   - ansible_os_family == "RedHat"
-  - kernel_parameters.changed
+  - isolcpus_add.changed or isolcpus_update.changed
   - grub_efi_cfg.stat.exists

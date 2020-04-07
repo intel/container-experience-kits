@@ -35,17 +35,31 @@
     line: 'GRUB_CMDLINE_LINUX="\1 {{ hugepages_flags }}"'
     state: present
     backrefs: yes
-  register: kernel_parameters
+  register: hugepages_set
   notify:
    - reboot server
   when:
     - hugepages_flags | length > 0
 
+- name: update hugepages kernel boot flags in /etc/default/grub if needed
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX=(.*)(?:default_hugepagesz=(?:2M|1G)(?:[ ]+hugepagesz=(?:2M|1G)[ ]+hugepages=[0-9]+){1,2})(.*)$'
+    line: 'GRUB_CMDLINE_LINUX=\1{{ hugepages_flags }}\2'
+    state: present
+    backrefs: yes
+  register: hugepages_update
+  notify:
+   - reboot server
+  when:
+    - hugepages_flags | length > 0
+
+
 - name: update grub.cfg
   command: update-grub
   when:
     - ansible_os_family == "Debian"
-    - kernel_parameters.changed
+    - hugepages_set.changed or hugepages_update.changed
 
 - name: check if grub2.cfg config file exists (MBR variant)
   stat:
@@ -53,13 +67,13 @@
   register: grub_mbr_cfg
   when:
     - ansible_os_family == "RedHat"
-    - kernel_parameters.changed
+    - hugepages_set.changed or hugepages_update.changed
 
 - name: update MBR grub2.cfg
   command: grub2-mkconfig -o /etc/grub2.cfg
   when:
   - ansible_os_family == "RedHat"
-  - kernel_parameters.changed
+  - hugepages_set.changed or hugepages_update.changed
   - grub_mbr_cfg.stat.exists
 
 - name: check if grub2-efi.cfg config file exists (EFI variant)
@@ -68,11 +82,11 @@
   register: grub_efi_cfg
   when:
     - ansible_os_family == "RedHat"
-    - kernel_parameters.changed
+    - hugepages_set.changed or hugepages_update.changed
 
 - name: update MBR grub2-efi.cfg
   command: grub2-mkconfig -o /etc/grub2-efi.cfg
   when:
   - ansible_os_family == "RedHat"
-  - kernel_parameters.changed
+  - hugepages_set.changed or hugepages_update.changed
   - grub_efi_cfg.stat.exists
