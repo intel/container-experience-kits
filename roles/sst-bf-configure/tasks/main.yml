@@ -1,4 +1,40 @@
 ---
+- name: install Python 3 and git from apt repository
+  apt:
+    name:
+      - python3
+      - git
+  when:
+    - ansible_os_family == "Debian"
+    - sst_bf_configuration_enabled
+
+- name: enable SCL on CentOS 7 and install git
+  yum:
+    name:
+      - centos-release-scl
+      - git
+  when:
+    - ansible_distribution == 'CentOS'
+    - ansible_distribution_version < '8'
+    - sst_bf_configuration_enabled
+
+- name: enable SCL on RHEL 7
+  shell: subscription-manager repos --enable rhel-7-server-optional-rpms --enable rhel-server-rhscl-7-rpms
+  when:
+    - ansible_distribution == 'RedHat'
+    - ansible_distribution_version < '8'
+    - sst_bf_configuration_enabled
+
+- name: install Python 3 SCL and git on RHEL 7 based distro
+  yum:
+    name:
+      - rh-python36
+      - git
+  when:
+    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+    - ansible_distribution_version < '8'
+    - sst_bf_configuration_enabled
+
 - name: Clone CommsPowerManagement repository
   git: 
     repo: "{{ sstbf_git_url }}"
@@ -19,6 +55,22 @@
     fail_msg: "The 'sst_bf_mode' variable must be set to 's', 'm' or 'r'. Please update your host vars."
   when: sst_bf_configuration_enabled
 
-- name: configure CPU on node
+- pause:
+    prompt: "Warning: SST-BF configuration cannot be applied - Linux kernel version is lower than 5.1"
+    seconds: 10
+  when: ansible_kernel is version_compare('5.1','<')
+
+- name: configure CPU on node on Debian based distro
   command: sst_bf.py -{{ sst_bf_mode }}
-  when: sst_bf_configuration_enabled
+  when:
+    - sst_bf_configuration_enabled
+    - ansible_os_family == "Debian"
+    - ansible_kernel is version_compare('5.1','>=')
+
+- name: configure CPU on node on RHEL 7 based distro
+  shell: source /opt/rh/rh-python36/enable && /usr/local/bin/sst_bf.py -{{ sst_bf_mode }}
+  when:
+    - sst_bf_configuration_enabled
+    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+    - ansible_distribution_version < '8'
+    - ansible_kernel is version_compare('5.1','>=')

@@ -16,6 +16,23 @@
 
     - name: enable SR-IOV Virtual Functions
       shell: echo {{ item.sriov_numvfs }} > /sys/class/net/{{ item.name }}/device/sriov_numvfs
+
+    # make configuration persistent by appending to rc.local
+    - name: make sure that rc.local exists and has correct permissions
+      file:
+        path: /etc/rc.d/rc.local
+        state: file
+        owner: root
+        group: root
+        mode: '0755'
+      become: yes
+    - name: add persistent sriov_numvfs command to rc.local file
+      lineinfile:
+        path: /etc/rc.d/rc.local
+        line: "echo {{ item.sriov_numvfs }} > /sys/class/net/{{ item.name }}/device/sriov_numvfs"
+        regexp: '^echo(.*)\/sys\/class\/net\/{{ item.name }}\/device\/sriov_numvfs$'
+        state: present
+      become: yes
   when: 
     - existing_vfs.stdout|int != item.sriov_numvfs|default(0)|int
     - item.sriov_numvfs|default(0)|int != 0

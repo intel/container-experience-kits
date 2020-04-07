@@ -29,6 +29,35 @@
 - name: find network links of the device
   when: driver != current_driver
   block:
+  - name: check that loadable kernel provided module exists
+    shell: "modinfo {{ driver }}"
+    register: module_exists
+    failed_when: module_exists.rc not in [0, 1]
+    changed_when: false
+
+  - name: verify that modules-load.d exists
+    file:
+      path: /etc/modules-load.d
+      state: directory
+    when:
+      - driver in modules_to_load
+
+  - name: load module
+    modprobe:
+      name: "{{ driver }}"
+      state: present
+    when:
+    - module_exists.rc == 0
+    - driver in modules_to_load
+
+  - name: load module on startup
+    copy:
+      dest: "/etc/modules-load.d/{{ driver }}.conf"
+      content: "{{ driver }}"
+    when:
+      - module_exists.rc == 0
+      - driver in modules_to_load
+
   - name: find network interfaces associated with the device
     find:
       paths: '{{ "/sys/bus/pci/devices/" + pci_address + "/net" }}'
@@ -83,21 +112,32 @@
     - driver in dpdk_drivers
     - ansible_kernel is version_compare('3.15', '>=')
 
+  - name: get device id
+    shell: lspci -n -s {{ pci_address }}  | awk '{print $3}' | sed 's/:/ /g'
+    when:
+    - driver in dpdk_drivers
+    - ansible_kernel is version_compare('3.15', '<')
+    register: dev_id
+
   - name: add device id to the driver
-    shell: echo -n {{ pci_address }} > /sys/bus/pci/drivers/{{ driver }}/new_id
+    shell: echo -n {{ dev_id.stdout }} > /sys/bus/pci/drivers/{{ driver }}/new_id
     when:
     - driver in dpdk_drivers
     - ansible_kernel is version_compare('3.15', '<')
 
   - name: bind device to the driver
     shell: echo -n {{ pci_address }} > /sys/bus/pci/drivers/{{ driver }}/bind
+    when:
+    - (driver not in dpdk_drivers and ansible_kernel is version_compare('3.15', '<')) or ansible_kernel is version_compare('3.15', '>=')
 
   - name: check if driver_override exists
     stat: path=/sys/bus/pci/devices/{{ pci_address }}/driver_override
     register: driver_override
+    when:
+      - ansible_kernel is version_compare('3.15', '>=')
 
   - name: write empty string to driver_override to allow binding to another drivers in the future
-    shell: echo -n "" > /sys/bus/pci/devices/{{ pci_address }}/driver_override
+    shell: echo -e '\00' > /sys/bus/pci/devices/{{ pci_address }}/driver_override
     when:
     - ansible_kernel is version_compare('3.15', '>=')
     - driver_override.stat.exists

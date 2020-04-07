@@ -4,3 +4,6 @@ dpdk_drivers:
 - vfio-pci
 - uio_pci_generic
 
+modules_to_load:
+- vfio-pci
+- uio_pci_generic

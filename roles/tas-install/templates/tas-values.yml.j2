@@ -17,6 +17,7 @@ extenderImage:
 nameOverride: ""
 namespace: {{ tas_namespace | default("default") }}
 fullnameOverride: ""
+clusterName: {{ cluster_name | default("cluster.local") }}
 
 serviceAccount:
   create: true
