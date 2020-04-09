@@ -1,4 +1,8 @@
 ---
+i40e_drivers_name: i40e
+i40evf_drivers_name: i40evf
+iavf_drivers_name: iavf
+
 i40e_drivers_version: 2.10.19.82
 i40evf_drivers_version: 3.6.15
 iavf_drivers_version: 3.7.61.20
