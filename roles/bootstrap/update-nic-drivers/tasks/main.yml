@@ -4,14 +4,38 @@
     name: install-dependencies
   when: force_nic_drivers_update | default(false) | bool
 
+# determine mgmt interfaces to avoid disconnection if i40e/i40evf/iavf interface is used for SSH
+- name: determine mgmt interface
+  template:
+    src: interface_name.j2
+    dest: "{{ ansible_env.HOME }}/.ansible/tmp/interface_name"
+  vars:
+    mgmt_ip: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+
+- name: register mgmt interface
+  command: cat "{{ ansible_env.HOME }}/.ansible/tmp/interface_name"
+  register: mgmt_interface
+  changed_when: false
+
+- name: register mgmt driver
+  shell: "set -o pipefail && ethtool -i {{ mgmt_interface.stdout }} | grep driver | sed 's/^driver: //'"
+  register: mgmt_interface_driver
+  changed_when: false
+
 # update i40e drivers
 - include: i40e.yml
-  when: force_nic_drivers_update | default(false) | bool
+  when:
+    - force_nic_drivers_update | default(false) | bool
+    - mgmt_interface_driver.stdout != i40e_drivers_name
 
 # update i40evf drivers
 - include: i40evf.yml
-  when: force_nic_drivers_update | default(false) | bool
+  when:
+    - force_nic_drivers_update | default(false) | bool
+    - mgmt_interface_driver.stdout != i40evf_drivers_name
 
 # update iavf drivers
 - include: iavf.yml
-  when: force_nic_drivers_update | default(false) | bool
+  when:
+    - force_nic_drivers_update | default(false) | bool
+    - mgmt_interface_driver.stdout != iavf_drivers_name
