@@ -1,3 +1,0 @@
----
-git_version: "2.25.1"
-git_tarball_url: "https://github.com/git/git/archive/v{{ git_version }}.tar.gz"

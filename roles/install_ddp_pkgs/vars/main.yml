@@ -1,0 +1,29 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+ddp_pkgs:
+  - nic_driver: i40e
+    install_dir: /lib/firmware/intel/i40e/ddp
+    pkgurls:
+      - "https://downloadmirror.intel.com/27587/eng/gtp.zip"
+      - "https://downloadmirror.intel.com/28940/eng/mplsogreudp.zip"
+      - "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
+      - "https://downloadmirror.intel.com/29446/eng/esp-ah.zip"
+      - "https://downloadmirror.intel.com/29780/eng/ecpri.zip"
+
+ice_ddp_profiles_path: /lib/firmware/updates/intel/ice/ddp/
+ice_ddp_profiles_download_url: https://downloadmirror.intel.com/29857/eng/25_2.zip
+ice_ddp_profiles_checksum: sha1:547307a3ac6fc2006f16cd3af5a807fe5775cece

@@ -1,6 +1,0 @@
-apiVersion: v1
-name: cmk
-version: 0.0.2
-description: CPU Manager for Kubernetes (CMK)
-sources:
- - https://github.com/intel/CPU-Manager-for-Kubernetes

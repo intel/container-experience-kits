@@ -1,0 +1,71 @@
+{{- $fullName := include "cmk.fullname" . -}}
+{{- $exclusiveMode := .Values.exclusiveMode -}}
+{{- $numExclusiveCores := .Values.numExclusiveCores -}}
+{{- $sharedMode := .Values.sharedMode -}}
+{{- $numSharedCores := .Values.numSharedCores -}}
+{{- $pullPolicy := .Values.image.pullPolicy -}}
+{{- $image := .Values.image.repository -}}
+{{- $tag := .Values.image.tag -}}
+{{- $noTaint := .Values.noTaint }}
+{{ range splitList "," .Values.hosts.list }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade,pre-rollback
+    helm.sh/hook-weight: "10"
+  labels:
+    app: {{ $fullName }}-init-discover-{{ . }}
+  name: {{ $fullName }}-init-discover-{{ . }}
+spec:
+  template:
+    spec:
+      serviceAccountName: {{ $fullName }}
+      restartPolicy: Never
+      tolerations:
+      - key: cmk
+        operator: Exists
+      containers:
+        - name: init
+          image: {{ $image }}:{{ $tag }}
+          imagePullPolicy: {{ $pullPolicy }}
+          env:
+          - name: CMK_PROC_FS
+            value: "/host/proc"
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          command: ["/bin/bash", "-c"]
+          args:
+          - "/cmk/cmk.py init --exclusive-mode={{ $exclusiveMode }} --num-exclusive-cores={{ $numExclusiveCores }} --shared-mode={{ $sharedMode }} --num-shared-cores={{ $numSharedCores }}"
+          volumeMounts:
+          - mountPath: /host/proc
+            name: host-proc
+            readOnly: true
+        - name: discover
+          image: {{ $image }}:{{ $tag }}
+          imagePullPolicy: {{ $pullPolicy }}
+          env:
+          - name: CMK_PROC_FS
+            value: /host/proc
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          command: ["/bin/bash", "-c"]
+          args:
+          - "/cmk/cmk.py discover {{ if $noTaint }}--no-taint{{ end }}"
+          volumeMounts:
+          - mountPath: /host/proc
+            name: host-proc
+            readOnly: true
+      volumes:
+      - hostPath:
+          path: /proc
+          type: ""
+        name: host-proc
+{{ end }}

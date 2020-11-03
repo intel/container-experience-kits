@@ -1,6 +1,0 @@
-apiVersion: v1
-description: SRIOV Network device plugin for Kubernetes
-name: sriov-net-dp
-version: 0.0.1
-sources:
- - https://github.com/intel/sriov-network-device-plugin

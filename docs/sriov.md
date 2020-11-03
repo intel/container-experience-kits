@@ -44,15 +44,13 @@ sriov_cni_enabled: true`
 ```
 
 If `sriov_net_dp_enabled` is set to `true` in all.yml (group vars), plase adjust and uncomment below configuration in the node host vars file. Below dictionary will be used to prepare and apply SRIOV Network Device Plugin configuration.
-In the example below we use PF names of the interfaces that we enabled SRIOV for in the above example. Then we define driver bindings for each of them. Below configuration means that all VFs that belong to the `enp175s0f0` interface will be bound to the i40evf driver and will be available for kernel datapath use (netdevice mode). VFs created on `enp175s0f1` and `enp175s0f2` will be attached to the userspace vfio-pci and igb_uio drivers respectively, which will make them available for use with the userspace dataplane applications. This configuration will also cause assignment of VFs to appropriate resource pools in the SRIOV Network Device Plugin: `intel_sriov_netdevice` for the `enp175s0f0` VFs and `intel_sriov_dpdk` for the `enp175s0f1` VFs.
+In the example below we use PF names of the interfaces that we enabled SRIOV for in the above example. Then we define driver bindings for each of them. VFs created on `enp175s0f1` and `enp175s0f2` will be attached to the userspace vfio-pci and igb_uio drivers respectively, which will make them available for use with the userspace dataplane applications. This configuration will also cause assignment of VFs to appropriate resource pools in the SRIOV Network Device Plugin: `intel_sriov_netdevice` for the `enp175s0f0` VFs and `intel_sriov_dpdk` for the `enp175s0f1` VFs.
 ```
 sriov_net_dp_config:
-- pfnames: ["enp175s0f0"]     # PF interface names - their VFs will be attached to specific driver
-  driver: "i40evf"            # available options:  "i40evf", "vfio-pci", "igb_uio"
 - pfnames: ["enp175s0f1"]     # PF interface names - their VFs will be attached to specific driver
-  driver: "vfio-pci"          # available options:  "i40evf", "vfio-pci", "igb_uio"
+  driver: "vfio-pci"          # available options:  "iavf", vfio-pci", "igb_uio"
 - pfnames: ["enp175s0f2"]     # PF interface names - their VFs will be attached to specific driver
-  driver: "igb_uio"           # available options:  "i40evf", "vfio-pci", "igb_uio"
+  driver: "igb_uio"           # available options:  "iavf", "vfio-pci", "igb_uio"
 ```
 
 Please refer to the [SRIOV Network Device Plugin](https://github.com/intel/sriov-network-device-plugin) and [SRIOV CNI documentation](https://github.com/intel/sriov-cni) to get more details and usage examples.

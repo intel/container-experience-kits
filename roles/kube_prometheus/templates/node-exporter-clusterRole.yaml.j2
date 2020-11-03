@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright(c) Copyright 2018 CoreOS, Inc
+#
+# Modifications copyright (C) 2020 Intel Corporation
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-exporter
+rules:
+- apiGroups: ["authentication.k8s.io"]
+  resources:
+    - tokenreviews
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources:
+    - subjectaccessreviews
+  verbs: ["create"]
+{% if psp_enabled %}
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs:     ['use']
+  resourceNames:
+    - node-exporter
+{% endif %}

@@ -1,0 +1,61 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: disable swap
+  command: swapoff -a
+  become: yes
+  changed_when: true
+
+- name: comment swap lines in /etc/fstab
+  replace:
+    path: /etc/fstab
+    regexp: '(.*swap.*)$'
+    replace: '# \1'
+    mode: 0600
+
+# note: this uses "failed_when: false" for the cases where br_netfilter is built Linux into kernel and not listed as a module
+# please see here for more information: https://github.com/kubernetes/kubernetes/issues/23385
+- name: load br_netfilter module
+  modprobe:
+    name: br_netfilter
+    state: present
+  become: yes
+  failed_when: false
+
+- name: Check if IP forwarding already enabled
+  command: sysctl net.ipv4.ip_forward -b
+  register: is_ip_forward_enabled
+  changed_when: false
+
+- name: enable IP forwarding on the fly
+  command: sysctl -w net.ipv4.ip_forward=1
+  become: yes
+  changed_when: true
+  when: is_ip_forward_enabled.stdout != "1"
+
+- name: add IP forwarding to sysctl.conf
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: 'net.ipv4.ip_forward = 1'
+    regexp: '^net\.ipv4\.ip_forward'
+    state: present
+    mode: 0600
+  become: yes
+
+- name: apply sysctl.conf
+  command: sysctl -p /etc/sysctl.conf
+  become: yes
+  changed_when: true

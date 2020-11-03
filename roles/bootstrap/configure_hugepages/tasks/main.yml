@@ -1,0 +1,129 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set default grub flag values
+  set_fact:
+    hugepages_flags: ""
+
+- name: validate default hugepage size setting
+  assert: { that: default_hugepage_size == "2M" or default_hugepage_size == "1G" }
+  when: hugepages_enabled | default(false)
+
+- name: Fail when trying to pre-allocate hugepages of multiple page sizes
+  fail:
+    msg: "Kubelet does not support pre-allocated hugepages for multiple page sizes."
+  when:
+  - hugepages_enabled | default(false)
+  - hugepages_1G > 0
+  - hugepages_2M > 0
+
+- name: validate that any hugepages of default size are requested
+  assert: { that: hugepages_1G > 0 }
+  when:
+    - hugepages_enabled | default(false)
+    - default_hugepage_size == "1G"
+
+- name: validate that any hugepages of default size are requested
+  assert: { that: hugepages_2M > 0 }
+  when:
+    - default_hugepage_size == "2M"
+    - hugepages_enabled | default(false)
+
+- name: calculate total number of requested hugepages
+  set_fact:
+    mem_huge_2M: "{{ hugepages_2M|default(0) * 2 }}"
+    mem_huge_1G: "{{ hugepages_1G|default(0) * 1024 }}"
+
+- name: assert that there's enough memory on the target system for the requested hugepages
+  assert:
+    that: (mem_huge_2M|int + mem_huge_1G|int) < (ansible_memtotal_mb|int - mem_reserved|int)
+    msg: "Requested {{ mem_huge_2M|int + mem_huge_1G|int }}MB of hugepages, while {{ ansible_memtotal_mb|int - mem_reserved|int }}MB is available."
+  when:
+    - hugepages_enabled | default(false)
+
+- name: set hugepages kernel boot flags
+  set_fact:
+    hugepages_flags: >-
+      default_hugepagesz={{ default_hugepage_size }}
+      {% if hugepages_1G > 0 %}hugepagesz=1G hugepages={{ hugepages_1G | int }}{% endif %}
+      {% if hugepages_2M > 0 %}hugepagesz=2M hugepages={{ hugepages_2M | int }}{% endif %}
+  when:
+    - hugepages_enabled | default(false)
+
+- name: set hugepages kernel boot flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="(?!.* default_hugepagesz=)(.*)"'
+    line: 'GRUB_CMDLINE_LINUX="\1 {{ hugepages_flags }}"'
+    state: present
+    backrefs: yes
+    mode: 0600
+  register: hugepages_set
+  notify:
+   - reboot server
+  when:
+    - hugepages_flags | length > 0
+
+- name: update hugepages kernel boot flags in /etc/default/grub if needed
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX=(.*)(?:default_hugepagesz=(?:2M|1G)(?:[ ]+hugepagesz=(?:2M|1G)[ ]+hugepages=[0-9]+){1,2})(.*)$'
+    line: 'GRUB_CMDLINE_LINUX=\1{{ hugepages_flags }}\2'
+    state: present
+    backrefs: yes
+    mode: 0600
+  register: hugepages_update
+  notify:
+   - reboot server
+  when:
+    - hugepages_flags | length > 0
+
+
+- name: update grub.cfg
+  command: update-grub
+  when:
+    - ansible_os_family == "Debian"
+    - hugepages_set.changed or hugepages_update.changed
+
+- name: check if grub2.cfg config file exists (MBR variant)
+  stat:
+    path: /etc/grub2.cfg
+  register: grub_mbr_cfg
+  when:
+    - ansible_os_family == "RedHat"
+    - hugepages_set.changed or hugepages_update.changed
+
+- name: update MBR grub2.cfg
+  command: grub2-mkconfig -o /etc/grub2.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - hugepages_set.changed or hugepages_update.changed
+  - grub_mbr_cfg.stat.exists
+
+- name: check if grub2-efi.cfg config file exists (EFI variant)
+  stat:
+    path: /etc/grub2-efi.cfg
+  register: grub_efi_cfg
+  when:
+    - ansible_os_family == "RedHat"
+    - hugepages_set.changed or hugepages_update.changed
+
+- name: update MBR grub2-efi.cfg
+  command: grub2-mkconfig -o /etc/grub2-efi.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - hugepages_set.changed or hugepages_update.changed
+  - grub_efi_cfg.stat.exists

@@ -1,0 +1,80 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# reboot early to build drivers against the target kernel version
+- meta: flush_handlers
+
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: regather facts in case mgmt interface changed since start of play
+  setup:
+    gather_subset:
+      - network
+
+- name: register mgmt driver
+  shell: "set -o pipefail && ethtool -i {{ hostvars[inventory_hostname]['ansible_default_ipv4']['interface'] }} | grep driver | sed 's/^driver: //'"
+  args:
+    executable: /bin/bash
+  register: mgmt_interface_driver
+  changed_when: false
+
+- name: get drivers of PFs specified in sriov_nics
+  command: lspci -k -s {{ item }}
+  register: lspci
+  with_items: "{{ sriov_nics | map(attribute='bus_info') | list }}"
+  changed_when: false
+
+- name: determine which kernel drivers will be used
+  set_fact:
+    requested_drivers:
+      i40e: "{{ lspci.results | selectattr('stdout', 'contains', 'i40e') | list | length>0 }}"
+      ice: "{{ lspci.results | selectattr('stdout', 'contains', 'ice') | list | length>0 }}"
+      iavf: "{{ sriov_nics | selectattr('vf_driver', 'contains', 'iavf') | list | length>0 }}"
+
+- name: determine kernel source dir
+  find:
+    path: /usr/src/kernels/
+    file_type: directory
+  register: kernel_source
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version >= '8'
+
+- name: ensure /usr/lib/modules/$(uname -r)/build points to correct kernel source
+  file:
+    state: link
+    src: "{{ item.path }}"
+    dest: "/usr/lib/modules/{{ ansible_kernel }}/build"
+    force: yes
+    mode: 0777
+  with_items: "{{ kernel_source.files }}"
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version >= '8'
+
+# update i40e drivers
+- include: i40e.yml
+  when: requested_drivers.i40e
+
+# update ice drivers
+- include: ice.yml
+  when: requested_drivers.ice
+
+# update iavf drivers
+- include: iavf.yml
+  when: requested_drivers.iavf

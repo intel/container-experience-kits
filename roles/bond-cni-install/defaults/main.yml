@@ -1,5 +1,0 @@
----
-bond_cni_git_url: "https://github.com/intel/bond-cni.git"
-bond_cni_dir: "/usr/src/bond-cni"
-bond_cni_version: "v1.0"
-bond_cni_path: "/usr/src/bond-cni/bin/bond"

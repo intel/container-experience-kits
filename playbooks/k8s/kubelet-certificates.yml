@@ -1,0 +1,141 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: create temporary directory for storing certificate material
+      tempfile:
+        state: directory
+        prefix: kubelet-certs-
+      become: no
+      register: temp_cert_dir_localhost
+
+
+- hosts: k8s-cluster
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+  roles:
+    - golang_install
+  tasks:
+    - name: set temporary certificate location
+      set_fact:
+        temp_cert_dir: "{{ hostvars['localhost']['temp_cert_dir_localhost'] }}"
+
+    - name: ensure that CSR directory is present
+      file:
+        path: "{{ kube_csr_dir }}"
+        state: directory
+        mode: 0755
+      when: inventory_hostname == groups['kube-master'][0]
+
+    - name: template CSR
+      template:
+        src: node.json.j2
+        dest: "{{ kube_csr_dir }}/node-{{ item }}.json"
+        owner: root
+        group: root
+        mode: 0644
+      with_items: "{{ groups['k8s-cluster'] }}"
+      vars:
+        node_ip: "{{ hostvars[item]['ip'] }}"
+      when: inventory_hostname == groups['kube-master'][0]
+
+    - name: create certs from CSRs
+      shell:
+        cmd: "{{ gopath.stdout }}/bin/cfssl gencert -ca {{ kube_cert_dir }}/ca.crt \
+              -ca-key {{ kube_cert_dir }}/ca.key \
+              -profile kubernetes node-{{ item }}.json | {{ gopath.stdout }}/bin/cfssljson -bare {{ item }}"
+        chdir: "{{ kube_csr_dir }}"
+      when: inventory_hostname == groups['kube-master'][0]
+      loop: "{{ groups['k8s-cluster'] }}"
+
+    - name: fetch certs to ansible host
+      fetch:
+        src: "{{ kube_csr_dir }}/{{ item }}.pem"
+        dest: "{{ temp_cert_dir.path }}/"
+        flat: yes
+      when: inventory_hostname == groups['kube-master'][0]
+      loop: "{{ groups['k8s-cluster'] }}"
+
+    - name: fetch keys to ansible host
+      fetch:
+        src: "{{ kube_csr_dir }}/{{ item }}-key.pem"
+        dest: "{{ temp_cert_dir.path }}/"
+        flat: yes
+      when: inventory_hostname == groups['kube-master'][0]
+      loop: "{{ groups['k8s-cluster'] }}"
+
+    - name: distribute certificates to nodes
+      copy:
+        src: "{{ temp_cert_dir.path }}/{{ inventory_hostname }}.pem"
+        dest: "{{ kube_cert_dir }}/"
+        owner: root
+        group: root
+        mode: u=rw,g=r,o=r
+      with_items: "{{ groups['k8s-cluster'] }}"
+
+    - name: distribute keys to nodes
+      copy:
+        src: "{{ temp_cert_dir.path }}/{{ inventory_hostname }}-key.pem"
+        dest: "{{ kube_cert_dir }}/"
+        owner: root
+        group: root
+        mode: u=rw,g=,o=
+      with_items: "{{ groups['k8s-cluster'] }}"
+
+    - name: insert new values into kubelet configuration
+      lineinfile:
+        path: "{{ kube_config_dir }}/kubelet-config.yaml"
+        line: "{{ item }}"
+        mode: 0600
+      loop:
+        - "tlsPrivateKeyFile: {{ kube_cert_dir }}/{{ inventory_hostname }}-key.pem"
+        - "tlsCertFile: {{ kube_cert_dir }}/{{ inventory_hostname }}.pem"
+
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: remove directory with certs
+      file:
+        path: "{{ temp_cert_dir_localhost }}"
+        state: absent
+
+
+- hosts: kube-master
+  environment: "{{ proxy_env | d({}) }}"
+  tasks:
+    - name: insert kubelet-authority into api-server configuration
+      lineinfile:
+        path: "{{ kube_config_dir }}/manifests/kube-apiserver.yaml"
+        insertbefore: "--tls-cipher-suites"
+        line: "{{ item }}"
+        mode: 0600
+      loop:
+        - "{{ '- --kubelet-certificate-authority={{ kube_cert_dir }}/ca.crt'|indent(4,true) }}"
+
+
+- hosts: k8s-cluster
+  gather_facts: false
+  tasks:
+  - name: restart kubelet on nodes
+    service:
+      name: kubelet
+      state: restarted

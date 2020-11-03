@@ -1,0 +1,37 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: copy collectd configs
+  import_tasks: copy-configs.yml
+
+- name: configure msr
+  import_tasks: msr-config.yml
+
+- name: generate cert
+  include_role:
+    name: create_signed_k8s_certs
+  vars:
+    secret_name: "{{ rbac_proxy_ssl_secret_name }}"
+    service_name: collectd
+    key_pair_name: kube-rbac-proxy
+    host_secrets_folder: "{{ rbac_proxy_ssl_mount_path }}"
+    k8s_namespace: "{{ collectd_namespace }}"
+    csr_cluster_name: "{{ cluster_name | default('cluster.local') }}"
+
+- name: install collectd
+  import_tasks: collectd.yml
+  when:
+    - inventory_hostname == groups['kube-master'][0]

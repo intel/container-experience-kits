@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get current i40e driver version
+  command: modinfo i40e -F version
+  register: i40e_installed_version
+  changed_when: false
+  failed_when: false
+
+- debug:
+    msg: "Currently installed i40e version: {{ i40e_installed_version.stdout }}"
+
+- name: download i40e driver
+  get_url:
+    url: "{{ i40e_drivers_url }}"
+    dest: /usr/src
+    checksum: "{{ i40e_drivers_checksum }}"
+  register: i40e_download
+  until: i40e_download is not failed
+  retries: 5
+  when: i40e_installed_version.stdout != i40e_drivers_version
+
+- name: unload i40e module
+  modprobe:
+    name: i40e
+    state: absent
+  when:
+    - i40e_installed_version.stdout != i40e_drivers_version
+    - mgmt_interface_driver.stdout != i40e_drivers_name
+
+- name: untar i40e driver sources
+  unarchive:
+    src: "{{ i40e_download.dest }}"
+    dest: /usr/src
+    list_files: yes
+    remote_src: yes
+    mode: 0644
+  become: yes
+  register: i40e_untar
+  when: i40e_installed_version.stdout != i40e_drivers_version
+
+- name: build and install i40e driver
+  make:
+    chdir: "{{ i40e_untar.dest }}/{{ i40e_untar.files[0] }}/src"
+    target: "{{ item }}"
+  become: yes
+  with_items:
+    - clean
+    - install
+  when: i40e_installed_version.stdout != i40e_drivers_version
+
+- name: reboot if driver is used by management interface
+  become: yes
+  reboot:
+    reboot_timeout: 1200 # wait up to 20 minutes
+  when:
+    - mgmt_interface_driver.stdout == i40e_drivers_name
+    - i40e_installed_version.stdout != i40e_drivers_version
+
+- name: ensure that i40e module is loaded
+  modprobe:
+    name: i40e
+    state: present

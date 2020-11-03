@@ -1,0 +1,162 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: upgrade Python wheel and setuptools
+  pip:
+    name:
+      - wheel==0.34.2
+      - setuptools<=44
+    extra_args: --upgrade
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: install required Python openshift module
+  pip:
+    name: openshift==0.11.2
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: wait for kube-apiserver to be up
+  uri:
+    url: "https://127.0.0.1:6443/healthz"
+    client_cert: "/etc/kubernetes/ssl/ca.crt"
+    client_key: "/etc/kubernetes/ssl/ca.key"
+    validate_certs: no
+  register: result
+  until: result.status == 200
+  retries: 15
+  delay: 5
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: generate server and client certificates
+  include_tasks: tls.yml
+
+- name: load user-provided registry password or generate a random one
+  set_fact:
+    password: "{{ registry_password | default(lookup('password', 'registry_htpasswd')) }}"
+
+- name: clean up temporary files
+  file: path=registry_htpasswd state=absent
+  delegate_to: localhost
+  run_once: yes
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: generate htpasswd file
+  command: htpasswd -Bbn docker {{ password }}
+  register: htpasswd
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: create Helm charts directory if needed
+  file:
+    path: /usr/src/charts
+    state: directory
+    mode: 0755
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: create Helm registry charts directory if needed
+  file:
+    path: "{{ docker_registry_path }}"
+    state: directory
+    mode: 0755
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: create persistent volume
+  k8s:
+    state: present
+    definition: "{{ lookup('file', '../files/pv.yml') | from_yaml }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: create persistent volume claim
+  k8s:
+    state: present
+    definition: "{{ lookup('file', '../files/pvc.yml') | from_yaml }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: copy probe.sh
+  copy:
+    src: probe.sh
+    dest: /etc/probe.sh
+    owner: root
+    group: root
+    mode: u+rwx,g-rwx,o-
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: template docker-registry
+  template:
+    src: "{{ item }}"
+    dest: "{{ docker_registry_path }}/{{ item | basename | regex_replace('.j2','') }}"
+    owner: root
+    group: root
+    mode: u+rwx,g-rwx,o-
+  with_fileglob:
+    - ../templates/docker-registry/*.j2
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: delete old docker registry
+  command: "kubectl delete -f {{ docker_registry_path }} --namespace {{ registry_namespace }}"
+  register: delete_result
+  changed_when: delete_result is not failed
+  failed_when: false
+
+- name: install docker registry application
+  command: "kubectl apply -f {{ docker_registry_path }} --namespace {{ registry_namespace }}"
+  changed_when: true
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: clean up any certs/key/CSR files
+  file: path=/etc/ssl/registry state=absent
+  when: inventory_hostname == groups['kube-master'][0]
+  failed_when: false
+  become: yes
+
+- name: create registry storage directory
+  file:
+    path: /var/lib/registry
+    owner: 1000
+    group: root
+    mode: '0700'
+    state: directory
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: wait for Docker registry to come up on all nodes
+  uri:
+    url: "https://localhost:{{ registry_nodeport }}"
+    validate_certs: no
+    user: docker
+    password: "{{ password }}"
+    method: GET
+    force_basic_auth: yes
+  register: result
+  until: result.status == 200
+  retries: 180
+  delay: 1
+
+- name: install Python docker module
+  pip:
+    name:
+      - docker==4.3.1
+      - six>=1.14.0
+
+- name: grant access to the registry to Docker on all nodes
+  docker_login:
+    username: docker
+    password: "{{ password }}"
+    registry_url: "localhost:{{ registry_nodeport }}"
+    tls_hostname: "{{ inventory_hostname }}"
+    validate_certs: yes

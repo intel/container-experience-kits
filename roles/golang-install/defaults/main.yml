@@ -1,3 +1,0 @@
----
-golang_version: 1.12.16
-golang_download_url: "https://dl.google.com/go/go{{ golang_version }}.linux-amd64.tar.gz"

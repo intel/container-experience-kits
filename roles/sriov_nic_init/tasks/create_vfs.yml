@@ -1,0 +1,60 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get maximum possible number of VFs
+  command: cat /sys/class/net/{{ item.name }}/device/sriov_totalvfs
+  register: total_vfs
+  changed_when: false
+
+- name: get current number of VFs
+  command: cat /sys/class/net/{{ item.name }}/device/sriov_numvfs
+  register: existing_vfs
+  changed_when: false
+
+- name: fail if requested number of VFs is higher than supported
+  assert:
+    that: item.sriov_numvfs | default(0) | int <= total_vfs.stdout | int
+    fail_msg: "Requested sriov_numvfs for {{ item.name }} must be lower than {{ total_vfs.stdout | int }}"
+
+- name: create VFs and save SR-IOV numvfs configuration
+  block:
+    # in case when SR-IOV VFs have been already configured we reset it first to avoid "device or resource busy" error
+    - name: reset SR-IOV Virtual Functions
+      shell: echo 0 > /sys/class/net/{{ item.name }}/device/sriov_numvfs
+      when: existing_vfs|int != item.sriov_numvfs
+
+    - name: enable SR-IOV Virtual Functions
+      shell: echo {{ item.sriov_numvfs }} > /sys/class/net/{{ item.name }}/device/sriov_numvfs
+      when: existing_vfs|int != item.sriov_numvfs
+
+    - name: get full PCI address of the PF
+      shell: basename $(readlink -f /sys/class/net/{{ item.name }}/device)
+      register: pf_pci_address
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: save number of VFs
+      lineinfile:
+        path: "{{ sriov_config_path }}/bmra_sriov_numvfs"
+        line: "{{ pf_pci_address.stdout }} {{ item.sriov_numvfs | default(0) | int }}"
+        regexp: "^{{ pf_pci_address.stdout }}"
+        create: yes
+        owner: root
+        group: root
+        mode: '0600'
+  when:
+    - item.sriov_numvfs | default(0) | int != 0

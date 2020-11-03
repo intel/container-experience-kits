@@ -1,0 +1,149 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+## BMRA primary playbook variables ##
+
+# Kubernetes version
+kubernetes: true
+kube_version: v1.18.8
+#kube_version: v1.17.11
+#kube_version: v1.16.14
+
+# Run system-wide package update (apt dist-upgrade, yum update, ...)
+# Note: enabling this may lead to unexpected results
+# Tip: you can set this per host using host_vars
+update_all_packages: false
+
+# Node Feature Discovery
+nfd_enabled: true
+nfd_build_image_locally: false
+nfd_namespace: kube-system
+nfd_sleep_interval: 60s
+
+# Intel CPU Manager for Kubernetes
+cmk_enabled: true
+cmk_namespace: kube-system
+cmk_use_all_hosts: false # 'true' will deploy CMK on the controller nodes too
+cmk_hosts_list: node1,node2 # allows to control where CMK nodes will run, leave this option commented out to deploy on all K8s nodes
+cmk_shared_num_cores: 2 # number of CPU cores to be assigned to the "shared" pool on each of the nodes
+cmk_exclusive_num_cores: 2 # number of CPU cores to be assigned to the "exclusive" pool on each of the nodes
+# cmk_shared_mode: packed # choose between: packed, spread, default: packed
+# cmk_exclusive_mode: packed # choose between: packed, spread, default: packed
+
+# Native CPU Manager (Kubernetes built-in)
+# Note: Enabling CMK and built-in CPU Manager is not recommended.
+# Setting this option as "true" enables the "static" policy, otherwise the default "none" policy is used.
+native_cpu_manager_enabled: false
+# Amount of CPU cores that will be reserved for the housekeeping (2000m = 2000 millicores = 2 cores)
+native_cpu_manager_system_reserved_cpus: 2000m
+# Amount of CPU cores that will be reserved for Kubelet
+native_cpu_manager_kube_reserved_cpus: 1000m
+# Explicit list of the CPUs reserved from pods scheduling.
+# Note: Supported only with kube_version 1.17 and newer, overrides native_cpu_manager_system_reserved_cpus and native_cpu_manager_kube_reserved_cpus.
+#native_cpu_manager_reserved_cpus: "0,1,2"
+# Note: All reamining unreserved CPU cores will be consumed by the workloads.
+
+# Enable Kubernetes built-in Topology Manager
+topology_manager_enabled: true
+# There are four supported policies: none, best-effort, restricted, single-numa-node.
+topology_manager_policy: "best-effort"
+
+# Intel SRIOV Network Device Plugin
+sriov_net_dp_enabled: true
+sriov_net_dp_namespace: kube-system
+# whether to build and store image locally or use one from public external registry
+sriov_net_dp_build_image_locally: true
+# SR-IOV network device plugin configuration.
+# For more information on supported configuration refer to: https://github.com/intel/sriov-network-device-plugin#configurations
+sriovdp_config_data: |
+    {
+        "resourceList": [{
+                "resourceName": "intel_sriov_netdevice",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed", "1889"],
+                    "drivers": ["iavf", "ixgbevf"]
+                }
+            },
+            {
+                "resourceName": "intel_sriov_dpdk_700_series",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed"],
+                    "drivers": ["vfio-pci"]
+                }
+            },
+            {
+                "resourceName": "intel_sriov_dpdk_800_series",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["1889"],
+                    "drivers": ["vfio-pci"]
+                }
+            }
+        ]
+    }
+
+
+# Intel QAT Device Plugin for Kubernetes
+qat_dp_enabled: true
+qat_dp_namespace: kube-system
+
+# Intel Telemetry Aware Scheduling
+tas_enabled: true
+tas_namespace: monitoring
+# create and enable TAS demonstration policy: [true, false]
+tas_enable_demo_policy: false
+
+# Create reference net-attach-def objects
+example_net_attach_defs:
+  sriov_net_dp: true # Update to match host_vars CNI configuration
+
+## Proxy configuration ##
+#http_proxy: "http://proxy.example.com:1080"
+#https_proxy: "http://proxy.example.com:1080"
+#additional_no_proxy: ".example.com"
+
+# (Ubuntu only) disables DNS stub listener which may cause issues on Ubuntu
+dns_disable_stub_listener: true
+
+# Kubernetes cluster name, also will be used as DNS domain
+cluster_name: cluster.local
+
+## Kubespray variables ##
+
+# default network plugins and kube-proxy configuration
+kube_network_plugin_multus: true
+multus_version: v3.4.2
+kube_network_plugin: flannel
+kube_pods_subnet: 10.244.0.0/16
+kube_service_addresses: 10.233.0.0/21
+kube_proxy_mode: iptables
+
+# please leave it set to "true", otherwise Intel BMRA features deployed as Helm charts won't be installed
+helm_enabled: true
+
+# Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
+registry_local_address: "localhost:30500"
+
+# Enable Pod Security Policy. This option enables PSP admission controller and creates minimal set of rules.
+psp_enabled: true
+
+# Set image pull policy to Always. Pulls images prior to starting containers. Valid credentials must be configured.
+always_pull_enabled: true
+
+# Telemetry configuration
+collectd_scrap_interval: 30

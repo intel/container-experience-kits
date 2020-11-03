@@ -1,0 +1,10 @@
+[Unit]
+Description=ddp-i40e configuration on boot
+AssertPathExists=/sbin/ethtool
+
+[Service]
+Type=simple
+ExecStart=/sbin/ethtool -f {{ item.name }} {{ item.ddp_profile }} 100
+
+[Install]
+WantedBy=multi-user.target

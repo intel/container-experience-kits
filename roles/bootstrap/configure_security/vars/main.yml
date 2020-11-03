@@ -1,0 +1,58 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# based mostly on https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#check-required-ports
+fw_open_ports:
+  controller:
+    # SSH
+    - 22/tcp
+    # etcd
+    - 2379:2380/tcp
+    # kube-apiserver
+    - 6443/tcp
+    # kubelet
+    - 10250/tcp
+    # Telemetry (Prometheus, etc.)
+    - 9100/tcp
+    - 9103/tcp
+    - 9104/tcp
+    # Nodeports - for services running on the cluster
+    - 30000:32767/tcp
+    - 30000:32767/udp
+    # flannel tunnel endpoints
+    - 8285/udp
+    - 8472/udp
+  node:
+    # SSH
+    - 22/tcp
+    # kube-apiserver
+    - 6443/tcp
+    # kubelet
+    - 10250/tcp
+    # Telemetry (Prometheus, etc.)
+    - 9100/tcp
+    - 9103/tcp
+    - 9104/tcp
+    # Nodeports - for services running on the cluster
+    - 30000:32767/tcp
+    - 30000:32767/udp
+    # flannel tunnel endpoints
+    - 8285/udp
+    - 8472/udp
+
+fw_open_subnets:
+  - "{{ kube_pods_subnet }}"
+  - "{{ kube_service_addresses }}"

@@ -1,0 +1,53 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set /etc/environment proxy settings
+  lineinfile:
+    path: /etc/environment
+    state: present
+    regexp: '^{{ item.key }}'
+    line: '{{ item.key }}={{ item.value }}'
+    create: yes
+    owner: root
+    group: root
+    mode: 0644
+  with_dict: "{{ proxy_env }}"
+  when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+
+- name: set .bashrc proxy settings
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    state: present
+    regexp: '^{{ item.key }}'
+    line: '{{ item.key }}={{ item.value }}'
+    create: yes
+    owner: root
+    group: root
+    mode: 0644
+  with_dict: "{{ proxy_env }}"
+  when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+  become: yes
+
+- name: ensure Docker config directory exists
+  file: path={{ ansible_env.HOME }}/.docker state=directory mode=0755
+
+- name: create Docker config.json file with proxy setttings
+  template:
+    src: docker_config.json.j2
+    dest: "{{ ansible_env.HOME }}/.docker/config.json"
+    force: yes
+    mode: 0755
+  when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'

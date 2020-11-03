@@ -1,0 +1,53 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create /opt/cni/bin
+  file:
+   path: "/opt/cni/bin"
+   state: directory
+   recurse: yes
+   mode: 0755
+
+- name: set path to the Userspace CNI plugin sources
+  set_fact:
+    userspace_cni_path: "{{ ansible_env.HOME }}/go/src/github.com/intel/userspace-cni-network-plugin"
+
+- name: clone Userspace CNI Plugin repository
+  git:
+    repo: "{{ userspace_cni_git_url }}"
+    version: "{{ userspace_cni_version }}"
+    dest: "{{ userspace_cni_path }}"
+    force: true
+
+- name: build Userspace CNI plugin
+  shell: >
+    source /etc/profile.d/golang.sh &&
+    make clean &&
+    export GO111MODULE=on &&
+    make install-dep &&
+    make install &&
+    make
+  args:
+    chdir: "{{ userspace_cni_path }}"
+    executable: /bin/bash
+    creates: "{{ userspace_cni_path }}/userspace/userspace"
+
+- name: copy built Userspace CNI plugin binary to the CNI bin dir
+  copy:
+    remote_src: yes
+    src: "{{ userspace_cni_path }}/userspace/userspace"
+    dest: "/opt/cni/bin/userspace"
+    mode: 0755

@@ -1,0 +1,64 @@
+#
+# CERN CentOS 7 RealTime repository at http://linuxsoft.cern.ch/
+#
+
+[rt]
+name=CentOS-$releasever - RealTime
+baseurl=http://linuxsoft.cern.ch/cern/centos/$releasever/rt/$basearch/
+gpgcheck=1
+enabled=1
+protect=1
+priority=10
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-cern
+
+[rt-debug]
+name=CentOS-$releasever - RealTime - Debuginfo
+baseurl=http://linuxsoft.cern.ch/cern/centos/$releasever/rt/Debug/$basearch/
+gpgcheck=1
+enabled=0
+protect=1
+priority=10
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-cern
+
+[rt-source]
+name=CentOS-$releasever - RealTime - Sources
+baseurl=http://linuxsoft.cern.ch/cern/centos/$releasever/rt/Sources/
+gpgcheck=1
+enabled=0
+protect=1
+priority=10
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-cern
+
+[rt-testing]
+name=CentOS-$releasever - RealTime Testing
+baseurl=http://linuxsoft.cern.ch/cern/centos/$releasever/rt-testing/$basearch/
+gpgcheck=1
+enabled=0
+protect=1
+priority=10
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-cern
+
+[rt-testing-debug]
+name=CentOS-$releasever - RealTime Testing - Debuginfo
+baseurl=http://linuxsoft.cern.ch/cern/centos/$releasever/rt-testing/Debug/$basearch/
+gpgcheck=1
+enabled=0
+protect=1
+priority=10
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-cern
+
+[rt-testing-source]
+name=CentOS-$releasever - RealTime Testing - Sources
+baseurl=http://linuxsoft.cern.ch/cern/centos/$releasever/rt-testing/Sources/
+gpgcheck=1
+enabled=0
+protect=1
+priority=10
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-cern
+
+[kvm]
+name=CentOS-kvm-tool
+baseurl=http://mirror.centos.org/centos-$releasever/$releasever/virt/$basearch/kvm-common/
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+enabled=1

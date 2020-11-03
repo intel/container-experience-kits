@@ -1,7 +1,0 @@
-{% for iface in ansible_interfaces -%}
-  {% if hostvars[inventory_hostname]['ansible_%s'|format(iface)]['ipv4'] is defined -%}
-    {% if mgmt_ip == hostvars[inventory_hostname]['ansible_%s'|format(iface)]['ipv4']['address'] -%}
-      {{ iface }}
-    {%- endif %}
-  {%- endif %}
-{%- endfor %}

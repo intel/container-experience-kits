@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright(c) Copyright 2018 CoreOS, Inc
+#
+# Modifications copyright (C) 2020 Intel Corporation
+apiVersion: v1
+data:
+  datasources.yaml: ewogICAgImFwaVZlcnNpb24iOiAxLAogICAgImRhdGFzb3VyY2VzIjogWwogICAgICAgIHsKICAgICAgICAgICAgImFjY2VzcyI6ICJwcm94eSIsCiAgICAgICAgICAgICJlZGl0YWJsZSI6IGZhbHNlLAogICAgICAgICAgICAibmFtZSI6ICJwcm9tZXRoZXVzIiwKICAgICAgICAgICAgIm9yZ0lkIjogMSwKICAgICAgICAgICAgInR5cGUiOiAicHJvbWV0aGV1cyIsCiAgICAgICAgICAgICJ1cmwiOiAiaHR0cDovLzEyNy4wLjAuMTo5MDkwIiwKICAgICAgICAgICAgInZlcnNpb24iOiAxCiAgICAgICAgfQogICAgXQp9
+kind: Secret
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+type: Opaque

@@ -4,43 +4,60 @@ Intel Container Experience Kits Setup Scripts provide a simplified mechanism for
 
 ## Quickstart guide
 1. Initialize git submodules to download Kubespray code.
-```
-git submodule update --init
-```
+    ```
+    git submodule update --init
+    ```
 
-2. Decide which deployment profile you want to use and optinonally export environmental variable. (Note: It will be used only for easier execution of below steps.)
-- For **Advanced** deployment:
-```
-export PROFILE=advanced
-```
+1. Decide which configuration profile you want to use and optionally export environmental variable. (Note: It will be used only to ease execution of the steps listed below.)
+    - For **Kubernetes Basic Infrastructure** deployment:
+    ```
+    export PROFILE=basic
+    ```
+    - For **Kubernetes Remote Forwarding Platform Infrastructure** deployment:
+    ```
+    export PROFILE=remote_fp
+    ```
+    - For **Kubernetes Infrastructure On Customer Premises** deployment:
+    ```
+    export PROFILE=on_prem
+    ```
+    - For **Kubernetes Full NFV Infrastructure** deployment:
+    ```
+    export PROFILE=full_nfv
+    ```
 
-3. Copy example inventory file to the project root dir.
-```
-cp examples/${PROFILE}/inventory.ini .
-```
+1. Copy example inventory file to the project root dir.
+    ```
+    cp examples/${PROFILE}/inventory.ini .
+    ```
 
-4. Update inventory file with your environment details.
+1. Update inventory file with your environment details.
 
-Note: at this stage you can inspect your target environment by running:
-```
-ansible -i inventory.ini -m setup all > all_system_facts.txt
-```
-In `all_system_facts.txt` file you will find details about your hardware, operating system and network interfaces, which will help to properly configure Ansible variables in the next steps.
+    Note: at this stage you can inspect your target environment by running:
+    ```
+    ansible -i inventory.ini -m setup all > all_system_facts.txt
+    ```
 
+    In `all_system_facts.txt` file you will find details about your hardware, operating system and network interfaces, which will help to properly configure Ansible variables in the next steps.
 
-5. Copy group_vars and host_vars directories.
-```
-cp -r examples/${PROFILE}/group_vars examples/${PROFILE}/host_vars .
-```
+1. Copy group_vars and host_vars directories.
+    ```
+    cp -r examples/${PROFILE}/group_vars examples/${PROFILE}/host_vars .
+    ```
 
-6. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
+1. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
 
-Note: Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
+    Note: Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
 
-7. Execute `ansible-playbook`.
-```
-ansible-playbook -i inventory.ini playbooks/${PROFILE}.yml
-```
+1. OPTIONAL: Patch Kubespray for python3 support (Required for CentOS/RHEL 8+ installations).
+    ```
+    ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
+    ```
+
+1. Execute `ansible-playbook`.
+    ```
+    ansible-playbook -i inventory.ini playbooks/${PROFILE}.yml
+    ```
 
 ## Configuration
 
@@ -49,8 +66,8 @@ Refer to the documentation linked below to see configuration details for selecte
 - [SRIOV Network Device Plugin and SRIOV CNI plugin](docs/sriov.md)
 
 ## Requirements
-* Python 2 present on the target servers.
-* Ansible 2.7.16 installed on the Ansible machine (the one you run these playbooks from).
+* Python present on the target servers depending on the target distribution. Python 3 is highly recommended, but Python 2 is still supported for CentOS 7.
+* Ansible 2.9.6 installed on the Ansible machine (the one you run these playbooks from).
 * pip==9.0.3 installed on the Ansible machine.
 * SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).
 * Internet access on all target servers is mandatory. Proxy is supported.

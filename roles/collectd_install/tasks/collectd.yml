@@ -1,0 +1,82 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+
+- name: delete previous collectd deployment
+  command: kubectl apply -f /usr/src/k8s/collectd/ --namespace {{ collectd_namespace }}
+  failed_when: false
+  changed_when: true
+
+- name: Remove directory with k8s deployment
+  file:
+    path: /usr/src/k8s/collectd
+    state: absent
+
+- name: create Helm charts directory if needed
+  file:
+    path: /usr/src/k8s/collectd
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: check if namespace exists
+  command: kubectl get namespace {{ collectd_namespace }}
+  register: ns_exists
+  failed_when: no
+  changed_when: false
+
+- name: create a namespace
+  command: kubectl create namespace {{ collectd_namespace }}
+  when: '"NotFound" in ns_exists.stderr'
+
+- name: create Helm charts directory if needed
+  file:
+    path: /usr/src/k8s/collectd
+    owner: root
+    group: root
+    state: directory
+    mode: 0755
+
+- name: fill in k8s deployment files
+  template:
+    src: "{{ item }}"
+    dest: "/usr/src/k8s/collectd/{{ item }}"
+    owner: root
+    group: root
+    force: yes
+    mode: preserve
+  loop:
+    - "daemonset.yml"
+    - "service.yml"
+    - "collectd-rbac-cluster-role.yml"
+    - "collectd-rbac-cluster-role-binding.yml"
+    - "collectd-rbac-service-account.yml"
+
+- name: copy psp file
+  template:
+    src: "psp.yml.j2"
+    dest: "/usr/src/k8s/collectd/psp.yml"
+    force: yes
+    mode: preserve
+    owner: root
+    group: root
+  when:
+    - psp_enabled | default(true)
+
+- name: install collectd from k8s deployment files
+  command: kubectl apply -f /usr/src/k8s/collectd/ --namespace {{ collectd_namespace }}
+  changed_when: true

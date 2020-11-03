@@ -1,0 +1,85 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: reconfigure unattended-upgrades package
+  command: dpkg-reconfigure --priority=low unattended-upgrades
+  args:
+    creates: "/etc/apt/apt.conf.d/20auto-upgrades"
+
+- name: disable automatic package updates
+  replace:
+    path: "{{ item }}"
+    regexp: "(APT::Periodic::.* )\"1\";$"
+    replace: "\\1\"0\";"
+    mode: 0600
+  with_items:
+    - "/etc/apt/apt.conf.d/20auto-upgrades"
+    - "/etc/apt/apt.conf.d/10periodic"
+  ignore_errors: true
+
+- name: install build-essential package
+  apt:
+    name: build-essential
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  register: apt_res
+  retries: 5
+  until: apt_res is success
+
+- name: install software-properties-common
+  apt:
+    name: software-properties-common
+  when: ansible_os_family == "Debian"
+
+- name: ensure that main, restricted, universe and multiverse repositories are enabled
+  apt_repository:
+    repo: "{{ item }}"
+  with_items:
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} main universe"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} main restricted"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates main restricted"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} universe"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates universe"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} multiverse"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates multiverse"
+    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-backports main restricted universe multiverse"
+    - "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted"
+    - "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security universe"
+    - "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security multiverse"
+  when: ansible_distribution == "Ubuntu"
+
+- name: apt update
+  apt: update_cache=yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: install zip
+  apt:
+    name: zip
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: install pip
+  apt:
+    name: python3-pip
+  when: ansible_os_family == "Debian"
+
+- name: perform dist-upgrade on Debian OS family
+  apt:
+    upgrade: dist
+    update_cache: yes
+  when:
+    - ansible_os_family == "Debian"
+    - update_all_packages | default(false)

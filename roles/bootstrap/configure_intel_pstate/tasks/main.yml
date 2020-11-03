@@ -1,0 +1,101 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set default grub flags values
+  set_fact:
+    pstate_flags: ""
+
+- name: set kernel flags required for Intel PState scaling driver
+  set_fact:
+    pstate_flags: "intel_pstate={{ intel_pstate }}"
+  when: intel_pstate is defined
+
+- name: set Intel PState kernel boot flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="(?!.* intel_pstate=)(.*)"'
+    line: 'GRUB_CMDLINE_LINUX="\1 {{ pstate_flags }}"'
+    state: present
+    backrefs: yes
+    mode: 0600
+  register: kernel_parameters
+  notify:
+   - reboot server
+  when:
+    - pstate_flags | length > 0
+
+- name: update grub.cfg
+  command: update-grub
+  when:
+    - ansible_os_family == "Debian"
+    - kernel_parameters.changed
+
+- name: check if grub2.cfg config file exists (MBR variant)
+  stat:
+    path: /etc/grub2.cfg
+  register: grub_mbr_cfg
+  when:
+    - ansible_os_family == "RedHat"
+    - kernel_parameters.changed
+
+- name: update MBR grub2.cfg
+  command: grub2-mkconfig -o /etc/grub2.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - kernel_parameters.changed
+  - grub_mbr_cfg.stat.exists
+
+- name: check if grub2-efi.cfg config file exists (EFI variant)
+  stat:
+    path: /etc/grub2-efi.cfg
+  register: grub_efi_cfg
+  when:
+    - ansible_os_family == "RedHat"
+    - kernel_parameters.changed
+
+- name: update MBR grub2-efi.cfg
+  command: grub2-mkconfig -o /etc/grub2-efi.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - kernel_parameters.changed
+  - grub_efi_cfg.stat.exists
+
+- name: check if the pstate turbo management file is available
+  stat:
+    path: "{{ intel_turbo_path }}"
+  register: intel_pstate_folder
+  when:
+    - turbo_boost_enabled is defined
+
+- name: set turbo_value=1 when turbo_boost_enabled is true
+  set_fact:
+    turbo_value: 1
+  when:
+    - turbo_boost_enabled is defined
+    - turbo_boost_enabled
+
+- name: set turbo_value=0 when turbo_boost_enabled is false
+  set_fact:
+    turbo_value: 0
+  when:
+    - turbo_boost_enabled is defined
+    - not turbo_boost_enabled
+
+- name: configure sysfs turbo attribute for Intel pstate
+  shell: "echo {{ turbo_value }} > {{ intel_turbo_path }}"
+  when:
+    - turbo_value is defined
+    - intel_pstate_folder.stat.exists

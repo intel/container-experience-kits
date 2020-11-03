@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright(c) Copyright 2018 CoreOS, Inc
+#
+# Modifications copyright (C) 2020 Intel Corporation
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    prometheus: k8s
+  name: prometheus-k8s
+  namespace: monitoring
+spec:
+  type: NodePort
+  ports:
+  - name: grafana-https
+    port: 3000
+    nodePort: 30000
+    targetPort: grafana-https
+  selector:
+    app: prometheus
+    prometheus: k8s
+  sessionAffinity: ClientIP

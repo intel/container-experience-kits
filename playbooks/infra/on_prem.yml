@@ -1,0 +1,88 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- hosts: 127.0.0.1
+  connection: local
+  tasks: []
+  roles:
+    - role: bootstrap/ansible_host
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+# apply common cluster node configuration
+- hosts: k8s-cluster
+  tasks: []
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
+  roles:
+    - role: cluster_defaults
+    - role: bootstrap/configure_proxy
+    - role: bootstrap/install_packages
+    - role: bootstrap/configure_security
+    - role: bootstrap/apply_kubernetes_reqs
+    - role: bootstrap/configure_dns
+      when: ansible_distribution == "Ubuntu" and dns_disable_stub_listener | default(true) | bool
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+# apply additional worker node specific configuration that may require reboot
+- hosts: kube-node
+  tasks: []
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
+  roles:
+    - role: cluster_defaults
+    - role: bootstrap/configure_hugepages
+    - role: bootstrap/configure_cpu_isolation
+    - role: bootstrap/configure_intel_pstate
+      when: intel_pstate_enabled | default(false) | bool
+    - role: bootstrap/set_sriov_kernel_flags
+    - role: bootstrap/update_nic_drivers
+      when: update_nic_drivers | default(false) | bool
+    - role: bootstrap/update_nic_firmware
+      tags: firmware
+      when:
+        - update_nic_firmware | default(false) | bool
+        - update_nic_drivers | default(false) | bool
+    - role: bootstrap/install_rt_package
+      when:
+        - install_real_time_package | default(false) | bool
+        - ansible_distribution == 'CentOS'
+        - ansible_distribution_version < '8'
+    - role: bootstrap/determine_dataplane_interfaces
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+# install DPDK and apply SRIOV configuration, configure SST-BF
+- hosts: kube-node
+  roles:
+    - role: cluster_defaults
+    - role: install_dpdk
+      when: ovs_dpdk_enabled | default(false) or install_dpdk | default(true)
+      tags: dpdk
+    - role: sriov_nic_init
+      when: sriov_enabled | default(true) and install_dpdk | default(true)
+    - role: bootstrap/configure_qat
+      # note 1: configure QAT only when QAT Device Plugin is enabled
+      # note 2: this role mainly creates VFs for QAT devices so SRIOV is required
+      when: qat_dp_enabled | default(true) and sriov_enabled | default(true)
+    - role: sst_configure
+      when: sst_bf_configuration_enabled | default(false)
+      tags: sst
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true

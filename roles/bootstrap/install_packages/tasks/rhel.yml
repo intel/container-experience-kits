@@ -1,0 +1,115 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# handle case where kernel is updated, but grub is not reconfigured (i.e. no sriov), 
+# and dev tools were not installed
+- name: Attempt to pull current kernel source
+  package:
+    name:
+    - kernel-headers-{{ ansible_kernel }}
+    - kernel-devel-{{ ansible_kernel }}
+  register: kernel_source
+  retries: 5
+  until: kernel_source is success
+  when:
+    - ansible_os_family == "RedHat"
+  ignore_errors: true
+
+- name: enable PowerTools repository on CentOS 8
+# noqa 303 - yum is called intenionallly here
+  command: yum config-manager --set-enabled PowerTools
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version >= '8'
+
+- name: enable CodeReady Linux Builder repository for RHEL 8
+  rhsm_repository:
+    name: codeready-builder-for-rhel-8-x86_64-rpms
+  when:
+    - ansible_distribution == "RedHat"
+    - ansible_distribution_version >= '8'
+
+- name: install epel-release
+  package:
+    name: epel-release
+  when:
+    - ansible_distribution == "CentOS"
+
+- name: install epel-release
+  package:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+  when:
+    - ansible_distribution == "RedHat"
+    - ansible_distribution_version >= '8'
+
+- name: install the 'Development tools' package group
+  package:
+    name: "@Development tools"
+  when:
+    - ansible_os_family == "RedHat"
+
+- name: install pip
+  package:
+    name: python-pip
+  when:
+    - ansible_distribution in ["RedHat", "CentOS"]
+    - ansible_distribution_version < '8'
+
+- name: install pip
+  package:
+    name: python3-pip
+  when:
+    - ansible_distribution in ["RedHat", "CentOS"]
+    - ansible_distribution_version >= '8'
+
+- name: update all packages
+  package:
+    name: '*'
+    state: latest # noqa 403
+    exclude: kernel*
+  when:
+    - ansible_os_family == "RedHat"
+    - update_all_packages | default(false)
+
+- name: update to the latest kernel and kernel headers on the Red Hat OS family
+  package:
+    name:
+    - kernel
+    - kernel-devel
+    state: latest # noqa 403
+  notify:
+    - reboot server
+  when:
+    - ansible_os_family == "RedHat"
+    - update_kernel | default(true)
+
+#note(przemeklal): fixes issue with missing selinux in packet.net CentOS 7 images
+- name: ensure selinux is installed on CentOS/RHEL 7
+  package:
+    name:
+    - policycoreutils
+    - policycoreutils-python
+    - selinux-policy
+    - selinux-policy-targeted
+    - libselinux-utils
+    - setools
+    - setools-console
+    - shtool
+    - lshw
+    state: present
+  when:
+    - ansible_distribution in ["RedHat", "CentOS"]
+    - ansible_distribution_version < '8'

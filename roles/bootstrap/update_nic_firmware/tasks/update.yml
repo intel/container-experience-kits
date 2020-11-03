@@ -1,0 +1,179 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+# Usage: include this tasks file and pass vars listed below
+# Variables:
+#   interface_name: interface name of the PF (mandatory, string)
+#   nic_module: NIC module controlling the PF (mandatory, string: "i40e" or "ice")
+---
+- name: install ethtool if missing
+  include_role:
+    name: install_dependencies
+
+- name: get current FW version
+  block:
+    - name: get interface info
+      command: ethtool -i {{ interface_name }}
+      register: ethtool
+    - name: set ethtool_drvinfo
+      set_fact:
+        ethtool_drvinfo: "{{ ethtool.stdout | from_yaml }}"
+    - name: set fw_full_version
+      set_fact:
+        fw_full_version: "{{ ethtool_drvinfo['firmware-version'] }}"
+    - name: set fw_short_version
+      set_fact:
+        fw_short_version: "{{ (fw_full_version.split(' ') | first) }}"
+    # Only major.minor "mm" part are relevant because e.g. on E800 series FW shows as 2.00 on C0 (rev 02) and 2.02 on B0 (rev 01) 
+    - name: set fw_current_mm
+      set_fact:
+        fw_current_mm: "{{ fw_short_version[0:3] }}"
+    - name: set fw_min_req
+      set_fact:
+        fw_min_req: "{{ nvmupdate[nic_module].min_required_fw_version }}"
+    - name: set fw_min_mm
+      set_fact:
+        fw_min_mm: "{{ fw_min_req[0:3] }}"
+    - debug:
+        msg: "On {{ interface_name }} (driver {{ nic_module }}) the firmware version is {{ fw_full_version }}"
+
+- name: check if current firmware version meets minimal requirements
+  set_fact:
+    continue_nvmupdate: "{{ fw_current_mm is version_compare(fw_min_mm, '<') }}"
+
+- debug:
+    msg: "The current firmware release on the card is {{ fw_current_mm }}. Min required is {{ fw_min_mm }}"
+
+- name: assert that current FW is not too old
+  assert:
+    that: fw_short_version is version_compare(nvmupdate[nic_module].min_updatable_fw_version, '>=')
+    fail_msg: "Current firmware version {{ fw_short_version }} is too old to update; it must be {{ nvmupdate[nic_module].min_updatable_fw_version }} or newer"
+  when: continue_nvmupdate | bool
+
+- name: download nvmupdate package
+  get_url:
+    url: "{{ nvmupdate[nic_module].nvmupdate_pkg_url }}"
+    checksum: "{{ nvmupdate[nic_module].nvmupdate_pkg_checksum }}"
+    dest: "{{ ansible_env.HOME }}/nvmupdate.tar.gz"
+  register: nvmupdate_download
+  until: nvmupdate_download is not failed
+  retries: 5
+  when: continue_nvmupdate | bool
+
+- name: create temporary directory
+  tempfile:
+    state: directory
+    prefix: nvmupdate
+  register: tempdir_nvmupdate
+  when: continue_nvmupdate | bool
+
+- name: unarchive nvmupdate package
+  unarchive:
+    src: "{{ ansible_env.HOME }}/nvmupdate.tar.gz"
+    dest: "{{ tempdir_nvmupdate.path }}"
+    remote_src: yes
+    extra_opts: [--strip-components=1] # to unpack Linux_x64 directly, skipping top-level model specific dir (e.g. 700Series)
+    mode: 0755
+  when: continue_nvmupdate | bool
+
+- name: get downloaded firmware version
+  set_fact:
+    downloaded_version: "{{ nvmupdate[nic_module].min_required_fw_version }}"
+  when: continue_nvmupdate | bool
+
+- debug:
+    msg: "Downloaded firmware version is {{ nvmupdate[nic_module].min_required_fw_version }}"
+  when: continue_nvmupdate | bool
+
+- debug: var=downloaded_version
+  when: continue_nvmupdate | bool
+
+# get device MAC address - this allows to run nvmupdate for the requested device only
+- debug: var=ansible_facts[interface_name]['macaddress']
+  when: continue_nvmupdate | bool
+
+- name: assert that downloaded FW package isn't older than required
+  assert:
+    that: downloaded_version is version_compare(nvmupdate[nic_module].min_required_fw_version, '>=')
+    fail_msg: "Downloaded FW version is lower than required, please update 'nvmupdate_pkg_url' and 'nvmupdate_pkg_checksum' vars!"
+  when: continue_nvmupdate | bool
+
+# stop if interface in use, note - we don't check for other PFs
+- name: stop if network device is active in the routing table
+  when: continue_nvmupdate | bool
+  block:
+  - name: get routing table
+    command: ip -o route
+    register: ip_route
+  - name: filter link local routes
+    set_fact:
+      routes: "{{ ip_route.stdout_lines | reject('search', '169.254') | list }}"
+  - name: check if network device is active in the routing table
+    assert:
+      that: "routes | select('search', interface_name) | list | length == 0"
+      fail_msg: "Interface {{ interface_name }} (driver {{ nic_module }}) is active in the routing table, refusing further actions"
+      success_msg: >
+        Interface {{ interface_name }} (driver {{ nic_module }}) isn't active in the routing table,
+        it should be safe to continue unless other ports on that NIC are used for SSH
+
+- debug:
+    msg: >-
+      Updating firmware... This operation may take several minutes.
+      To avoid damage to your device, do not stop the update or
+      reboot or power off the system during this update!
+  when: continue_nvmupdate | bool
+
+- name: update firmware
+# noqa 305 - shell is used intentionally here
+  shell:
+    chdir: "{{ tempdir_nvmupdate.path }}/Linux_x64"
+    cmd: ./nvmupdate64e -u -l -c nvmupdate.cfg -m '{{ ansible_facts[interface_name]['macaddress'] | replace(':','') }}'
+  register: nvmupdate_result
+  when: continue_nvmupdate | bool
+  changed_when: nvmupdate_result.stdout is search('Reboot is required to complete the update process.')
+
+- name: show additional message on unsupported platforms
+  debug:
+    msg: >
+      Failed to update firmware on interface {{ interface_name }} (driver {{ nic_module }}).
+      This is probably caused by unsupported platform - contact your vendor for more information.
+  when:
+    - continue_nvmupdate | bool
+    - nvmupdate_result.stdout is search('No devices to update.')
+
+- name: fail if fw update failed
+  fail:
+    msg: "Failed to update firmware on interface {{ interface_name }} (driver {{ nic_module }}). Error: {{ nvmupdate_result.stdout }}"
+  when:
+    - continue_nvmupdate | bool
+    - nvmupdate_result.stdout is not search('update successful.')
+
+- name: ensure that temporary files are deleted
+  file:
+    state: absent
+    path: "{{ tempdir_nvmupdate.path }}"
+  when: continue_nvmupdate | bool
+
+- name: output update log
+  debug: var=nvmupdate_result.stdout
+  when: continue_nvmupdate | bool
+
+- name: reboot after update
+# noqa 503 - more than one condition here, so can't be a handler
+  reboot:
+    reboot_timeout: 1200 # wait up to 20 minutes - if reboot takes longer after NVM update
+  when:
+    - nvmupdate_result.changed
+    - continue_nvmupdate | bool

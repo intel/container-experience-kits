@@ -1,0 +1,97 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: download DPDK
+  unarchive:
+    src: "{{ dpdk_url }}"
+    dest: "/usr/src"
+    remote_src: yes
+    list_files: yes
+    mode: 0755
+  register: dpdk_download
+
+- name: set local dpdk directory path
+  set_fact:
+    dpdk_dir: "{{ dpdk_download.dest  }}/{{ dpdk_download.files[0] }}"
+
+- name: run make config
+  make:
+    chdir: "{{ dpdk_dir }}"
+    target: config
+    params:
+      T: "{{ dpdk_target }}"
+
+- name: enable virtio-user support
+  lineinfile:
+    path: "{{ dpdk_dir }}/build/.config"
+    regexp: '^CONFIG_RTE_VIRTIO_USER'
+    line: 'CONFIG_RTE_VIRTIO_USER=y'
+    mode: 0600
+
+- name: enable PCAP PMD support
+  lineinfile:
+    path: "{{ dpdk_dir }}/build/.config"
+    regexp: '^CONFIG_RTE_LIBRTE_PMD_PCAP'
+    line: 'CONFIG_RTE_LIBRTE_PMD_PCAP=y'
+    mode: 0600
+
+- name: build DPDK
+  make:
+    target: install
+    chdir: "{{ dpdk_dir }}"
+    params:
+      T: "{{ dpdk_target }}"
+      DESTDIR: install
+      prefix: "/usr"
+
+- name: find dpdk tools
+  find:
+    path: "{{ dpdk_dir }}"
+    patterns: "dpdk-devbind.py"
+    recurse: yes
+  register: dpdk_tools_dir
+
+- name: set path to dpdk usertools directory
+  set_fact:
+    dpdk_tools: "{{ dpdk_tools_dir.files[0].path }}"
+
+- name: load userspace modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - vfio-pci
+    - uio
+
+- name: install dpdk-devbind.py in /usr/local/bin
+  copy:
+    remote_src: yes
+    src: "{{ dpdk_tools }}"
+    dest: "/usr/local/bin/dpdk-devbind.py"
+    mode: 0700
+    owner: root
+    group: root
+  become: yes
+
+- name: load intel module
+  command: "insmod {{ dpdk_dir }}/{{ dpdk_target }}/kmod/igb_uio.ko"
+  register: result
+  failed_when: "'No such file or directory' in result.stderr"
+  changed_when: "'already bound' not in result.stderr"

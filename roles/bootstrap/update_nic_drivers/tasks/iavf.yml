@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get current iavf driver version
+  command: modinfo iavf -F version
+  register: iavf_installed_version
+  changed_when: false
+  failed_when: false
+
+- debug:
+    msg: "Currently installed iavf version: {{ iavf_installed_version.stdout }}"
+
+- name: download iavf driver
+  get_url:
+    url: "{{ iavf_drivers_url }}"
+    dest: /usr/src
+    checksum: "{{ iavf_drivers_checksum }}"
+  register: iavf_download
+  until: iavf_download is not failed
+  retries: 5
+  when: iavf_installed_version.stdout != iavf_drivers_version
+
+- name: unload iavf module
+  modprobe:
+    name: iavf
+    state: absent
+  when:
+    - iavf_installed_version.stdout != iavf_drivers_version
+    - mgmt_interface_driver.stdout != iavf_drivers_name
+
+- name: untar iavf driver sources
+  unarchive:
+    src: "{{ iavf_download.dest }}"
+    dest: /usr/src
+    remote_src: yes
+    list_files: yes
+    mode: 0644
+  become: yes
+  register: iavf_untar
+  when: iavf_installed_version.stdout != iavf_drivers_version
+
+- name: build and install iavf driver
+  make:
+    chdir: "{{ iavf_untar.dest }}/{{ iavf_untar.files[0] }}/src"
+    target: "{{ item }}"
+  become: yes
+  with_items:
+    - clean
+    - install
+  when: iavf_installed_version.stdout != iavf_drivers_version
+
+- name: reboot if driver is used by management interface
+  become: yes
+  reboot:
+    reboot_timeout: 1200 # wait up to 20 minutes
+  when:
+    - mgmt_interface_driver.stdout == iavf_drivers_name
+    - iavf_installed_version.stdout != iavf_drivers_version
+
+- name: ensure that iavf module is loaded
+  modprobe:
+    name: iavf
+    state: present

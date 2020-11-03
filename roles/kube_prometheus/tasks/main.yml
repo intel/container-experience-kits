@@ -1,0 +1,65 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set default value of install_tas_demo_policy
+  set_fact:
+    install_tas_demo_policy: false
+
+- name: set install_tas_demo_policy to True
+  set_fact:
+    install_tas_demo_policy: true
+  when:
+    - tas_enabled
+    - tas_enable_demo_policy
+
+- name: create and sign certificate material
+  include_role:
+    name: create_signed_k8s_certs
+  vars:
+    secret_name: "{{ item }}-ssl"
+    service_name: "{{ item }}"
+    key_pair_name: "{{ item }}-tls"
+    host_secrets_folder: "/etc/ssl/{{ item }}"
+    k8s_namespace: "{{ telemetry_namespace }}"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+  with_items:
+    - grafana
+    - node-exporter
+    - prometheus-adapter
+
+- name: prepare TAS demonstration policy files
+  import_tasks: create-tas-demo-policy.yml
+  when:
+    - install_tas_demo_policy
+
+- name: create persistent folder for grafana and prometheus
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: u+rwx,g-rwx,o-
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+  loop:
+    - /etc/grafana
+    - /etc/prometheus
+
+- name: install kube-prometheus
+  import_tasks: kube-prometheus.yml
+  when:
+    - inventory_hostname == groups['kube-master'][0]

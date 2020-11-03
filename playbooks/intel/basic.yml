@@ -1,0 +1,52 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- hosts: k8s-cluster
+  tasks: []
+  roles:
+    - role: cluster_defaults
+      tags: defaults
+    - role: golang_install
+      tags: golang
+      # TODO: refactor this to deploy net-attach-defs during corresponding CNI plugins deployment
+    - role: net_attach_defs_create
+      tags: net-attach-defs
+      when: inventory_hostname == groups['kube-master'][0]
+    - role: nfd_install
+      tags: nfd
+      when: nfd_enabled | default(true)
+    - role: sriov_dp_install
+      tags: sriov-net-dp
+      when: sriov_net_dp_enabled | default(false)
+    - role: kube_prometheus
+      when: prometheus_operator | default(true)
+    - role: collectd_install
+      when: collectd_enabled | default(true)
+      vars:
+        - collectd_profile: basic
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+- hosts: kube-node
+  tasks: []
+  roles:
+    - role: cluster_defaults
+      tags: defaults
+    - role: sriov_cni_install
+      when: sriov_cni_enabled | default(false)
+      tags: sriov-cni
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true

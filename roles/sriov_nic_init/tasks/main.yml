@@ -1,0 +1,97 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+## Initialize SR-IOV NICs:
+# ------------------------
+# Load DDP profile, create virtual functions, bring PF up & bind VFs drivers
+# as specified in host_vars under "sriov_nics:"
+
+- name: Load DDP profile
+  include_role:
+    name: load_ddp
+  # DDP profile can be installed on PF0 only, specifying under other PF will be ignored.
+  # Check if the selected NIC is a PF0 (PCI address ends with xx:00.0)
+  vars:
+    nic: "{{ item.name }}"
+    nic_module: "{{ ansible_facts[item.name]['module'] }}"
+    ddp_profile: "{{ item.ddp_profile }}"
+  when:
+    - ansible_facts[item.name]['pciid'].endswith(':00.0')
+    - item.ddp_profile|default("")|length > 0
+  with_items: "{{ sriov_nics }}"
+
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: create configuration directory if it does not exist
+  file:
+    path: "{{ sriov_config_path }}"
+    state: directory
+    mode: '0700'
+  become: yes
+
+- name: clean up existing configuration file
+  file:
+    path: "{{ item }}"
+    state: absent
+  become: yes
+  with_items:
+    - "{{ sriov_config_path }}/bmra_sriov_numvfs"
+    - "{{ sriov_config_path }}/bmra_interfaces"
+
+- name: configure VFs
+  include_tasks: create_vfs.yml
+  with_items: "{{ sriov_nics }}"
+
+- name: bring up PF interfaces
+  command: ip link set {{ item.name }} up
+  with_items: "{{ sriov_nics }}"
+  changed_when: true
+
+- name: set VFs driver
+  include: bind_vf_driver.yml
+  vars:
+    pfname: "{{ item.name }}"
+    vf_driver: "{{ item.vf_driver }}"
+  when: item.vf_driver|default("")|length > 0
+  with_items: "{{ sriov_nics }}"
+
+- name: copy NIC setup script to /usr/bin
+  copy:
+    src: "{{ role_path }}/files/bmra_sriov_nic_init"
+    dest: /usr/local/bin/bmra_sriov_nic_init
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: create systemd unit file
+  template:
+    src: bmra_sriov_nic_init.service.j2
+    dest: /lib/systemd/system/bmra_sriov_nic_init.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+
+- name: ensure that systemd service is enabled on startup and restarted to apply the configuration
+  systemd:
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+    name: bmra_sriov_nic_init
+  become: yes

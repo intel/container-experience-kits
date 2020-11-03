@@ -1,0 +1,106 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: collectd
+  labels:
+    app: collectd
+spec:
+  selector:
+    matchLabels:
+      app: collectd
+  template:
+    metadata:
+      labels:
+        app: collectd
+    spec:
+      hostNetwork: true
+      serviceAccountName: collectd
+      containers:
+        - name: collectd
+          image: "{{ image_collectd.repository }}@{{ image_collectd.digest }}"
+          imagePullPolicy: "{{ image_collectd.pullPolicy }}"
+          command: ["/bin/bash", "-c"]
+          args:
+            - "yum -y remove kernel-devel kernel-headers ; /run_collectd.sh"
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: proc
+              mountPath: /mnt/proc
+              readOnly: true
+            - name: files
+              mountPath: "/opt/collectd/etc/"
+              readOnly: true
+            - name: ovs
+              mountPath: "/var/run/openvswitch/"
+            - name: clientsocketpath
+              mountPath: "/var/run/.client"
+            - name: dpdksocketpath
+              mountPath: "/var/run/dpdk/rte/telemetry"
+            - name: pkgpower
+              mountPath: "/sys/devices/virtual/powercap/intel-rapl/"
+              readOnly: true
+            - name: hugepages
+              mountPath: "/sys/kernel/mm/hugepages"
+              readOnly: true
+            - name: cpufreq
+              mountPath: "/sys/devices/system/cpu"
+              readOnly: true
+        - name: collectd-exporter
+          image: "{{ image_collectd_exporter.repository }}@{{ image_collectd_exporter.digest }}"
+          imagePullPolicy: "{{ image_collectd_exporter.pullPolicy }}"
+          ports:
+            - name: exporter
+              containerPort: 9103
+          args:
+            - "--web.listen-address=127.0.0.1:9103"
+        - name: rbac-proxy
+          image: "{{ image_rbac_proxy.repository }}:{{ image_rbac_proxy.version }}"
+          imagePullPolicy: "{{ image_rbac_proxy.pullPolicy }}"
+          volumeMounts:
+            - name: ssl
+              mountPath: "{{ rbac_proxy_ssl_mount_path }}"
+              readOnly: true
+          ports:
+            - name: https
+              containerPort: 9104
+          args:
+            - "--tls-cert-file={{ rbac_proxy_ssl_mount_path }}{{ rbac_proxy_ssl_secret_name }}.cert"
+            - "--tls-private-key-file={{ rbac_proxy_ssl_mount_path }}{{ rbac_proxy_ssl_secret_name }}.key"
+            - "--tls-cipher-suites={{ rbac_proxy_tls_cipher_suites | join(',') }}"
+            - "--secure-listen-address=0.0.0.0:9104"
+            - "--upstream=http://127.0.0.1:9103/"
+      tolerations:
+        - key: cmk
+          operator: Equal
+          effect: NoSchedule
+          value: "true"
+      volumes:
+        - name: ssl
+          secret:
+            secretName: "{{ rbac_proxy_ssl_secret_name }}"
+        - name: files
+          hostPath:
+            path: "{{ host_collectd_folder }}"
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: ovs
+          hostPath:
+            path: /usr/local/var/run/openvswitch/
+        - name: clientsocketpath
+          hostPath:
+            path: /var/run/.client
+        - name: dpdksocketpath
+          hostPath:
+            path: /var/run/dpdk/rte/telemetry
+        - name: pkgpower
+          hostPath:
+            path: /sys/devices/virtual/powercap/intel-rapl/
+        - name: hugepages
+          hostPath:
+            path: /sys/kernel/mm/hugepages
+        - name: cpufreq
+          hostPath:
+            path: /sys/devices/system/cpu

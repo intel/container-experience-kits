@@ -1,0 +1,85 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: add CentOS-RT repo
+  template:
+    src: CentOS-RT.repo
+    dest: /etc/yum.repos.d/CentOS-RT.repo
+    mode: preserve
+
+- name: import cern repository GPG key to RPM
+  rpm_key:
+    key: http://linuxsoft.cern.ch/cern/centos/7/os/x86_64/RPM-GPG-KEY-cern
+    state: present
+
+- name: download tuned noarch package
+  get_url:
+    url: "{{ tuned_noarch_url }}"
+    dest: /usr/src
+  register: tuned_download
+
+- name: remove vanilla tuned.noarch package
+  package:
+    name: tuned.noarch
+    state: absent
+
+- name: install tuned.noarch package
+  package:
+    name: "{{ tuned_download.dest }}"
+    state: present
+
+- name: install RT kernel on Red Hat
+  package:
+    name:
+      - kernel-rt
+      - kernel-rt-devel
+      - kernel-rt-kvm
+      - rtctl
+      - rt-setup
+      - rt-tests
+      - tuna
+      - tuned-profiles-nfv
+      - tuned-profiles-nfv-host
+      - tuned-profiles-nfv-guest
+      - qemu-kvm-tools-ev
+    state: present
+
+- name: set default isolated cores flags values for tuned
+  set_fact:
+    isolated_cores: ""
+
+- name: validate isolcpus settings
+  assert:
+    that: isolcpus | length > 0
+    fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
+  when: isolcpus_enabled
+
+- name: set isolated_cores flag
+  set_fact:
+    isolated_cores: "isolated_cores={{ isolcpus }}"
+  when: isolcpus_enabled | default(false)
+
+- name: activate Real-Time Profile
+  shell: echo "{{ isolated_cores }}" > /etc/tuned/realtime-virtual-host-variables.conf && tuned-adm profile realtime-virtual-host
+  changed_when: true
+
+- name: reboot after kernel update
+  reboot:
+    reboot_timeout: 1200 # wait up to 20 minutes

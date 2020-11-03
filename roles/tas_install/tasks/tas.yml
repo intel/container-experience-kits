@@ -1,0 +1,179 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name : install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: update to git2 on RHEL 7 based distros
+  include_role:
+    name: git2_install
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+    - ansible_distribution_version < '8'
+
+- name: check if stable repo has already been added
+  command: helm repo list
+  register: helm_repo_list
+  failed_when: false
+  changed_when: false
+
+- name: add Helm stable repo
+  command: helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+  when: '"https://kubernetes-charts.storage.googleapis.com/" not in helm_repo_list.stdout'
+  register: helm_add_result
+  changed_when: '"has been added to your repositories" in helm_add_result.stdout'
+
+- name: update Helm repo before installation of public charts
+  command: helm repo update
+  register: helm_update_result
+  changed_when: '"Successfully got an update" in helm_update_result.stdout'
+
+
+- name: create Helm charts directory if needed
+  file:
+    path: /usr/src/charts
+    state: directory
+    mode: 0755
+
+- name: generate cert and key
+  include_role:
+    name: create_signed_k8s_certs
+  vars:
+    secret_name: "{{ tas_extender_secret_name }}"
+    service_name: tas-telemetry-aware-scheduling
+    key_pair_name: tas
+    host_secrets_folder: "{{ tas_ssl_mount_path }}"
+    k8s_namespace: "{{ tas_namespace }}"
+    csr_cluster_name: "{{ cluster_name | default('cluster.local') }}"
+  when: tas_tls_enabled
+
+- name: clone TAS repository
+  git:
+    repo: "{{ tas_git_url }}"
+    version: "{{ tas_git_version }}"
+    dest: "{{ tas_dir }}"
+    force: yes
+
+- name: make build and make image - TAS
+  make:
+    target: "{{ item }}"
+    chdir: "{{ tas_dir }}"
+  loop:
+    - build
+    - image
+
+- name: tag TAS-controller and TAS-extender
+  # TAS Makefile always creates ":latest" version images
+  command: docker tag {{ item }}:latest {{ registry_local_address }}/{{ item }}:{{ tas_version }}
+  loop:
+    - tas-controller
+    - tas-extender
+  changed_when: false
+
+- name: push TAS-controller and TAS-extender image to local registry
+  command: docker push {{ registry_local_address }}/{{ item }}:{{ tas_version }}
+  loop:
+    - tas-controller
+    - tas-extender
+  changed_when: true
+
+- name: create descheduler directory if needed
+  file:
+    path: "{{ sigs_k8s_io_dir }}"
+    state: directory
+    mode: 0755
+
+- name: clone Descheduler for Kubernetes
+  git:
+    repo: "{{ descheduler_git_url }}"
+    dest: "{{ descheduler_dir }}"
+    force: yes
+    version: "{{ descheduler_git_version }}"
+
+- name: install descheduler
+  make:
+    chdir: "{{ descheduler_dir }}"
+
+- name: copy Helm chart resource definition to controller node
+  copy:
+    src: "{{ role_path }}/charts/{{ item }}"
+    dest: "/usr/src/charts/"
+    mode: preserve
+  loop:
+    - telemetry-aware-scheduling
+    - tas-policy-crd.yml
+
+- name: populate tas Helm chart values template and push to controller node
+  template:
+    src: "tas-values.yml.j2"
+    dest: "/usr/src/charts/tas-values.yml"
+    force: yes
+    mode: preserve
+
+- name: create TASPolicy resource
+  command: kubectl apply -f tas-policy-crd.yml
+  args:
+    chdir: "/usr/src/charts"
+  changed_when: true
+
+- name: install TAS helm chart
+  command: helm upgrade --install --namespace {{ tas_namespace }} {{ tas_name }} -f tas-values.yml telemetry-aware-scheduling/
+  args:
+    chdir: "/usr/src/charts"
+  retries: 5
+  delay: 5
+  register: result
+  until: result.rc == 0
+  changed_when: true
+
+- name: Configure arguments from Kubernetes Scheduler file if they exist - dnsPolicy
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-scheduler.yaml
+    insertafter: "spec:"
+    line: "  dnsPolicy: ClusterFirstWithHostNet"
+    regexp: "  dnsPolicy: "
+    state: present
+    mode: 0600
+
+- name: Configure arguments to our kube-scheduler manifest - configmap
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-scheduler.yaml
+    insertafter: "    - kube-scheduler"
+    line: "{{ item.arg }}={{ item.value }}"
+    regexp: "{{ item.arg }}"
+    state: present
+    mode: 0600
+  with_items:
+  - { arg: "    - --policy-configmap", value: "{{ tas_name }}-telemetry-aware-scheduling-scheduler-extender-policy" }
+  - { arg: "    - --policy-configmap-namespace", value: "{{ tas_namespace }}" }
+
+# TAS Demo Policy
+- name: template TAS demo policy
+  template:
+    src: "tas-demo-policy.yml.j2"
+    dest: "/usr/src/charts/tas-demo-policy.yml"
+    force: yes
+    mode: preserve
+  when:
+    - tas_enable_demo_policy
+
+- name: create TAS demo policy resource
+  command: kubectl apply -f tas-demo-policy.yml
+  args:
+    chdir: "/usr/src/charts"
+  when:
+    - tas_enable_demo_policy

@@ -1,0 +1,126 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Kubernetes node configuration
+
+# Enable SR-IOV networking related setup
+sriov_enabled: true
+
+# SR-IOV PF specific configuration list
+sriov_nics:
+  - name: enp24s0f0                 # PF interface name
+    bus_info: "18:00.0"             # pci bus info
+    device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
+    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
+    sriov_numvfs: 2                 # number of VFs to create for this PF
+    vf_driver: vfio-pci             # VF driver to be attached for all VFs under this PF, "iavf", "vfio-pci", "igb_uio"
+    ddp_profile: "gtp.pkgo"         # DDP package name to be loaded into the NIC
+                                    # For i40e(XXV710-*) NICs allowable values are: "ecpri.pkg", "esp-ah.pkg", "ppp-oe-ol2tpv2.pkgo", "mplsogreudp.pkg" and "gtp.pkgo"
+                                    # For ice(E810-*) NICs allowable values are: "ice-1.3.13.0.pkg" and "ice_comms-1.3.17.0.pkg"
+  - name: enp24s0f1
+    bus_info: "18:00.1"
+    device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
+    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
+    sriov_numvfs: 4
+    vf_driver: iavf
+
+sriov_cni_enabled: true
+
+# Bond CNI
+bond_cni_enabled: false
+
+# install DPDK
+install_dpdk: true # DPDK installation is required for sriov_enabled:true; default to false
+
+# Userspace networking
+userspace_cni_enabled: false
+ovs_dpdk_enabled: false # Should be enabled with Userspace CNI, when VPP is be set to "false"; 1G hubepages required
+# CPU mask for OVS-DPDK PMD threads
+ovs_dpdk_lcore_mask: 0x1
+# Huge memory pages allocated by OVS-DPDK per NUMA node in megabytes
+# example 1: "256,512" will allocate 256MB from node 0 abd 512MB from node 1
+# example 2: "1024" will allocate 1GB fron node 0 on a single socket board, e.g. in a VM
+ovs_dpdk_socket_mem: "256,0"
+vpp_enabled: false # Should be enabled with Userspace CNI, when ovs_dpdk is set to "false"; 2M hugepages required
+
+# Set to 'true' to update i40e, ice and iavf kernel modules
+update_nic_drivers: true
+
+# Set 'true' to update NIC firmware
+update_nic_firmware: false
+
+# Additional list of NIC interfaces that the FW update will be executed on
+# NOTE: FW update will be also executed on all NICs listed in "sriov_nics[*].name"
+firmware_update_nics:
+  - enp24s0f0
+  - enp24s0f1
+
+# install Intel x700 & x800 series NICs DDP packages
+install_ddp_packages: true
+
+# set how many VFs per single QAT device PF should be created
+qat_sriov_numvfs: 16
+
+# Enables hugepages support
+hugepages_enabled: true
+
+# Hugepage sizes available: 2M, 1G
+default_hugepage_size: 1G
+
+# Sets how many hugepages of each size should be created
+hugepages_1G: 4
+hugepages_2M: 0
+
+# CPU isolation from Linux scheduler
+isolcpus_enabled: true
+isolcpus: "4-11" # Update to match group_vars requested exclusive/shared cores
+
+# Max number of processors to support (physical & logical cores)
+cpu_count: 144
+
+# Enable/Disable Intel PState scaling driver
+intel_pstate_enabled: true
+# Config options for intel_pstate: disable, passive, force, no_hwp, hwp_only, support_acpi_ppc, per_cpu_perf_limits
+intel_pstate: disable
+# Enable/Disable Intel Turbo Boost PState attribute
+turbo_boost_enabled: false
+
+# Intel Speed Select Base-Frequency configuration.
+sst_bf_configuration_enabled: false
+
+# Intel Speed Select Base-Frequency configuration for Cascade Lake (CLX) Platforms.
+# CLX support of SST-BF requires 'intel_pstate' to be 'enabled'
+# Option sst_bf_mode requires sst_bf_configuration_enabled to be set to 'true'.
+# There are three configuration modes:
+# [s] Set SST-BF config (set min/max to 2700/2700 and 2100/2100)
+# [m] Set P1 on all cores (set min/max to 2300/2300)
+# [r] Revert cores to min/Turbo (set min/max to 800/3900)
+clx_sst_bf_mode: s
+
+# Telemetry configuration
+# intel_pmu plugin collects information provided by Linux perf interface.
+enable_intel_pmu_plugin: false
+# CPU Threads to be monitored by Intel PMU Plugin.
+# If the field is empty, all available cores will be monitored.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:Intel_PMU for configuration details.
+intel_pmu_plugin_monitored_cores: ""
+# CPU Threads to be monitored by Intel RDT Plugin.
+# If the field is empty, all available cores will be monitored.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
+intel_rdt_plugin_monitored_cores: ""
+
+# Additional list of plugins that will be excluded from collectd deployment.
+exclude_collectd_plugins: []

@@ -1,0 +1,126 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+collectd_scrap_interval: 30
+collectd_write_threads: 25
+collectd_read_threads: 25
+collectd_timeout: 2
+
+# intel_pmu plugin collects information provided by Linux perf interface.
+enable_intel_pmu_plugin: true
+# CPU Threads to be monitored by Intel PMU Plugin.
+# If the field is empty, all available cores will be monitored.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:Intel_PMU for configuration details.
+intel_pmu_plugin_monitored_cores: ""
+# intel_rdt plugin collects information about L3 cache and memory bandwidth utilization.
+enable_intel_rdt_plugin: true
+# CPU Threads to be monitored by Intel RDT Plugin.
+# If the field is empty, all available cores will be monitored.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
+intel_rdt_plugin_monitored_cores: ""
+
+image_collectd:
+  repository: opnfv/barometer-collectd
+  digest: sha256:18abffcf9afb2c3cb0afac67de5f1317f7dcd8925906c434f4e18812d9efbb54
+  pullPolicy: Always
+image_collectd_exporter:
+  repository: prom/collectd-exporter
+  digest: sha256:73fbda4d24421bff3b741c27efc36f1b6fbe7c57c378d56d4ff78101cd556654
+  pullPolicy: Always
+image_rbac_proxy:
+  repository: quay.io/coreos/kube-rbac-proxy
+  version: v0.5.0
+  pullPolicy: Always
+psp_enabled: true
+
+collectd_namespace: monitoring
+host_collectd_folder: /opt/collect.d
+pkgpower_repo_url: "https://github.com/intel/CommsPowerManagement.git"
+pkgpower_dir: "/usr/src/CommsPowerManagement"
+
+collectd_plugins:
+  basic:
+    - logfile
+    - cpu
+    - cpufreq
+    - disk
+    - ipmi
+    - numa
+    - write_http
+    - smart
+    - ethstat
+    - netlink
+    - intel_pmu
+    - rdt
+    - pkgpower
+  on_prem:
+    - logfile
+    - cpu
+    - cpufreq
+    - disk
+    - ipmi
+    - numa
+    - write_http
+    - smart
+    - ethstat
+    - netlink
+    - intel_pmu
+    - rdt
+    - pkgpower
+  remote_fp:
+    - logfile
+    - cpu
+    - cpufreq
+    - disk
+    - ipmi
+    - numa
+    - write_http
+    - smart
+    - ethstat
+    - netlink
+    - intel_pmu
+    - rdt
+    - pkgpower
+  full_nfv:
+    - logfile
+    - cpu
+    - cpufreq
+    - disk
+    - ipmi
+    - numa
+    - write_http
+    - smart
+    - ethstat
+    - netlink
+    - intel_pmu
+    - rdt
+    - pkgpower
+    - dpdk_telemetry
+    - hugepages
+    - ovs_events
+    - ovs_pmd_stats
+    - ovs_stats
+
+# List of plugins that will be excluded from collectd deployment.
+exclude_collectd_plugins: []
+
+rbac_proxy_ssl_mount_path: /etc/ssl/rbac-proxy/
+rbac_proxy_ssl_secret_name: rbac-proxy-ssl
+
+rbac_proxy_tls_cipher_suites:
+  - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+  - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384

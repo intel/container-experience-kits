@@ -1,0 +1,71 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Kubernetes node specific configuration
+
+# Enable SR-IOV networking related setup
+sriov_enabled: false
+
+# SR-IOV PF specific configuration list
+sriov_nics:
+  - name: enp24s0f0                 # PF interface name
+    bus_info: "18:00.0"             # pci bus info
+    device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
+    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
+    sriov_numvfs: 2                 # number of VFs to create for this PF
+    vf_driver: vfio-pci             # VF driver to be attached for all VFs under this PF, "iavf", "vfio-pci", "igb_uio"
+  - name: enp24s0f1
+    bus_info: "18:00.1"
+    device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
+    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
+    sriov_numvfs: 4
+    vf_driver: iavf
+
+sriov_cni_enabled: false
+
+# install DPDK
+install_dpdk: false # DPDK installation is required for sriov_enabled:true; default to false
+
+# CPU isolation from Linux scheduler
+isolcpus_enabled: false
+isolcpus: "4-11" # Update to match group_vars requested exclusive/shared cores
+
+# Max number of processors to support (physical & logical cores)
+cpu_count: 144
+
+# Set to 'true' to update i40e, ice and iavf kernel modules
+update_nic_drivers: true
+
+# Set 'true' to update NIC firmware
+update_nic_firmware: false
+
+# Additional list of NIC interfaces that the FW update will be executed on
+# NOTE: FW update will be also executed on all NICs listed in "sriov_nics[*].name"
+firmware_update_nics:
+  - enp24s0f0
+  - enp24s0f1
+
+# Telemetry configuration
+# intel_pmu plugin collects information provided by Linux perf interface.
+enable_intel_pmu_plugin: false
+# CPU Threads to be monitored by Intel PMU Plugin.
+# If the field is empty, all available cores will be monitored.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:Intel_PMU for configuration details.
+intel_pmu_plugin_monitored_cores: ""
+# CPU Threads to be monitored by Intel RDT Plugin.
+# If the field is empty, all available cores will be monitored.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
+intel_rdt_plugin_monitored_cores: ""

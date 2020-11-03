@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Config
+users:
+- name: cmk-webhook.{{ cmk_namespace }}.svc
+  user:
+    client-certificate-data: {{ cmk_webhook_client_cert }}
+    client-key-data: {{ cmk_webhook_client_key }}

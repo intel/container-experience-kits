@@ -1,8 +1,0 @@
----
-install_dependencies:
-  Debian:
-    - git
-    - make
-  RedHat:
-    - git
-    - make

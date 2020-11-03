@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright(c) Copyright 2018 CoreOS, Inc
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring

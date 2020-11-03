@@ -1,5 +1,0 @@
----
-image:
-  repository: intel-gpu-plugin
-  tag: devel
-pullPolicy: IfNotPresent

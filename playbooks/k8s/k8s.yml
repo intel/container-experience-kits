@@ -1,38 +1,163 @@
+##
+##   Copyright (c) 2020 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
 ---
 - hosts: 127.0.0.1
   connection: local
   tasks: []
   roles:
-    - { role: kubespray-install }
+    - { role: kubespray_install }
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
 
-# FIXME(przemeklal): ugly workaround here
 - hosts: k8s-cluster
+  tasks: []
+  roles:
+    - role: cluster_defaults
+    - role: kubespray_target_setup
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+- hosts: all
+  gather_facts: false
   tasks:
-    - name: create /etc/cni/net.d/templates
-      file:
-        path: /etc/cni/net.d/templates
-        state: directory
-    - name: copy patched Multus config
-      copy:
-        dest: /etc/cni/net.d/templates/00-multus.conf
-        src: roles/kubespray-install/files/multus.conf
-        owner: root
-        group: root
-        mode: 0644
-      when: kube_network_plugin_multus | default(true)
+    - name: prepare additional kubespray facts
+      set_fact:
+        kubelet_node_custom_flags_prepare: >-
+          {%- if native_cpu_manager_enabled | default(false) and native_cpu_manager_reserved_cpus is defined -%}
+            --reserved-cpus={{ native_cpu_manager_reserved_cpus }}
+          {%- endif -%}
+        enable_admission_plugins_prepare: >-
+          [EventRateLimit,{% if always_pull_enabled %} AlwaysPullImages,{% endif %} NodeRestriction{% if psp_enabled %}, PodSecurityPolicy{% endif %}]
+        kube_config_dir: /etc/kubernetes
+    - name: set kube_cert_dir
+      set_fact:
+        kube_cert_dir: "{{ kube_config_dir }}/ssl"
+        kube_csr_dir: "{{ kube_config_dir }}/csr"
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
 
 - name: run kubespray
   import_playbook: kubespray/cluster.yml
   vars:
     kubeadm_enabled: true
-    kube_api_anonymous_auth: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
     docker_iptables_enabled: true
     docker_dns_servers_strict: false
     override_system_hostname: false
+    docker_version: '19.03'
+    kube_proxy_mode: iptables
+    enable_nodelocaldns: false
+    system_reserved: true
+    system_cpu_reserved: "{{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
+    kube_cpu_reserved: "{{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
+    kubelet_node_custom_flags: "{{ kubelet_node_custom_flags_prepare | from_yaml }}"
+    kube_api_anonymous_auth: true
+    kube_feature_gates:
+      - CPUManager=true # feature gate can be enabled by default, default policy is none in Kubernetes
+      - TopologyManager={{ topology_manager_enabled | default(true) }}
+      - RotateKubeletServerCertificate=true
+    # Kubernetes cluster hardening
+    kubernetes_audit: true
+    audit_log_maxbackups: 10
+    kube_controller_manager_bind_address: 127.0.0.1
+    kube_scheduler_bind_address: 127.0.0.1
+    kube_proxy_healthz_bind_address: 127.0.0.1
+    kube_proxy_metrics_bind_address: 127.0.0.1
+    kube_read_only_port: 0
+    kube_override_hostname: ""
+    kube_kubeadm_apiserver_extra_args:
+      service-account-lookup: true
+      service-account-key-file: "{{ kube_cert_dir }}/sa.key"
+      admission-control-config-file: "{{ kube_config_dir }}/admission-control/config.yaml"
+    kube_kubeadm_scheduler_extra_args:
+      address: 127.0.0.1
+      profiling: false
+    kube_kubeadm_controller_extra_args:
+      address: 127.0.0.1
+      service-account-private-key-file: "{{ kube_cert_dir }}/sa.key"
+    kubelet_config_extra_args:
+      protectKernelDefaults: true
+      cpuManagerPolicy: "{% if native_cpu_manager_enabled | default(false) %}static{% else %}none{% endif %}"
+      topologyManagerPolicy: "{{ topology_manager_policy | default('none') }}"
+      eventRecordQPS: 0
+    kube_apiserver_request_timeout: 60s
+    kube_apiserver_enable_admission_plugins: "{{ enable_admission_plugins_prepare | from_yaml }}"
+    podsecuritypolicy_enabled: "{{ psp_enabled }}"
+    kube_encrypt_secret_data: true
+    apiserver_extra_volumes:
+      - name: admission-control-config
+        hostPath: /etc/kubernetes/admission-control/
+        mountPath: /etc/kubernetes/admission-control/
+        readOnly: true
+    preinstall_selinux_state: "{{ selinux_mode | default('disabled') }}"
+    tls_cipher_suites:
+      - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    etcd_extra_vars:
+      ETCD_CIPHER_SUITES: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
 
 - hosts: k8s-cluster
   tasks:
     - name: restart docker daemon to recreate iptables rules
       systemd: name=docker state=restarted
       become: yes
+    - name: restart kubelet to trigger static pods recreation
+      systemd: name=kubelet state=restarted
+      become: yes
+    # note: fix for the issue mentioned here:
+    # https://github.com/kubernetes-sigs/kubespray/blob/58f48500b1adac3f18466fa1c5cf8aa9d9838150/docs/flannel.md#flannel
+    - name: check if flannel.1 interface exists
+      stat:
+        path: /sys/class/net/flannel.1
+      when: kube_network_plugin == "flannel"
+      register: flannel_endpoint
+    - name: disable offloading features on flannel.1
+      command: ethtool --offload flannel.1 rx off tx off
+      become: yes
+      when:
+        - kube_network_plugin == "flannel"
+        - flannel_endpoint.stat.exists
+
+- hosts: etcd
+  tasks:
+    - name: change /var/lib/etcd owner
+      file:
+        path: "{{ etcd_data_dir | default('/var/lib/etcd') }}"
+        owner: etcd
+        group: etcd
+        recurse: true
+        state: directory
+        mode: 0700
+    - name: change /var/lib/etcd permissions
+      file:
+        path: "{{ etcd_data_dir | default('/var/lib/etcd') }}"
+        owner: etcd
+        group: etcd
+        mode: '0700'
+        state: directory
+
+- hosts: k8s-cluster
+  roles:
+    - role: cluster_defaults
+      tags: defaults
+    - role: docker_registry
+      tags: registry
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+- name: run certificate generation for mTLS in kubelet
+  import_playbook: kubelet-certificates.yml

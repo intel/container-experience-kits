@@ -1,0 +1,18 @@
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: userspace-ovs
+  namespace: default
+spec:
+  config: |
+    {
+      "cniVersion": "0.4.0",
+      "type": "userspace",
+      "kubeconfig": "/etc/kubernetes/kubelet.conf",
+      "LogLevel": "debug",
+      "LogFile": "/var/log/userspace.log",
+      "host": {
+        "engine": "ovs-dpdk",
+        "iftype": "vhostuser"
+      }
+    }

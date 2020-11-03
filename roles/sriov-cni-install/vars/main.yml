@@ -1,6 +1,0 @@
----
-install_dependencies:
-  Debian:
-    - git
-  RedHat:
-    - git

@@ -1,0 +1,12 @@
+[Unit]
+Description=ddp-ice configuration on boot
+AssertPathExists=/sbin/modprobe
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 30
+ExecStart=/sbin/modprobe -r ice
+ExecStart=/sbin/modprobe ice
+
+[Install]
+WantedBy=multi-user.target

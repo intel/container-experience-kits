@@ -1,6 +1,0 @@
-apiVersion: v1
-description: Intel® QuickAssist Technology (QAT) device plugin for Kubernetes
-name: intel-qat-plugin
-version: 0.0.1
-sources:
-- https://github.com/intel/intel-device-plugins-for-kubernetes.git
