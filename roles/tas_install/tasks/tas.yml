@@ -32,8 +32,8 @@
   changed_when: false
 
 - name: add Helm stable repo
-  command: helm repo add stable https://kubernetes-charts.storage.googleapis.com/
-  when: '"https://kubernetes-charts.storage.googleapis.com/" not in helm_repo_list.stdout'
+  command: helm repo add stable "{{ helm_stable_url }}"
+  when: 'helm_stable_url not in helm_repo_list.stdout'
   register: helm_add_result
   changed_when: '"has been added to your repositories" in helm_add_result.stdout'
 

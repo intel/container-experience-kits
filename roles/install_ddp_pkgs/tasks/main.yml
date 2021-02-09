@@ -93,12 +93,16 @@
     mode: 0644
   register: ice_ddp_profiles
 
+- name: find archived ice packages
+  find:
+    paths: "{{ ice_ddp_profiles.dest }}/DDP_Profiles/810_Series/"
+    patterns: "ice*.zip"
+  register: ddp_packages_archives
+
 - name: unarchive ice ddp profiles
   unarchive:
-    src: "{{ ice_ddp_profiles.dest }}/DDP_Profiles/810_Series/{{ item }}"
+    src: "{{ item.path }}"
     dest: "{{ ice_ddp_profiles_path }}"
     remote_src: yes
     mode: 0644
-  loop:
-    - ice_comms-1.3.17.0.zip
-    - ice-1.3.13.0.zip
+  with_items: "{{ ddp_packages_archives.files }}"

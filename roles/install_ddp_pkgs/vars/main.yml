@@ -25,5 +25,5 @@ ddp_pkgs:
       - "https://downloadmirror.intel.com/29780/eng/ecpri.zip"
 
 ice_ddp_profiles_path: /lib/firmware/updates/intel/ice/ddp/
-ice_ddp_profiles_download_url: https://downloadmirror.intel.com/29857/eng/25_2.zip
-ice_ddp_profiles_checksum: sha1:547307a3ac6fc2006f16cd3af5a807fe5775cece
+ice_ddp_profiles_download_url: https://downloadmirror.intel.com/30005/eng/25_4.zip
+ice_ddp_profiles_checksum: sha1:fa2586d731f33602398145fb51e5d017a1f08231

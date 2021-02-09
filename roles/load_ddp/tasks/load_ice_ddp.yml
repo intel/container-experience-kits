@@ -16,7 +16,7 @@
 
 - name: Update network cards
   include: update_network_card.yml
-  loop: "{{ sriov_nics }}"
+  loop: "{{ dataplane_interfaces }}"
   args:
     bus_info: "{{ item.bus_info }}"
     custom_path_to_profile: "{{ item.ddp_profile|default('') }}"
@@ -26,7 +26,7 @@
   debug:
     msg: Skipping {{ item.bus_info }} NIC because it is not 1st physical function of the device.
   when: item.bus_info is not regex (".*0$")
-  loop: "{{ sriov_nics }}"
+  loop: "{{ dataplane_interfaces }}"
 
 - name: template the ddp-ice systemd service
   template:

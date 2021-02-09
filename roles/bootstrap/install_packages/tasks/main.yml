@@ -26,4 +26,3 @@
   pip:
     name:
       - jmespath==0.9.5
-      - pywinrm

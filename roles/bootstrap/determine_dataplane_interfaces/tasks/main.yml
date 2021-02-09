@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-- name: user configured sriov_nic names
-  debug: var=sriov_nics
+- name: user configured dataplane_interface names
+  debug: var=dataplane_interfaces
 
 - name: install dependencies
   include_role:
@@ -24,36 +24,36 @@
 - name: Create temporary nic configuration file
   tempfile:
     state: file
-    prefix: "sriov_nics_{{ inventory_hostname }}_"
+    prefix: "dataplane_interfaces_{{ inventory_hostname }}_"
     suffix: ".yml"
   delegate_to: localhost
   become: false
-  register: sriov_nic_configuration_file
+  register: dataplane_interface_configuration_file
 
-- name: export sriov_nics list of dicts to file
+- name: export dataplane_interfaces list of dicts to file
   copy:
-    content: "---\n{{ { 'sriov_nics': sriov_nics } | to_nice_yaml(indent=2) }}"
-    dest: "{{ sriov_nic_configuration_file.path }}"
+    content: "---\n{{ { 'dataplane_interfaces': dataplane_interfaces } | to_nice_yaml(indent=2) }}"
+    dest: "{{ dataplane_interface_configuration_file.path }}"
     mode: 0600
   delegate_to: localhost
   become: false
 
 - name: get dataplane interface names
   include: dataplane-interfaces.yml
-  loop: '{{ sriov_nics }}'
+  loop: '{{ dataplane_interfaces }}'
   loop_control:
     loop_var: nic
 
 - name: include discovered nics configuration file
   include_vars:
-    file: "{{ sriov_nic_configuration_file.path }}"
+    file: "{{ dataplane_interface_configuration_file.path }}"
 
-- name: discovered sriov_nic names
-  debug: var=sriov_nics
+- name: discovered dataplane_interface names
+  debug: var=dataplane_interfaces
 
 - name: Remove temporary nic configuration files
   delegate_to: localhost
   become: false
   file:
-    path: "{{ sriov_nic_configuration_file.path }}"
+    path: "{{ dataplane_interface_configuration_file.path }}"
     state: absent

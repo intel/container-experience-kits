@@ -73,11 +73,11 @@
     - role: install_ddp_pkgs
       when: install_ddp_packages | default(true) | bool
     - role: sriov_nic_init
-      when: sriov_enabled | default(true) and install_dpdk | default(true)
+      when: iommu_enabled | default(true) and install_dpdk | default(true)
     - role: bootstrap/configure_qat
       # note 1: configure QAT only when QAT Device Plugin is enabled
       # note 2: this role mainly creates VFs for QAT devices so SRIOV is required
-      when: qat_dp_enabled | default(false) and sriov_enabled | default(true)
+      when: qat_dp_enabled | default(false) and iommu_enabled | default(true)
     - role: sst_configure
       when: sst_bf_configuration_enabled | default(false)
       tags: sst

@@ -23,5 +23,5 @@
     # "i40e" (FVL) or "ice" (CVL)
     - ansible_facts[item]['module'] in ['i40e', 'ice']
     - update_nic_firmware | default(false) | bool
-  # update all sriov_nics and all additional firmware_update_nics (uesful in basic profile where SRIOV is not used)
-  with_items: "{{ sriov_nics | map(attribute='name') | list + firmware_update_nics | unique }}"
+  # update all dataplane_interfaces and all additional firmware_update_nics (uesful in basic profile where SRIOV is not used)
+  with_items: "{{ dataplane_interfaces | map(attribute='name') | list + firmware_update_nics | unique }}"

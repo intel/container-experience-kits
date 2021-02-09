@@ -27,7 +27,7 @@
 
 - name: Fail if selected DDP profile not found
   fail:
-    msg: "Selected DDP profile {{ item.ddp_profile }} is not found."
+    msg: "Selected DDP profile {{ nic_port.ddp_profile }} is not found."
   when: not stat_result.stat.exists
 
 # All looks good; lets install the profile into the NIC
@@ -35,20 +35,20 @@
 
 # First, we roll back any existing profile
 - name: Rolling back any existing DDP profile from the NIC...
-  shell: ethtool -f {{ item.name }} - 100 2> /dev/null
+  shell: ethtool -f {{ nic_port.name }} - 100 2> /dev/null
   ignore_errors: true
   changed_when: true
 
 # Install new profile into the NIC
 - name: Installing selected DDP profile into the NIC...
-  command: ethtool -f {{ item.name }} {{ item.ddp_profile }} 100
+  command: ethtool -f {{ nic_port.name }} {{ nic_port.ddp_profile }} 100
   register: ethtool_output
   changed_when: true
 
 - name: template the ddp-i40e systemd service
   template:
     src: ddp_i40e_service.j2
-    dest: /lib/systemd/system/ddp-i40e-{{ item.name }}.service
+    dest: /lib/systemd/system/ddp-i40e-{{ nic_port.name }}.service
     owner: root
     group: root
     mode: u=rw,g=r,o=r
@@ -57,5 +57,5 @@
   systemd:
     daemon_reload: yes
     state: restarted
-    name: ddp-i40e-{{ item.name }}
+    name: ddp-i40e-{{ nic_port.name }}
     enabled: yes

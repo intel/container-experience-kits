@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-dpdk_url: http://fast.dpdk.org/rel/dpdk-19.11.tar.xz
+dpdk_url: http://fast.dpdk.org/rel/dpdk-19.11.6.tar.xz
 dpdk_target: x86_64-native-linuxapp-gcc
 
 install_dependencies:

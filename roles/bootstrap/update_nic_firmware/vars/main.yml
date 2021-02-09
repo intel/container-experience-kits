@@ -18,7 +18,7 @@
 nvmupdate:
   # 700 Series
   i40e:
-    nvmupdate_pkg_url: https://downloadmirror.intel.com/25791/eng/700Series_NVMUpdatePackage_v8_00_Linux.tar.gz
+    nvmupdate_pkg_url: https://downloadmirror.intel.com/29927/eng/700Series_NVMUpdatePackage_v8_00_Linux.tar.gz
     nvmupdate_pkg_checksum: md5:a8c5010120eb470b4cca62a9eb1c68b0
     min_required_fw_version: 8.00
     min_updatable_fw_version: 7.30

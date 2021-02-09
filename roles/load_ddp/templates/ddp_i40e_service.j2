@@ -4,7 +4,7 @@ AssertPathExists=/sbin/ethtool
 
 [Service]
 Type=simple
-ExecStart=/sbin/ethtool -f {{ item.name }} {{ item.ddp_profile }} 100
+ExecStart=/sbin/ethtool -f {{ nic_port.name }} {{ nic_port.ddp_profile }} 100
 
 [Install]
 WantedBy=multi-user.target

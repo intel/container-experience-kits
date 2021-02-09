@@ -16,31 +16,31 @@
 ---
 # Kubernetes node configuration
 
-# Enable SR-IOV networking related setup
-sriov_enabled: true
+# Enable IOMMU (required for SR-IOV networking)
+iommu_enabled: true
 
-# SR-IOV PF specific configuration list
-sriov_nics:
-  - name: enp24s0f0                 # PF interface name
-    bus_info: "18:00.0"             # pci bus info
-    device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
-    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
-    sriov_numvfs: 2                 # number of VFs to create for this PF
-    vf_driver: vfio-pci             # VF driver to be attached for all VFs under this PF, "iavf", "vfio-pci", "igb_uio"
-  - name: enp24s0f1
-    bus_info: "18:00.1"
-    device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
-    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
-    sriov_numvfs: 4
-    vf_driver: iavf
+# dataplane interface configuration list
+dataplane_interfaces: []
+#  - name: enp24s0f0                 # PF interface name
+#    bus_info: "18:00.0"             # pci bus info
+#    #device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
+#    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
+#    sriov_numvfs: 2                 # number of VFs to create for this PF
+#    vf_driver: vfio-pci             # VF driver to be attached for all VFs under this PF, "iavf", "vfio-pci", "igb_uio"
+#  - name: enp24s0f1
+#    bus_info: "18:00.1"
+#    #device_info: "8086:158b:0200"   # Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28
+#    #device_info: "8086:1592:0200"  # Intel Corporation Ethernet Controller E810-C for QSFP
+#    sriov_numvfs: 4
+#    vf_driver: iavf
 
 sriov_cni_enabled: true
 
 # Bond CNI
 bond_cni_enabled: false
 
-# install DPDK
-install_dpdk: true # DPDK installation is required for sriov_enabled:true; default to false
+# Install DPDK (required for SR-IOV networking)
+install_dpdk: true
 
 # Set to 'true' to update i40e, ice and iavf kernel modules
 update_nic_drivers: true
@@ -49,10 +49,10 @@ update_nic_drivers: true
 update_nic_firmware: false
 
 # Additional list of NIC interfaces that the FW update will be executed on
-# NOTE: FW update will be also executed on all NICs listed in "sriov_nics[*].name"
-firmware_update_nics:
-  - enp24s0f0
-  - enp24s0f1
+# NOTE: FW update will be also executed on all NICs listed in "dataplane_interfaces[*].name"
+firmware_update_nics: []
+#  - enp24s0f0
+#  - enp24s0f1
 
 # set how many VFs per single QAT device PF should be created
 qat_sriov_numvfs: 16

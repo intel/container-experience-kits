@@ -32,6 +32,14 @@
     name: openshift==0.11.2
   when: inventory_hostname == groups['kube-master'][0]
 
+- name: install required Python google-auth module for CentOS 7
+  pip:
+    name: google-auth==1.24.0
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version < '8'
+
 - name: wait for kube-apiserver to be up
   uri:
     url: "https://127.0.0.1:6443/healthz"

@@ -27,9 +27,9 @@ example_net_attach_defs:
 
 There's also a set of configuration options that are applied in per-node manner.
 
-First set of variables enables SRIOV for selected network adapters, by setting `sriov_enabled` as `true` and passing names of the physical function interfaces. There's also an option to define how many virtual functions should be created for each physical function. In below example `sriov_nics` configuration will create 4 VFs for enp175s0f0 PF interface and attach them to vfio-pci driver and 2 VFs for enp175s0f1 PF interface and attach them to kernel mode iavf driver. It will also add IOMMU kernel flags, and as a result will reboot the target worker node during deployment.
+First set of variables enables SRIOV for selected network adapters, by setting `iommu_enabled` as `true` and passing names of the physical function interfaces. There's also an option to define how many virtual functions should be created for each physical function. In below example `dataplane_interfaces` configuration will create 4 VFs for enp175s0f0 PF interface and attach them to vfio-pci driver and 2 VFs for enp175s0f1 PF interface and attach them to kernel mode iavf driver. It will also add IOMMU kernel flags, and as a result will reboot the target worker node during deployment.
 ```
-sriov_nics:
+dataplane_interfaces:
   - name: enp175s0f0
     sriov_numvfs: 4
     vf_driver: vfio-pci

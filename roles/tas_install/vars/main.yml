@@ -21,3 +21,5 @@ install_dependencies:
   RedHat:
     - git
     - make
+
+helm_stable_url: "https://charts.helm.sh/stable"

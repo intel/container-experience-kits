@@ -22,7 +22,7 @@
   set_fact:
     sriov_flags: "intel_iommu=on iommu=pt pci=realloc pci=assign-busses"
   when:
-    - sriov_enabled | default(false)
+    - iommu_enabled | default(false)
 
 - name: set sriov kernel boot flags in /etc/default/grub
   lineinfile:

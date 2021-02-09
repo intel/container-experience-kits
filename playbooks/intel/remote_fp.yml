@@ -25,6 +25,9 @@
     - role: net_attach_defs_create
       tags: net-attach-defs
       when: inventory_hostname == groups['kube-master'][0]
+    - role: nfd_install
+      tags: nfd
+      when: nfd_enabled | default(true)
     - role: sriov_dp_install
       tags: sriov-net-dp
       when: sriov_net_dp_enabled | default(true)
@@ -42,7 +45,7 @@
     - role: collectd_install
       when: collectd_enabled | default(true)
       vars:
-        collectd_profile: full_nfv
+        collectd_profile: remote_fp
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -60,9 +63,5 @@
     - role: userspace_cni_install
       when: userspace_cni_enabled | default(false)
       tags: userspace-cni
-    - role: collectd_install
-      when: collectd_enabled | default(true)
-      vars:
-        collectd_profile: remote_fp
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

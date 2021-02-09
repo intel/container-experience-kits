@@ -33,10 +33,10 @@
   register: mgmt_interface_driver
   changed_when: false
 
-- name: get drivers of PFs specified in sriov_nics
+- name: get drivers of PFs specified in dataplane_interfaces
   command: lspci -k -s {{ item }}
   register: lspci
-  with_items: "{{ sriov_nics | map(attribute='bus_info') | list }}"
+  with_items: "{{ dataplane_interfaces | map(attribute='bus_info') | list }}"
   changed_when: false
 
 - name: determine which kernel drivers will be used
@@ -44,7 +44,7 @@
     requested_drivers:
       i40e: "{{ lspci.results | selectattr('stdout', 'contains', 'i40e') | list | length>0 }}"
       ice: "{{ lspci.results | selectattr('stdout', 'contains', 'ice') | list | length>0 }}"
-      iavf: "{{ sriov_nics | selectattr('vf_driver', 'contains', 'iavf') | list | length>0 }}"
+      iavf: "{{ dataplane_interfaces | selectattr('vf_driver', 'contains', 'iavf') | list | length>0 }}"
 
 - name: determine kernel source dir
   find:

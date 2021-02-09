@@ -18,18 +18,18 @@ i40e_drivers_name: i40e
 iavf_drivers_name: iavf
 ice_drivers_name: ice
 
-i40e_drivers_version: 2.12.6
-iavf_drivers_version: 4.0.1
-ice_drivers_version: 1.1.4
+i40e_drivers_version: 2.14.13
+iavf_drivers_version: 4.0.2
+ice_drivers_version: 1.3.2
 
 i40e_drivers_url: https://sourceforge.net/projects/e1000/files/i40e%20stable/{{i40e_drivers_version}}/i40e-{{i40e_drivers_version}}.tar.gz
-i40e_drivers_checksum: sha1:e1a28cdf7c122f177ed75b7615a0a0e221d21ff4
+i40e_drivers_checksum: sha1:98d8c350e90c6df95868dcfa87f544227998d09a
 
 iavf_drivers_url: https://sourceforge.net/projects/e1000/files/iavf%20stable/{{iavf_drivers_version}}/iavf-{{iavf_drivers_version}}.tar.gz
-iavf_drivers_checksum: sha1:51fa70f3b1ac28778c811532a47b862b3fd62c9d
+iavf_drivers_checksum: sha1:a53cb104a3b04cbfbec417f7cadda6fddf51b266
 
 ice_drivers_url: https://sourceforge.net/projects/e1000/files/ice%20stable/{{ice_drivers_version}}/ice-{{ice_drivers_version}}.tar.gz
-ice_drivers_checksum: sha1:80578069ecb4ee87f8e82b9d64992fb22fbe27f5
+ice_drivers_checksum: sha1:19507794824da33827756389ac8018aa84e9c427
 
 ice_profile_path: /lib/firmware/updates/intel/ice/ddp/
 

@@ -28,12 +28,19 @@
     - ansible_os_family == "RedHat"
   ignore_errors: true
 
-- name: enable PowerTools repository on CentOS 8
+- name: enable PowerTools repository on CentOS >= 8 and < 8.3
 # noqa 303 - yum is called intenionallly here
   command: yum config-manager --set-enabled PowerTools
   when:
     - ansible_distribution == "CentOS"
-    - ansible_distribution_version >= '8'
+    - ansible_distribution_version >= '8' and ansible_distribution_version < '8.3'
+
+- name: enable PowerTools repository on CentOS >= 8.3
+# noqa 303 - yum is called intenionallly here
+  command: yum config-manager --set-enabled powertools
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version >= '8.3'
 
 - name: enable CodeReady Linux Builder repository for RHEL 8
   rhsm_repository:

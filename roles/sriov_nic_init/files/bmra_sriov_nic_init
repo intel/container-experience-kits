@@ -91,7 +91,7 @@ bind_all() {
         if [[ "${driver}" != "${current_driver}" ]]; then
             modprobe -q "${driver}" || true
             if [[ -e "/sys/bus/pci/drivers/${driver}" ]]; then
-                $DEVBIND_TOOL -b "${driver}" "${pci_address}"
+                $DEVBIND_TOOL -b "${driver}" --force "${pci_address}"
             else
                 echo "Failed to bind ${pci_address}: target driver ${driver} doesn't exist"
             fi

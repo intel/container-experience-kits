@@ -27,6 +27,15 @@ spec:
       - key: cmk
         operator: Exists
       containers:
+        - name: install
+          image: {{ $image }}:{{ $tag }}
+          imagePullPolicy: {{ $pullPolicy }}
+          command: ["/bin/bash", "-c"]
+          args:
+          - "/cmk/cmk.py install"
+          volumeMounts:
+          - mountPath: /opt/bin
+            name: cmk-install-dir
         - name: init
           image: {{ $image }}:{{ $tag }}
           imagePullPolicy: {{ $pullPolicy }}
@@ -66,6 +75,10 @@ spec:
       volumes:
       - hostPath:
           path: /proc
-          type: ""
+          type: Directory
         name: host-proc
+      - hostPath:
+          path: /opt/bin
+          type: DirectoryOrCreate
+        name: cmk-install-dir
 {{ end }}
