@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@
 
 # First, we roll back any existing profile
 - name: Rolling back any existing DDP profile from the NIC...
-  shell: ethtool -f {{ nic_port.name }} - 100 2> /dev/null
+  shell: ethtool -f {{ nic_port.name }} - 100 2> /dev/null | true
   ignore_errors: true
   changed_when: true
 

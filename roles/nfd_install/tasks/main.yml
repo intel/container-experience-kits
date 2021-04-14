@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -89,6 +89,14 @@
     nfd_version: "{{ nfd_external_image_tag }}"
   when:
     - not nfd_build_image_locally
+    - inventory_hostname == groups['kube-master'][0]
+
+- name: set values for NFD Helm chart values for SGX DP
+  set_fact:
+    sgx_dp_args: "{{ nfd_sgx_dp_args }}"
+    sgx_dp_labels: true
+  when:
+    - sgx_dp_enabled | default(false)
     - inventory_hostname == groups['kube-master'][0]
 
 - name: populate NFD Helm chart values template and push to controller node

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -23,7 +23,11 @@ ddp_pkgs:
       - "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
       - "https://downloadmirror.intel.com/29446/eng/esp-ah.zip"
       - "https://downloadmirror.intel.com/29780/eng/ecpri.zip"
+  - nic_driver: ice
+    install_dir: /lib/firmware/updates/intel/ice/ddp/
+    pkgurls:
+      - "https://downloadmirror.intel.com/30335/eng/ice_comms-1.3.24.0.zip"
+      - "https://downloadmirror.intel.com/30237/eng/ice_comms-1.3.22.0.zip"
+      - "https://downloadmirror.intel.com/30028/eng/ice_comms-1.3.20.0.zip"
+      - "https://downloadmirror.intel.com/29892/eng/ice_comms-1.3.17.0.zip"
 
-ice_ddp_profiles_path: /lib/firmware/updates/intel/ice/ddp/
-ice_ddp_profiles_download_url: https://downloadmirror.intel.com/30005/eng/25_4.zip
-ice_ddp_profiles_checksum: sha1:fa2586d731f33602398145fb51e5d017a1f08231

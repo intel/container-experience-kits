@@ -1,0 +1,118 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: configure meson builder with virtio-user support and PCAP PMD enabled
+  command:
+    argv:
+      - "meson"
+      - "-Dmachine=default"
+      - "-Dtests=false"
+      - "-Dc_args=-DRTE_VIRTIO_USER=y,-DRTE_LIBRTE_PMD_PCAP=y"
+      - "{{ dpdk_target }}"
+  args:
+    chdir: "{{ dpdk_dir }}"
+    creates: "{{ dpdk_target }}"
+
+- name: build DPDK with ninja
+  command:
+    argv:
+      - "ninja"
+      - "-C"
+      - "{{ dpdk_dir }}/{{ dpdk_target }}"
+  register: build_rc
+  changed_when: "build_rc.rc == 0"
+
+- name: install DPDK with ninja
+  command:
+    argv:
+      - "ninja"
+      - "install"
+      - "-C"
+      - "{{ dpdk_dir }}/{{ dpdk_target }}"
+  register: install_rc
+  changed_when: "install_rc.rc == 0"
+
+- name: Ensure dpdk libs is in loader search path on RHEL/CentOS
+  copy:
+    dest: "/etc/ld.so.conf.d/libdpdk-x86_64.conf"
+    content: "/usr/local/lib64/"
+    mode: 0644
+    owner: root
+    group: root
+  become: yes
+  when: ansible_os_family == "RedHat"
+
+- name: update ld cache
+  command:
+    argv:
+      - "ldconfig"
+  args:
+    chdir: "{{ dpdk_dir }}/{{ dpdk_target }}"
+  register: ld_rc
+  changed_when: "ld_rc.rc == 0"
+
+- name: find dpdk tools
+  find:
+    path: "{{ dpdk_dir }}"
+    patterns: "dpdk-devbind.py"
+    recurse: yes
+  register: dpdk_tools_dir
+
+- name: set path to dpdk usertools directory
+  set_fact:
+    dpdk_tools: "{{ dpdk_tools_dir.files[0].path }}"
+
+- name: load userspace modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - vfio-pci
+    - uio
+
+- name: install dpdk-devbind.py in /usr/local/bin
+  copy:
+    remote_src: yes
+    src: "{{ dpdk_tools }}"
+    dest: "/usr/local/bin/dpdk-devbind.py"
+    mode: 0700
+    owner: root
+    group: root
+  become: yes
+
+- name: clone intel module
+  git:
+    repo: "{{ dpdk_kmods_repo }}"
+    dest: "{{ dpdk_kmods_dest }}"
+    version: 'main'
+    force: yes
+
+- name: apply fix to Makefile
+  replace:
+    path: "{{ dpdk_kmods_dest }}/linux/igb_uio/Makefile"
+    regexp: "\\(PWD\\)"
+    replace: "(CURDIR)"
+    mode: "0644"
+
+- name: build intel module
+  make:
+    chdir: "{{ dpdk_kmods_dest }}/linux/igb_uio"
+
+- name: load intel module
+  command: "insmod {{ dpdk_kmods_dest }}/linux/igb_uio/igb_uio.ko"
+  register: result
+  failed_when: "'No such file or directory' in result.stderr"
+  changed_when: "'already bound' not in result.stderr"

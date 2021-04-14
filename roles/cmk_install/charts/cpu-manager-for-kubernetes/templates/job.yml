@@ -21,6 +21,7 @@ metadata:
 spec:
   template:
     spec:
+      nodeName: {{ . }}
       serviceAccountName: {{ $fullName }}
       restartPolicy: Never
       tolerations:

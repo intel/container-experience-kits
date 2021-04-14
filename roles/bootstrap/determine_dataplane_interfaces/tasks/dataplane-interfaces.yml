@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 ##
 ---
 - name: get interface of dataplane device
-  shell: "set -o pipefail && lshw -class network | grep -A 1 {{ nic.bus_info }}"
+  shell: "set -o pipefail &&  hwinfo --network | grep -A 5 {{ nic.bus_info }}"
   args:
     executable: /bin/bash
   register: dataplane_interface_list
@@ -23,7 +23,7 @@
 
 - name: set dataplane_interface variable
   set_fact:
-    dataplane_interface: "{{ dataplane_interface_list.stdout_lines[1] | regex_replace('\\s+logical name: ', '') }}"
+    dataplane_interface: "{{ dataplane_interface_list.stdout_lines[5] | regex_replace('\\s+Device File: ', '') }}"
 
 - name: update dataplane interface name in configuration file
   lineinfile:

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -51,13 +51,22 @@
     - custom_path_to_profile | length == 0
 
 - name: Copy custom .pkg file
-  copy:
-    remote_src: yes
-    src: "{{ ddp_path }}{{ custom_path_to_profile|basename }}"
-    dest: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
-    owner: root
-    group: root
-    mode: u+rwx,g-rwx,o-
+  block:
+    - name: Copy custom .pkg file
+      copy:
+        remote_src: yes
+        src: "{{ ddp_path }}{{ custom_path_to_profile|basename }}"
+        dest: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
+        owner: root
+        group: root
+        mode: u+rwx,g-rwx,o-
+    - name: Sussess
+      debug:
+        msg: "Custom DDP .pkg file has been copied to: {{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
+  rescue:
+    - name: Error
+      debug:
+        msg: "Custom DDP .pkg file not found, please check if DDP package version is available at https://downloadcenter.intel.com/"
   when:
     - custom_path_to_profile| length > 0
 

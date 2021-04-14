@@ -1,0 +1,39 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: validate hyperthreading settings
+  assert:
+    that: ansible_processor_threads_per_core > 1
+    fail_msg: "Please make sure that 'hyperthreading' is enabled in system BIOS"
+
+- name: autogenerate isolcpu range for socket 1
+  set_fact:
+    isolcpus: "{{ cmk_exclusive_num_cores }}\
+              -{{ ansible_processor_cores -1 }}\
+              ,{{ ansible_processor_cores + cmk_exclusive_num_cores }}\
+              -{{ ansible_processor_cores * ansible_processor_threads_per_core - 1 }}"
+  when: cmk_exclusive_num_cores is defined
+
+- name: autogenerate isolcpu range for socket 2
+  set_fact:
+    isolcpus: "{{ isolcpus }}\
+              ,{{ ansible_processor_cores * ansible_processor_threads_per_core + cmk_exclusive_num_cores }}\
+              -{{ ansible_processor_vcpus - ansible_processor_cores - 1 }}\
+              ,{{ ansible_processor_vcpus - ansible_processor_cores + cmk_exclusive_num_cores }}\
+              -{{ ansible_processor_vcpus  - 1 }}"
+  when:
+    - cmk_exclusive_num_cores is defined
+    - ansible_processor_count > 1

@@ -1,0 +1,42 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- include_role:
+    name: KMRA/download_kmra_code
+  vars:
+    dirs:
+      - keygen
+      - common
+
+- name: Compile sample_p11_keygen
+  make:
+    chdir: "{{ sample_p11_keygen_dir }}"
+
+- name: Create output directory in {{ sample_p11_keygen_install_dir }}
+  file:
+    path: "{{ sample_p11_keygen_install_dir }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    mode: "0700"
+  become: true
+
+- name: Copy sample_p11_keygen binary to {{ sample_p11_keygen_install_dir }}
+  copy:
+    src: "{{ sample_p11_keygen_dir }}/sample_key_gen"
+    dest: "{{ sample_p11_keygen_install_dir }}"
+    remote_src: true
+    mode: preserve
+  become: true

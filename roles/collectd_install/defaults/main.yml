@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
 ##   limitations under the License.
 ##
 ---
+barometer_collectd_dir: "/usr/src/barometer"
+
 collectd_scrap_interval: 30
 collectd_write_threads: 25
 collectd_read_threads: 25
@@ -25,6 +27,7 @@ enable_intel_pmu_plugin: true
 # If the field is empty, all available cores will be monitored.
 # Please refer to https://collectd.org/wiki/index.php/Plugin:Intel_PMU for configuration details.
 intel_pmu_plugin_monitored_cores: ""
+
 # intel_rdt plugin collects information about L3 cache and memory bandwidth utilization.
 enable_intel_rdt_plugin: true
 # CPU Threads to be monitored by Intel RDT Plugin.
@@ -32,9 +35,15 @@ enable_intel_rdt_plugin: true
 # Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
 intel_rdt_plugin_monitored_cores: ""
 
+# pkgpower plugin collects platform power telemetry data
+enable_pkgpower_plugin: true
+
+# unixsock plugin host socket base dir
+unixsock_host_socket_dir: /var/run/collectd/
+
 image_collectd:
-  repository: opnfv/barometer-collectd
-  digest: sha256:18abffcf9afb2c3cb0afac67de5f1317f7dcd8925906c434f4e18812d9efbb54
+  name: "barometer-collectd"
+  tag: "stable"
   pullPolicy: Always
 image_collectd_exporter:
   repository: prom/collectd-exporter
@@ -51,6 +60,8 @@ host_collectd_folder: /opt/collect.d
 pkgpower_repo_url: "https://github.com/intel/CommsPowerManagement.git"
 pkgpower_dir: "/usr/src/CommsPowerManagement"
 
+# currently excluded plugins were not delivered with latest stable
+# opnfv/barometer-collectd image (digest sha256:ed5c574f653e)
 collectd_plugins:
   basic:
     - logfile
@@ -59,13 +70,15 @@ collectd_plugins:
     - disk
     - ipmi
     - numa
-    - write_http
-    - smart
     - ethstat
     - netlink
     - intel_pmu
     - rdt
     - pkgpower
+    - unixsock
+    - network
+    # - write_http
+    # - smart
   on_prem:
     - logfile
     - cpu
@@ -73,13 +86,33 @@ collectd_plugins:
     - disk
     - ipmi
     - numa
-    - write_http
-    - smart
     - ethstat
     - netlink
     - intel_pmu
     - rdt
     - pkgpower
+    - unixsock
+    - network
+    # - write_http
+    # - smart
+  access:
+    - logfile
+    - cpu
+    - cpufreq
+    - disk
+    - ipmi
+    - numa
+    - ethstat
+    - netlink
+    - intel_pmu
+    - rdt
+    - pkgpower
+    - dpdk_telemetry
+    - hugepages
+    - unixsock
+    - network
+    # - write_http
+    # - smart
   remote_fp:
     - logfile
     - cpu
@@ -87,13 +120,31 @@ collectd_plugins:
     - disk
     - ipmi
     - numa
-    - write_http
-    - smart
     - ethstat
     - netlink
     - intel_pmu
     - rdt
     - pkgpower
+    - unixsock
+    - network
+    # - write_http
+    # - smart
+  regional_dc:
+    - logfile
+    - cpu
+    - cpufreq
+    - disk
+    - ipmi
+    - numa
+    - ethstat
+    - netlink
+    - intel_pmu
+    - rdt
+    - pkgpower
+    - unixsock
+    - network
+    # - write_http
+    # - smart
   full_nfv:
     - logfile
     - cpu
@@ -101,8 +152,6 @@ collectd_plugins:
     - disk
     - ipmi
     - numa
-    - write_http
-    - smart
     - ethstat
     - netlink
     - intel_pmu
@@ -113,6 +162,10 @@ collectd_plugins:
     - ovs_events
     - ovs_pmd_stats
     - ovs_stats
+    - unixsock
+    - network
+    # - write_http
+    # - smart
 
 # List of plugins that will be excluded from collectd deployment.
 exclude_collectd_plugins: []

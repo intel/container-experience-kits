@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+set -euxo pipefail
+intel-speed-select core-power enable --priority {{ sst_cp_priority_type }}
+{% for item in sst_cp_clos_groups %}
+intel-speed-select core-power config --clos {{ item.id }} --weight {{ item.frequency_weight }} --min {{ item.min_MHz }} --max {{ item.max_MHz }}
+{% endfor %}
+{% for item in sst_cp_cpu_clos %}
+intel-speed-select -c {{ item.cpus }} core-power assoc --clos {{ item.clos }}
+{% endfor %}

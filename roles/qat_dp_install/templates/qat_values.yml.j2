@@ -1,16 +1,14 @@
 ---
 image:   
-   repository: {{ qat_dp_image }}
-   tag: {{ qat_dp_version }}
-pullPolicy: IfNotPresent
+  repository: {{ qat_dp_image | default("intel/intel-qat-plugin") }}
+  tag: {{ qat_dp_version | default("0.19.0") }}
+  pullPolicy: IfNotPresent
 
 drivers:
   dpdk: {{ qat_dp_dpdk_drivers }}
   kernel: {{ qat_dp_kernel_drivers }}
 
 maxNumDevices: {{ qat_dp_max_num_devices }}
-
-debug: {{ qat_dp_debug | default("false") }}
 
 apparmor:
   enabled: {{ qat_dp_apparmor | default("true") }}

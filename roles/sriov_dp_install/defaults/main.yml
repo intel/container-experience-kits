@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-sriov_net_dp_git_url: "https://github.com/intel/sriov-network-device-plugin.git"
+sriov_net_dp_git_url: "https://github.com/k8snetworkplumbingwg/sriov-network-device-plugin.git"
 sriov_net_dp_git_ref: "v3.3.1"
 sriov_net_dp_dir: "/usr/src/sriov-network-device-plugin"
 sriov_net_dp_build_image_locally: true

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,17 +18,41 @@
 - name: Check that selected driver module is available
   # if modinfo fails, lookup loaded modules as modinfo might return error
   # for igb_uio and potentially other modules not included with the kernel
-  shell: "modinfo {{ vf_driver }} || grep {{ vf_driver }} /proc/modules"
+  shell: "modinfo {{ vf_driver.value }} || grep {{ vf_driver.value }} /proc/modules"
   register: shell_result
   ignore_errors: yes
   failed_when: no
   changed_when: no
+  with_dict: "{{ item.sriov_vfs | default({}) | combine({'default': item.default_vf_driver}) }}"
+  loop_control:
+    loop_var: vf_driver
+
+- name: pre-create empty dict for VFs
+  set_fact:
+    vfs_acc: {}
+
+- name: populate VFs dict with values
+  set_fact:
+    vfs_acc: "{{ vfs_acc | combine({idx : item.default_vf_driver}) }}"
+  loop: "{{ range(item.sriov_numvfs | default(0) | int) | list }}"
+  loop_control:
+    index_var: idx
+    loop_var: vf_default
+
+- name: update VFs dict with default drivers
+  set_fact:
+    vfs_acc: "{{ vfs_acc | combine({vf.key | regex_replace('.*_(\\d*)', '\\1') | int : vf.value}) }}"
+  loop: "{{ item.sriov_vfs | default({}) | dict2items | sort(attribute='key') }}"
+  loop_control:
+    loop_var: vf
+    extended: yes
+  when:  ansible_loop.index < (item.sriov_numvfs | default(0) | int )
 
 # get a list of VFs PCI addresses and save the configuration
 - name: attach VFs driver
   block:
     - name: fetch VFs pci addresses for a PF
-      shell: "for vf in /sys/class/net/{{ pfname }}/device/virtfn*;do basename $(readlink -f $vf);done"
+      shell: "for vf in /sys/class/net/{{ item.name }}/device/virtfn*;do basename $(readlink -f $vf);done | sort"
       register: vf_pciids
       args:
         executable: /bin/bash
@@ -37,16 +61,16 @@
     - name: save VF driver binding
       lineinfile:
         path: "{{ sriov_config_path }}/bmra_interfaces"
-        line: "{{ this_item }} {{ vf_driver }}"
-        regexp: "^{{ this_item }}"
+        line: "{{ this_item[0] }} {{ this_item[1].value }}"
+        regexp: "^{{ this_item[0] }}"
         create: yes
         owner: root
         group: root
         mode: '0600'
-      loop: "{{ vf_pciids.stdout_lines }}"
+      loop: "{{ vf_pciids.stdout_lines | zip(vfs_acc | dict2items) | list }}"
       loop_control:
         loop_var: this_item
       when:
         - vf_pciids.stderr|length == 0
         - vf_pciids.stdout_lines|length > 0
-  when: shell_result.rc == 0
+  when: shell_result.results | sum(attribute='rc') == 0

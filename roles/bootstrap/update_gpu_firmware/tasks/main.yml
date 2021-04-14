@@ -1,0 +1,46 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: download gpu firmeware package
+  get_url:
+    url: "{{ gpu_pkg_url }}"
+#    checksum: "{{ gpu_checksum }}"
+    dest: "/usr/src"
+  register: gpu_fw_download
+  until: gpu_fw_download is not failed
+  retries: 5
+
+- name: unarchive gpu firmware package
+  unarchive:
+    src: "{{ gpu_fw_download.dest }}"
+    dest: "/usr/src"
+    list_files: yes
+    remote_src: yes
+    mode: 0755
+  register: gpu_fw_untar
+
+- name: copy gpu firmware binaries to /lib/firmware
+  copy:
+    src: "{{ gpu_fw_untar.dest }}/lib/firmware/i915/"
+    dest: "/lib/firmware/i915/"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: 0755

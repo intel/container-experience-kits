@@ -7,4 +7,3 @@ data:
   DPDK_DRIVER: "{{ .Values.drivers.dpdk }}"
   KERNEL_VF_DRIVERS: "{{ .Values.drivers.kernel }}"
   MAX_NUM_DEVICES: "{{ .Values.maxNumDevices }}"
-  DEBUG: "{{ .Values.debug }}"

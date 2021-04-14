@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 ##
 ---
 image:
-   repository: quay.io/kubernetes_incubator/node-feature-discovery
-   tag: v0.5.0
+   repository: gcr.io/k8s-staging-nfd/node-feature-discovery
+   tag: v0.7.0
    pullPolicy: IfNotPresent
 
 sleepInterval: "120s"
@@ -49,6 +49,8 @@ service:
 
 #nameOverride: "node-feature-discovery"
 #fullnameOverride: "node-feature-discovery"
+
+sgx_dp_nfd_labels: false
 
 config:
 #  sources:

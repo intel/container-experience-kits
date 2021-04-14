@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -33,18 +33,12 @@
   register: mgmt_interface_driver
   changed_when: false
 
-- name: get drivers of PFs specified in dataplane_interfaces
-  command: lspci -k -s {{ item }}
-  register: lspci
-  with_items: "{{ dataplane_interfaces | map(attribute='bus_info') | list }}"
-  changed_when: false
-
 - name: determine which kernel drivers will be used
   set_fact:
     requested_drivers:
-      i40e: "{{ lspci.results | selectattr('stdout', 'contains', 'i40e') | list | length>0 }}"
-      ice: "{{ lspci.results | selectattr('stdout', 'contains', 'ice') | list | length>0 }}"
-      iavf: "{{ dataplane_interfaces | selectattr('vf_driver', 'contains', 'iavf') | list | length>0 }}"
+      i40e: "{{ dataplane_interfaces | selectattr('pf_driver', 'contains', 'i40e') | list | length>0 }}"
+      ice: "{{ dataplane_interfaces | selectattr('pf_driver', 'contains', 'ice') | list | length>0 }}"
+      iavf: "{{ dataplane_interfaces | select('search', 'iavf') | list | length > 0 }}"
 
 - name: determine kernel source dir
   find:

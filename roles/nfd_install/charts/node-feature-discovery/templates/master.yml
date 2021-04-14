@@ -44,6 +44,10 @@ spec:
           command:
             - "nfd-master"
             - --port={{ .Values.service.port }}
+{{- if .Values.sgx_dp_nfd_labels }}
+            - "--resource-labels=sgx.intel.com/epc"
+            - "--extra-label-ns=sgx.intel.com"
+{{- end }}
 {{- if .Values.tls.enabled }}
           args:
             - "--ca-file=/etc/kubernetes/node-feature-discovery/trust/ca.crt"

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -76,6 +76,25 @@
     name: python3-pip
   when: ansible_os_family == "Debian"
 
+- name: Install python3.8
+  apt:
+    name: python3.8
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install python3.8-dev
+  apt:
+    name: python3.8-dev
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Set python is python3
+  alternatives:
+    name: python
+    path: /usr/bin/python3
+    link: /usr/bin/python
+  when: ansible_os_family == "Debian"
+
 - name: perform dist-upgrade on Debian OS family
   apt:
     upgrade: dist
@@ -83,3 +102,23 @@
   when:
     - ansible_os_family == "Debian"
     - update_all_packages | default(false)
+
+- name: install command line tools to collect hardware details
+  apt:
+    name:
+     - hwinfo
+     - inxi
+     - jq
+  when: ansible_distribution == "Ubuntu"
+
+- name: update to the latest kernel and kernel headers on the Ubuntu OS
+  apt:
+    name:
+    - linux-image-generic-hwe-{{ ansible_distribution_version }}
+    - linux-headers-generic-hwe-{{ ansible_distribution_version }}
+    state: latest # noqa 403
+  notify:
+    - reboot server
+  when:
+    - ansible_distribution == "Ubuntu"
+    - update_kernel | default(false)

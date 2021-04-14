@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,114 +14,23 @@
 ##   limitations under the License.
 ##
 ---
-- name: set default grub flags values
-  set_fact:
-    isolcpus_flags: ""
-
-- name: validate isolcpus settings
-  assert:
-    that: isolcpus | length > 0
-    fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
-  when: isolcpus_enabled
-
-- name: set isolcpus flag
-  set_fact:
-    isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }} nr_cpus={{ cpu_count }}"
-  when:
-    - isolcpus_enabled | default(false)
-
-- name: load present CPUs range
-  command: cat /sys/devices/system/cpu/present
-  become: yes
-  register: cpus_present_file
-  when:
-    - isolcpus_enabled | default(false)
-
-- name: get range of all available cpus
-  set_fact:
-    cpus_present: "{{ cpus_present_file.stdout }}"
-  when:
-    - isolcpus_enabled | default(false)
-
-- name: validate provided isolcpus value
-  action: validate_isolcpus
-  when:
-    - isolcpus_enabled | default(false)
-
-- name: set kernel boot flags in /etc/default/grub
+- name: ensure that isolcpus settings are disabled when isolcpus_enabled is False
   lineinfile:
     dest: /etc/default/grub
-    regexp: '^GRUB_CMDLINE_LINUX="(?!.* isolcpus=)(.*)"'
-    line: 'GRUB_CMDLINE_LINUX="\1 {{ isolcpus_flags }}"'
-    state: present
-    backrefs: yes
-    mode: 0600
-  register: isolcpus_add
+    regexp: '^GRUB_CMDLINE_LINUX=(.*?){{ isolcpus_marker }}$'
+    state: absent
+  register: grub
   notify:
-   - reboot server
-  when:
-    - isolcpus_flags | length > 0
+    - reboot server
+  when: not (isolcpus_enabled | default(false) | bool)
 
-- name: change isolcpus flags in /etc/default/grub if present
-  lineinfile:
-    dest: /etc/default/grub
-    regexp: '^GRUB_CMDLINE_LINUX=(.*)(?:isolcpus=.* rcu_nocbs=.* nohz_full=(?:[0-9](?:-[0-9]+){0,1},{0,1})+)(.*)$'
-    line: 'GRUB_CMDLINE_LINUX=\1{{ isolcpus_flags }}\2'
-    state: present
-    backrefs: yes
-    mode: 0600
-  register: isolcpus_update
-  notify:
-   - reboot server
+- name: autogenerate isolcpus
+  include_tasks: autogenerate_isolcpus.yml
   when:
-    - isolcpus_flags | length > 0
+    - cmk_enabled is defined and cmk_enabled
+    - autogenerate_isolcpus is defined and autogenerate_isolcpus
 
-- name: set cpu idle flags in /etc/default/grub
-  lineinfile:
-    dest: /etc/default/grub
-    regexp: '^GRUB_CMDLINE_LINUX="(?!.* idle=)(.*)"'
-    line: 'GRUB_CMDLINE_LINUX="\1 idle=poll"'
-    state: present
-    backrefs: yes
-    mode: 0600
-  register: idle_add
-  notify:
-   - reboot server
+- name: setup cpu isolation
+  include_tasks: setup_isolcpus.yml
   when:
-    - install_real_time_package | default(false)
-
-- name: update grub.cfg
-  command: update-grub
-  when:
-    - ansible_os_family == "Debian"
-    - isolcpus_add.changed or isolcpus_update.changed
-
-- name: check if grub2.cfg config file exists (MBR variant)
-  stat:
-    path: /etc/grub2.cfg
-  register: grub_mbr_cfg
-  when:
-    - ansible_os_family == "RedHat"
-    - isolcpus_add.changed or isolcpus_update.changed or idle_add.changed
-
-- name: update MBR grub2.cfg
-  command: grub2-mkconfig -o /etc/grub2.cfg
-  when:
-  - ansible_os_family == "RedHat"
-  - isolcpus_add.changed or isolcpus_update.changed or idle_add.changed
-  - grub_mbr_cfg.stat.exists
-
-- name: check if grub2-efi.cfg config file exists (EFI variant)
-  stat:
-    path: /etc/grub2-efi.cfg
-  register: grub_efi_cfg
-  when:
-    - ansible_os_family == "RedHat"
-    - isolcpus_add.changed or isolcpus_update.changed or idle_add.changed
-
-- name: update MBR grub2-efi.cfg
-  command: grub2-mkconfig -o /etc/grub2-efi.cfg
-  when:
-  - ansible_os_family == "RedHat"
-  - isolcpus_add.changed or isolcpus_update.changed or idle_add.changed
-  - grub_efi_cfg.stat.exists
+    - isolcpus_enabled | default(false)

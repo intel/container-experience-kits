@@ -1,0 +1,58 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: validate isolcpus settings
+  assert:
+    that: isolcpus | length > 0
+    fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
+
+- name: load present CPUs range
+  command: cat /sys/devices/system/cpu/present
+  become: yes
+  changed_when: false
+  register: cpus_present_file
+
+- name: get range of all available cpus
+  set_fact:
+    cpus_present: "{{ cpus_present_file.stdout }}"
+
+- name: validate provided isolcpus value
+  action: validate_isolcpus
+
+- name: set isolcpus flag
+  set_fact:
+    isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }} nr_cpus={{ ansible_processor_vcpus }}"
+
+- name: set isolcpus flag for realtime kernel
+  set_fact:
+    isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }} nr_cpus={{ ansible_processor_vcpus }} idle=poll"
+  when:
+    - install_real_time_package | default(false)
+
+- name: prepare cpu isolation grub commandline string
+  set_fact:
+    cpu_isolation_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} {{ isolcpus_flags }}" {{ isolcpus_marker }}'
+
+- name: set cpu isolation flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)" {{ isolcpus_marker }}$'
+    line: '{{ cpu_isolation_cmdline }}'
+    state: present
+    mode: 0664
+  register: grub
+  notify:
+    - reboot server

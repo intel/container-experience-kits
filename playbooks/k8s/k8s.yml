@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@
     kube_proxy_mode: iptables
     enable_nodelocaldns: false
     system_reserved: true
+    dashboard_enabled: true
     system_cpu_reserved: "{{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
     kube_cpu_reserved: "{{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
     kubelet_node_custom_flags: "{{ kubelet_node_custom_flags_prepare | from_yaml }}"

@@ -1,0 +1,114 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies for QAT
+  include_role:
+    name: install_dependencies
+
+- name: create directory /usr/src/QAT_drivers for all QAT dependencies
+  file:
+    path: /usr/src/QAT_drivers
+    state: directory
+    mode: "u=rw,g=wx,o=rwx"
+
+- name: download QAT drivers package {{ qat_drivers_version }}
+  get_url:
+    url: "{{ qat_drivers_download_url }}"
+    checksum: "{{ qat_drivers_pkg_checksum }}"
+    dest: /usr/src/QAT_drivers
+  register: qat_driver
+  until: qat_driver is not failed
+  retries: 5
+
+- name: unarchive QAT drivers package
+  unarchive:
+    src: /usr/src/QAT_drivers/QAT{{ qat_drivers_version }}.tar.gz
+    dest: /usr/src/QAT_drivers
+    remote_src: yes
+    mode: 0755
+
+- name: check all packages are present for QAT drivers installation
+  command: ./configure
+  args:
+    chdir: /usr/src/QAT_drivers
+  register: qat_requirements
+  ignore_errors: true
+  changed_when: true
+
+- name: playbook terminated packages for QAT drivers installation are missing
+  fail:
+    msg:
+      - "Missing requirements for QAT drivers (i.e. kernel sources)"
+      - "If failure persists, consider setting update_kernel: true in group_vars"
+  when: "'error' in qat_requirements.stderr"
+
+- name: make install QAT drivers
+  make:
+    chdir: /usr/src/QAT_drivers
+    target: install
+  register: qat_make_install
+  become: yes
+
+- name: playbook terminated, QAT module load blocking on CentOS > 8
+  fail:
+    msg:
+      - "Purpose for failure might be an already intel_qat module set up on server. Recommended is to have clean image of OS without pre-installed QAT module."
+      - "make uninstall && make clean && make distclean commands can roll-back QAT drivers package {{ qat_drivers_version }} already carried out this point"
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version > '8'
+    - "'ERROR:' in qat_make_install.stderr"
+
+- name: confirm QAT module installed
+  shell: "set -o pipefail && lsmod | grep qat"
+  args:
+    chdir: "/usr/src/QAT_drivers"
+    executable: /bin/bash
+  register: qat_confirm
+  failed_when: '"intel_qat" not in qat_confirm.stdout'
+  changed_when: false
+
+- debug:
+   var: qat_confirm.stdout_lines
+
+- name: start QAT service, if not started
+  service:
+    state: started
+    name: qat_service
+  register: qat_service_state
+
+- name: check status of QAT service after started
+  service_facts:
+  when: ansible_distribution in ["RedHat", "CentOS"] or
+        ansible_distribution == "Ubuntu" and ansible_distribution_version <= '18.04.4'
+
+- debug:
+    var: ansible_facts.services['qat_service']
+  when: ansible_distribution in ["RedHat", "CentOS"] or
+        ansible_distribution == "Ubuntu" and ansible_distribution_version <= '18.04.4'
+
+#ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove when conditions and merge code as one task.
+- name: check status of QAT service after started on Ubuntu >= 20.04
+  command: service qat_service status
+  args:
+    warn: false
+  register: qat_enabled
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04'
+  changed_when: true
+
+- debug:
+    var: qat_enabled.stdout_lines
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04'

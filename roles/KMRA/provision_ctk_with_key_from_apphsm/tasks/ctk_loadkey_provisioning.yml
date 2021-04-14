@@ -1,0 +1,39 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Import role for setting kmra_key_server_host variable
+  import_role:
+    name: KMRA/set_apphsm_hostname
+
+# Provisioning is done only when needed - check for that is done in
+# parent main.yml file
+- name: Provision token {{ token_name }} with key {{ key_label }} from AppHSM
+  shell:  # noqa 301
+    cmd: >-
+      cd {{ ctk_loadkey_install_dir }};
+      https_proxy="" ./ctk_loadkey -t {{ token_name }}
+      -p {{ default_user_pin }} -u {{ test_unique_uid }}
+      -P {{ apphsm_port }} -H {{ apphsm_hostname }}
+
+- name: "Import role for checking if imported key exist in token \
+  {{ token_name }} after ctk_loadkey provisioning"
+  import_role:
+    name: KMRA/check_if_key_exists_in_hsh_token
+
+- name: "Verify that imported key '{{ key_label }}' is visible in token \
+  '{{ token_name }}'"
+  assert:
+    that: key_found

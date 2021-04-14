@@ -1,0 +1,18 @@
+---
+sgx_image:
+  repository: {{ sgx_dp_image | default("intel/intel-sgx-plugin") }}
+  tag: {{ sgx_dp_version | default("0.19.0") }}
+  pullPolicy: IfNotPresent
+
+sgx_init_image:
+  repository: {{ sgx_dp_init_image | default("intel/intel-sgx-initcontainer") }}
+  tag: {{ sgx_dp_init_version | default("0.19.0") }}
+  pullPolicy: IfNotPresent
+
+sgx_aesmd_image:
+  repository: {{ intel_sgx_dp_aesmd_image }}
+  tag: {{ intel_sgx_dp_aesmd_image_version }}
+  pullPolicy: IfNotPresent
+  
+provision: {{ sgx_dp_provision_limit | default("20") }}
+enclave: {{ sgx_dp_enclave_limit | default("20") }}

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,17 +15,15 @@
 ##
 ---
 image:   
-   repository: intel-qat-plugin
-   tag: devel  
-pullPolicy: IfNotPresent 
+  repository: intel/intel-qat-plugin
+  tag: 0.19.0  
+  pullPolicy: IfNotPresent 
 
 drivers:
   dpdk: "vfio-pci"
-  kernel: "dh895xccvf,c6xxvf,c3xxxvf,d15xxvf"
+  kernel: "dh895xccvf,c6xxvf,c3xxxvf,d15xxvf,200xxvf,c4xxxvf"
 
 maxNumDevices: "32"
-
-debug: "false"
 
 # sets annotation for deployment on apparmor enabled systems
 apparmor:

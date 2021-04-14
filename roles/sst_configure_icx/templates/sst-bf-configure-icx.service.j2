@@ -1,0 +1,10 @@
+[Unit]
+Description=SST-BF configuration on boot
+AssertPathExists=/usr/bin/intel-speed-select
+
+[Service]
+Type=simple
+ExecStart=intel-speed-select base-freq {{ icx_sst_bf_switch }} {{ core_priority_switch }}
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,40 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: install epel-release
-  package: name=epel-release
-  when: ansible_os_family == "RedHat"
-
-- name: install dependencies
-  include_role:
-    name: install_dependencies
-
-# note: on Ubuntu, pip is installed via install_dependencies
-- name: install pip
-  package:
-    name: python-pip
-  when:
-    - ansible_distribution in ["RedHat", "CentOS"]
-    - ansible_distribution_version < '8'
-
-- name: install pip
-  package:
-    name: python3-pip
-  when:
-    - ansible_distribution in ["RedHat", "CentOS"]
-    - ansible_distribution_version >= '8'
-
-- name: upgrade Python wheel and setuptools
-  pip:
-    name:
-      - wheel==0.34.2
-      - setuptools<=44
-    extra_args: --upgrade
-
-- name: install pip module to manage K8s objects (satisfy requirement of the k8s module)
-  pip:
-    name: openshift
-
 - name: create Userspace CNI net-attach-def object to be used with OVS-DPDK
   k8s:
     state: present

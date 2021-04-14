@@ -1,5 +1,5 @@
 ---
 image:
-  repository: {{ gpu_dp_image }}
-  tag: {{ gpu_dp_version }}
-pullPolicy: IfNotPresent
+  repository: {{ gpu_dp_image | default("intel/intel-gpu-plugin") }}
+  tag: {{ gpu_dp_version | default("0.19.0") }}
+  pullPolicy: IfNotPresent

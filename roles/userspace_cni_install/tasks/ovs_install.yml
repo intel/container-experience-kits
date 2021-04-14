@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -52,11 +52,18 @@
   stat: path={{ ovs_dir }}/Makefile
   register: ovs_makefile_status
 
+- name: Set dpdk binding type for DPDK >= 20.08
+  set_fact:
+    dpdk_build: "static"
+  when: dpdk_version is version("20.08", ">=")
+
 - name: prepare OVS-DPDK build
 # noqa 503 - more than one condition, can't be a handler
   command: ./configure --with-dpdk={{ dpdk_build }} CFLAGS="-g -O2 -Wno-cast-align"
   args:
     chdir: "{{ ovs_dir }}"
+  environment:
+    PKG_CONFIG_PATH: /usr/local/lib64/pkgconfig
   when: not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
 
 - name: check if OVS distribution files exists

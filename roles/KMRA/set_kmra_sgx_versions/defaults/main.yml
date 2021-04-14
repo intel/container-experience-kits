@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+# KMRA Intel SGX-DCAP drivers module for Ubuntu <= 18.04.4
+dcap_driver_series_ubuntu_18: "1.36.2"
+dcap_driver_version_ubuntu_18: "sgx_linux_x64_driver_{{ dcap_driver_series_ubuntu_18 }}.bin"
+dcap_driver_url_ubuntu_18: "https://download.01.org/intel-sgx/sgx-dcap/1.9/linux/distro/ubuntu18.04-server/{{ dcap_driver_version_ubuntu_18 }}"
+dcap_driver_checksum_ubuntu_18: "sha256:7b415b8a4367b3deb044ee7d94fffb7922df17a3da2a238da3f8db9391ecb650"
+sgx_folder_check_ubuntu_18: "/usr/src/sgx-{{ dcap_driver_series_ubuntu_18 }}"
+
+sgx_sdk_version_ubuntu_18: "sgx_linux_x64_sdk_2.12.100.3.bin"
+sgx_sdk_url_ubuntu_18: "https://download.01.org/intel-sgx/sgx-dcap/1.9/linux/distro/ubuntu18.04-server/{{ sgx_sdk_version_ubuntu_18 }}"
+sgx_sdk_checksum_ubuntu_18: "sha256:9c9e5009d74f8b42c5178fbba0cf75e3b55ead32645fd46b910d834daca933b5"
+
+# KMRA Intel SGX-DCAP drivers module for Ubuntu >= 20.04
+dcap_driver_series_ubuntu_20: "1.36.2"
+dcap_driver_version_ubuntu_20: "sgx_linux_x64_driver_{{ dcap_driver_series_ubuntu_20 }}.bin"
+dcap_driver_url_ubuntu_20: "https://download.01.org/intel-sgx/sgx-dcap/1.9/linux/distro/ubuntu20.04-server/{{ dcap_driver_version_ubuntu_20 }}"
+dcap_driver_checksum_ubuntu_20: "sha256:e3e027b16dfe980859035a9437b198d21ca9d71825d2144756ac3eac759c489f"
+sgx_folder_check_ubuntu_20: "/usr/src/sgx-{{ dcap_driver_series_ubuntu_20 }}"
+
+sgx_sdk_version_ubuntu_20: "sgx_linux_x64_sdk_2.12.100.3.bin"
+sgx_sdk_url_ubuntu_20: "https://download.01.org/intel-sgx/sgx-dcap/1.9/linux/distro/ubuntu20.04-server/{{ sgx_sdk_version_ubuntu_20 }}"
+sgx_sdk_checksum_ubuntu_20: "sha256:3c73061fe6e903416f28ab077915d0bc69dbac109b3884f36bd78002b27c8808"
+
+sgx_dcap_1804_url_begin: "https://download.01.org/intel-sgx/sgx-dcap/1.9/linux/distro/ubuntu18.04-server/debian_pkgs/"
+sgx_dcap_2004_url_begin: "https://download.01.org/intel-sgx/sgx-dcap/1.9/linux/distro/ubuntu20.04-server/debian_pkgs/"
+
+libsgx_ae_qe3_url: "libs/libsgx-ae-qe3/libsgx-ae-qe3_1.9.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_ae_qve_url: "libs/libsgx-ae-qve/libsgx-ae-qve_1.9.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_qe3_logic_url: "libs/libsgx-qe3-logic/libsgx-qe3-logic_1.9.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_pce_logic_url: "libs/libsgx-pce-logic/libsgx-pce-logic_1.9.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+dcap_ql_url: "libs/libsgx-dcap-ql/libsgx-dcap-ql_1.9.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+dcap_ql_dev_url: "devel/libsgx-dcap-ql-dev/libsgx-dcap-ql-dev_\
+1.9.100.3-{{ ansible_distribution_release }}1_amd64.deb"
+dcap_default_qpl_url: "libs/libsgx-dcap-default-qpl/libsgx-dcap-default-\
+qpl_1.9.100.3-{{ ansible_distribution_release }}1_amd64.deb"
+dcap_default_qpl_dev_url: "devel/libsgx-dcap-default-qpl-dev/libsgx-dcap-\
+default-qpl-dev_1.9.100.3-{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_dcap_quote_verify_url: "libs/libsgx-dcap-quote-verify/\
+libsgx-dcap-quote-verify_1.9.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_dcap_quote_verify_dev_url: "devel/libsgx-dcap-quote-verify-dev/\
+libsgx-dcap-quote-verify-dev_1.9.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_aesm_service_url: "utils/sgx-aesm-service/sgx-aesm-service_2.12.100.3\
+-{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_common_url: "libs/libsgx-enclave-common/\
+libsgx-enclave-common_2.12.100.3-{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_epid_url: "libs/libsgx-epid/libsgx-epid_2.12.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_urts_url: "libs/libsgx-urts/libsgx-urts_2.12.100.3-\
+{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_ae_pce_url: "utils/libsgx-ae-pce/\
+libsgx-ae-pce_2.12.100.3-{{ ansible_distribution_release }}1_amd64.deb"
+libsgx_headers_url: "devel/libsgx-headers//\
+libsgx-headers_2.12.100.3-{{ ansible_distribution_release }}1_amd64.deb"
+
+sgx_config_dir: "/opt/intel"

@@ -1,0 +1,8 @@
+# PCCS server address
+PCCS_URL={{ pccs_url }}
+# To accept insecure HTTPS cert, set this option to FALSE
+{% if pccs_use_secure_cert %}
+USE_SECURE_CERT=TRUE
+{% else %}
+USE_SECURE_CERT=FALSE
+{% endif %}

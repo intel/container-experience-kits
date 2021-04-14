@@ -1,0 +1,47 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+
+- name: update grub.cfg
+  command: update-grub
+  when:
+    - ansible_os_family == "Debian"
+
+- name: check if grub2.cfg config file exists (MBR variant)
+  stat:
+    path: /etc/grub2.cfg
+  register: grub_mbr_cfg
+  when:
+    - ansible_os_family == "RedHat"
+
+- name: update MBR grub2.cfg
+  command: grub2-mkconfig -o /etc/grub2.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - grub_mbr_cfg.stat.exists
+
+- name: check if grub2-efi.cfg config file exists (EFI variant)
+  stat:
+    path: /etc/grub2-efi.cfg
+  register: grub_efi_cfg
+  when:
+    - ansible_os_family == "RedHat"
+
+- name: update MBR grub2-efi.cfg
+  command: grub2-mkconfig -o /etc/grub2-efi.cfg
+  when:
+  - ansible_os_family == "RedHat"
+  - grub_efi_cfg.stat.exists

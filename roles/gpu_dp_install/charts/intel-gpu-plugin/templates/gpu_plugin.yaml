@@ -26,7 +26,7 @@ spec:
               fieldRef:
                 fieldPath: spec.nodeName
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.pullPolicy }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         volumeMounts:
         - name: devfs
           mountPath: /dev

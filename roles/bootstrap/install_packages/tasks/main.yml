@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,7 +22,23 @@
   include_tasks: debian.yml
   when: ansible_os_family == "Debian"
 
+#net_attach_def, docker registry, cmk reqs
+- name: upgrade Python wheel and setuptools
+  pip:
+    name:
+      - wheel==0.34.2
+      - setuptools<=44
+    extra_args: --upgrade
+
+#docker registry reqs
 - name: install Python packages
   pip:
     name:
       - jmespath==0.9.5
+      - ruamel.yaml==0.16.13
+      - openshift==0.11.2
+    state: present
+  register: pip_result
+  retries: 5
+  until: pip_result is succeeded
+  delay: 5

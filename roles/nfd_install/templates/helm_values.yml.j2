@@ -1,7 +1,11 @@
 ---
 image:
-   repository: {{ nfd_image | default("quay.io/kubernetes_incubator/node-feature-discovery") }}
-   tag: {{ nfd_version | default("v0.5.0")}}
+   repository: {{ nfd_image | default("gcr.io/k8s-staging-nfd/node-feature-discovery") }}
+   tag: {{ nfd_version | default("v0.7.0")}}
    pullPolicy: IfNotPresent
+
+config: {{ sgx_dp_args | default(false)}}
+
+sgx_dp_nfd_labels: {{ sgx_dp_labels | default(false)}}
 
 sleepInterval: {{ nfd_sleep_interval | default("60s")}}

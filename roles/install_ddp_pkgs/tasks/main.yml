@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -38,6 +38,11 @@
 #         - "https://downloadmirror.intel.com/27587/eng/gtp.zip"
 #         - "https://downloadmirror.intel.com/28940/eng/mplsogreudp.zip"
 #         - "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
+#     - nic_driver: ice
+#       install_dir: /lib/firmware/updates/intel/ice/ddp/
+#       pkgurls:
+#         - "https://downloadmirror.intel.com/29889/eng/ice_comms-1.3.24.0.zip"
+
 
 - name: create temporary directory for DDP profiles
   tempfile:
@@ -65,44 +70,3 @@
     path: "{{ tempdir_ddp.path }}"
     state: absent
 
-- name: Create ice profiles and tmp folders
-  become: yes
-  file:
-    path: "{{ item }}"
-    state: directory
-    mode: 0755
-  loop:
-    - /usr/src/ice-ddp
-    - "{{ ice_ddp_profiles_path }}"
-
-- name: download ice ddp drivers
-  get_url:
-    remote_src: yes
-    url: "{{ ice_ddp_profiles_download_url }}"
-    dest: /usr/src/ice_ddp.tar.gz
-    checksum: "{{ ice_ddp_profiles_checksum }}"
-  register: ice_ddp_profiles
-  until: ice_ddp_profiles is not failed
-  retries: 5
-
-- name: unarchive ice ddp drivers
-  unarchive:
-    remote_src: yes
-    src: /usr/src/ice_ddp.tar.gz
-    dest: /usr/src/ice-ddp
-    mode: 0644
-  register: ice_ddp_profiles
-
-- name: find archived ice packages
-  find:
-    paths: "{{ ice_ddp_profiles.dest }}/DDP_Profiles/810_Series/"
-    patterns: "ice*.zip"
-  register: ddp_packages_archives
-
-- name: unarchive ice ddp profiles
-  unarchive:
-    src: "{{ item.path }}"
-    dest: "{{ ice_ddp_profiles_path }}"
-    remote_src: yes
-    mode: 0644
-  with_items: "{{ ddp_packages_archives.files }}"

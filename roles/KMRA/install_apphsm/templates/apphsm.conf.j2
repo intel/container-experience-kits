@@ -1,0 +1,20 @@
+{
+    "port": {{ apphsm_port }},
+    "ip": "0.0.0.0",
+
+    "clients": [
+        {
+            "id": "{{ test_ctk_loadkey_cert_user_id }}",
+            "permission": "allow_all"
+        }
+    ],
+    "keys": [
+        {
+            "id": "{{ test_unique_uid }}",
+            "storage_slot_id" : "1234567898",
+            "token_name": "{{ apphsm_token_name }}",
+            "pin": "{{ default_user_pin }}",
+            "key_name": "{{ apphsm_key_in_token_name }}"
+        }
+    ]
+}

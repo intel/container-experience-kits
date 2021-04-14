@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -112,19 +112,19 @@
   changed_when: true
 
 - name: get approved certificate
-  shell: set -o pipefail && kubectl get csr {{ secret_name }}.{{ k8s_namespace }} -o jsonpath='{.status.certificate}' | base64 --decode
+  shell: kubectl get csr {{ secret_name }}.{{ k8s_namespace }} -o jsonpath='{.status.certificate}'
   args:
     chdir: "/usr/src/"
     executable: /bin/bash
+  register: cert
+  until: cert.stdout | length > 0
   retries: 30
   delay: 1
-  register: cert
-  until: cert.rc == 0
   changed_when: false
 
-- name: write signed certificate to file
+- name: write signed and decoded certificate to file
   copy:
-    content: "{{ cert.stdout }}"
+    content: "{{ cert.stdout | b64decode }}"
     dest: "{{ host_secrets_folder }}/{{ key_pair_name }}-signed.cert"
     mode: 0755
 

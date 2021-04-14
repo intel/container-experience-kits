@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -33,6 +33,14 @@
   until: ice_download is not failed
   retries: 5
 
+- name: unload ice module
+  modprobe:
+    name: ice
+    state: absent
+  when:
+    - ice_installed_version.stdout != ice_drivers_version
+    - mgmt_interface_driver.stdout != ice_drivers_name
+
 - name: untar ice driver sources
   unarchive:
     src: "{{ ice_download.dest }}"
@@ -53,13 +61,28 @@
     - install
   when: ice_installed_version.stdout != ice_drivers_version
 
-- name: Restart server
+- name: reboot if driver is used by management interface
   become: yes
   reboot:
     reboot_timeout: 1200
-  when: ice_installed_version.stdout != ice_drivers_version
+  when:
+    - ice_installed_version.stdout != ice_drivers_version
+    - mgmt_interface_driver.stdout != ice_drivers_name
 
 - name: ensure that ice module is loaded
   modprobe:
     name: ice
     state: present
+
+- name: Get dataplane_interface Device IDs
+  shell: "set -o pipefail && lspci -n -s {{ item.bus_info }} | grep -o '8086:[^ ]*' | tr -d '8086:'"
+  args:
+    executable: /bin/bash
+  register: device_id
+  changed_when: false
+  with_items: "{{ dataplane_interfaces }}"
+
+- name: wait 5 min for CPK devices to initialize
+  pause:
+    minutes: 5
+  when: '"124c" in device_id.results[0].stdout'

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@
 
 # Kubernetes version
 kubernetes: true
-kube_version: v1.18.8
-#kube_version: v1.17.11
-#kube_version: v1.16.14
+#kube_version: v1.20.4
+kube_version: v1.19.8
+#kube_version: v1.18.16
 
 # Run system-wide package update (apt dist-upgrade, yum update, ...)
 # Note: enabling this may lead to unexpected results
 # Tip: you can set this per host using host_vars
 update_all_packages: false
+update_kernel: false
 
 # Node Feature Discovery
 nfd_enabled: true
@@ -33,7 +34,7 @@ nfd_build_image_locally: false
 nfd_namespace: kube-system
 nfd_sleep_interval: 60s
 
-# Intel CPU Manager for Kubernetes
+# Intel CPU Manager for Kubernetes (CMK)
 cmk_enabled: true
 cmk_namespace: kube-system
 cmk_use_all_hosts: false # 'true' will deploy CMK on the controller nodes too
@@ -42,19 +43,13 @@ cmk_shared_num_cores: 2 # number of CPU cores to be assigned to the "shared" poo
 cmk_exclusive_num_cores: 2 # number of CPU cores to be assigned to the "exclusive" pool on each of the nodes
 #cmk_shared_mode: packed # choose between: packed, spread, default: packed
 #cmk_exclusive_mode: packed # choose between: packed, spread, default: packed
+autogenerate_isolcpus: true
 
 # Native CPU Manager (Kubernetes built-in)
-# Note: Enabling CMK and built-in CPU Manager is not recommended.
+# Note: Enabling CMK and built-in Native CPU Manager is NOT recommended.
 # Setting this option as "true" enables the "static" policy, otherwise the default "none" policy is used.
+# The reserved CPU cores settings are individual per each worker node, and therefore are available to configure in the host_vars file
 native_cpu_manager_enabled: false
-# Amount of CPU cores that will be reserved for the housekeeping (2000m = 2000 millicores = 2 cores)
-native_cpu_manager_system_reserved_cpus: 2000m
-# Amount of CPU cores that will be reserved for Kubelet
-native_cpu_manager_kube_reserved_cpus: 1000m
-# Explicit list of the CPUs reserved from pods scheduling.
-# Note: Supported only with kube_version 1.17 and newer, overrides native_cpu_manager_system_reserved_cpus and native_cpu_manager_kube_reserved_cpus.
-#native_cpu_manager_reserved_cpus: "0,1,2"
-# Note: All reamining unreserved CPU cores will be consumed by the workloads.
 
 # Enable Kubernetes built-in Topology Manager
 topology_manager_enabled: true
@@ -101,6 +96,12 @@ sriovdp_config_data: |
 # Intel QAT Device Plugin for Kubernetes
 qat_dp_enabled: false
 qat_dp_namespace: kube-system
+qat_dp_build_image_locally: true
+
+# Intel GPU Device Plugin for Kubernetes
+gpu_dp_enabled: false
+gpu_dp_namespace: kube-system
+gpu_dp_build_image_locally: true
 
 # Intel Telemetry Aware Scheduling
 tas_enabled: true
@@ -117,7 +118,7 @@ example_net_attach_defs:
 ## Proxy configuration ##
 #http_proxy: "http://proxy.example.com:1080"
 #https_proxy: "http://proxy.example.com:1080"
-#additional_no_proxy: ".example.com"
+#additional_no_proxy: ".example.com,mirror_ip"
 
 # (Ubuntu only) disables DNS stub listener which may cause issues on Ubuntu
 dns_disable_stub_listener: true
@@ -135,8 +136,15 @@ kube_pods_subnet: 10.244.0.0/16
 kube_service_addresses: 10.233.0.0/19
 kube_proxy_mode: iptables
 
+# comment this line out if you want to expose k8s services of type nodePort externally.
+kube_proxy_nodeport_addresses_cidr: 127.0.0.0/8
+
 # please leave it set to "true", otherwise Intel BMRA features deployed as Helm charts won't be installed
 helm_enabled: true
+
+# local Docker Hub mirror, if it exists
+#docker_registry_mirrors:
+#  - http://mirror_ip:mirror_port
 
 # Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
 registry_local_address: "localhost:30500"

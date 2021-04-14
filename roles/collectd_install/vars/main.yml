@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,3 +15,6 @@
 ##
 ---
 collectd_configuration_files_dir: "{{ host_collectd_folder }}/collectd.conf.d"
+
+unsupported_power_skus:
+  - "06/6c"

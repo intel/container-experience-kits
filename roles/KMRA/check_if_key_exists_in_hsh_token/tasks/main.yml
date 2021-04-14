@@ -1,0 +1,31 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- import_role:
+    name: KMRA/install_opensc_pkcs11tool
+
+# We do not check exit code just stdout, so no need to use pipefail option
+# Needs to be run every time to check if token already exists
+- name: Check if key {{ key_label }} exists in token {{ token_name }}
+  shell: >-
+    pkcs11-tool --module {{ p11_module_path }}
+    --token-label {{ token_name }} --pin {{ user_pin }}
+    -O | grep -c {{ key_label }}|| true
+  register: key_in_token_lookup
+
+- name: Export info about key found
+  set_fact:
+    key_found: "{{ key_in_token_lookup.stdout|int != 0 }}"

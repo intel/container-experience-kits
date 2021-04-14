@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,19 +17,6 @@
 - name: install dependencies
   include_role:
     name: install_dependencies
-  when: inventory_hostname == groups['kube-master'][0]
-
-- name: upgrade Python wheel and setuptools
-  pip:
-    name:
-      - wheel==0.34.2
-      - setuptools<=44
-    extra_args: --upgrade
-  when: inventory_hostname == groups['kube-master'][0]
-
-- name: install required Python openshift module
-  pip:
-    name: openshift==0.11.2
   when: inventory_hostname == groups['kube-master'][0]
 
 - name: install required Python google-auth module for CentOS 7
@@ -136,7 +123,7 @@
 - name: create registry storage directory
   file:
     path: /var/lib/registry
-    owner: 1000
+    owner: '1000'
     group: root
     mode: '0700'
     state: directory

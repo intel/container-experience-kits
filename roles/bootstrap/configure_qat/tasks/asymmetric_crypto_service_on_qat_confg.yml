@@ -1,0 +1,98 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: confirm QAT module
+  shell: "set -o pipefail && lsmod | grep qat"
+  args:
+    chdir: "/usr/src"
+    executable: /bin/bash
+  register: qat_confirm_mod
+  failed_when: '"intel_qat" not in qat_confirm_mod.stdout'
+  changed_when: false
+  ignore_errors: true
+
+- name: QAT Kernel Module not found, playbook terminated
+  fail:
+     msg: "No QAT module found. Kindly, confirm QAT module on system can also download lates drivers + services as enabling update_qat_drivers: true"
+  when: '"intel_qat" not in qat_confirm_mod.stdout'
+
+# ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove and use ansible service module
+- name: check status of QAT service
+  shell: "set -o pipefail && service qat_service status | grep qat_dev"
+  args:
+    executable: /bin/bash
+  register: qat_service_check
+  changed_when: true
+  ignore_errors: true
+
+- name: QAT Service not found, playbook terminated
+  fail:
+     msg: "Failed to start qat_service on system. Kindly, download lates drivers + services this can also be achieved as enabling update_qat_drivers: true"
+  when: "'up' not in qat_service_check.stdout"
+
+- name: check QAT Kernel Module Pci-Driver id
+  shell: "set -o pipefail && dpdk-devbind.py --status | grep Quick | tr ' ' '\n' | grep drv"
+  args:
+    executable: /bin/bash
+  register: qat_select_driver
+  changed_when: true
+
+- name: set QAT Kernel Module Pci-Driver id
+  set_fact:
+    qat_pci_update: "{{ qat_select_driver.stdout_lines[1] | regex_replace('.*drv=(.*)', '\\1') }}"
+
+- name: check QAT avalability on DPDK-devbind status
+  shell: "set -o pipefail && dpdk-devbind.py --status | grep Quick"
+  register: qat_dpdk_status
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: check QAT id's using DPDK compatible driver on system
+  shell: "set -o pipefail && dpdk-devbind.py --status | grep Quick | tr ' ' '\n' | grep 0000"
+  args:
+    executable: /bin/bash
+  register: qat_select_driver
+  changed_when: true
+
+- name: get first QAT device id using DPDK compatible driver
+  set_fact:
+    qat_id_check: "{{ qat_select_driver.stdout_lines[0] }}"
+
+- name: get second QAT device id using DPDK compatible driver
+  set_fact:
+    qat_id_check_two: "{{ qat_select_driver.stdout_lines[1] }}"
+
+- name: get third QAT device id using DPDK compatible driver
+  set_fact:
+    qat_id_check_three: "{{ qat_select_driver.stdout_lines[2] }}"
+
+- name: validate discovered QAT ids on system with host vars defined QAT ids
+  command: grep -r qat_id
+  args:
+    chdir: "{{ inventory_dir }}/host_vars"
+  register: check_hostvars_file
+  delegate_to: localhost
+  become: false
+  changed_when: true
+
+- name: mismatch of QAT ids using DPDK compatible driver, playbook terminated
+  fail:
+    msg: "found QAT id's using DPDK compatible driver are different as provided in host vars kindly provide correct values in host vars"
+  when:
+    - 'qat_id_check not in check_hostvars_file.stdout'
+    - 'qat_id_check_two not in check_hostvars_file.stdout'
+    - 'qat_id_check_three  not in check_hostvars_file.stdout'

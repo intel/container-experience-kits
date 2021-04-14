@@ -18,7 +18,7 @@ spec:
       serviceAccountName: collectd
       containers:
         - name: collectd
-          image: "{{ image_collectd.repository }}@{{ image_collectd.digest }}"
+          image: "{{ registry_local_address }}/{{ image_collectd.name }}:{{ image_collectd.tag }}"
           imagePullPolicy: "{{ image_collectd.pullPolicy }}"
           command: ["/bin/bash", "-c"]
           args:
@@ -38,15 +38,19 @@ spec:
               mountPath: "/var/run/.client"
             - name: dpdksocketpath
               mountPath: "/var/run/dpdk/rte/telemetry"
+{% if enable_pkgpower_plugin %}
             - name: pkgpower
               mountPath: "/sys/devices/virtual/powercap/intel-rapl/"
               readOnly: true
+{% endif %}
             - name: hugepages
               mountPath: "/sys/kernel/mm/hugepages"
               readOnly: true
             - name: cpufreq
               mountPath: "/sys/devices/system/cpu"
               readOnly: true
+            - name: unixsocksocket
+              mountPath: "/var/run/collectd/"
         - name: collectd-exporter
           image: "{{ image_collectd_exporter.repository }}@{{ image_collectd_exporter.digest }}"
           imagePullPolicy: "{{ image_collectd_exporter.pullPolicy }}"
@@ -55,6 +59,7 @@ spec:
               containerPort: 9103
           args:
             - "--web.listen-address=127.0.0.1:9103"
+            - "--collectd.listen-address=127.0.0.1:25826"
         - name: rbac-proxy
           image: "{{ image_rbac_proxy.repository }}:{{ image_rbac_proxy.version }}"
           imagePullPolicy: "{{ image_rbac_proxy.pullPolicy }}"
@@ -104,3 +109,6 @@ spec:
         - name: cpufreq
           hostPath:
             path: /sys/devices/system/cpu
+        - name: unixsocksocket
+          hostPath:
+            path: "{{ unixsock_host_socket_dir }}"

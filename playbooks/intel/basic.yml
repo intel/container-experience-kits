@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -21,10 +21,6 @@
       tags: defaults
     - role: golang_install
       tags: golang
-      # TODO: refactor this to deploy net-attach-defs during corresponding CNI plugins deployment
-    - role: net_attach_defs_create
-      tags: net-attach-defs
-      when: inventory_hostname == groups['kube-master'][0]
     - role: nfd_install
       tags: nfd
       when: nfd_enabled | default(true)
@@ -48,5 +44,13 @@
     - role: sriov_cni_install
       when: sriov_cni_enabled | default(false)
       tags: sriov-cni
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+- hosts: kube-master
+  tasks: []
+  roles:
+    - role: net_attach_defs_create
+      tags: net-attach-defs
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

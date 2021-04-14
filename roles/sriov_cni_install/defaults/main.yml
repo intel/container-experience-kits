@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,4 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-sriov_cni_version: "v2.5"
+sriov_cni_version: "v2.6"
+sriov_cni_url: "https://github.com/k8snetworkplumbingwg/sriov-cni.git"
+sriov_cni_dir: "/usr/src/sriov-cni"

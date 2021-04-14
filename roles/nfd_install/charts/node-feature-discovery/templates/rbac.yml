@@ -19,6 +19,11 @@ rules:
   - ""
   resources:
   - nodes
+# when using command line flag --resource-labels to create extended resources
+# "- nodes/status" is needed
+{{- if .Values.sgx_dp_nfd_labels }}
+  - nodes/status
+{{- end }}
   verbs:
   - get
   - patch

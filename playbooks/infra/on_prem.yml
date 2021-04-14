@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -32,6 +32,8 @@
     - role: cluster_defaults
     - role: bootstrap/configure_proxy
     - role: bootstrap/install_packages
+    - role: bootstrap/update_grub
+      when: update_kernel | default(false)
     - role: bootstrap/configure_security
     - role: bootstrap/apply_kubernetes_reqs
     - role: bootstrap/configure_dns
@@ -39,7 +41,7 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-# apply additional worker node specific configuration that may require reboot
+# apply worker node kernel configuration
 - hosts: kube-node
   tasks: []
   handlers:
@@ -48,22 +50,42 @@
   roles:
     - role: cluster_defaults
     - role: bootstrap/configure_hugepages
+      when: hugepages_enabled | default(true)
     - role: bootstrap/configure_cpu_isolation
+      when: isolcpus_enabled | default(true)
     - role: bootstrap/configure_intel_pstate
       when: intel_pstate_enabled | default(false) | bool
     - role: bootstrap/set_sriov_kernel_flags
-    - role: bootstrap/update_nic_drivers
-      when: update_nic_drivers | default(false) | bool
-    - role: bootstrap/update_nic_firmware
-      tags: firmware
-      when:
-        - update_nic_firmware | default(false) | bool
-        - update_nic_drivers | default(false) | bool
+      when: iommu_enabled | default(true)
+    - role: bootstrap/install_gpu_kernel
+      when: gpu_dp_enabled | default(false)
     - role: bootstrap/install_rt_package
       when:
         - install_real_time_package | default(false) | bool
         - ansible_distribution == 'CentOS'
         - ansible_distribution_version < '8'
+    - role: bootstrap/update_grub
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+# install worker node kernel drivers
+- hosts: kube-node
+  tasks: []
+  roles:
+    - role: cluster_defaults
+
+    - role: bootstrap/install_qat_drivers_services
+      when: update_qat_drivers | default(false)
+
+    - role: bootstrap/update_nic_drivers
+      when: update_nic_drivers | default(false) | bool
+
+    - role: bootstrap/update_nic_firmware
+      tags: firmware
+      when:
+        - update_nic_firmware | default(false) | bool
+        - update_nic_drivers | default(false) | bool
+
     - role: bootstrap/determine_dataplane_interfaces
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
@@ -73,16 +95,17 @@
   roles:
     - role: cluster_defaults
     - role: install_dpdk
-      when: ovs_dpdk_enabled | default(false) or install_dpdk | default(true)
+      when: install_dpdk | default(true)
       tags: dpdk
     - role: sriov_nic_init
       when: iommu_enabled | default(true) and install_dpdk | default(true)
     - role: bootstrap/configure_qat
-      # note 1: configure QAT only when QAT Device Plugin is enabled
-      # note 2: this role mainly creates VFs for QAT devices so SRIOV is required
-      when: qat_dp_enabled | default(true) and iommu_enabled | default(true)
-    - role: sst_configure
-      when: sst_bf_configuration_enabled | default(false)
+      when:
+        - qat_devices is defined and (qat_devices|length>0)
+        - iommu_enabled | default(true)
+        - update_qat_drivers | default(false)
+    - role: sst_configure_icx
+      when: sst_bf_configuration_enabled | default(false) or sst_cp_configuration_enabled | default(false)
       tags: sst
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

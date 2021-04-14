@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -44,10 +44,6 @@
     name: ddp-ice
     enabled: yes
   when: enable_ice_systemd_service | default(false)
-
-- name: Restart server
-  reboot:
-    reboot_timeout: 1200
 
 - name: Grep DDP log
   shell: "set -o pipefail && dmesg | grep -i DDP"

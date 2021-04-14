@@ -1,0 +1,10 @@
+[Unit]
+Description=SST-CP configuration on boot
+AssertPathExists=/usr/bin/intel-speed-select
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sst_cp_config.sh
+
+[Install]
+WantedBy=multi-user.target

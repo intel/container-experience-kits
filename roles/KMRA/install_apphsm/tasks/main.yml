@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Create toolkits directory first
+- include_role:
+    name: KMRA/download_kmra_code
+  vars:
+    dirs:
+      - apphsm
+      - common
+
+- name: Clean AppHSM
+  make:
+    chdir: "{{ apphsm_src_dir }}"
+    target: clean
+
+- name: Compile AppHSM-C part
+  make:
+    chdir: "{{ apphsm_src_dir }}"
+    target: "{{ apphsm_build_only_target }}"
+
+- name: Create output directory in {{ apphsm_install_dir }}
+  file:
+    path: "{{ apphsm_install_dir }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    mode: "0700"
+  become: true
+
+- name: Copy apphsm dir contents to {{ apphsm_install_dir }}
+  copy:
+    # NOTE: '/' at the end is for copying content of apphsm
+    # directory, without creating parent directory
+    src: "{{ apphsm_src_dir }}/"
+    dest: "{{ apphsm_install_dir }}"
+    remote_src: true
+    mode: preserve
+
+- name: Ensure that apphsm.py has exec permissions
+  file:
+    path: "{{ apphsm_install_dir }}/apphsm.py"
+    mode: "u+x"
+
+# Certs and keys are generated on ansible controller node and then
+# ctk_loadkey and apphsm are provisioned with the certs
+- name: Import role for CA certs generation
+  import_role:
+    name: KMRA/create_ca_and_certs
+  delegate_to: localhost
+
+# NOTE: src directory is located on ansible-controller node
+- name: Copy ca cert and apphsm keys to AppHSM install directory
+  copy:
+    src: '{{ ca_cert_dir }}/{{ item }}'
+    dest: '{{ apphsm_install_dir }}/{{ item }}'
+    mode: preserve
+  with_items: "{{ apphsm_ca_files }}"
+
+- name: Configure apphsm.conf file
+  template:
+    src: apphsm.conf.j2
+    dest: "{{ apphsm_install_dir }}/apphsm.conf"
+    mode: "{{ default_file_permissions }}"

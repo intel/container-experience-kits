@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 # Telemetry Aware Scheduler
 tas_git_url: "https://github.com/intel/telemetry-aware-scheduling.git"
 tas_dir: "/usr/src/telemetry-aware-scheduling"
-tas_git_version: "v0.1"
+tas_git_version: "v0.2"
 # TAS extender configuration directory
 extender_dir: "/usr/src/telemetry-aware-scheduling/deploy/extender-configuration/"
 
 # Descheduler
 descheduler_git_url: https://github.com/kubernetes-sigs/descheduler.git
-descheduler_git_version: "v0.10.0"
+descheduler_git_version: "v0.19.0"
 descheduler_dir: "/usr/src/sigs.k8s.io/descheduler"
 sigs_k8s_io_dir: "/usr/src/sigs.k8s.io"
 

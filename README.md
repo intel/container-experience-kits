@@ -2,6 +2,8 @@
 
 Intel Container Experience Kits Setup Scripts provide a simplified mechanism for installing and configuring Kubernetes clusters on Intel Architecture using Ansible.
 
+The software provided here is for reference only and not intended for production environments.
+
 ## Quickstart guide
 1. Initialize git submodules to download Kubespray code.
     ```
@@ -12,6 +14,14 @@ Intel Container Experience Kits Setup Scripts provide a simplified mechanism for
     - For **Kubernetes Basic Infrastructure** deployment:
     ```
     export PROFILE=basic
+    ```
+    - For **Kubernetes Access Edge Infrastructure** deployment:
+    ```
+    export PROFILE=access
+    ```
+    - For **Kubernetes Regional Data Center Infrastructure** deployment:
+    ```
+    export PROFILE=regional_dc
     ```
     - For **Kubernetes Remote Forwarding Platform Infrastructure** deployment:
     ```
@@ -67,8 +77,9 @@ Refer to the documentation linked below to see configuration details for selecte
 
 ## Requirements
 * Python present on the target servers depending on the target distribution. Python 3 is highly recommended, but Python 2 is still supported for CentOS 7.
-* Ansible 2.9.6 installed on the Ansible machine (the one you run these playbooks from).
-* pip==9.0.3 installed on the Ansible machine.
+* Ansible 2.9.17 installed on the Ansible host machine (the one you run these playbooks from).
+* python-pip3 installed on the Ansible machine.
+* python-netaddr installed on the Ansible machine.
 * SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).
 * Internet access on all target servers is mandatory. Proxy is supported.
 * At least 8GB of RAM on the target servers/VMs for minimal number of functions (some Docker image builds are memory-hungry and may cause OOM kills of Docker registry - observed with 4GB of RAM), more if you plan to run heavy workloads such as NFV applications.

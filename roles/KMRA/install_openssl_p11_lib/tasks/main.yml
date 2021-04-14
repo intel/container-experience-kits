@@ -1,0 +1,63 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Download p11 lib sources from git
+  git:
+    repo: "{{ p11_lib_repo }}"
+    dest: "{{ p11_lib_workspace }}"
+    version: "{{ p11_lib_version }}"
+
+- import_role:
+    name: KMRA/install_ssl_dev
+
+- import_role:
+    name: KMRA/install_pkgconf
+
+- name: Check if ./bootstrap exists in p11 sources
+  stat:
+    path: "{{ p11_lib_workspace }}/bootstrap"
+  register: bootstrap_stat
+
+- name: Bootstrap p11_lib
+  command:
+    cmd: "./bootstrap"
+    chdir: "{{ p11_lib_workspace }}"
+  when: bootstrap_stat.stat.exists
+
+- name: Use custom ./configure command for local openssl installation if needed
+  set_fact:
+    p11_lib_configure_cmd: >
+      PKG_CONFIG_PATH={{ custom_openssl_installation_path }}/lib/pkgconfig
+      ./configure  --includedir={{ custom_openssl_installation_path }}/include
+  when: custom_openssl_installation_path is defined
+
+# using shell here because configure command might be complicated when custom
+# openssl is used and needs to be executed every time to regenrate Makefile
+# on change
+- name: Configure p11_lib
+  shell:  # noqa 305 301
+    cmd: "{{ p11_lib_configure_cmd }}"
+    chdir: "{{ p11_lib_workspace }}"
+
+- name: Make p11_lib
+  make:
+    chdir: "{{ p11_lib_workspace }}"
+
+- name: Make install p11_lib
+  make:
+    target: install
+    chdir: "{{ p11_lib_workspace }}"
+  become: true

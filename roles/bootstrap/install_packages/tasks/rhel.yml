@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,20 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-# handle case where kernel is updated, but grub is not reconfigured (i.e. no sriov), 
-# and dev tools were not installed
-- name: Attempt to pull current kernel source
-  package:
-    name:
-    - kernel-headers-{{ ansible_kernel }}
-    - kernel-devel-{{ ansible_kernel }}
-  register: kernel_source
-  retries: 5
-  until: kernel_source is success
-  when:
-    - ansible_os_family == "RedHat"
-  ignore_errors: true
-
 - name: enable PowerTools repository on CentOS >= 8 and < 8.3
 # noqa 303 - yum is called intenionallly here
   command: yum config-manager --set-enabled PowerTools
@@ -42,25 +28,115 @@
     - ansible_distribution == "CentOS"
     - ansible_distribution_version >= '8.3'
 
-- name: enable CodeReady Linux Builder repository for RHEL 8
+- name: enable CodeReady Linux Builder repository on RHEL 8
   rhsm_repository:
     name: codeready-builder-for-rhel-8-x86_64-rpms
   when:
     - ansible_distribution == "RedHat"
     - ansible_distribution_version >= '8'
 
-- name: install epel-release
+- name: install epel-release on CentOS
   package:
     name: epel-release
   when:
     - ansible_distribution == "CentOS"
 
-- name: install epel-release
+- name: obtain EPEL GPG key on RHEL8
+  rpm_key:
+    state: present
+    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8
+  when:
+    - ansible_distribution == "RedHat"
+    - ansible_distribution_version >= '8'
+
+- name: install epel-release on RHEL8
   package:
     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
   when:
     - ansible_distribution == "RedHat"
     - ansible_distribution_version >= '8'
+
+- name: get full distribution versions
+  command: cat /etc/redhat-release
+  register: release
+  changed_when: true
+
+- name: set full distribution version
+  set_fact:
+    full_dist_version: "{{ release.stdout | regex_replace('.*(\\d+.\\d+.\\d\\d\\d\\d).*', '\\1') }}"
+
+- name: update CentOS Vault yum repository on CentOS 7
+  yum_repository:
+    name: C{{ full_dist_version }}-base
+    description: CentOS-{{ full_dist_version }} - Base
+    file: CentOS-Vault
+    baseurl: http://vault.centos.org/{{ full_dist_version }}/os/$basearch/
+    gpgcheck: yes
+    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-{{ ansible_distribution_major_version }}
+    enabled: yes
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version < '7.9'
+    - not update_kernel
+
+#- name: update CentOS Vault yum repository on CentOS 8
+#  yum_repository:
+#    name: C{{ full_dist_version }}-base
+#    description: CentOS-{{ full_dist_version }} - Base
+#    file: CentOS-Vault
+#    baseurl: http://vault.centos.org/{{ full_dist_version }}/BaseOS/$basearch/os/
+#    baseurl: http://vault.centos.org/{{ full_dist_version }}/BaseOS/Source/
+#    gpgcheck: yes
+#    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+#    enabled: yes
+#  when:
+#    - ansible_distribution == "CentOS"
+#    - ansible_distribution_version >= '8' and ansible_distribution_version < '8.3'
+#    - not update_kernel
+
+# CentOS-Vault repo not working for CentOS 8, so install kernel headers directly
+- name: pull matching kernel headers on CentOS 8.2
+  package:
+    name: "{{ item }}"
+    state: present
+  register: source_status
+  with_items:
+    - "https://vault.centos.org/8.2.2004/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-193.el8.x86_64.rpm"
+    - "https://vault.centos.org/8.2.2004/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-193.el8.x86_64.rpm"
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version == '8.2'
+    - not update_kernel
+
+- name: pull matching kernel headers on CentOS 8.3
+  package:
+    name: "{{ item }}"
+    state: present
+  register: source_status
+  with_items:
+    - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-240.el8.x86_64.rpm"
+    - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-240.el8.x86_64.rpm"
+#    - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-240.el8.x86_64.rpm"
+#    - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-240.el8.x86_64.rpm"
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version == '8.3'
+    - not update_kernel
+
+# pull the matching kernel headers if kernel is not updated
+- name: pull matching kernel headers from configured repos
+# noqa 503 - more than one condition, can't be a handler
+  package:
+    name:
+    - kernel-headers-{{ ansible_kernel }}
+    - kernel-devel-{{ ansible_kernel }}
+  register: kernel_source
+  retries: 3
+  until: kernel_source is success
+  when:
+    - not source_status.changed
+    - ansible_os_family == "RedHat"
+    - not update_kernel
 
 - name: install the 'Development tools' package group
   package:
@@ -101,7 +177,7 @@
     - reboot server
   when:
     - ansible_os_family == "RedHat"
-    - update_kernel | default(true)
+    - update_kernel | default(false)
 
 #note(przemeklal): fixes issue with missing selinux in packet.net CentOS 7 images
 - name: ensure selinux is installed on CentOS/RHEL 7
@@ -120,3 +196,21 @@
   when:
     - ansible_distribution in ["RedHat", "CentOS"]
     - ansible_distribution_version < '8'
+
+- name: Set python is python3
+  alternatives:
+    name: python
+    path: /usr/bin/python3
+    link: /usr/bin/python
+  when:
+    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+    - ansible_distribution_version >= '8'
+
+- name: install command line tools to collect hardware details
+  package:
+    name:
+     - hwinfo
+     - inxi
+     - jq
+    state: present
+  when: ansible_distribution in ["RedHat", "CentOS"]

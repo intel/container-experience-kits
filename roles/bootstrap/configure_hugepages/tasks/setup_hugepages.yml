@@ -1,0 +1,67 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: validate default hugepage size setting
+  assert: { that: default_hugepage_size == "2M" or default_hugepage_size == "1G" }
+
+- name: Fail when trying to pre-allocate hugepages of multiple page sizes
+  fail:
+    msg: "Kubelet does not support pre-allocated hugepages for multiple page sizes."
+  when:
+  - hugepages_1G > 0
+  - hugepages_2M > 0
+
+- name: validate that any hugepages of default size are requested
+  assert: { that: hugepages_1G > 0 }
+  when:
+    - default_hugepage_size == "1G"
+
+- name: validate that any hugepages of default size are requested
+  assert: { that: hugepages_2M > 0 }
+  when:
+    - default_hugepage_size == "2M"
+
+- name: calculate total number of requested hugepages
+  set_fact:
+    mem_huge_2M: "{{ hugepages_2M|default(0) * 2 }}"
+    mem_huge_1G: "{{ hugepages_1G|default(0) * 1024 }}"
+
+- name: assert that there's enough memory on the target system for the requested hugepages
+  assert:
+    that: (mem_huge_2M|int + mem_huge_1G|int) < (ansible_memtotal_mb|int - mem_reserved|int)
+    msg: "Requested {{ mem_huge_2M|int + mem_huge_1G|int }}MB of hugepages, while {{ ansible_memtotal_mb|int - mem_reserved|int }}MB is available."
+
+- name: set hugepages kernel boot flags
+  set_fact:
+    hugepages_flags: >-
+      default_hugepagesz={{ default_hugepage_size }}
+      {% if hugepages_1G > 0 %}hugepagesz=1G hugepages={{ hugepages_1G | int }}{% endif %}
+      {% if hugepages_2M > 0 %}hugepagesz=2M hugepages={{ hugepages_2M | int }}{% endif %}
+
+- name: prepare hugepages grub commandline string
+  set_fact:
+    hugepages_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} {{ hugepages_flags }}" {{ hugepages_marker }}'
+
+- name: set cpu isolation flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)" {{ hugepages_marker }}$'
+    line: '{{ hugepages_cmdline }}'
+    state: present
+    mode: 0664
+  register: grub
+  notify:
+    - reboot server

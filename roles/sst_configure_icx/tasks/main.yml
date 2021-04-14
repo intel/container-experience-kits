@@ -1,0 +1,84 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Set is_clx to false
+  set_fact:
+    is_clx: False
+
+- name: Set is_icx to false
+  set_fact:
+    is_icx: False
+
+- name: Read CPU Type
+  shell:
+    cmd: lscpu | grep "Model name:"
+  register: cpu_model
+  changed_when: false
+
+- name: Check if clx mode
+  set_fact:
+    is_clx: True
+  when: item in cpu_model.stdout
+  loop: '{{ supported_clx_skus }}'
+
+- name: Check if icx mode
+  set_fact:
+    is_icx: True
+  when: item in cpu_model.stdout
+  loop: '{{ supported_icx_skus }}'
+
+- name: Install and configure SST-BF on CLX platform
+  include_tasks: clx_setup_sst_bf.yml
+  when:
+    - is_clx
+    - sst_bf_configuration_enabled
+    - (ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04') or
+      (ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.2')
+
+- name: Install 'intel-speed-select' tool on Ubuntu 20.04+
+  include_tasks: install_sst_tool.yml
+  when: is_icx and ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04'
+
+- name: Compile and load INTEL_SPEED_SELECT_INTERFACE modules on Centos 8.2
+  include_tasks: centos8_install_isst_interface.yml
+  when:
+    - is_icx
+    - sst_bf_configuration_enabled
+    - icx_centos8_load_isst_modules
+    - ansible_distribution == 'CentOS'
+    - ansible_distribution_version == '8.2'
+
+# CentOS 8.3 (2011) doesnot require Compile and load INTEL_SPEED_SELECT_INTERFACE modules it has already enabled
+- name: install libraries utility required for CenTOS >= 8.3
+  dnf:
+   name: libbabeltrace-devel
+  when: ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.3'
+
+- name: Configure SST-BF on ICX platform
+  include_tasks: icx_setup_sst_bf.yml
+  when:
+    - is_icx
+    - sst_bf_configuration_enabled
+    - (ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04') or
+      (ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.2' and icx_centos8_load_isst_modules)
+
+- name: Configure SST-CP on ICX platform
+  include_tasks: icx_setup_sst_cp.yml
+  when:
+    - is_icx
+    - sst_cp_configuration_enabled
+    - (ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04') or
+      (ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.2' and icx_centos8_load_isst_modules)

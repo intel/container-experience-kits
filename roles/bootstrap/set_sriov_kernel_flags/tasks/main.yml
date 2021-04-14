@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,62 +14,17 @@
 ##   limitations under the License.
 ##
 ---
-- name: set default grub flags values
-  set_fact:
-    sriov_flags: ""
-
-- name: set kernel flags required for SR-IOV
-  set_fact:
-    sriov_flags: "intel_iommu=on iommu=pt pci=realloc pci=assign-busses"
-  when:
-    - iommu_enabled | default(false)
-
-- name: set sriov kernel boot flags in /etc/default/grub
+- name: ensure that sriov settings are disabled when iommu_enabled is false
   lineinfile:
     dest: /etc/default/grub
-    regexp: '^GRUB_CMDLINE_LINUX="(?!.* intel_iommu=)(.*)"'
-    line: 'GRUB_CMDLINE_LINUX="\1 {{ sriov_flags }}"'
-    state: present
-    backrefs: yes
-    mode: 0600
-  register: kernel_parameters
+    regexp: '^GRUB_CMDLINE_LINUX=(.*?){{ sriov_marker }}$'
+    state: absent
+  register: grub
   notify:
-   - reboot server
-  when:
-    - sriov_flags | length > 0
+    - reboot server
+  when: not (iommu_enabled | default(false) | bool)
 
-- name: update grub.cfg
-  command: update-grub
+- name: setup sriov grub commandline parameters
+  include_tasks: setup_sriov_kernel_flags.yml
   when:
-    - ansible_os_family == "Debian"
-    - kernel_parameters.changed
-
-- name: check if grub2.cfg config file exists (MBR variant)
-  stat:
-    path: /etc/grub2.cfg
-  register: grub_mbr_cfg
-  when:
-    - ansible_os_family == "RedHat"
-    - kernel_parameters.changed
-
-- name: update MBR grub2.cfg
-  command: grub2-mkconfig -o /etc/grub2.cfg
-  when:
-  - ansible_os_family == "RedHat"
-  - kernel_parameters.changed
-  - grub_mbr_cfg.stat.exists
-
-- name: check if grub2-efi.cfg config file exists (EFI variant)
-  stat:
-    path: /etc/grub2-efi.cfg
-  register: grub_efi_cfg
-  when:
-    - ansible_os_family == "RedHat"
-    - kernel_parameters.changed
-
-- name: update MBR grub2-efi.cfg
-  command: grub2-mkconfig -o /etc/grub2-efi.cfg
-  when:
-  - ansible_os_family == "RedHat"
-  - kernel_parameters.changed
-  - grub_efi_cfg.stat.exists
+    - iommu_enabled | default(false)

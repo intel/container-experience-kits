@@ -182,6 +182,36 @@ spec:
       - mountPath: /grafana-dashboard-definitions/0/workload-total
         name: grafana-dashboard-workload-total
         readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-cpu
+        name: grafana-dashboard-collectd-cpu
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-disk
+        name: grafana-dashboard-collectd-disk
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-intel
+        name: grafana-dashboard-collectd-intel
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-ipmi
+        name: grafana-dashboard-collectd-ipmi
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-netlink
+        name: grafana-dashboard-collectd-netlink
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-ovs
+        name: grafana-dashboard-collectd-ovs
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-power
+        name: grafana-dashboard-collectd-power
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-numa
+        name: grafana-dashboard-collectd-numa
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-hugepages
+        name: grafana-dashboard-collectd-hugepages
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-ethstats
+        name: grafana-dashboard-collectd-ethstats
+        readOnly: false
   alerting:
     alertmanagers: []
   image: quay.io/prometheus/prometheus:v2.20.0
@@ -290,6 +320,36 @@ spec:
     - configMap:
         name: grafana-dashboard-workload-total
       name: grafana-dashboard-workload-total
+    - configMap:
+        name: grafana-dashboard-collectd-cpu
+      name: grafana-dashboard-collectd-cpu
+    - configMap:
+        name: grafana-dashboard-collectd-disk
+      name: grafana-dashboard-collectd-disk
+    - configMap:
+        name: grafana-dashboard-collectd-intel
+      name: grafana-dashboard-collectd-intel
+    - configMap:
+        name: grafana-dashboard-collectd-ipmi
+      name: grafana-dashboard-collectd-ipmi
+    - configMap:
+        name: grafana-dashboard-collectd-netlink
+      name: grafana-dashboard-collectd-netlink
+    - configMap:
+        name: grafana-dashboard-collectd-ovs
+      name: grafana-dashboard-collectd-ovs
+    - configMap:
+        name: grafana-dashboard-collectd-power
+      name: grafana-dashboard-collectd-power
+    - configMap:
+        name: grafana-dashboard-collectd-numa
+      name: grafana-dashboard-collectd-numa
+    - configMap:
+        name: grafana-dashboard-collectd-hugepages
+      name: grafana-dashboard-collectd-hugepages
+    - configMap:
+        name: grafana-dashboard-collectd-ethstats
+      name: grafana-dashboard-collectd-ethstats
     - name: adapter-config
       configMap:
         name: adapter-config

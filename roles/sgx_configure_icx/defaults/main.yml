@@ -1,0 +1,77 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Intel SGX-DCAP drivers module for Ubuntu <= 18.04.4
+dcap_driver_series_ubuntu_18: "1.41"
+dcap_driver_version_ubuntu_18: "sgx_linux_x64_driver_{{ dcap_driver_series_ubuntu_18 }}.bin"
+dcap_driver_url_ubuntu_18: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/ubuntu18.04-server/{{ dcap_driver_version_ubuntu_18 }}"
+dcap_driver_checksum_ubuntu_18: "sha256:c0318e91f6b7da37d9979063c2fe7bab47bdc1c49076d198cb13846b21917f4b"
+sgx_folder_check_ubuntu_18: "/usr/src/sgx-{{ dcap_driver_series_ubuntu_18 }}"
+
+sgx_sdk_version_ubuntu_18: "sgx_linux_x64_sdk_2.13.100.4.bin"
+sgx_sdk_url_ubuntu_18: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/ubuntu18.04-server/{{ sgx_sdk_version_ubuntu_18 }}"
+sgx_sdk_checksum_ubuntu_18: "sha256:7457b50b7a1e6eea150819b956b0a5f6c308e69c1e7118228ee7798e637a5440"
+
+# Intel SGX-DCAP drivers module for Ubuntu >= 20.04
+dcap_driver_series_ubuntu_20: "1.41"
+dcap_driver_version_ubuntu_20: "sgx_linux_x64_driver_{{ dcap_driver_series_ubuntu_20 }}.bin"
+dcap_driver_url_ubuntu_20: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/ubuntu20.04-server/{{ dcap_driver_version_ubuntu_20 }}"
+dcap_driver_checksum_ubuntu_20: "sha256:0d6ce6ae16050893b9fcb8c6156bc5516f8edbc6076acf0963cc121c58c69dfc"
+sgx_folder_check_ubuntu_20: "/usr/src/sgx-{{ dcap_driver_series_ubuntu_20 }}"
+
+sgx_sdk_version_ubuntu_20: "sgx_linux_x64_sdk_2.13.100.4.bin"
+sgx_sdk_url_ubuntu_20: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/ubuntu20.04-server/{{ sgx_sdk_version_ubuntu_20 }}"
+sgx_sdk_checksum_ubuntu_20: "sha256:e00dd32f4d1f38892fde843a247471b759745f1815dfc57ba61db61f8c05be24"
+
+# Intel SGX-SGX Key configuration for Ubuntu >= 18.04.4
+sgx_apt_source_list: "intel-sgx"
+sgx_apt_repo_url: "https://download.01.org/intel-sgx/sgx_repo/ubuntu"
+sgx_apt_repo_key: "{{ sgx_apt_repo_url }}/intel-sgx-deb.key"
+
+# Intel SGX-DCAP drivers module for CentOS 8.2
+dcap_driver_series_centos: "1.41"
+dcap_driver_version_centos: "sgx_linux_x64_driver_{{ dcap_driver_series_centos }}.bin"
+dcap_driver_url_centos: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/centos8.2-server/{{ dcap_driver_version_centos }}"
+dcap_driver_checksum_centos: "sha256:57694ba3d56ffe307b70956aa223b690358575570801f91c237406aa6a7f9fdf"
+sgx_folder_check_centos: "/usr/src/sgx-{{ dcap_driver_series_centos }}"
+
+sgx_sdk_version_centos: "sgx_linux_x64_sdk_2.13.100.4.bin"
+sgx_sdk_url_centos: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/centos8.2-server/{{ sgx_sdk_version_centos }}"
+sgx_sdk_checksum_centos: "sha256:8b0545bb99c3af2630c527e48331e39020eb616c7f62ddf7367483407e7f800b"
+
+# Intel SGX-DCAP drivers module for RHEL 8.2
+dcap_driver_series_rhel: "1.41"
+dcap_driver_version_rhel: "sgx_linux_x64_driver_{{ dcap_driver_series_rhel }}.bin"
+dcap_driver_url_rhel: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/rhel8.2-server/{{ dcap_driver_version_rhel }}"
+dcap_driver_checksum_rhel: "sha256:11c55c2cd9eade2b6f20962b37cf0a2d07b5895f46f683cbc97a6db1c9d999f8"
+sgx_folder_check_rhel: "/usr/src/sgx-{{ dcap_driver_series_centos }}"
+
+sgx_sdk_version_rhel: "sgx_linux_x64_sdk_2.13.100.4.bin"
+sgx_sdk_url_rhel: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/rhel8.2-server/{{ sgx_sdk_version_rhel }}"
+sgx_sdk_checksum_rhel: "sha256:121ee97936ef95292ed877c89953561945a318711ac0aeea6dbedacf0ddfbaf2"
+
+# Intel SGX RPM local repository for CentOS 8.2
+sgx_rpm_local_repo_version_centos: "sgx_rpm_local_repo.tgz"
+sgx_rpm_local_repo_url_centos: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/centos8.2-server/{{ sgx_rpm_local_repo_version_centos }}"
+sgx_rpm_local_repo_checksum_centos: "sha256:e456d782d1d8439ddb9b08afd74ace27704205072856c3f5b26895310ca6eada"
+
+# Intel SGX RPM local repository for RHEL 8.2
+sgx_rpm_local_repo_version_rhel: "sgx_rpm_local_repo.tgz"
+sgx_rpm_local_repo_url_rhel: "https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/distro/rhel8.2-server/{{ sgx_rpm_local_repo_version_rhel }}"
+sgx_rpm_local_repo_checksum_rhel: "sha256:15c5d8a4aabae4121f63a566c3c2fb9614b0208390c5f89adbdd5fe939b9cf41"
+
+sgx_config_dir: "/usr/src"
+sgx_rpm_directory: "/usr/src/sgx_rpm_local_repo"

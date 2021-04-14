@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
     force: yes
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - qat_dp_build_image_locally
 
 - name: create Helm charts directory if needed
   file:
@@ -41,16 +42,19 @@
     chdir: "{{ intel_qat_dp_dir }}"
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - qat_dp_build_image_locally
 
 - name: tag Intel QAT Device Plugin image
   command: docker tag intel/intel-qat-plugin:{{ intel_qat_dp_version }} {{ registry_local_address }}/intel-qat-plugin:latest
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - qat_dp_build_image_locally
 
 - name: push Intel QAT Device Plugin image to local registry
   command: docker push {{ registry_local_address }}/intel-qat-plugin:latest
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - qat_dp_build_image_locally
 
 - name: copy Helm chart to the controller node
   copy:
@@ -64,8 +68,10 @@
   set_fact:
     qat_dp_image: "{{ registry_local_address }}/intel-qat-plugin"
     qat_dp_version: latest
+    qat_dp_kernel_drivers: "{{ hostvars[groups['kube-node'][0]].qat_devices[0].qat_pci_type | default('c6xx') }}vf"
   when:
     - inventory_hostname == groups['kube-master'][0]
+    - qat_dp_build_image_locally
 
 - name: populate Intel QAT Plugin Helm chart values template and push to controller node
   template:

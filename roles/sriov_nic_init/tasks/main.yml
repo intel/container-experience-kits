@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -72,10 +72,7 @@
 
 - name: set VFs driver
   include: bind_vf_driver.yml
-  vars:
-    pfname: "{{ item.name }}"
-    vf_driver: "{{ item.vf_driver }}"
-  when: item.vf_driver|default("")|length > 0
+  when: item.sriov_numvfs | default(0) > 0
   with_items: "{{ dataplane_interfaces }}"
 
 - name: copy NIC setup script to /usr/bin

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,6 +14,12 @@
 ##   limitations under the License.
 ##
 ---
+- name: Check if dpdk_version is defined
+  assert:
+    that:
+    - dpdk_version is defined
+    fail_msg: "Required variable 'dpdk_version' is not defined"
+
 - name: install dependencies
   include_role:
     name: install_dependencies
@@ -25,73 +31,46 @@
     remote_src: yes
     list_files: yes
     mode: 0755
+    extra_opts:
+      - "--transform"
+      - "s/^dpdk.*-{{ dpdk_version }}/dpdk-{{ dpdk_version }}/"
   register: dpdk_download
 
 - name: set local dpdk directory path
   set_fact:
     dpdk_dir: "{{ dpdk_download.dest  }}/{{ dpdk_download.files[0] }}"
+    dpdk_base_name: "{{ dpdk_download.files[0] | regex_replace('\\/$', '') }}"
 
-- name: run make config
-  make:
-    chdir: "{{ dpdk_dir }}"
-    target: config
-    params:
-      T: "{{ dpdk_target }}"
+- name: "Apply DPDK patches if provided"
+  block:
+    - name: check if local DPDK patches dir exists
+      stat:
+        path: "{{ dpdk_local_patches_dir }}"
+      delegate_to: "127.0.0.1"
+      register: dpdk_patches_dir_exists
 
-- name: enable virtio-user support
-  lineinfile:
-    path: "{{ dpdk_dir }}/build/.config"
-    regexp: '^CONFIG_RTE_VIRTIO_USER'
-    line: 'CONFIG_RTE_VIRTIO_USER=y'
-    mode: 0600
+    - name: find DPDK patches available
+      find:
+        paths: "{{ dpdk_local_patches_dir }}/{{ dpdk_base_name }}"
+        recurse: yes
+      when: dpdk_patches_dir_exists.stat.exists|bool and dpdk_patches_dir_exists.stat.isdir|bool
+      register: patches_found
 
-- name: enable PCAP PMD support
-  lineinfile:
-    path: "{{ dpdk_dir }}/build/.config"
-    regexp: '^CONFIG_RTE_LIBRTE_PMD_PCAP'
-    line: 'CONFIG_RTE_LIBRTE_PMD_PCAP=y'
-    mode: 0600
+    - name: apply DPDK patches
+      patch:
+        remote_src: no
+        src: "{{ item.path }}"
+        basedir: "{{ dpdk_dir }}"
+        strip: 2
+        state: present
+      with_items: "{{ patches_found.files }}"
+      when: patches_found.matched > 0
+  when: dpdk_local_patches_dir is defined
 
-- name: build DPDK
-  make:
-    target: install
-    chdir: "{{ dpdk_dir }}"
-    params:
-      T: "{{ dpdk_target }}"
-      DESTDIR: install
-      prefix: "/usr"
+- name: include install_dpdk task for DPDK <= 20.08 versions
+  include: "install_dpdk_make.yml"
+  when: dpdk_version is version("19.11", ">=") and dpdk_version is version("20.08", "<")
 
-- name: find dpdk tools
-  find:
-    path: "{{ dpdk_dir }}"
-    patterns: "dpdk-devbind.py"
-    recurse: yes
-  register: dpdk_tools_dir
-
-- name: set path to dpdk usertools directory
-  set_fact:
-    dpdk_tools: "{{ dpdk_tools_dir.files[0].path }}"
-
-- name: load userspace modules
-  modprobe:
-    name: "{{ item }}"
-    state: present
-  with_items:
-    - vfio-pci
-    - uio
-
-- name: install dpdk-devbind.py in /usr/local/bin
-  copy:
-    remote_src: yes
-    src: "{{ dpdk_tools }}"
-    dest: "/usr/local/bin/dpdk-devbind.py"
-    mode: 0700
-    owner: root
-    group: root
-  become: yes
-
-- name: load intel module
-  command: "insmod {{ dpdk_dir }}/{{ dpdk_target }}/kmod/igb_uio.ko"
-  register: result
-  failed_when: "'No such file or directory' in result.stderr"
-  changed_when: "'already bound' not in result.stderr"
+- name: include install_dpdk task for DPDK >= 20.08 versions
+  include: "install_dpdk_meson.yml"
+  when: dpdk_version is version("20.08", ">=")

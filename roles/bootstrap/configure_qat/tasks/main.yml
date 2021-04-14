@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,21 +18,63 @@
   include_role:
     name: install_dependencies
 
-- name: discover QAT Physical Functions
-  shell: "set -o pipefail && for i in {{ qat_dev_ids|join(' ') }}; do lspci -d 8086:$i -D | awk '{ print $1 }'; done"
-  register: qat_pf
-  args:
-    executable: /bin/bash
-  changed_when: false
+- name: configure Asymmetric Crypto service on QAT devices
+  include_tasks: asymmetric_crypto_service_on_qat_confg.yml
 
-- name: reset SR-IOV Virtual Functions for QAT devices
-  shell: echo 0 > /sys/bus/pci/devices/{{ item }}/sriov_numvfs
-  with_items: "{{ qat_pf | json_query('stdout_lines[]') }}"
-  failed_when: false
-  changed_when: true
+- name: create configuration directory if it does not exist
+  file:
+    path: "{{ sriov_config_path }}"
+    state: directory
+    mode: '0700'
+  become: yes
 
-- name: enable SR-IOV Virtual Functions for QAT devices
-  shell: echo {{ qat_sriov_numvfs }} > "/sys/bus/pci/devices/{{ item }}/sriov_numvfs"
-  with_items: "{{ qat_pf | json_query('stdout_lines[]') }}"
-  failed_when: false
-  changed_when: true
+- name: remove existing configuration file if it exists
+  file:
+    path: "{{ sriov_config_path }}/bmra_sriov_qat_numvfs"
+    state: absent
+  become: yes
+
+- name: create file for QAT ids to create defined VFs
+  file:
+    path: "{{ sriov_config_path }}/bmra_sriov_qat_numvfs"
+    state: touch
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: populate QAT vf template with vfs per bus location
+  lineinfile:
+    path: "{{ sriov_config_path }}/bmra_sriov_qat_numvfs"
+    line: "{{ item.qat_id }} {{ item.qat_sriov_numvfs | default(0) }}"
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+  with_items: "{{ qat_devices }}"
+
+- name: copy QAT SRIOV setup script to /usr/local/bin
+  copy:
+    src: "{{ role_path }}/files/bmra_sriov_qat_init"
+    dest: /usr/local/bin/bmra_sriov_qat_init
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: create systemd unit file
+  template:
+    src: bmra_sriov_qat_init.service.j2
+    dest: /lib/systemd/system/bmra_sriov_qat_init.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+
+- name: ensure that systemd service is enabled on startup and restarted to apply the configuration
+  systemd:
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+    name: bmra_sriov_qat_init
+  become: yes

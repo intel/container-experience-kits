@@ -1,0 +1,106 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: clone gpu kernel repository
+  git:
+    repo: "{{ gpu_kernel_git_url }}"
+    dest: "{{ gpu_kernel_src_dst }}"
+    version: 'main'
+    force: yes
+
+- name: update kernel config file
+  copy:
+    src: "/boot/config-{{ ansible_kernel }}"
+    dest: "{{ gpu_kernel_src_dst }}/.config"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: 0755
+
+- name: make olddefconfig
+  make:
+    chdir: "{{ gpu_kernel_src_dst }}"
+    target: olddefconfig
+
+- name: detect number of cores on system
+  command: nproc
+  register: nproc_out
+  changed_when: false
+
+- name: make all
+  make:
+    chdir: "{{ gpu_kernel_src_dst }}"
+    target: all
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout|int + 1 }}"
+  become: yes
+
+- name: make modules_install
+  make:
+    chdir: "{{ gpu_kernel_src_dst }}"
+    target: modules_install
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout|int + 1 }}"
+  become: yes
+
+- name: make install
+  make:
+    chdir: "{{ gpu_kernel_src_dst }}"
+    target: install
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout|int + 1 }}"
+  become: yes
+
+- name: prepare gpu grub commandline string
+  set_fact:
+    gpu_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} {{ gpu_kernel_flags }}"'
+
+- name: set gpu kernel flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)"$'
+    line: '{{ gpu_cmdline }}'
+    state: present
+    mode: 0664
+  register: grub
+  notify:
+    - reboot server
+
+- name: get gpu kernel version
+  command: cat include/config/kernel.release
+  args:
+    chdir: "{{ gpu_kernel_src_dst }}"
+  register: kernel_version
+  changed_when: false
+
+- name: set gpu kernel as default on CentOS
+  command: grubby --set-default /boot/vmlinuz-{{ kernel_version.stdout }}
+  changed_when: true
+  become: yes
+  when: ansible_distribution == "CentOS"
+
+- name: set gpu kernel as default on Ubuntu
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_DEFAULT='
+    line: 'GRUB_DEFAULT=/boot/vmlinuz-{{ kernel_version.stdout }}'
+    state: present
+    mode: 0644
+  when: ansible_distribution == "Ubuntu"

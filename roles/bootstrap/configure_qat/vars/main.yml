@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,17 +14,10 @@
 ##   limitations under the License.
 ##
 ---
-qat_sriov_numvfs: 16
-
-qat_dev_ids:
-  - "0435"
-  - "37c8"
-  - "19e2"
-  - "6f54"
-  - "18a0"
-
 install_dependencies:
   Debian:
     - pciutils
   RedHat:
     - pciutils
+
+sriov_config_path: /etc/bmra

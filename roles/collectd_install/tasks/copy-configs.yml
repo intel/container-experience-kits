@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-
 - name: Disable intel_pmu plugin
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'intel_pmu' ] }}"
@@ -24,6 +23,19 @@
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'rdt' ] }}"
   when: not enable_intel_rdt_plugin
+
+- name: Read CPU Type
+  shell:
+    cmd: lscpu | grep "Model name:"
+  register: cpu_model
+  changed_when: false
+
+- name: Disable pkgppower plugin
+  set_fact:
+    exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'pkgpower' ] }}"
+    enable_pkgpower_plugin: false
+  when: item in cpu_model.stdout
+  loop: '{{ unsupported_power_skus }}'
 
 - name: Prepare list of plugins to be deployed
   set_fact:
@@ -63,8 +75,8 @@
   retries: 5
 
 # NOTE(skonefal): noqa due to ansible-lint linting bash oneliners.
-- name: get netowork interfaces for ethstat plugin
-  shell: set -o pipefail && lshw -c network -businfo | grep "pci@" |  awk -F '  ' '{if ($2!="") print $2}' # noqa 602
+- name: get network interfaces for ethstat plugin
+  shell: set -o pipefail && hwinfo --short --netcard |  awk -F '  ' '{if ($2!="") print $2}' # noqa 602
   args:
      executable: /bin/bash
   register: ethstat_interfaces

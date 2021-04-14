@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@
 
 - name: clone sriov-cni repository
   git:
-    repo: https://github.com/intel/sriov-cni.git
-    dest: /usr/src/sriov-cni
+    repo: "{{ sriov_cni_url }}"
+    dest: "{{ sriov_cni_dir }}"
     version: "{{ sriov_cni_version }}"
     force: yes
 

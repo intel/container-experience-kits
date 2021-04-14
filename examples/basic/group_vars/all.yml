@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@
 
 # Kubernetes version
 kubernetes: true
-kube_version: v1.18.8
-#kube_version: v1.17.11
-#kube_version: v1.16.14
+#kube_version: v1.20.4
+kube_version: v1.19.8
+#kube_version: v1.18.16
 
 # Run system-wide package update (apt dist-upgrade, yum update, ...)
 # Note: enabling this may lead to unexpected results
 # Tip: you can set this per host using host_vars
 update_all_packages: false
+update_kernel: false
 
 # Node Feature Discovery
 nfd_enabled: true
@@ -81,7 +82,7 @@ example_net_attach_defs:
 ## Proxy configuration ##
 #http_proxy: "http://proxy.example.com:1080"
 #https_proxy: "http://proxy.example.com:1080"
-#additional_no_proxy: ".example.com"
+#additional_no_proxy: ".example.com,mirror_ip"
 
 # (Ubuntu only) disables DNS stub listener which may cause issues on Ubuntu
 dns_disable_stub_listener: true
@@ -99,8 +100,15 @@ kube_pods_subnet: 10.244.0.0/16
 kube_service_addresses: 10.233.0.0/22
 kube_proxy_mode: iptables
 
+# comment this line out if you want to expose k8s services of type nodePort externally.
+kube_proxy_nodeport_addresses_cidr: 127.0.0.0/8
+
 # please leave it set to "true", otherwise Intel BMRA features deployed as Helm charts won't be installed
 helm_enabled: true
+
+# local Docker Hub mirror, if it exists
+#docker_registry_mirrors:
+#  - http://mirror_ip:mirror_port
 
 # Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
 registry_local_address: "localhost:30500"

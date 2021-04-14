@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020 Intel Corporation.
+##   Copyright (c) 2020-2021 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
     force: yes
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - gpu_dp_build_image_locally
 
 - name: create Helm charts directory if needed
   file:
@@ -41,16 +42,19 @@
     chdir: "{{ intel_gpu_dp_dir }}"
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - gpu_dp_build_image_locally
 
 - name: tag Intel GPU Device Plugin image
   command: docker tag intel/intel-gpu-plugin:{{ intel_gpu_dp_version }} {{ registry_local_address }}/intel-gpu-plugin:latest
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - gpu_dp_build_image_locally
 
 - name: push Intel GPU Device Plugin image to local registry
   command: docker push {{ registry_local_address }}/intel-gpu-plugin:latest
   when:
     - inventory_hostname == groups['kube-node'][0]
+    - gpu_dp_build_image_locally
 
 - name: copy Helm chart to the controller node
   copy:
@@ -66,6 +70,7 @@
     gpu_dp_version: latest
   when:
     - inventory_hostname == groups['kube-master'][0]
+    - gpu_dp_build_image_locally
 
 - name: populate Intel GPU Plugin Helm chart values template and push to controller node
   template:
