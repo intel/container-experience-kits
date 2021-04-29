@@ -30,12 +30,13 @@
       - setuptools<=44
     extra_args: --upgrade
 
-#docker registry reqs
+#pinned python package versions
 - name: install Python packages
   pip:
     name:
       - jmespath==0.9.5
       - ruamel.yaml==0.16.13
+      - cachetools==4.2.1
       - openshift==0.11.2
     state: present
   register: pip_result
