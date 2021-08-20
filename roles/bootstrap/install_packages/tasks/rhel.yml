@@ -21,7 +21,7 @@
     - ansible_distribution == "CentOS"
     - ansible_distribution_version >= '8' and ansible_distribution_version < '8.3'
 
-- name: enable PowerTools repository on CentOS >= 8.3
+- name: enable powertools repository on CentOS >= 8.3
 # noqa 303 - yum is called intenionallly here
   command: yum config-manager --set-enabled powertools
   when:
@@ -99,7 +99,10 @@
   package:
     name: "{{ item }}"
     state: present
+  retries: 5
+  delay: 10
   register: source_status
+  until: source_status is not failed
   with_items:
     - "https://vault.centos.org/8.2.2004/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-193.el8.x86_64.rpm"
     - "https://vault.centos.org/8.2.2004/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-193.el8.x86_64.rpm"
@@ -114,13 +117,26 @@
     state: present
   register: source_status
   with_items:
-    - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-240.el8.x86_64.rpm"
-    - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-240.el8.x86_64.rpm"
-#    - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-240.el8.x86_64.rpm"
-#    - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-240.el8.x86_64.rpm"
+    - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-240.el8.x86_64.rpm"
+    - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-240.el8.x86_64.rpm"
   when:
     - ansible_distribution == "CentOS"
     - ansible_distribution_version == '8.3'
+    - not update_kernel
+
+- name: pull matching kernel headers on CentOS 8.4
+  package:
+    name: "{{ item }}"
+    state: present
+  register: source_status
+  with_items:
+    - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-305.3.1.el8.x86_64.rpm"
+    - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-305.3.1.el8.x86_64.rpm"
+#    - "https://vault.centos.org/8.4.2105/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-305.el8.x86_64.rpm"
+#    - "https://vault.centos.org/8.4.2105/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-305.el8.x86_64.rpm"
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version == '8.4'
     - not update_kernel
 
 # pull the matching kernel headers if kernel is not updated
@@ -128,8 +144,8 @@
 # noqa 503 - more than one condition, can't be a handler
   package:
     name:
-    - kernel-headers-{{ ansible_kernel }}
-    - kernel-devel-{{ ansible_kernel }}
+      - kernel-headers-{{ ansible_kernel }}
+      - kernel-devel-{{ ansible_kernel }}
   register: kernel_source
   retries: 3
   until: kernel_source is success
@@ -197,7 +213,7 @@
     - ansible_distribution in ["RedHat", "CentOS"]
     - ansible_distribution_version < '8'
 
-- name: Set python is python3
+- name: set python is python3
   alternatives:
     name: python
     path: /usr/bin/python3
@@ -214,3 +230,47 @@
      - jq
     state: present
   when: ansible_distribution in ["RedHat", "CentOS"]
+
+- name: Add kubic yum repo and install updated version of podman
+  block:
+  - name: disable container-tools module
+    # noqa 305 - shell is used intentionally here
+    shell: dnf -y module disable container-tools
+  - name: enable rhcontainerbot/container-selinux repository
+    # noqa 305 - shell is used intentionally here
+    shell: dnf -y copr enable rhcontainerbot/container-selinux
+  - name: Add kubic yum repo
+    yum_repository:
+      name: devel_kubic_libcontainers_stable
+      description: Stable Releases of Upstream github.com/containers packages (CentOS_$releasever)
+      baseurl: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_$releasever/
+      gpgcheck: yes
+      gpgkey: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_$releasever/repodata/repomd.xml.key
+      keepcache: '0'
+  - name: install runc
+    dnf:
+      name: runc
+      state: present
+  - name: install podman package
+    package:
+      name: podman
+      state: present
+  when:
+    - ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
+    - '"docker" not in container_runtime'
+
+# SELINUX will be disabled later stage so, these packages are required when container_runtime is docker
+- name: install packages in RHEL >= 8.4 when container_runtime is docker
+  dnf:
+    name:
+      - bridge-utils
+      - lsof
+      - lvm2
+      - tcpdump
+      - iproute-tc
+      - openssh-server
+      - chrony
+      - iputils
+  when:
+    - ansible_distribution == "RedHat" and ansible_distribution_version >= '8.4'
+    - container_runtime == "docker"

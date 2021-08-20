@@ -18,7 +18,7 @@ spec:
       serviceAccountName: collectd
       containers:
         - name: collectd
-          image: "{{ registry_local_address }}/{{ image_collectd.name }}:{{ image_collectd.tag }}"
+          image: "{{ image_collectd.repository }}@{{ image_collectd.digest }}"
           imagePullPolicy: "{{ image_collectd.pullPolicy }}"
           command: ["/bin/bash", "-c"]
           args:

@@ -43,7 +43,6 @@
 #       pkgurls:
 #         - "https://downloadmirror.intel.com/29889/eng/ice_comms-1.3.24.0.zip"
 
-
 - name: create temporary directory for DDP profiles
   tempfile:
     state: directory

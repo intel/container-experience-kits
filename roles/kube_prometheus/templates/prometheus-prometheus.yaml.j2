@@ -1,0 +1,393 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright(c) Copyright 2018 CoreOS, Inc
+#
+# Modifications copyright (C) 2020 Intel Corporation
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  labels:
+    prometheus: k8s
+  name: k8s
+  namespace: monitoring
+spec:
+  tolerations:
+  - key: cmk
+    operator: Equal
+    effect: NoSchedule
+    value: "true"
+  containers:
+  - name: custom-metrics-apiserver
+    image: directxman12/k8s-prometheus-adapter:v0.8.2
+    args:
+      - --secure-port=6443
+      - --tls-cert-file=/etc/prometheus-adapter/ssl/prometheus-adapter-ssl.cert
+      - --tls-private-key-file=/etc/prometheus-adapter/ssl/prometheus-adapter-ssl.key
+      - --logtostderr=true
+      - --prometheus-url=http://127.0.0.1:9090/
+      - --metrics-relist-interval=1m
+      - --config=/etc/adapter/config.yaml
+    ports:
+      - containerPort: 6443
+    volumeMounts:
+      - mountPath: /etc/prometheus-adapter/ssl/
+        name: prometheus-adapter-ssl
+        readOnly: true
+      - mountPath: /etc/adapter/
+        name: adapter-config
+        readOnly: true
+      - mountPath: /tmp
+        name: adapter-tmp-vol
+  - name: prometheus
+    args:
+    - --web.console.templates=/etc/prometheus/consoles
+    - --web.console.libraries=/etc/prometheus/console_libraries
+    - --config.file=/etc/prometheus/config_out/prometheus.env.yaml
+    - --storage.tsdb.path=/persistent-volume
+    - --storage.tsdb.retention.time=24h
+    - --web.enable-lifecycle
+    - --storage.tsdb.no-lockfile
+    - --web.route-prefix=/
+    - --web.listen-address=127.0.0.1:9090
+    volumeMounts:
+      - name: persistent-volume-prometheus
+        readOnly: false
+        mountPath: /persistent-volume
+    livenessProbe:
+      failureThreshold: 6
+      initialDelaySeconds: 2
+      periodSeconds: 5
+      successThreshold: 1
+      httpGet:
+        path: /api/health
+        port: 3000
+        scheme: HTTPS
+      timeoutSeconds: 3
+    readinessProbe:
+      failureThreshold: 6
+      initialDelaySeconds: 2
+      periodSeconds: 5
+      successThreshold: 1
+      httpGet:
+        path: /api/health
+        port: 3000
+        scheme: HTTPS
+      timeoutSeconds: 3
+  - name: grafana
+    image: grafana/grafana:7.5.4
+    env:
+    - name: GF_SERVER_PROTOCOL
+      value: https
+    - name: GF_SERVER_CERT_FILE
+      value: /etc/grafana/ssl/grafana-ssl.cert
+    - name: GF_SERVER_CERT_KEY
+      value: /etc/grafana/ssl/grafana-ssl.key
+    - name: GF_SECURITY_STRICT_TRANSPORT_SECURITY
+      value: "true"
+    securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+    ports:
+      - containerPort: 3000
+        name: grafana-https
+    readinessProbe:
+      httpGet:
+        path: /api/health
+        port: grafana-https
+        scheme: HTTPS
+    resources:
+      limits:
+        cpu: 200m
+        memory: 200Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    volumeMounts:
+      - mountPath: /var/lib/grafana
+        name: persistent-volume-grafana
+        readOnly: false
+      - mountPath: /etc/grafana/ssl/
+        name: grafana-ssl
+        readOnly: true
+      - mountPath: /etc/grafana/provisioning/datasources
+        name: grafana-datasources
+        readOnly: false
+      - mountPath: /etc/grafana/provisioning/dashboards
+        name: grafana-dashboards
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/apiserver
+        name: grafana-dashboard-apiserver
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/cluster-total
+        name: grafana-dashboard-cluster-total
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/controller-manager
+        name: grafana-dashboard-controller-manager
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/k8s-resources-cluster
+        name: grafana-dashboard-k8s-resources-cluster
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/k8s-resources-namespace
+        name: grafana-dashboard-k8s-resources-namespace
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/k8s-resources-node
+        name: grafana-dashboard-k8s-resources-node
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/k8s-resources-pod
+        name: grafana-dashboard-k8s-resources-pod
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/k8s-resources-workload
+        name: grafana-dashboard-k8s-resources-workload
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/k8s-resources-workloads-namespace
+        name: grafana-dashboard-k8s-resources-workloads-namespace
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/kubelet
+        name: grafana-dashboard-kubelet
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/namespace-by-pod
+        name: grafana-dashboard-namespace-by-pod
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/namespace-by-workload
+        name: grafana-dashboard-namespace-by-workload
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/node-cluster-rsrc-use
+        name: grafana-dashboard-node-cluster-rsrc-use
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/node-rsrc-use
+        name: grafana-dashboard-node-rsrc-use
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/nodes
+        name: grafana-dashboard-nodes
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/persistentvolumesusage
+        name: grafana-dashboard-persistentvolumesusage
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/pod-total
+        name: grafana-dashboard-pod-total
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/prometheus-remote-write
+        name: grafana-dashboard-prometheus-remote-write
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/prometheus
+        name: grafana-dashboard-prometheus
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/proxy
+        name: grafana-dashboard-proxy
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/scheduler
+        name: grafana-dashboard-scheduler
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/statefulset
+        name: grafana-dashboard-statefulset
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/workload-total
+        name: grafana-dashboard-workload-total
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-cpu
+        name: grafana-dashboard-collectd-cpu
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-disk
+        name: grafana-dashboard-collectd-disk
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-intel
+        name: grafana-dashboard-collectd-intel
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-ipmi
+        name: grafana-dashboard-collectd-ipmi
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-netlink
+        name: grafana-dashboard-collectd-netlink
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-ovs
+        name: grafana-dashboard-collectd-ovs
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-power
+        name: grafana-dashboard-collectd-power
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-numa
+        name: grafana-dashboard-collectd-numa
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-hugepages
+        name: grafana-dashboard-collectd-hugepages
+        readOnly: false
+      - mountPath: /grafana-dashboard-definitions/0/collectd-ethstats
+        name: grafana-dashboard-collectd-ethstats
+        readOnly: false
+{% if prometheus_srv_expose | default(false) %}
+  - name: nginx
+    image: "{{ prometheus_srv_nginx_image }}"
+    ports:
+      - containerPort: {{ prometheus_srv_proxy_port }}
+        name: nginx-https
+    volumeMounts:
+      - name: tls
+        mountPath: "/etc/nginx/conf.d/"
+      - name: nginx-conf
+        mountPath: /etc/nginx
+      - name: htpasswd
+        mountPath: "/etc/nginx/conf.d/auth"
+      - name: prometheus-srv-tmp-vol
+        mountPath: "/tmp"
+{% endif %}
+  alerting:
+    alertmanagers: []
+  image: quay.io/prometheus/prometheus:v2.22.1
+  nodeSelector:
+    kubernetes.io/os: linux
+  podMonitorNamespaceSelector: {}
+  podMonitorSelector: {}
+  replicas: 1
+  resources:
+    requests:
+      memory: 800Mi
+  ruleSelector:
+    matchLabels:
+      prometheus: k8s
+      role: alert-rules
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: prometheus-k8s
+  serviceMonitorNamespaceSelector: {}
+  serviceMonitorSelector: {}
+  version: v2.22.1
+  volumes:
+    - name: persistent-volume-grafana
+      persistentVolumeClaim:
+        claimName: kube-prometheus-grafana
+    - name: persistent-volume-prometheus
+      persistentVolumeClaim:
+        claimName: kube-prometheus-prometheus
+    - name: grafana-datasources
+      secret:
+        secretName: grafana-datasources
+    - name: grafana-ssl
+      secret:
+        secretName: grafana-ssl
+    - configMap:
+        name: grafana-dashboards
+      name: grafana-dashboards
+    - configMap:
+        name: grafana-dashboard-apiserver
+      name: grafana-dashboard-apiserver
+    - configMap:
+        name: grafana-dashboard-cluster-total
+      name: grafana-dashboard-cluster-total
+    - configMap:
+        name: grafana-dashboard-controller-manager
+      name: grafana-dashboard-controller-manager
+    - configMap:
+        name: grafana-dashboard-k8s-resources-cluster
+      name: grafana-dashboard-k8s-resources-cluster
+    - configMap:
+        name: grafana-dashboard-k8s-resources-namespace
+      name: grafana-dashboard-k8s-resources-namespace
+    - configMap:
+        name: grafana-dashboard-k8s-resources-node
+      name: grafana-dashboard-k8s-resources-node
+    - configMap:
+        name: grafana-dashboard-k8s-resources-pod
+      name: grafana-dashboard-k8s-resources-pod
+    - configMap:
+        name: grafana-dashboard-k8s-resources-workload
+      name: grafana-dashboard-k8s-resources-workload
+    - configMap:
+        name: grafana-dashboard-k8s-resources-workloads-namespace
+      name: grafana-dashboard-k8s-resources-workloads-namespace
+    - configMap:
+        name: grafana-dashboard-kubelet
+      name: grafana-dashboard-kubelet
+    - configMap:
+        name: grafana-dashboard-namespace-by-pod
+      name: grafana-dashboard-namespace-by-pod
+    - configMap:
+        name: grafana-dashboard-namespace-by-workload
+      name: grafana-dashboard-namespace-by-workload
+    - configMap:
+        name: grafana-dashboard-node-cluster-rsrc-use
+      name: grafana-dashboard-node-cluster-rsrc-use
+    - configMap:
+        name: grafana-dashboard-node-rsrc-use
+      name: grafana-dashboard-node-rsrc-use
+    - configMap:
+        name: grafana-dashboard-nodes
+      name: grafana-dashboard-nodes
+    - configMap:
+        name: grafana-dashboard-persistentvolumesusage
+      name: grafana-dashboard-persistentvolumesusage
+    - configMap:
+        name: grafana-dashboard-pod-total
+      name: grafana-dashboard-pod-total
+    - configMap:
+        name: grafana-dashboard-prometheus-remote-write
+      name: grafana-dashboard-prometheus-remote-write
+    - configMap:
+        name: grafana-dashboard-prometheus
+      name: grafana-dashboard-prometheus
+    - configMap:
+        name: grafana-dashboard-proxy
+      name: grafana-dashboard-proxy
+    - configMap:
+        name: grafana-dashboard-scheduler
+      name: grafana-dashboard-scheduler
+    - configMap:
+        name: grafana-dashboard-statefulset
+      name: grafana-dashboard-statefulset
+    - configMap:
+        name: grafana-dashboard-workload-total
+      name: grafana-dashboard-workload-total
+    - configMap:
+        name: grafana-dashboard-collectd-cpu
+      name: grafana-dashboard-collectd-cpu
+    - configMap:
+        name: grafana-dashboard-collectd-disk
+      name: grafana-dashboard-collectd-disk
+    - configMap:
+        name: grafana-dashboard-collectd-intel
+      name: grafana-dashboard-collectd-intel
+    - configMap:
+        name: grafana-dashboard-collectd-ipmi
+      name: grafana-dashboard-collectd-ipmi
+    - configMap:
+        name: grafana-dashboard-collectd-netlink
+      name: grafana-dashboard-collectd-netlink
+    - configMap:
+        name: grafana-dashboard-collectd-ovs
+      name: grafana-dashboard-collectd-ovs
+    - configMap:
+        name: grafana-dashboard-collectd-power
+      name: grafana-dashboard-collectd-power
+    - configMap:
+        name: grafana-dashboard-collectd-numa
+      name: grafana-dashboard-collectd-numa
+    - configMap:
+        name: grafana-dashboard-collectd-hugepages
+      name: grafana-dashboard-collectd-hugepages
+    - configMap:
+        name: grafana-dashboard-collectd-ethstats
+      name: grafana-dashboard-collectd-ethstats
+    - name: adapter-config
+      configMap:
+        name: adapter-config
+    - name: adapter-tmp-vol
+      emptyDir: {}
+    - name: prometheus-adapter-ssl
+      secret:
+        secretName: prometheus-adapter-ssl
+{% if prometheus_srv_expose | default(false) %}
+    - name: prometheus-srv-tmp-vol
+      emptyDir: {}
+    - name: htpasswd
+      secret:
+        secretName: prometheus-srv-basic-auth-secret
+    - name: tls
+      secret:
+        secretName: prometheus-srv-ssl
+    - name: nginx-conf
+      configMap:
+        name: prometheus-srv-nginx-conf
+        items:
+          - key: nginx.conf
+            path: nginx.conf
+{% endif %}

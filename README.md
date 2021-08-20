@@ -59,7 +59,7 @@ The software provided here is for reference only and not intended for production
 
     Note: Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
 
-1. OPTIONAL: Patch Kubespray for python3 support (Required for CentOS/RHEL 8+ installations).
+1. RECOMMENDED: Apply bug fix patch for Kubespray submodule (Required for RHEL 8+).
     ```
     ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
     ```
@@ -75,11 +75,16 @@ Refer to the documentation linked below to see configuration details for selecte
 
 - [SRIOV Network Device Plugin and SRIOV CNI plugin](docs/sriov.md)
 
-## Requirements
+## Prerequisites and Requirements
 * Python present on the target servers depending on the target distribution. Python 3 is highly recommended, but Python 2 is still supported for CentOS 7.
-* Ansible 2.9.17 installed on the Ansible host machine (the one you run these playbooks from).
+* Ansible 2.9.20 installed on the Ansible host machine (the one you run these playbooks from).
 * python-pip3 installed on the Ansible machine.
 * python-netaddr installed on the Ansible machine.
 * SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).
 * Internet access on all target servers is mandatory. Proxy is supported.
 * At least 8GB of RAM on the target servers/VMs for minimal number of functions (some Docker image builds are memory-hungry and may cause OOM kills of Docker registry - observed with 4GB of RAM), more if you plan to run heavy workloads such as NFV applications.
+* For the `RHEL`-like OSes `SELinux` must be configured prior to the BMRA deployment and required `SELinux`-related packages should be installed.
+  `BMRA` itself is keeping initial `SELinux` state but `SELinux`-related packages might be installed during `k8s` cluster deployment as a dependency, for `Docker` engine e.g.,
+  causing OS boot failure or other inconsistencies if `SELinux` is not configured properly.
+  Preferable `SELinux` state is `permissive`.
+  For more details, please, refer to the respective OS documentation.

@@ -18,9 +18,12 @@
 
 # Kubernetes version
 kubernetes: true
-#kube_version: v1.20.4
-kube_version: v1.19.8
-#kube_version: v1.18.16
+kube_version: v1.21.1
+#kube_version: v1.20.6
+#kube_version: v1.19.8
+
+# Kubernetes container runtime: docker, containerd
+container_runtime: docker
 
 # Run system-wide package update (apt dist-upgrade, yum update, ...)
 # Note: enabling this may lead to unexpected results
@@ -56,8 +59,12 @@ topology_manager_enabled: true
 # There are four supported policies: none, best-effort, restricted, single-numa-node.
 topology_manager_policy: "best-effort"
 
+# OpenShift SRIOV Network Operator
+sriov_network_operator_enabled: true
+sriov_network_operator_namespace: "sriov-network-operator"
+
 # Intel SRIOV Network Device Plugin
-sriov_net_dp_enabled: true
+sriov_net_dp_enabled: false
 sriov_net_dp_namespace: kube-system
 # whether to build and store image locally or use one from public external registry
 sriov_net_dp_build_image_locally: true
@@ -100,25 +107,42 @@ sriovdp_config_data: |
         ]
     }
 
+# Intel Device Plugin Operator
+intel_dp_namespace: kube-system # namespace will be applied for SGX DP and GPU DP
+
 # Intel QAT Device Plugin for Kubernetes
 qat_dp_enabled: true
 qat_dp_namespace: kube-system
 qat_dp_build_image_locally: true
 
+# This feature will enable OpenSSL*Engine
+openssl_engine_enabled: true # To activate OpenSSL*Engine, install_openssl & update_qat_drivers must set to ‘true’ in host_vars
+
 # Intel GPU Device Plugin for Kubernetes
 gpu_dp_enabled: false
-gpu_dp_namespace: kube-system
+gpu_dp_kernel_version: "5.4.48+"
 gpu_dp_build_image_locally: true
 
 # Intel SGX Device Plugin for Kubernetes
 sgx_dp_enabled: true
 sgx_dp_build_image_locally: true
+sgx_aesmd_namespace: kube-system
 # ProvisionLimit is a number of containers that can share
 # the same SGX provision device.
 sgx_dp_provision_limit: 20
 # EnclaveLimit is a number of containers that can share the
 # same SGX enclave device.
 sgx_dp_enclave_limit: 20
+
+# KMRA (Key Management Reference Application)
+kmra_enabled: true
+# The PCCS uses this API key to request collaterals from Intel's Provisioning Certificate Service.
+# User needs to subscribe first to obtain an API key.
+# For how to subscribe to Intel Provisioning Certificate Service and receive an API key,
+# goto https://api.portal.trustedservices.intel.com/provisioning-certification and click on 'Subscribe'.
+kmra_pccs_api_key: "ffffffffffffffffffffffffffffffff"
+# deploy KMRA demo workload (NGINX server)
+kmra_deploy_demo_workload: true
 
 # Intel Telemetry Aware Scheduling
 tas_enabled: true
@@ -130,7 +154,7 @@ tas_enable_demo_policy: false
 example_net_attach_defs:
   userspace_ovs_dpdk: true # Update to match host_vars CNI configuration
   userspace_vpp: false # Update to match host_vars CNI configuration
-  sriov_net_dp: true # Update to match host_vars CNI configuration
+  sriov_net_dp: false # Update to match host_vars CNI configuration
 
 ## Proxy configuration ##
 #http_proxy: "http://proxy.example.com:1080"
@@ -162,9 +186,15 @@ helm_enabled: true
 # local Docker Hub mirror, if it exists
 #docker_registry_mirrors:
 #  - http://mirror_ip:mirror_port
+#containerd_registries:
+#  "docker.io":
+#    - "https://registry-1.docker.io"
+#    - "https://mirror_ip:mirror_port"
 
 # Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
-registry_local_address: "localhost:30500"
+# The range of valid ports is 30000-32767
+registry_nodeport: 30500
+registry_local_address: "localhost:{{ registry_nodeport }}"
 
 # Enable Pod Security Policy. This option enables PSP admission controller and creates minimal set of rules.
 psp_enabled: true
@@ -174,57 +204,3 @@ always_pull_enabled: true
 
 # Telemetry configuration
 collectd_scrap_interval: 30
-
-# KMRA variables
-#rlocal_path: "/opt/ansible_local_{{ ansible_user_id }}"
-#rlocal_toolkits_path: "{{ rlocal_path }}/toolkits"
-#rlocal_download_dir_out: "{{ rlocal_path }}/download"
-#rlocal_kmra_code_path: "{{ rlocal_path }}/kmra"
-
-#p11_module_softhsm_path: "/usr/local/lib/softhsm/libsofthsm2.so"
-#p11_module_cryptoapi_path: "/usr/local/lib/libp11sgx.so.0.0.0"
-#p11_module_path: "{{ p11_module_cryptoapi_path }}"
-
-# name of the engine used in token-uri and in openssl configuration
-#pkcs11_engine_name: "pkcs11"
-
-# location of signed cert
-#kmra_cert_path: "{{ rlocal_path }}/kmra_cert.pem"
-#kmra_token_name: kmra_token
-
-# openssl_source_url - custom openssl is used for intel-sgx-ssl
-#openssl_source_url: "https://www.openssl.org/source/old/1.1.1/openssl-1.1.1g.tar.gz"
-
-# Proxy definition for Intel SGX services
-#proxy_https_address:
-
-# Custom options for pip installer
-#pip_extra_args: --force-reinstall
-
-# PCCS variables
-#pccs_hostname: localhost
-#pccs_use_secure_cert: false
-#pccs_port: 8081
-
-# Installation directories
-#ctk_loadkey_install_dir: /opt/intel/ctk_loadkey
-#apphsm_install_dir: /opt/intel/apphsm
-#ca_cert_dir: /opt/intel/ca
-#sample_p11_keygen_install_dir: /opt/intel/sample_p11_keygen
-
-# default PIN number for tokens
-#default_user_pin: 1234
-#default_so_pin: 12345678
-
-# AppHSM test token name
-#apphsm_token_name: token_1
-#apphsm_key_in_token_name: key_1
-#apphsm_port: 5000
-#test_unique_uid: unique_id_1234
-#test_ctk_loadkey_cert_user_id: ctk_loadkey_user_id_01234
-
-# default file permissions for created directories and files
-#default_dir_permissions: '0744'
-#default_file_permissions: '0644'
-
-#kmra_use_custom_package_versions: false

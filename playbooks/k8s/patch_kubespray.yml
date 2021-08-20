@@ -16,9 +16,10 @@
 ---
 - hosts: k8s-cluster
   tasks:
-    - name: set package manager
+    - name: set target vars
       set_fact:
         target_ansible_pkg_mgr: "{{ ansible_pkg_mgr }}"
+        target_distribution_version: "{{ ansible_distribution_version }}"
       delegate_to: localhost
       delegate_facts: True
 

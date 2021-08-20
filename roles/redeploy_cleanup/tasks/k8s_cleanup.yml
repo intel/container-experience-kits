@@ -1,0 +1,146 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- debug:
+    msg: "Starting to remove k8s cluster ..."
+
+- name: remove k8s cluster
+  block:
+    - name: reset cluster with kubeadm
+      command: kubeadm reset -f
+      changed_when: false
+      failed_when: false
+    - name: reset etcd cluster with etcdctl
+      command: etcdctl del "" --prefix
+      when:
+        - inventory_hostname in groups['etcd']
+      changed_when: false
+      failed_when: false
+    - name: stop etcd service
+      service:
+        name: etcd
+        state: stopped
+        enabled: false
+      when:
+        - inventory_hostname in groups['etcd']
+      changed_when: false
+      failed_when: false
+    - name: stop kubelet service
+      service:
+        name: kubelet
+        state: stopped
+        enabled: false
+      changed_when: false
+      failed_when: false
+
+- name: remove k8s cluster kube-*  systemd files
+  block:
+    - name: find kube systemd leftovers
+      find:
+        paths:
+          - "/run/systemd/transient/"
+        file_type: any
+        patterns:
+          - "kubepods*"
+      register: kubepods_files
+      changed_when: false
+      failed_when: false
+    - name: remove kube systemd leftovers
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ kubepods_files.files | default([]) }}"
+      when:
+        -  kubepods_files.files | length > 0
+      changed_when: false
+      failed_when: false
+
+- name: remove k8s cluster files
+  import_tasks: remove_files.yml
+  vars:
+    files_to_delete: "{{ k8s_dirs_to_remove }}"
+  changed_when: false
+  failed_when: false
+
+- name: remove running or stopped containers
+  block:
+    - name: list running or stopped containers
+      command: docker ps -a -q
+      register: existing_containers
+      changed_when: false
+      failed_when: false
+    - name: remove running or stopped containers
+      command: "docker rm -f {{ item }}"
+      with_items:
+        - "{{ existing_containers.stdout  | default([]) }}"
+      when:
+        -  existing_containers.stdout | length > 0
+      changed_when: false
+      failed_when: false
+
+- name: remove containers images
+  block:
+    - name: list existing containers images
+      command: docker images -q
+      register: container_images
+      changed_when: false
+      failed_when: false
+    - name: remove container images
+      command: "docker rmi -f {{ item }}"
+      with_items:
+        - "{{ container_images.stdout | default([]) }}"
+      when:
+        -  container_images.stdout | length > 0
+      changed_when: false
+      failed_when: false
+  when:
+    - not (keep_docker_images | default(false))
+
+- name: ensure that firewall is not running
+  systemd:
+    name: "{{ firewall_svc[ansible_distribution] }}"
+    state: stopped
+  vars:
+    firewall_svc:
+      CentOS: firewalld
+      RedHat: firewalld
+      Ubuntu: ufw
+  changed_when: false
+  failed_when: false
+
+- name: clean iptables filter table rules
+  command: "{{ item }}"
+  with_items:
+    - "iptables -F"
+    - "iptables -t nat -F"
+    - "iptables -t raw -F"
+    - "iptables -t mangle -F"
+    - "iptables -X"
+    - "iptables -t nat -X"
+    - "iptables -t raw -X"
+    - "iptables -t mangle -X"
+  changed_when: false
+  failed_when: false
+
+- name: restart docker service
+  service:
+    name: docker
+    state: restarted
+  changed_when: false
+  failed_when: false
+
+- debug:
+    msg: "k8s cluster has been removed ..."

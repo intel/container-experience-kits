@@ -14,20 +14,19 @@
 ##   limitations under the License.
 ##
 ---
-
 # nvmupdate package URLs, checksums and minimum target FW version required (e.g. to enable DDP profiles loading)
 nvmupdate:
   # 700 Series
   i40e:
-    nvmupdate_pkg_url: https://downloadmirror.intel.com/25791/eng/700Series_NVMUpdatePackage_v8_20_Linux.tar.gz
-    nvmupdate_pkg_checksum: md5:e54e576bb50a36fd9b03c4d567658283
-    min_required_fw_version: 8.20
+    nvmupdate_pkg_url: https://downloadmirror.intel.com/25791/eng/700series_nvmupdatepackage_v8_40_linux.tar.gz
+    nvmupdate_pkg_checksum: sha1:D9DF143BF7B1EAF172C5BFA70216FFD7EBCBF980
+    min_required_fw_version: 8.40
     min_updatable_fw_version: 5.51
   # 800 Series (CVL)
   ice:
-    nvmupdate_pkg_url: https://downloadmirror.intel.com/29738/eng/E810_NVMUpdatePackage_v2_42_Linux.tar.gz
-    nvmupdate_pkg_checksum: md5:cc40460cddc5830d2eb341393567953d
-    min_required_fw_version: 2.42
+    nvmupdate_pkg_url: https://downloadmirror.intel.com/29738/eng/e810_nvmupdatepackage_v3_00_linux.tar_.gz
+    nvmupdate_pkg_checksum: sha1:E03C3F9CFB042EAE5C1C16BED352E09FCDEBD0E6
+    min_required_fw_version: 3.00
     min_updatable_fw_version: 0.70
 
 nvmupdate_result:

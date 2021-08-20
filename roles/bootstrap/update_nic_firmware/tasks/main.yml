@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: Update NIC firmware
+- name: update NIC firmware
   include_tasks: update.yml
   vars:
     interface_name: "{{ item }}"

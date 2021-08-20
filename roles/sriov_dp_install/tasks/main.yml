@@ -40,6 +40,7 @@
     - sriov_net_dp_build_image_locally
     - http_proxy is defined
     - https_proxy is defined
+    - container_runtime == "docker"
   register: sriov_dp_image_build
   retries: 5
   until: sriov_dp_image_build is success
@@ -53,6 +54,7 @@
     - sriov_net_dp_build_image_locally
     - http_proxy is not defined
     - https_proxy is not defined
+    - container_runtime == "docker"
   register: sriov_dp_image_build
   retries: 5
   until: sriov_dp_image_build is success
@@ -62,12 +64,58 @@
   when:
     - inventory_hostname == groups['kube-node'][0]
     - sriov_net_dp_build_image_locally
+    - container_runtime == "docker"
 
 - name: push SRIOV Network Device Plugin image to local registry
   command: docker push {{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_git_ref }}
   when:
     - inventory_hostname == groups['kube-node'][0]
     - sriov_net_dp_build_image_locally
+    - container_runtime == "docker"
+
+- name: build and tag SRIOV Network Device Plugin image behind proxy
+  shell: >
+    podman build --build-arg=http_proxy=${http_proxy} --build-arg=https_proxy=${https_proxy}
+    -f {{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_git_ref }}
+  args:
+    chdir: "{{ sriov_net_dp_dir }}"
+  changed_when: true
+  with_items:
+    - { file: images/Dockerfile, name: sriov-device-plugin }
+  register: sriov_dp_image_build
+  retries: 5
+  until: sriov_dp_image_build is success
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - sriov_net_dp_build_image_locally
+    - '"docker" not in container_runtime'
+    - http_proxy is defined
+    - https_proxy is defined
+
+- name: build and tag SRIOV Network Device Plugin image
+  command: podman build -f {{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_git_ref }}
+  args:
+    chdir: "{{ sriov_net_dp_dir }}"
+  changed_when: true
+  with_items:
+    - { file: images/Dockerfile, name: sriov-device-plugin }
+  register: sriov_dp_image_build
+  retries: 5
+  until: sriov_dp_image_build is success
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - sriov_net_dp_build_image_locally
+    - '"docker" not in container_runtime'
+    - http_proxy is not defined
+    - https_proxy is not defined
+
+- name: push SRIOV Network Device Plugin image to local registry
+  command: podman push {{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_git_ref }}
+  changed_when: true
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - sriov_net_dp_build_image_locally
+    - '"docker" not in container_runtime'
 
 - name: create Helm charts directory if needed
   file:

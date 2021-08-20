@@ -14,7 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-
 - name: install TAS
   import_tasks: tas.yml
   when:

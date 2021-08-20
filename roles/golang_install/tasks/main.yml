@@ -72,11 +72,11 @@
   changed_when: false
 
 - name: install cfssl
-  command: go get -u github.com/cloudflare/cfssl/cmd/cfssl
+  command: go get github.com/cloudflare/cfssl/cmd/cfssl
   when:
     - inventory_hostname == groups['kube-master'][0]
 
 - name: install cfssljson
-  command: go get -u github.com/cloudflare/cfssl/cmd/cfssljson
+  command: go get github.com/cloudflare/cfssl/cmd/cfssljson
   when:
     - inventory_hostname == groups['kube-master'][0]

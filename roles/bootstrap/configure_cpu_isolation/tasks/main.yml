@@ -30,7 +30,7 @@
     - cmk_enabled is defined and cmk_enabled
     - autogenerate_isolcpus is defined and autogenerate_isolcpus
 
-- name: setup cpu isolation
+- name: setup CPU isolation
   include_tasks: setup_isolcpus.yml
   when:
     - isolcpus_enabled | default(false)

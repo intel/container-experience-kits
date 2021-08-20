@@ -1,0 +1,58 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: prepare gpu grub commandline string
+  set_fact:
+    gpu_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} {{ gpu_kernel_flags }}"'
+
+- name: set gpu kernel flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)"$'
+    line: '{{ gpu_cmdline }}'
+    state: present
+    mode: 0664
+  notify:
+    - reboot server
+
+- name: set gpu kernel as default on RHEL/CentOS
+  command: grubby --set-default /boot/vmlinuz-{{ gpu_dp_kernel_version }}
+  changed_when: true
+  become: yes
+  when: ansible_distribution in ["CentOS", "RedHat"]
+
+- name: set gpu kernel as default on Ubuntu < 21.04
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_DEFAULT='
+    line: 'GRUB_DEFAULT=/boot/vmlinuz-{{ gpu_dp_kernel_version }}'
+    state: present
+    mode: 0644
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version < '21.04'
+
+- name: set gpu kernel as default on Ubuntu 21.04
+  block:
+    - name: set GRUB_DEFAULT to special string 'saved'
+      lineinfile:
+        dest: /etc/default/grub
+        regexp: '^GRUB_DEFAULT='
+        line: 'GRUB_DEFAULT=saved'
+        state: present
+        mode: 0644
+
+    - name: set default kernel with grub command
+      command: grub-set-default "Advanced options for Ubuntu>Ubuntu, with Linux {{ gpu_dp_kernel_version }}"
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04'

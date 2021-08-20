@@ -1,0 +1,26 @@
+---
+{% if "http_proxy" in proxy_env %}
+http_proxy: "{{ proxy_env.http_proxy }}"
+{% endif %}
+{% if "https_proxy" in proxy_env %}
+https_proxy: "{{ proxy_env.https_proxy }}"
+{% endif %}
+{% if "no_proxy" in proxy_env %}
+no_proxy: "{{ proxy_env.no_proxy | quote }}"
+{% endif %}
+
+ctk_loadkey:
+  main:
+    image:
+      repo: "{{ kmra_ctk_loadkey_image_repo }}"
+      name: "{{ kmra_ctk_loadkey_image_name }}"
+      tag: "{{ kmra_ctk_loadkey_image_tag }}"
+      pullPolicy: IfNotPresent
+    port:  "{{ kmra_ctk_loadkey_upstream_port }}"
+    hostname: "{{ kmra_ctk_loadkey_upstream_server_name | default('0.0.0.0')}}"
+  node_port: "{{ kmra_ctk_loadkey_node_port }}"
+  pccs_port: "{{ kmra_pccs_service_port }}"
+  pccs_hostname: "{{ kmra_pccs_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
+  apphsm_port: "{{ kmra_apphsm_service_port }}"
+  apphsm_hostname: "{{ kmra_apphsm_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
+  sgx_prv_gid: "{{ hostvars[groups['kube-node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"

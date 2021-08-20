@@ -66,24 +66,33 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-# install worker node kernel drivers
+# install worker node qat software
+- hosts: kube-node
+  tasks: []
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
+  roles:
+    - role: cluster_defaults
+    - role: bootstrap/install_qat_drivers_services
+      when:
+        - update_qat_drivers | default(false)
+        - qat_devices is defined and (qat_devices|length>0)
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+# install worker node network software
 - hosts: kube-node
   tasks: []
   roles:
     - role: cluster_defaults
-
-    - role: bootstrap/install_qat_drivers_services
-      when: update_qat_drivers | default(false)
-
     - role: bootstrap/update_nic_drivers
       when: update_nic_drivers | default(false) | bool
-
     - role: bootstrap/update_nic_firmware
       tags: firmware
       when:
         - update_nic_firmware | default(false) | bool
         - update_nic_drivers | default(false) | bool
-
     - role: bootstrap/determine_dataplane_interfaces
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
@@ -96,11 +105,20 @@
       when: install_dpdk | default(true)
       tags: dpdk
     - role: sriov_nic_init
-      when: iommu_enabled | default(true) and install_dpdk | default(true)
+      when:
+        - iommu_enabled | default(true)
+        - install_dpdk | default(true)
+        - not sriov_network_operator_enabled | default(true)
     - role: bootstrap/configure_qat
       when:
         - qat_devices is defined and (qat_devices|length>0)
         - iommu_enabled | default(true)
         - update_qat_drivers | default(false)
+    - role: bootstrap/configure_openssl
+      when:
+        - qat_devices is defined and (qat_devices|length>0)
+        - iommu_enabled | default(true)
+        - update_qat_drivers | default(false)
+        - openssl_install | default(false)
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

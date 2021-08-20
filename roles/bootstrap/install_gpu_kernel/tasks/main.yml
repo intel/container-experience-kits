@@ -25,7 +25,7 @@
     version: 'main'
     force: yes
 
-- name: update kernel config file
+- name: obtain kernel config file
   copy:
     src: "/boot/config-{{ ansible_kernel }}"
     dest: "{{ gpu_kernel_src_dst }}/.config"
@@ -33,6 +33,17 @@
     owner: root
     group: root
     mode: 0755
+
+- name: update kernel config file
+  include_tasks: update_kernel_config.yml
+
+- name: setup i915 module loading on boot
+  lineinfile:
+    path: /etc/modules-load.d/i915.conf
+    line: i915
+    create: yes
+    mode: 0644
+  become: yes
 
 - name: make olddefconfig
   make:
@@ -44,63 +55,81 @@
   register: nproc_out
   changed_when: false
 
-- name: make all
+- name: make linux-headers
   make:
     chdir: "{{ gpu_kernel_src_dst }}"
-    target: all
+    target: headers_install
+    params:
+      INSTALL_HDR_PATH: "/usr/src/linux-headers-{{ gpu_dp_kernel_version }}"
   environment:
-    "MAKEFLAGS": "-j{{ nproc_out.stdout|int + 1 }}"
+    "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
   become: yes
 
-- name: make modules_install
+- name: do not fail on missinng symbol table
+  patch:
+    src: "{{ role_path }}/files/objtool_elf.patch"
+    dest: "{{ gpu_kernel_src_dst }}/tools/objtool/elf.c"
+
+- name: make targz-pkg
   make:
     chdir: "{{ gpu_kernel_src_dst }}"
-    target: modules_install
+    target: targz-pkg
+    params:
+      INSTALL_MOD_STRIP: 1
   environment:
-    "MAKEFLAGS": "-j{{ nproc_out.stdout|int + 1 }}"
+    "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
   become: yes
 
-- name: make install
-  make:
-    chdir: "{{ gpu_kernel_src_dst }}"
-    target: install
-  environment:
-    "MAKEFLAGS": "-j{{ nproc_out.stdout|int + 1 }}"
-  become: yes
-
-- name: prepare gpu grub commandline string
-  set_fact:
-    gpu_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} {{ gpu_kernel_flags }}"'
-
-- name: set gpu kernel flags in /etc/default/grub
-  lineinfile:
-    dest: /etc/default/grub
-    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)"$'
-    line: '{{ gpu_cmdline }}'
-    state: present
-    mode: 0664
-  register: grub
-  notify:
-    - reboot server
-
-- name: get gpu kernel version
-  command: cat include/config/kernel.release
-  args:
-    chdir: "{{ gpu_kernel_src_dst }}"
-  register: kernel_version
+- name: get linux dg1 firmaware package
+  get_url:
+    url: "{{ linux_dg1_firmware_url }}"
+    dest: "{{ gpu_kernel_src_dst }}"
   changed_when: false
 
-- name: set gpu kernel as default on CentOS
-  command: grubby --set-default /boot/vmlinuz-{{ kernel_version.stdout }}
-  changed_when: true
-  become: yes
-  when: ansible_distribution == "CentOS"
-
-- name: set gpu kernel as default on Ubuntu
-  lineinfile:
-    dest: /etc/default/grub
-    regexp: '^GRUB_DEFAULT='
-    line: 'GRUB_DEFAULT=/boot/vmlinuz-{{ kernel_version.stdout }}'
-    state: present
+- name: untar dg1 tar.gz archive
+  unarchive:
+    src: "{{ gpu_kernel_src_dst }}/linux-firmware-dg1_2020.43.tgz"
+    dest: /lib/firmware/i915
+    extra_opts:
+      - --warning=no-timestamp
     mode: 0644
-  when: ansible_distribution == "Ubuntu"
+    remote_src: yes
+  args:
+    creates: /lib/firmware/i915
+  become: yes
+
+- name: create dir for custom gpu kernel files
+  file:
+    path: "{{ gpu_kernel_src_dst }}/gpu_custom_kernel"
+    state: directory
+    mode: 0644
+
+- name: untar custom linux archive
+  unarchive:
+    src: "{{ gpu_kernel_src_dst }}/linux-{{ gpu_dp_kernel_version }}-x86.tar.gz"
+    dest: "{{ gpu_kernel_src_dst }}/gpu_custom_kernel"
+    remote_src: yes
+    mode: 0755
+
+- name: copy custom kernel modules
+  command: cp -r "{{ gpu_kernel_src_dst }}/gpu_custom_kernel/lib/modules/{{ gpu_dp_kernel_version }}" /lib/modules/
+  changed_when: false
+  become: yes
+
+- name: install dracut-{{ dracut_version }}
+  include_tasks: centos82_dracut_install.yml
+  when: ansible_distribution == 'CentOS' and ansible_distribution_version == '8.2'
+
+- name: install custom kernel
+  command: >-
+    installkernel {{ gpu_dp_kernel_version }}
+    gpu_custom_kernel/boot/vmlinuz-{{ gpu_dp_kernel_version }}
+    gpu_custom_kernel/boot/System.map-{{ gpu_dp_kernel_version }}
+    /boot
+  args:
+    chdir: "{{ gpu_kernel_src_dst }}"
+  changed_when: false
+  become: yes
+
+- name: prepare grub to use custom kernel
+  include_tasks: prepare_grub.yml

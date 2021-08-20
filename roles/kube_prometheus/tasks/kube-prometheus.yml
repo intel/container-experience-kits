@@ -43,6 +43,17 @@
   with_fileglob:
     - ../templates/*.j2
 
+- name: template prometheus-srv yamls
+  template:
+    src: "{{ item }}"
+    dest: "{{ kube_prometheus_path }}/{{ item | basename | regex_replace('.j2','') }}"
+    owner: root
+    group: root
+    mode: u+rwx,g-rwx,o-
+  with_fileglob:
+    - ../templates/prometheus_srv/*.j2
+  when: prometheus_srv_expose | default(false)
+
 - name: copy PSP manifest
   template:
     src: "0psp-node-exporter.yaml"

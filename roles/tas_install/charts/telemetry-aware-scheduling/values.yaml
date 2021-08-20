@@ -19,14 +19,9 @@
 
 replicaCount: 1
 
-controllerImage:
-  repository: "localhost:30500/tas-controller"
-  tag: latest
-  pullPolicy: IfNotPresent
-
 extenderImage:
-  repository: "localhost:30500/tas-extender"
-  tag: latest
+  repository: "localhost:30500/tasextender"
+  tag: "{{ tas_version }}"
   pullPolicy: IfNotPresent
 
 nameOverride: ""

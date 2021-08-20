@@ -13,42 +13,40 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-
+---
 # Install dependencies(ethtool)
 - name: install dependencies
   include_role:
     name: install_dependencies
 
 # Check if the selected DDP profile is available in Host
-- name: Check that the DDP profile exists
+- name: check that the DDP profile exists
   stat:
     path: "{{ ddp_path }}"
   register: stat_result
 
-- name: Fail if selected DDP profile not found
+- name: fail if selected DDP profile not found
   fail:
-    msg: "Selected DDP profile {{ nic_port.ddp_profile }} is not found."
+    msg: "Selected DDP profile {{ ddp_profile }} is not found."
   when: not stat_result.stat.exists
 
 # All looks good; lets install the profile into the NIC
 # assuming that the NIC is in fact the PF0
-
 # First, we roll back any existing profile
-- name: Rolling back any existing DDP profile from the NIC...
-  shell: ethtool -f {{ nic_port.name }} - 100 2> /dev/null | true
-  ignore_errors: true
+- name: rolling back any existing DDP profile from the NIC...
+  shell: ethtool -f {{ nic }} - 100 2> /dev/null
+  failed_when: false
   changed_when: true
 
 # Install new profile into the NIC
-- name: Installing selected DDP profile into the NIC...
-  command: ethtool -f {{ nic_port.name }} {{ nic_port.ddp_profile }} 100
-  register: ethtool_output
+- name: installing selected DDP profile into the NIC...
+  command: ethtool -f {{ nic }} {{ ddp_profile }} 100
   changed_when: true
 
 - name: template the ddp-i40e systemd service
   template:
     src: ddp_i40e_service.j2
-    dest: /lib/systemd/system/ddp-i40e-{{ nic_port.name }}.service
+    dest: /lib/systemd/system/ddp-i40e.service
     owner: root
     group: root
     mode: u=rw,g=r,o=r
@@ -57,5 +55,5 @@
   systemd:
     daemon_reload: yes
     state: restarted
-    name: ddp-i40e-{{ nic_port.name }}
+    name: ddp-i40e
     enabled: yes

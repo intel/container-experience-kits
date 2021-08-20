@@ -14,7 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-
 - name: create signed Kubernetes certificates
   import_tasks: create_signed_k8s_certs.yml
   when:

@@ -1,0 +1,207 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: determine machine type
+  include_role:
+    name: check_machine_type
+
+- name: create sgx_prv group
+  group:
+    name: sgx_prv
+    state: present
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+      or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
+
+- name: add user to sgx_prv group
+  user:
+    name: "{{ ansible_user_id }}"
+    groups: sgx_prv
+    append: yes
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+      or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
+
+- name: create udev rules
+  blockinfile:
+    path: /etc/udev/rules.d/10-sgx.rules
+    create: yes
+    mode: '0644'
+    block: |
+      SUBSYSTEM=="misc",KERNEL=="enclave",MODE="0666"
+      SUBSYSTEM=="misc",KERNEL=="provision",GROUP="sgx_prv",MODE="0660"
+      SUBSYSTEM=="sgx",KERNEL=="sgx/enclave",MODE="0666"
+      SUBSYSTEM=="sgx",KERNEL=="sgx/provision",MODE="0660"
+      SUBSYSTEM=="misc",KERNEL=="sgx_enclave",MODE="0666",SYMLINK+="sgx/enclave"
+      SUBSYSTEM=="misc",KERNEL=="sgx_provision",GROUP="sgx_prv",MODE="0660",SYMLINK+="sgx/provision"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+      or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
+
+- name: load udev rules
+  # noqa 305 - shell is used intentionally here
+  shell: udevadm trigger
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+      or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
+
+- name: determine sgx_prv GID
+  getent:
+    database: group
+    key: sgx_prv
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+  when: is_icx | default(false) | bool
+
+- name: cleanup existing artifacts
+  include: cleanup.yml
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: label worker node with KMRA label
+  command: kubectl label nodes {{ groups['kube-node'][0] }} app=kmra --overwrite
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: create kmra ns if not existing
+  command: "kubectl create ns {{ kmra_namespace }}"
+  changed_when: true
+  failed_when: false
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: create k8s tls secrets for apphsm and ctk apps
+  include: create_tls_secrets.yml
+  vars:
+    kmra_apps:
+      - { name: "{{ kmra_pccs_release_name }}", subj: "{{ kmra_pccs_crt_subj }}", deploy: true }
+      - { name: "{{ kmra_apphsm_release_name }}", subj: "{{ kmra_apphsm_crt_subj }}", deploy: true }
+      - { name: "{{ kmra_ctk_release_name }}", subj: "{{ kmra_ctk_crt_subj }}", deploy: "{{ kmra_deploy_demo_workload | default(false) }}" }
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: create Helm charts directory if needed
+  file:
+    path: /usr/src/charts
+    state: directory
+    mode: 0755
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: copy KMRA Helm chart to the controller node
+  copy:
+    src: "{{ role_path }}/charts/{{ item.chart }}"
+    dest: "/usr/src/charts/"
+    mode: 0755
+  loop:
+    - { chart: 'kmra-pccs', deploy: true }
+    - { chart: 'kmra-apphsm', deploy: true }
+    - { chart: 'kmra-ctk', deploy: "{{ kmra_deploy_demo_workload | default(false) }}" }
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+    - item.deploy
+
+- name: populate KMRA Helm charts values templates and push to controller node
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    force: yes
+    mode: preserve
+  loop:
+    - {
+        src: 'kmra-pccs-values.yaml.j2',
+        dest: '/usr/src/charts/kmra-pccs-values.yml',
+        deploy: true
+      }
+    - {
+        src: 'kmra-pccs-rbac-cluster-role.yml.j2',
+        dest: "{{ kmra_pccs_chart_path }}/templates/kmra-pccs-rbac-cluster-role.yml",
+        deploy: true
+      }
+    - {
+        src: 'kmra-apphsm-values.yaml.j2',
+        dest: '/usr/src/charts/kmra-apphsm-values.yml',
+        deploy: true
+      }
+    - {
+        src: 'kmra-apphsm-rbac-cluster-role.yml.j2',
+        dest: "{{ kmra_apphsm_chart_path }}/templates/kmra-apphsm-rbac-cluster-role.yml",
+        deploy: true
+      }
+    - {
+        src: 'kmra-ctk-values.yaml.j2',
+        dest: '/usr/src/charts/kmra-ctk-values.yml',
+        deploy: "{{ kmra_deploy_demo_workload | default(false) }}"
+      }
+    - {
+        src: 'kmra-ctk-loadkey-rbac-cluster-role.yml.j2',
+        dest: "{{ kmra_ctk_chart_path }}/templates/kmra-ctk-loadkey-rbac-cluster-role.yml",
+        deploy: "{{ kmra_deploy_demo_workload | default(false) }}"
+      }
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+    - item.deploy
+
+- name: install KMRA pccs helm chart
+  command: >-
+    helm upgrade -i {{ kmra_pccs_release_name }}
+    --namespace {{ kmra_namespace }}
+    -f {{ kmra_pccs_helm_values_file }}
+    {{ kmra_pccs_chart_path }}
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: install KMRA AppHSM helm chart
+  command: >-
+    helm upgrade -i {{ kmra_apphsm_release_name }}
+    --namespace {{ kmra_namespace }}
+    -f {{ kmra_apphsm_helm_values_file }}
+    {{ kmra_apphsm_chart_path }}
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: install KMRA Ctk loadkey helm chart
+  command: >-
+    helm upgrade -i {{ kmra_ctk_release_name }}
+    --namespace {{ kmra_namespace }}
+    -f {{ kmra_ctk_helm_values_file }}
+    {{ kmra_ctk_chart_path }}
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+    - kmra_deploy_demo_workload | default(false)

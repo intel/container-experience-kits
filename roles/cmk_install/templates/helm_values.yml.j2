@@ -6,7 +6,7 @@ image:
 
 hosts:
   all: {{ cmk_use_all_hosts | default(false) }}
-  list: {{ cmk_hosts_list | default("node1") }}
+  list: {{ ((cmk_hosts_list.split(',')) | map('extract', hostvars, 'ansible_hostname') | list | join(',')) | default("node1") }}
 
 sharedMode: {{ cmk_shared_mode | default("packed") }}
 numSharedCores: {{ cmk_shared_num_cores | default(1) }}

@@ -13,18 +13,10 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-- name: Load DDP profile with i40e module (Intel X710)
-  include_tasks: load_i40e_ddp.yml
+---
+- name: load DDP profile with {{ nic_module }} module
+  include_tasks: load_{{ nic_module }}_ddp.yml
   vars:
-    ddp_path: "{{ ddp_search_path[nic_module] }}/{{ ddp_profile }}"
+    ddp_path: "{{ ddp_search_path[nic_module] }}/{{ ddp_profile if nic_module == 'i40e' else '' }}"
   when:
-    - nic | length > 0
-    - nic_module == "i40e"
-    - ddp_profile | length > 0
-
-- name: Load DDP profile with ice module (Intel X810)
-  include_tasks: load_ice_ddp.yml
-  vars:
-    ddp_path: "{{ ddp_search_path[nic_module] }}"
-  when:
-    - nic_module == "ice"
+    - nic_module == 'ice' or (nic_module == 'i40e' and nic | length > 0 and ddp_profile | length > 0)

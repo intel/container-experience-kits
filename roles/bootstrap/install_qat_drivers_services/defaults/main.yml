@@ -14,6 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-qat_drivers_version: '1.7.L.4.13.0-00009'
-qat_drivers_download_url: 'https://downloadmirror.intel.com/30178/eng/QAT{{ qat_drivers_version }}.tar.gz'
-qat_drivers_pkg_checksum: 'sha256:131605e342f816856e7378076329719120d03bc2d26e7597b50c022fd77fe62e'
+qat_drivers_version: '1.7.l.4.14.0-00031'
+qat_drivers_download_url: 'https://downloadmirror.intel.com/30178/eng/qat{{qat_drivers_version }}.tar.gz'
+qat_drivers_pkg_checksum: 'sha1:7D38020917B4D488F875E66ADC4CFF207732CF03'
+
+libudev_version: '247.3-3ubuntu3'

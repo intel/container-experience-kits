@@ -17,7 +17,7 @@
 namespace: kube-system
 
 image:
-  repository: nfvpe/sriov-device-plugin
+  repository: docker.io/nfvpe/sriov-device-plugin
   tag: v3.2
   pullPolicy: IfNotPresent
 

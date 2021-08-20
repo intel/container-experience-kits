@@ -43,6 +43,42 @@
     mode: '0700'
   become: yes
 
+- name: fail if requested number of VFs is higher than supported for each QAT id
+  assert:
+    that: item.qat_sriov_numvfs | default(0)| int <= 16
+    fail_msg: "each qat_sriov_numvfs support max 16 Vfs. Kindly modify qat_sriov_numvfs range <= 16 in host vars for qat_devices list defined per qat_dev"
+  with_items: "{{ qat_devices }}"
+
+- name: remove existing calculated VFs file if it exists
+  file:
+    path: "{{ sriov_config_path }}/bmra_sriov_qat_total_vfs"
+    state: absent
+  become: yes
+
+- name: create calculated VFs config file
+  file:
+    path: "{{ sriov_config_path }}/bmra_sriov_qat_total_vfs"
+    state: touch
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: calculate total VFs as defined in host vars
+  set_fact:
+    total: "{{ total|default(0)|int + item.qat_sriov_numvfs | default(0)|int }}"
+  with_items: "{{ qat_devices }}"
+
+- debug:
+    msg: "calculated VFs = {{ total }}"
+
+- name: save total calculated VFs = {{ total }} to file
+  shell: "echo {{ total }} > bmra_sriov_qat_total_vfs"
+  args:
+    chdir: "{{ sriov_config_path }}"
+    executable: /bin/bash
+  changed_when: true
+
 - name: populate QAT vf template with vfs per bus location
   lineinfile:
     path: "{{ sriov_config_path }}/bmra_sriov_qat_numvfs"

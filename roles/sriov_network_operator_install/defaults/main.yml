@@ -1,0 +1,48 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+#sriov-network-operator: github.com/k8snetworkplumbingwg/sriov-network-operator
+
+sriov_network_charts_dir: /usr/src/charts/sriov-network-operator/
+sriov_network_policies_dir: "/usr/src/charts/sriov-network-nodes-policies/"
+
+sriov_network_operator_namespace: "sriov-network-operator"
+sriov_network_operator_helm_release_name: "sriov-network-operator"
+
+# helm values defaults
+sriov_network_operator_images:
+  operator: ghcr.io/k8snetworkplumbingwg/sriov-network-operator@sha256:d7e00e67b3dd08b617b58b946d5011180bd96366691f42e0bdc2b2c2d1cf558e
+  sriovConfigDaemon: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-config-daemon@sha256:8fcf89d4f4fdae0ae8cd8b5af418bb76f8f3e7554d470d2d882c358bfed81662
+  sriovCni: ghcr.io/k8snetworkplumbingwg/sriov-cni@sha256:8d230288fa370cf29216bdf05a587d85e94ce56d6a1b87c49f2fd927a28e32f2
+  ibSriovCni: ghcr.io/k8snetworkplumbingwg/ib-sriov-cni@sha256:f12b07657643bbd642b06db383e245408dee80436f78b481171b7ca152772937
+  sriovDevicePlugin: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin@sha256:2d6a1b9c5da8d7fa0e78bcc31b2011e248282e7fc86987f3a4b2962823e6a50d
+  resourcesInjector: ghcr.io/k8snetworkplumbingwg/network-resources-injector@sha256:881650109af96f7ac197399f4355895b907f0f268109dce82c622df76b928ade
+  webhook: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-webhook@sha256:ac7ac12369ad8daed8c2c3045bf3fdfcb0a3e13fddd83ee5dd72d9220d93dbfa
+
+sriov_resource_name_prefix: "intel.com"
+sriov_network_operator_name_override: ""
+sriov_network_operator_full_name_override: ""
+sriov_network_operator_resource_prefix: "{{ sriov_resource_name_prefix }}"
+sriov_network_operator_enable_admission_controller: "false"
+sriov_network_operator_cni_bin_path: "/opt/cni/bin"
+sriov_network_operator_cluster_type: "kubernetes"
+
+# node policy configuration defaults
+sriov_resource_name: "intelnics"
+sriov_vf_default_mtu: "1500"
+sriov_vf_default_vendor: "8086"
+sriov_vf_default_priority: "99"
+sriov_vf_is_rdma: "false"
+sriov_vf_link_type: "eth"

@@ -26,8 +26,11 @@ ddp_pkgs:
   - nic_driver: ice
     install_dir: /lib/firmware/updates/intel/ice/ddp/
     pkgurls:
-      - "https://downloadmirror.intel.com/30335/eng/ice_comms-1.3.24.0.zip"
-      - "https://downloadmirror.intel.com/30237/eng/ice_comms-1.3.22.0.zip"
-      - "https://downloadmirror.intel.com/30028/eng/ice_comms-1.3.20.0.zip"
       - "https://downloadmirror.intel.com/29892/eng/ice_comms-1.3.17.0.zip"
+      - "https://downloadmirror.intel.com/30028/eng/ice_comms-1.3.20.0.zip"
+      - "https://downloadmirror.intel.com/30237/eng/ice_comms-1.3.22.0.zip"
+      - "https://downloadmirror.intel.com/30335/eng/ice_comms-1.3.24.0.zip"
+      - "https://downloadmirror.intel.com/30467/eng/800%20series%20comms%20binary%20package%201.3.28.0.zip"
+      - "https://downloadmirror.intel.com/30590/eng/800%20series%20comms%20binary%20package%201.3.30.0.zip"
+      - "https://downloadmirror.intel.com/29889/eng/800%20series%20comms%20binary%20package%201.3.30.0_rev1.1.zip"
 

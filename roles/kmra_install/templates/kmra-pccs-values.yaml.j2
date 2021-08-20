@@ -1,0 +1,24 @@
+---
+{% if "https_proxy" in proxy_env %}
+https_proxy: "{{ proxy_env.https_proxy }}"
+{% endif %}
+
+pccs:
+  main:
+    image:
+      repo: "{{ kmra_pccs_image_repo }}"
+      name: "{{ kmra_pccs_image_name }}"
+      tag: "{{ kmra_pccs_image_tag }}"
+      pullPolicy: "IfNotPresent"
+    port: "{{ kmra_pccs_upstream_port }}"
+    api_key: "{{ kmra_pccs_api_key }}"
+    admin_pass: "{{ kmra_pccs_admin_pass | default('pccs_admin') | password_hash('sha512') }}"
+    user_pass: "{{ kmra_pccs_user_pass | default('pccs_user') | password_hash('sha512') }}"
+    log_level: "{{ kmra_pccs_log_level | default('info') }}"
+  rproxy:
+    image:
+      repo: "{{ kmra_pccs_rproxy_image_repo }}"
+      name: "{{ kmra_pccs_rproxy_image_name }}"
+      tag: "{{ kmra_pccs_rproxy_tag }}"
+      pullPolicy: "IfNotPresent"
+    port: "{{ kmra_pccs_service_port }}"

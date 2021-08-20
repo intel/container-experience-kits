@@ -1,0 +1,10 @@
+[Unit]
+Description=SST-TF configuration on boot
+AssertPathExists=/usr/bin/intel-speed-select
+
+[Service]
+Type=simple
+ExecStart=intel-speed-select turbo-freq {{ icx_sst_tf_switch }} {{ core_priority_switch }}
+
+[Install]
+WantedBy=multi-user.target

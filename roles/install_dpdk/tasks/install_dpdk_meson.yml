@@ -14,36 +14,59 @@
 ##   limitations under the License.
 ##
 ---
-- name: configure meson builder with virtio-user support and PCAP PMD enabled
-  command:
-    argv:
-      - "meson"
-      - "-Dmachine=default"
-      - "-Dtests=false"
-      - "-Dc_args=-DRTE_VIRTIO_USER=y,-DRTE_LIBRTE_PMD_PCAP=y"
-      - "{{ dpdk_target }}"
-  args:
-    chdir: "{{ dpdk_dir }}"
-    creates: "{{ dpdk_target }}"
+- name: install Python3 from epel-release
+  package:
+    name:
+      - python36
+      - python36-devel
+      - libselinux-python
+    state: present
+    enablerepo: "epel"
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+    - ansible_distribution_version < '8'
 
-- name: build DPDK with ninja
-  command:
-    argv:
-      - "ninja"
-      - "-C"
-      - "{{ dpdk_dir }}/{{ dpdk_target }}"
-  register: build_rc
-  changed_when: "build_rc.rc == 0"
+- name: install dpdk-devel required for libraries enablement in RHEL / CentOS >= 8.2
+  dnf:
+    name: dpdk-devel
+  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
 
-- name: install DPDK with ninja
-  command:
-    argv:
-      - "ninja"
-      - "install"
-      - "-C"
-      - "{{ dpdk_dir }}/{{ dpdk_target }}"
-  register: install_rc
-  changed_when: "install_rc.rc == 0"
+- name: build and install dpdk using meson and ninja tools
+  block:
+    - name: install building tools as python packages
+      pip:
+        name:
+          - selinux
+          - meson>=0.53.2
+          - ninja>=1.10.0
+          - pyelftools>=0.26
+        state: present
+      register: pip_result
+      retries: 5
+      until: pip_result is succeeded
+      delay: 5
+
+    - name: meson build for ease of compiling and linking libraries enablement
+      command: "meson build"
+      args:
+        chdir: "{{ dpdk_dir }}"
+
+    - name: configure DPDK with ninja
+      command: "ninja"
+      args:
+        chdir: "{{ dpdk_dir }}/build"
+
+    - name: install DPDK with ninja
+      command: "ninja install"
+      args:
+        chdir: "{{ dpdk_dir }}/build"
+
+    - name: update the dynamic linker cache
+      command: "ldconfig"
+      args:
+        chdir: "{{ dpdk_dir }}/build"
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
 
 - name: Ensure dpdk libs is in loader search path on RHEL/CentOS
   copy:
@@ -54,15 +77,6 @@
     group: root
   become: yes
   when: ansible_os_family == "RedHat"
-
-- name: update ld cache
-  command:
-    argv:
-      - "ldconfig"
-  args:
-    chdir: "{{ dpdk_dir }}/{{ dpdk_target }}"
-  register: ld_rc
-  changed_when: "ld_rc.rc == 0"
 
 - name: find dpdk tools
   find:

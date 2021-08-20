@@ -64,21 +64,18 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-# install worker node kernel drivers
+# install worker node network software
 - hosts: kube-node
   tasks: []
   roles:
     - role: cluster_defaults
-
     - role: bootstrap/update_nic_drivers
       when: update_nic_drivers | default(false) | bool
-
     - role: bootstrap/update_nic_firmware
       tags: firmware
       when:
         - update_nic_firmware | default(false) | bool
         - update_nic_drivers | default(false) | bool
-
     - role: bootstrap/determine_dataplane_interfaces
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
@@ -91,6 +88,9 @@
       when: install_dpdk | default(true)
       tags: dpdk
     - role: sriov_nic_init
-      when: iommu_enabled | default(true) and install_dpdk | default(true)
+      when:
+        - iommu_enabled | default(false)
+        - install_dpdk | default(false)
+        - not sriov_network_operator_enabled | default(false)
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

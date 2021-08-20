@@ -36,7 +36,7 @@
   when: ansible_os_family == "Debian"
   register: vpp_sh_deb
 
-- name: setup vpp repo on Red Hat
+- name: setup vpp repo on RedHat
   template:
     src: fdio.repo
     dest: /etc/yum.repos.d/fdio.repo
@@ -49,16 +49,16 @@
   register: original_sysctl
   changed_when: false
 
-- name: calc intermediate VPP sysctl entries values
+- name: calculate intermediate VPP sysctl entries values
   set_fact:
     vpp_orig_shmmax: "{{ original_sysctl.stdout_lines[0] }}"
     vpp_orig_max_map_count: "{{  original_sysctl.stdout_lines[1] }}"
-    vpp_calc_shmmax: "{{ (default_hugepage_size == '2M') | ternary(hugepages_2M*2048*1024, hugepages_1G*1024*1024*1024) }}"
-    vpp_calc_max_map_count: "{{ (default_hugepage_size == '2M') | ternary(hugepages_2M*3, hugepages_1G*3) }}"
+    vpp_calc_shmmax: "{{ (default_hugepage_size == '2M') | ternary(number_of_hugepages*2048*1024, number_of_hugepages*1024*1024*1024) }}"
+    vpp_calc_max_map_count: "{{ number_of_hugepages * 3 }}"
 
 - name: pick final sysctl entries values
   set_fact:
-    vpp_nr_hugepages: "{{  (default_hugepage_size == '2M') | ternary(hugepages_2M, hugepages_1G) }}"
+    vpp_nr_hugepages: "{{ number_of_hugepages }}"
     vpp_shmmax: "{{ [vpp_calc_shmmax|int, vpp_orig_shmmax|int] | max }}"
     vpp_max_map_count: "{{ [vpp_orig_max_map_count|int, vpp_calc_max_map_count|int] | max }}"
 
@@ -102,7 +102,7 @@
 #       attach NIC ports based on the user configuration?
 #       run vpp in the CMK context?
 
-- name: Restart VPP service
+- name: restart vpp service
   systemd:
     name: vpp
     state: restarted

@@ -18,9 +18,9 @@ install_dependencies:
   Debian:
     - g++
     - pkg-config
-    - libudev-dev
     - wget
     - make
+    - yasm
   RedHat:
     - "@Development Tools"
     - pciutils
@@ -34,3 +34,4 @@ install_dependencies:
     - make
     - perl
     - usbutils
+    - yasm

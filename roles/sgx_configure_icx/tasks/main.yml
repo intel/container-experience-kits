@@ -14,21 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-- name: Set is_icx to false
-  set_fact:
-    is_icx: False
-
-- name: Read CPU Type
-  shell:
-    cmd: lscpu | grep "Model name:"
-  register: cpu_model
-  changed_when: false
-
-- name: Check if icx sku
-  set_fact:
-    is_icx: True
-  when: item in cpu_model.stdout
-  loop: '{{ supported_icx_skus }}'
+- name: determine machine type
+  include_role:
+    name: check_machine_type
 
 - name: configure sgx on Ubuntu distribution
   include_tasks: ubuntu.yml

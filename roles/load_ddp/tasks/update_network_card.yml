@@ -13,33 +13,34 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-- name: Find Basic profile
+---
+- name: find basic profile
   find:
     patterns: "ice-*.*.pkg"
     paths: "{{ ddp_path }}"
   register: basic_profile_file
 
-- name: Debug
+- name: debug
   debug:
     msg: trying to update card with id '{{ bus_info }}'
 
-- name: Get card SERIAL
-  shell: "set -o pipefail && lspci -vv -s {{ bus_info }} | grep -i 'Device Serial Number' | awk '{print $7}' | sed s/-//g"
+- name: get card Serial
+  shell: "set -o pipefail && lshw -c network | grep -Pioz '(?s)^.*?{{ bus_info }}.*?serial:\\s\\K[a-fA-F0-9:]*' | sed -E 's/:|\\x0//g'"
   args:
     executable: /bin/bash
   register: card_id
   changed_when: false
 
-- name: Show additional information
+- name: show additional information
   debug:
     msg: Found {{ card_id.stdout }} serial for card id {{ bus_info }}
 
-- name: Delete .pkg file for network card
+- name: delete .pkg file for network card
   file:
     path: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
     state: absent
 
-- name: Copy standard .pkg file
+- name: copy standard .pkg file
   copy:
     remote_src: yes
     src: "{{ basic_profile_file.files[0].path }}"
@@ -50,9 +51,9 @@
   when:
     - custom_path_to_profile | length == 0
 
-- name: Copy custom .pkg file
+- name: copy custom .pkg file
   block:
-    - name: Copy custom .pkg file
+    - name: copy custom .pkg file
       copy:
         remote_src: yes
         src: "{{ ddp_path }}{{ custom_path_to_profile|basename }}"
@@ -60,25 +61,37 @@
         owner: root
         group: root
         mode: u+rwx,g-rwx,o-
-    - name: Sussess
+
+    - name: success
       debug:
         msg: "Custom DDP .pkg file has been copied to: {{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
   rescue:
-    - name: Error
+    - name: error
       debug:
         msg: "Custom DDP .pkg file not found, please check if DDP package version is available at https://downloadcenter.intel.com/"
   when:
-    - custom_path_to_profile| length > 0
+    - custom_path_to_profile | length > 0
 
-- name: Delete ice.pkg symlink
+- name: delete ice.pkg symlink
   file:
     path: "{{ ddp_path }}ice.pkg"
     state: absent
 
-- name: Create ice.pkg symlink
+- name: create ice.pkg symlink
   file:
-    src: "{{ basic_profile_file.files[0].path }}"
+    src: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
     dest: "{{ ddp_path }}ice.pkg"
     state: link
     force: yes
     mode: 0600
+
+- name: get updated symlink
+  shell: "set -o pipefail && ls -al {{ ddp_path }}ice.pkg"
+  args:
+    executable: /bin/bash
+  register: ls_result
+  changed_when: false
+
+- name: show updated symlink
+  debug:
+    msg: "{{ ls_result.stdout_lines }}"

@@ -15,16 +15,13 @@
 ##
 ---
 intel_qat_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_qat_dp_git_ref: "v0.19.0"
-intel_qat_dp_version: "0.19.0"
+intel_qat_dp_git_ref: "v0.21.0"
+intel_qat_dp_version: "0.21.0"
 intel_qat_dp_dir: "/usr/src/intel-device-plugins-for-kubernetes-qat"
-
-registry_local_address: "localhost:30500"
 
 qat_dp_build_image_locally: true
 qat_dp_namespace: "kube-system"
 qat_dp_dpdk_drivers: "vfio-pci"
 qat_dp_kernel_drivers: "c6xxvf"
-qat_dp_max_num_devices: 32
 qat_dp_apparmor: "true"
 qat_dp_apparmor_profile: "unconfined"

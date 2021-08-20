@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+      - name: {{ .Release.Name }}
+        image: "{{ .Values.pccs.main.image.repo }}/{{ .Values.pccs.main.image.name }}:{{ .Values.pccs.main.image.tag }}"
+        imagePullPolicy: {{ .Values.pccs.main.image.pullPolicy }}
+        volumeMounts:
+          - name: pccs-config
+            mountPath: /opt/intel/pccs/config
+            readOnly: true
+          - name: pccs-tls
+            mountPath: /opt/intel/pccs/ssl_key
+            readOnly: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 65333
+      - name: pccs-rproxy
+        image: "{{ .Values.pccs.rproxy.image.repo }}/{{ .Values.pccs.rproxy.image.name }}:{{ .Values.pccs.rproxy.image.tag }}"
+        imagePullPolicy: {{ .Values.pccs.rproxy.image.pullPolicy }}
+        ports:
+        - name: pccs-rproxy
+          containerPort: {{ .Values.pccs.rproxy.port }}
+        volumeMounts:
+          - name: nginx-conf
+            mountPath: /etc/nginx
+            readOnly: true
+        resources:
+          limits:
+            cpu: 20m
+            memory: 40Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
+        securityContext:
+          runAsUser: 65334
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - kmra
+      volumes:
+      - name: nginx-conf
+        configMap:
+          name: {{ .Release.Name }}-rproxy-conf
+          items:
+            - key: nginx.conf
+              path: nginx.conf
+      - name: pccs-config
+        configMap:
+          name: {{ .Release.Name }}-env-cm
+          items:
+            - key: default.json
+              path: default.json
+      - name: pccs-tls
+        secret:
+          secretName: {{ .Release.Name }}-tls
+          items:
+          - key: tls.key
+            path: private.pem
+          - key: tls.cert
+            path: file.crt
+

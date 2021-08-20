@@ -54,33 +54,51 @@
     - role: bootstrap/configure_cpu_isolation
       when: isolcpus_enabled | default(true)
     - role: bootstrap/configure_intel_pstate
-      when: intel_pstate_enabled | default(false) | bool
+      when: intel_pstate_enabled | default(true) | bool
     - role: bootstrap/set_sriov_kernel_flags
       when: iommu_enabled | default(true)
+    - role: bootstrap/configure_sst
+      tags: sst
+      when:
+        - (ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04') or
+          (ansible_distribution == "CentOS" and ansible_distribution_version >= '8.2') or
+          (ansible_distribution == "RedHat" and ansible_distribution_version >= '8.3')
+        - (sst_bf_configuration_enabled | default(true)) or
+          (sst_cp_configuration_enabled | default(false)) or
+          (sst_tf_configuration_enabled | default(false))
     - role: bootstrap/install_gpu_kernel
       when: gpu_dp_enabled | default(false)
     - role: bootstrap/update_grub
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-# install worker node kernel drivers
+# install worker node qat software
+- hosts: kube-node
+  tasks: []
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
+  roles:
+    - role: cluster_defaults
+    - role: bootstrap/install_qat_drivers_services
+      when:
+        - update_qat_drivers | default(false)
+        - qat_devices is defined and (qat_devices|length>0)
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+# install worker node network software
 - hosts: kube-node
   tasks: []
   roles:
     - role: cluster_defaults
-
-    - role: bootstrap/install_qat_drivers_services
-      when: update_qat_drivers | default(false)
-
     - role: bootstrap/update_nic_drivers
       when: update_nic_drivers | default(false) | bool
-
     - role: bootstrap/update_nic_firmware
       tags: firmware
       when:
         - update_nic_firmware | default(false) | bool
         - update_nic_drivers | default(false) | bool
-
     - role: bootstrap/determine_dataplane_interfaces
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
@@ -90,19 +108,31 @@
   roles:
     - role: cluster_defaults
     - role: install_dpdk
-      when: ovs_dpdk_enabled | default(false) or install_dpdk | default(true)
       tags: dpdk
+      when: ovs_dpdk_enabled | default(false) or install_dpdk | default(true)
     - role: install_ddp_pkgs
       when: install_ddp_packages | default(true) | bool
     - role: sriov_nic_init
-      when: iommu_enabled | default(true) and install_dpdk | default(true)
+      when:
+        - iommu_enabled | default(true)
+        - install_dpdk | default(true)
+        - not sriov_network_operator_enabled | default(true)
     - role: bootstrap/configure_qat
       when:
         - qat_devices is defined and (qat_devices|length>0)
         - iommu_enabled | default(true)
         - update_qat_drivers | default(false)
-    - role: sst_configure_icx
-      when: sst_bf_configuration_enabled | default(false) or sst_cp_configuration_enabled | default(false)
-      tags: sst
+    - role: bootstrap/configure_openssl
+      when:
+        - qat_devices is defined and (qat_devices|length>0)
+        - iommu_enabled | default(true)
+        - update_qat_drivers | default(false)
+        - openssl_install | default(false)
+    - role: sgx_configure_icx
+      tags: sgx
+      when:
+        - sgx_enabled | default(true)
+        - (ansible_os_family == "Debian" and ansible_distribution_version != '21.04')
+          or (ansible_os_family == "RedHat" and ansible_distribution_version != '8.4')
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

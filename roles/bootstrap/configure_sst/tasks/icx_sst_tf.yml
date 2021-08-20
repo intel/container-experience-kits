@@ -1,0 +1,69 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set core_priority_switch
+  set_fact:
+    core_priority_switch: ""
+
+- name: set core_priority_switch
+  set_fact:
+    core_priority_switch: "-a"
+  when: sst_tf_configuration_enabled
+
+- name: set sst_tf_switch to enable
+  set_fact:
+    icx_sst_tf_switch: "enable"
+  when: sst_tf_configuration_enabled
+
+- name: install packages for SST-TF needed for high priority cores and max freq in Ubuntu >= 20.04
+  apt:
+    name:
+      - "linux-tools-{{ ansible_kernel }}"
+      - "linux-cloud-tools-{{ ansible_kernel }}"
+      - "linux-tools-generic"
+      - "linux-cloud-tools-generic"
+  become: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: set sst_tf_switch to disable
+  set_fact:
+    icx_sst_tf_switch: "disable"
+  when:
+    - not sst_tf_configuration_enabled
+
+- name: enable SST-TF (feature turbo-freq)
+  command: "intel-speed-select turbo-freq {{ icx_sst_tf_switch }} {{ core_priority_switch }}"
+  changed_when: true
+
+- name: install the sst-tf-configure systemd service
+  template:
+    src: sst-tf-configure-icx.service.j2
+    dest: /lib/systemd/system/sst-tf-configure.service
+    owner: root
+    group: root
+    mode: u=rwx,g=r,o=r
+
+- name: run sst-tf-configure service on boot
+  systemd:
+    daemon_reload: yes
+    state: restarted
+    name: sst-tf-configure
+    enabled: yes
+
+- name: verify the capability “turbo-freq info” after configuration is successful
+  command: "intel-speed-select turbo-freq info -l 0"
+  register: verify_tf
+  changed_when: true

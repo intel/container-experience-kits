@@ -1,0 +1,30 @@
+---
+# Source: docker-registry/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ release_name }}-config
+  labels:
+    app: container-registry
+    chart: container-registry-1.9.4
+    heritage: Helm
+    release: {{ release_name }}
+data:
+  config.yml: |-
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    http:
+      addr: {{ registry_addr }}:{{ registry_port }}
+      headers:
+        X-Content-Type-Options:
+        - nosniff
+    log:
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: inmemory
+    version: 0.1

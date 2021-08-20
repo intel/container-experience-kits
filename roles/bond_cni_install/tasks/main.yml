@@ -26,7 +26,7 @@
     force: yes
 
 - name: build Bond CNI
-  command: sh build.sh
+  command: 'go install github.com/intel/bond-cni/bond@latest'
   args:
     chdir: "{{ bond_cni_dir }}"
   changed_when: true

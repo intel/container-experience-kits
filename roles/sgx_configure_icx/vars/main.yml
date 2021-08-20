@@ -49,8 +49,3 @@ install_dependencies:
     - yum-utils
     - dkms
     - elfutils-libelf-devel
-
-supported_icx_skus:
-  - "$0000%@"
-  - "6338N"
-  - "5318N"

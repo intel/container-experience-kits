@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/name: prometheus-operator
-    app.kubernetes.io/version: v0.40.0
+    app.kubernetes.io/version: v0.44.1
   name: prometheus-operator
 rules:
 - apiGroups:
@@ -14,12 +14,14 @@ rules:
   resources:
   - alertmanagers
   - alertmanagers/finalizers
+  - alertmanagerconfigs
   - prometheuses
   - prometheuses/finalizers
   - thanosrulers
   - thanosrulers/finalizers
   - servicemonitors
   - podmonitors
+  - probes
   - prometheusrules
   verbs:
   - '*'
@@ -65,6 +67,14 @@ rules:
   - ""
   resources:
   - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
   verbs:
   - get
   - list

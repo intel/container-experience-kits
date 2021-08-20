@@ -13,15 +13,16 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-- name: Ensure that MSR kernel module is enabled
+---
+- name: ensure that MSR kernel module is enabled
   modprobe:
     name: msr
     state: present
 
-- name: Setup MSR module loading on boot
-  copy:
-    src: msr.conf
-    dest: /etc/modules-load.d/msr.conf
-    owner: root
-    group: root
-    mode: u=rw,g=r,o=r
+- name: setup MSR module loading on boot
+  lineinfile:
+    path: /etc/modules-load.d/msr.conf
+    line: msr
+    create: yes
+    mode: 0644
+  become: yes

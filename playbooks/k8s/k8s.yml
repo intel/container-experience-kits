@@ -41,6 +41,10 @@
           {%- endif -%}
         enable_admission_plugins_prepare: >-
           [EventRateLimit,{% if always_pull_enabled %} AlwaysPullImages,{% endif %} NodeRestriction{% if psp_enabled %}, PodSecurityPolicy{% endif %}]
+        bmra_docker_version: >-
+          {% if ansible_distribution_version >= '21.04' %}latest{% else %}19.03{%endif %}
+        flannel_backend_type: >-
+          {% if ansible_distribution_version >= '21.04' %}host-gw{% else %}vxlan{%endif %}
         kube_config_dir: /etc/kubernetes
     - name: set kube_cert_dir
       set_fact:
@@ -49,15 +53,32 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
+- hosts: all
+  tasks:
+    - name: add docker runtime vars
+      set_fact:
+        container_manager: docker
+        docker_iptables_enabled: true
+        docker_dns_servers_strict: false
+        docker_version: "{{ bmra_docker_version }}"
+      when: container_runtime == "docker"
+    - name: add containerd runtime vars
+      set_fact:
+        container_manager: containerd
+        etcd_deployment_type: host
+        containerd_extra_args: |2
+                  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{{ registry_local_address }}"]
+                    endpoint = ["https://{{ registry_local_address }}"]
+                  [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ registry_local_address }}".tls]
+                    ca_file   = "/etc/containers/certs.d/{{ registry_local_address }}/ca.crt"
+      when: container_runtime == "containerd"
 - name: run kubespray
   import_playbook: kubespray/cluster.yml
   vars:
     kubeadm_enabled: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
-    docker_iptables_enabled: true
-    docker_dns_servers_strict: false
+    nginx_image_tag: 1.21.1
     override_system_hostname: false
-    docker_version: '19.03'
     kube_proxy_mode: iptables
     enable_nodelocaldns: false
     system_reserved: true
@@ -116,6 +137,7 @@
     - name: restart docker daemon to recreate iptables rules
       systemd: name=docker state=restarted
       become: yes
+      when: container_runtime == "docker"
     - name: restart kubelet to trigger static pods recreation
       systemd: name=kubelet state=restarted
       become: yes
@@ -155,7 +177,7 @@
   roles:
     - role: cluster_defaults
       tags: defaults
-    - role: docker_registry
+    - role: container_registry
       tags: registry
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

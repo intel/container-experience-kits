@@ -13,15 +13,9 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-# DDP profile search path:
-nic: ""
-ddp_search_path:
-  i40e: "/lib/firmware/intel/i40e/ddp/"
-  ice: "/lib/firmware/updates/intel/ice/ddp/"
+---
 install_dependencies:
   Debian:
     - ethtool
-    - pciutils
   RedHat:
     - ethtool
-    - pciutils

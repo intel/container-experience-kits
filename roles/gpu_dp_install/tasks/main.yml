@@ -28,60 +28,74 @@
     - inventory_hostname == groups['kube-node'][0]
     - gpu_dp_build_image_locally
 
-- name: create Helm charts directory if needed
-  file:
-    path: /usr/src/charts
-    state: directory
-    mode: 0755
-  when:
-    - inventory_hostname == groups['kube-master'][0]
+# docker is used as container runtime:
+- name: prepare image for Intel GPU Device Plugin
+  block:
+    - name: build Intel GPU Device Plugin images
+      make:
+        target: "{{ item }}"
+        chdir: "{{ intel_gpu_dp_dir }}"
+      loop:
+        - intel-gpu-plugin
+        - intel-gpu-initcontainer
 
-- name: build Intel GPU Device Plugin image
-  make:
-    target: intel-gpu-plugin
-    chdir: "{{ intel_gpu_dp_dir }}"
+    - name: tag Intel GPU Device Plugin images
+      command: docker tag intel/{{ item }}:{{ intel_gpu_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_gpu_dp_version }}
+      loop:
+        - intel-gpu-plugin
+        - intel-gpu-initcontainer
+
+    - name: push Intel GPU Device Plugin image to local registry
+      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_gpu_dp_version }}
+      loop:
+        - intel-gpu-plugin
+        - intel-gpu-initcontainer
   when:
     - inventory_hostname == groups['kube-node'][0]
     - gpu_dp_build_image_locally
+    - container_runtime == "docker"
 
-- name: tag Intel GPU Device Plugin image
-  command: docker tag intel/intel-gpu-plugin:{{ intel_gpu_dp_version }} {{ registry_local_address }}/intel-gpu-plugin:latest
+# containerd/cri-o is used as container runtime:
+- name: prepare image for Intel GPU Device Plugin
+  block:
+    - name: build and tag Intel GPU Device Plugin image
+      command: podman build -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      args:
+        chdir: "{{ intel_gpu_dp_dir }}"
+      changed_when: true
+      with_items:
+        - { file: intel-gpu-initcontainer.Dockerfile, name: intel-gpu-initcontainer }
+        - { file: intel-gpu-plugin.Dockerfile, name: intel-gpu-plugin }
+
+    - name: push Intel GPU Device Plugin image to local registry
+      command: podman push {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      changed_when: true
+      with_items:
+        - { name: intel-gpu-initcontainer }
+        - { name: intel-gpu-plugin }
   when:
     - inventory_hostname == groups['kube-node'][0]
     - gpu_dp_build_image_locally
+    - '"docker" not in container_runtime'
 
-- name: push Intel GPU Device Plugin image to local registry
-  command: docker push {{ registry_local_address }}/intel-gpu-plugin:latest
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - gpu_dp_build_image_locally
+- name: prepare and deploy GPU Device Plugin
+  block:
+    - name: set values
+      set_fact:
+        gpu_dp_image: "{{ registry_local_address }}/intel-gpu-plugin"
+        gpu_dp_init_image: "{{ registry_local_address }}/intel-gpu-initcontainer"
+        gpu_dp_version: "{{ intel_gpu_dp_version }}"
+      when: gpu_dp_build_image_locally
 
-- name: copy Helm chart to the controller node
-  copy:
-    src: "{{ role_path }}/charts/intel-gpu-plugin"
-    dest: "/usr/src/charts/"
-    mode: 0755
-  when:
-    - inventory_hostname == groups['kube-master'][0]
+    - name: populate Intel GPU Device Plugin yaml file and push to controller node
+      template:
+        src: "intel-gpu-plugin.yml.j2"
+        dest: "/usr/src/intel-gpu-plugin.yml"
+        force: yes
+        mode: preserve
 
-- name: set values for Helm charts
-  set_fact:
-    gpu_dp_image: "{{ registry_local_address }}/intel-gpu-plugin"
-    gpu_dp_version: latest
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - gpu_dp_build_image_locally
-
-- name: populate Intel GPU Plugin Helm chart values template and push to controller node
-  template:
-    src: "gpu_values.yml.j2"
-    dest: "/usr/src/charts/intel-gpu-plugin-values.yml"
-    force: yes
-    mode: preserve
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-
-- name: install Intel GPU Plugin Helm chart
-  command: helm upgrade -i intel-gpu-plugin -f /usr/src/charts/intel-gpu-plugin-values.yml --namespace {{ gpu_dp_namespace }} /usr/src/charts/intel-gpu-plugin
-  when:
-    - inventory_hostname == groups['kube-master'][0]
+    - name: deploy Intel GPU Device Plugin with the Intel Device Plugin Operator
+      k8s:
+        state: present
+        src: "/usr/src/intel-gpu-plugin.yml"
+  when: inventory_hostname == groups['kube-master'][0]

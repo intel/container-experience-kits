@@ -35,6 +35,7 @@
   when:
     - inventory_hostname == groups['kube-node'][0]
     - nfd_build_image_locally
+    - container_runtime == "docker"
 
 - name: read current NFD version
 # noqa 303 - git is called intentionally here
@@ -52,12 +53,32 @@
   when:
     - inventory_hostname == groups['kube-node'][0]
     - nfd_build_image_locally
+    - container_runtime == "docker"
 
 - name: push NFD image to local registry
   command: docker push {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
   when:
     - inventory_hostname == groups['kube-node'][0]
     - nfd_build_image_locally
+    - container_runtime == "docker"
+
+- name: build and tag NFD image
+  command: podman build -f Dockerfile -t {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
+  args:
+    chdir: "{{ nfd_dir }}"
+  changed_when: true
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - nfd_build_image_locally
+    - '"docker" not in container_runtime'
+
+- name: push NFD image to local registry
+  command: podman push {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
+  changed_when: true
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - nfd_build_image_locally
+    - '"docker" not in container_runtime'
 
 - name: create Helm charts directory if needed
   file:

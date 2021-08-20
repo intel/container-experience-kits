@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sriov-bindata-conf
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "bindata/manifests/daemon/*").AsConfig | indent 2 }}
+{{ (.Files.Glob "bindata/manifests/plugins/*").AsConfig | indent 2 }}
+

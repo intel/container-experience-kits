@@ -122,6 +122,11 @@
     state: present
   when: ansible_distribution == "RedHat"
 
+- name: start aesmd service, if not started
+  service:
+    state: started
+    name: aesmd
+
 - name: get aesmd service facts
   service_facts:
   register: service_info
@@ -161,7 +166,7 @@
   failed_when: '"The project has been built in hardware debug mode." not in make_confirm.stdout'
   changed_when: '"The project has been built in hardware debug mode." in make_confirm.stdout'
 
-- name: Ensure that sgx driver / psw is installed in hardware mode with code samples
+- name: ensure that sgx driver / psw is installed in hardware mode with code samples
   command: ./app
   args:
     chdir: /usr/src/sgxsdk/SampleCode/LocalAttestation/bin

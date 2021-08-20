@@ -25,7 +25,7 @@
   changed_when: false
   register: cpus_present_file
 
-- name: get range of all available cpus
+- name: get range of all available CPUs
   set_fact:
     cpus_present: "{{ cpus_present_file.stdout }}"
 
@@ -42,11 +42,11 @@
   when:
     - install_real_time_package | default(false)
 
-- name: prepare cpu isolation grub commandline string
+- name: prepare CPU isolation grub commandline string
   set_fact:
     cpu_isolation_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} {{ isolcpus_flags }}" {{ isolcpus_marker }}'
 
-- name: set cpu isolation flags in /etc/default/grub
+- name: set CPU isolation flags in /etc/default/grub
   lineinfile:
     dest: /etc/default/grub
     regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)" {{ isolcpus_marker }}$'

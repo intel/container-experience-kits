@@ -1,0 +1,27 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: load ddp profile
+  include_tasks: load_ddp_profile.yml
+  when: inventory_hostname in groups['kube-node']
+
+- name: install sriov-network-operator
+  include_tasks: sriov_network_operator_install.yml
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: configure sriov-network-operator
+  include_tasks: sriov_network_node_policy_configure.yml
+  when: inventory_hostname == groups['kube-master'][0]

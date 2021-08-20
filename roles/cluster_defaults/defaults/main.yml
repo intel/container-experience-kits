@@ -35,3 +35,5 @@ proxy_env:
   http_proxy: "{{ http_proxy | d('') }}"
   https_proxy: "{{ https_proxy | d ('') }}"
   no_proxy: "{{ no_proxy | d('') }}"
+
+registry_containerd: "/var/lib/kubelet/config.json"

@@ -1,0 +1,12 @@
+---
+apiVersion: deviceplugin.intel.com/v1
+kind: GpuDevicePlugin
+metadata:
+  name: intel-gpu-plugin
+spec:
+  image: {{ gpu_dp_image | default("docker.io/intel/intel-gpu-plugin") }}:{{ gpu_dp_version | default("0.21.0") }}
+  initImage: {{ gpu_dp_init_image | default("docker.io/intel/intel-gpu-initcontainer") }}:{{ gpu_dp_version | default("0.21.0") }}
+  sharedDevNum: {{ gpu_shared_devices }}
+  logLevel: 4
+  nodeSelector:
+    feature.node.kubernetes.io/pci-0300_8086.present: 'true'

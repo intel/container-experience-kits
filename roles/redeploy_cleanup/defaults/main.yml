@@ -1,0 +1,48 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+keep_docker_images: false
+reboot_after_cleanup: true
+
+k8s_dirs_to_remove:
+  - "/etc/cni"
+  - "/etc/kubernetes"
+  - "/var/lib/dockershim"
+  - "/var/lib/etcd"
+  - "/var/lib/kubelet"
+  - "/var/run/kubernetes"
+  - "$HOME/.kube/"
+
+intel_dirs_to_remove:
+  - "/etc/bmra"
+  - "/opt/bin"
+  - "/opt/cni"
+  - "/opt/collect.d"
+  - "/etc/ssl/etcd/"
+  - "/etc/ssl/cmk/"
+  - "/lib/firmware/intel/i40e"
+  - "/lib/firmware/updates/intel"
+  - "/lib/firmware/i915"
+  - "$HOME/go"
+
+intel_services_to_stop:
+  - "aesmd.service"
+  - "bmra_sriov_nic_init.service"
+  - "bmra_sriov_qat_init.service"
+  - "ddp-ice.service"
+  - "QAT.service"
+  - "sst-cp-configure.service"
+  - "sst-bf-configure.service"
+  - "vpp.service"

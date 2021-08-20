@@ -13,16 +13,16 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-
-- name: Update network cards
+---
+- name: update network cards
   include: update_network_card.yml
   loop: "{{ dataplane_interfaces }}"
   args:
     bus_info: "{{ item.bus_info }}"
-    custom_path_to_profile: "{{ item.ddp_profile|default('') }}"
+    custom_path_to_profile: "{{ item.ddp_profile | default('') }}"
   when: item.bus_info is regex (".*0$")
 
-- name: Show additional information
+- name: show additional information
   debug:
     msg: Skipping {{ item.bus_info }} NIC because it is not 1st physical function of the device.
   when: item.bus_info is not regex (".*0$")
@@ -45,13 +45,13 @@
     enabled: yes
   when: enable_ice_systemd_service | default(false)
 
-- name: Grep DDP log
+- name: grep DDP log
   shell: "set -o pipefail && dmesg | grep -i DDP"
   args:
     executable: /bin/bash
   register: grep_result
   changed_when: false
 
-- name: Show installed version
+- name: show installed version
   debug:
     msg: "{{ grep_result.stdout_lines }}"

@@ -94,7 +94,7 @@
   when: continue_nvmupdate | bool
 
 - debug:
-    msg: "Downloaded firmware version is {{ nvmupdate[nic_module].min_required_fw_version }}"
+    msg: "downloaded firmware version is {{ nvmupdate[nic_module].min_required_fw_version }}"
   when: continue_nvmupdate | bool
 
 - debug: var=downloaded_version
@@ -107,7 +107,7 @@
 - name: assert that downloaded FW package isn't older than required
   assert:
     that: downloaded_version is version_compare(nvmupdate[nic_module].min_required_fw_version, '>=')
-    fail_msg: "Downloaded FW version is lower than required, please update 'nvmupdate_pkg_url' and 'nvmupdate_pkg_checksum' vars!"
+    fail_msg: "downloaded FW version is lower than required, please update 'nvmupdate_pkg_url' and 'nvmupdate_pkg_checksum' vars!"
   when: continue_nvmupdate | bool
 
 - name: check ip routing table for interface {{ interface_name }}
@@ -117,7 +117,7 @@
   changed_when: true
 
 - debug:
-    msg: "Interface {{ interface_name }} (driver {{ nic_module }}) is not active in ip route list"
+    msg: "interface {{ interface_name }} (driver {{ nic_module }}) is not active in ip route list"
   when:
     - continue_nvmupdate | bool
     - 'interface_name not in ip_route.stdout'
@@ -153,7 +153,7 @@
 
 - debug:
     msg: >-
-      Updating firmware... This operation may take several minutes.
+      updating firmware... This operation may take several minutes.
       To avoid damage to your device, do not stop the update or
       reboot or power off the system during this update!
   when: continue_nvmupdate | bool
@@ -162,7 +162,7 @@
 # noqa 305 - shell is used intentionally here
   shell:
     chdir: "{{ tempdir_nvmupdate.path }}/Linux_x64"
-    cmd: ./nvmupdate64e -u -l -c nvmupdate.cfg -m '{{ ansible_facts[interface_name]['macaddress'] | replace(':','') }}'
+    cmd: "./nvmupdate64e -u -l -o update.xml -b -c nvmupdate.cfg -m '{{ ansible_facts[interface_name]['macaddress'] | replace(':','') }}'"
   register: nvmupdate_result
   when: continue_nvmupdate | bool
   changed_when: nvmupdate_result.stdout is search('Reboot is required to complete the update process.')

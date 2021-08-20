@@ -43,6 +43,7 @@
 
 - name: ensure Docker config directory exists
   file: path={{ ansible_env.HOME }}/.docker state=directory mode=0755
+  when: container_runtime == "docker"
 
 - name: create Docker config.json file with proxy setttings
   template:
@@ -50,4 +51,6 @@
     dest: "{{ ansible_env.HOME }}/.docker/config.json"
     force: yes
     mode: 0755
-  when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+  when:
+    - '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+    - container_runtime == "docker"

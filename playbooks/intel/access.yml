@@ -26,10 +26,21 @@
       when: nfd_enabled | default(true)
     - role: sriov_dp_install
       tags: sriov-net-dp
-      when: sriov_net_dp_enabled | default(true)
+      when:
+        - sriov_net_dp_enabled | default(false)
+        - not sriov_network_operator_enabled | default(true)
+    - role: sriov_network_operator_install
+      when:
+        - sriov_network_operator_enabled | default(true)
+        - not sriov_net_dp_enabled | default(false)
+        - not sriov_cni_enabled | default(false)
+      tags: sriov-network-operator
     - role: qat_dp_install
       tags: qat-dp
       when: qat_dp_enabled | default(true)
+    - role: openssl_engine_install
+      tags: openssl_engine
+      when: openssl_engine_enabled | default(false)
     - role: cmk_install
       tags: cmk
       when: cmk_enabled | default(true)
@@ -39,7 +50,9 @@
       when: collectd_enabled | default(true)
       vars:
         collectd_profile: access
-  environment: "{{ proxy_env | d({}) }}"
+  environment:
+    - "{{ proxy_env | d({}) }}"
+    - REGISTRY_AUTH_FILE: "{{ registry_containerd }}"
   any_errors_fatal: true
 
 - hosts: kube-node
@@ -48,7 +61,9 @@
     - role: cluster_defaults
       tags: defaults
     - role: sriov_cni_install
-      when: sriov_cni_enabled | default(true)
+      when:
+        - sriov_cni_enabled | default(false)
+        - not sriov_network_operator_enabled | default(true)
       tags: sriov-cni
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

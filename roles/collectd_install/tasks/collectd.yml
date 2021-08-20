@@ -14,20 +14,19 @@
 ##   limitations under the License.
 ##
 ---
-
 - name: delete previous collectd deployment
-  command: kubectl apply -f /usr/src/k8s/collectd/ --namespace {{ collectd_namespace }}
+  command: kubectl delete -f {{ collectd_deployment_dir }} --namespace {{ collectd_namespace }}
   failed_when: false
   changed_when: true
 
-- name: Remove directory with k8s deployment
+- name: remove directory with k8s deployment
   file:
-    path: /usr/src/k8s/collectd
+    path: "{{ collectd_deployment_dir }}"
     state: absent
 
-- name: create Helm charts directory if needed
+- name: create collectd deployment directory
   file:
-    path: /usr/src/k8s/collectd
+    path: "{{ collectd_deployment_dir }}"
     state: directory
     owner: root
     group: root
@@ -43,18 +42,10 @@
   command: kubectl create namespace {{ collectd_namespace }}
   when: '"NotFound" in ns_exists.stderr'
 
-- name: create Helm charts directory if needed
-  file:
-    path: /usr/src/k8s/collectd
-    owner: root
-    group: root
-    state: directory
-    mode: 0755
-
 - name: fill in k8s deployment files
   template:
     src: "{{ item }}"
-    dest: "/usr/src/k8s/collectd/{{ item }}"
+    dest: "{{ collectd_deployment_dir }}/{{ item }}"
     owner: root
     group: root
     force: yes
@@ -69,7 +60,7 @@
 - name: copy psp file
   template:
     src: "psp.yml.j2"
-    dest: "/usr/src/k8s/collectd/psp.yml"
+    dest: "{{ collectd_deployment_dir }}/psp.yml"
     force: yes
     mode: preserve
     owner: root
@@ -78,5 +69,5 @@
     - psp_enabled | default(true)
 
 - name: install collectd from k8s deployment files
-  command: kubectl apply -f /usr/src/k8s/collectd/ --namespace {{ collectd_namespace }}
+  command: kubectl apply -f {{ collectd_deployment_dir }} --namespace {{ collectd_namespace }}
   changed_when: true

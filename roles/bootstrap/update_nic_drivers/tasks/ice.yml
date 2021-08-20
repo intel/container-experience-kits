@@ -13,6 +13,7 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
+---
 - name: get current ice driver version
   command: modinfo ice -F version
   register: ice_installed_version
@@ -25,9 +26,9 @@
 - name: download ice driver
   become: yes
   get_url:
-    url: "{{ ice_drivers_url }}"
+    url: "{{ ice_driver_url }}"
     dest: /usr/src
-    checksum: "{{ ice_drivers_checksum }}"
+    checksum: "{{ ice_driver_checksum }}"
     timeout: 60
   register: ice_download
   until: ice_download is not failed
@@ -38,8 +39,8 @@
     name: ice
     state: absent
   when:
-    - ice_installed_version.stdout != ice_drivers_version
-    - mgmt_interface_driver.stdout != ice_drivers_name
+    - ice_installed_version.stdout != ice_driver_version
+    - mgmt_interface_driver.stdout != ice_driver_name
 
 - name: untar ice driver sources
   unarchive:
@@ -59,23 +60,23 @@
   loop:
     - clean
     - install
-  when: ice_installed_version.stdout != ice_drivers_version
+  when: ice_installed_version.stdout != ice_driver_version
 
 - name: reboot if driver is used by management interface
   become: yes
   reboot:
     reboot_timeout: 1200
   when:
-    - ice_installed_version.stdout != ice_drivers_version
-    - mgmt_interface_driver.stdout != ice_drivers_name
+    - ice_installed_version.stdout != ice_driver_version
+    - mgmt_interface_driver.stdout == ice_driver_name
 
 - name: ensure that ice module is loaded
   modprobe:
     name: ice
     state: present
 
-- name: Get dataplane_interface Device IDs
-  shell: "set -o pipefail && lspci -n -s {{ item.bus_info }} | grep -o '8086:[^ ]*' | tr -d '8086:'"
+- name: get dataplane_interface Device IDs
+  shell: "set -o pipefail && lshw -numeric -businfo -c network | grep -Poi '^.*?{{ item.bus_info }}.*?8086:\\K[0-9a-fA-F]*'"
   args:
     executable: /bin/bash
   register: device_id

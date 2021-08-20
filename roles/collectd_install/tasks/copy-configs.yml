@@ -14,30 +14,30 @@
 ##   limitations under the License.
 ##
 ---
-- name: Disable intel_pmu plugin
+- name: disable intel_pmu plugin
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'intel_pmu' ] }}"
   when: not enable_intel_pmu_plugin
 
-- name: Disable intel_rdt plugin
+- name: disable intel_rdt plugin
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'rdt' ] }}"
   when: not enable_intel_rdt_plugin
 
-- name: Read CPU Type
+- name: read CPU type
   shell:
     cmd: lscpu | grep "Model name:"
   register: cpu_model
   changed_when: false
 
-- name: Disable pkgppower plugin
+- name: disable pkgppower plugin
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'pkgpower' ] }}"
     enable_pkgpower_plugin: false
   when: item in cpu_model.stdout
   loop: '{{ unsupported_power_skus }}'
 
-- name: Prepare list of plugins to be deployed
+- name: prepare list of plugins to be deployed
   set_fact:
     plugins: "{{ collectd_plugins[collectd_profile|default('basic')] | difference(exclude_collectd_plugins) }}"
 
@@ -46,16 +46,16 @@
     plugins: "{{ plugins | difference(['ipmi']) + ['0_ipmi']  }}"
   when: "'ipmi' in plugins"
 
-- name: Following collectd plugins will be installed
+- name: following collectd plugins will be installed
   debug:
     msg: "{{ plugins }}"
 
-- name: Delete directory with config files
+- name: delete directory with config files
   file:
     path: "{{ host_collectd_folder }}"
     state: absent
 
-- name: Create directory for collect.d configs on workers
+- name: create directory for collect.d configs on workers
   file:
     path: "{{ collectd_configuration_files_dir }}"
     state: directory
@@ -125,7 +125,19 @@
     group: root
   when: "'ovs_pmd_stats' in plugins"
 
-- name: Remove pkgpower directory
+- name: copy custom.types.db to nodes
+  copy:
+    src: "{{ item }}"
+    dest: "{{ collectd_configuration_files_dir }}/{{ item }}"
+    mode: 0755
+    owner: root
+    group: root
+  loop:
+    - "custom.types.db"
+    - "types.conf"
+  when: enable_custom_types_db
+
+- name: remove pkgpower directory
   file:
     path: "{{ pkgpower_dir }}"
     state: absent

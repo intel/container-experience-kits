@@ -15,14 +15,12 @@
 ##
 ---
 sriov_net_dp_git_url: "https://github.com/k8snetworkplumbingwg/sriov-network-device-plugin.git"
-sriov_net_dp_git_ref: "v3.3.1"
+sriov_net_dp_git_ref: "v3.3.2"
 sriov_net_dp_dir: "/usr/src/sriov-network-device-plugin"
 sriov_net_dp_build_image_locally: true
 sriov_net_dp_autogenerate: true
 sriov_net_dp_namespace: kube-system
 
-
-registry_local_address: "localhost:30500"
 sriovdp_config_data: |
     {
         "resourceList": [{

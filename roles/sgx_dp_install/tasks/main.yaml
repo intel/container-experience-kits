@@ -14,21 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-- name: Set is_icx to false
-  set_fact:
-    is_icx: False
-
-- name: Read CPU Type
-  shell:
-    cmd: lscpu | grep "Model name:"
-  register: cpu_model
-  changed_when: false
-
-- name: Check if icx sku
-  set_fact:
-    is_icx: True
-  when: item in cpu_model.stdout
-  loop: '{{ supported_icx_skus }}'
+- name: determine machine type
+  include_role:
+    name: check_machine_type
 
 - name: install dependencies
   include_role:
@@ -41,185 +29,189 @@
     version: "{{ intel_sgx_dp_git_ref }}"
     dest: "{{ intel_sgx_dp_dir }}"
     force: yes
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+
+# docker is used as container runtime:
+- name: prepare containers images
+  block:
+    - name: build SGX Plugin before Intel SGX Device Plugin images
+      make:
+        target: sgx_plugin
+        chdir: "{{ intel_sgx_dp_dir }}"
+      when: sgx_dp_build_image_locally
+
+    - name: build Intel SGX Device Plugin images
+      make:
+        target: "{{ item }}"
+        chdir: "{{ intel_sgx_dp_dir }}"
+      loop:
+        - intel-sgx-plugin
+        - intel-sgx-initcontainer
+      when: sgx_dp_build_image_locally
+
+    - name: tag Intel SGX Device Plugin images
+      command: docker tag intel/{{ item }}:{{ intel_sgx_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
+      loop:
+        - intel-sgx-plugin
+        - intel-sgx-initcontainer
+      when: sgx_dp_build_image_locally
+
+    - name: push Intel SGX Device Plugin images to local registry
+      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
+      loop:
+        - intel-sgx-plugin
+        - intel-sgx-initcontainer
+      when: sgx_dp_build_image_locally
+
+    - name: build Intel sgx-aesmd image
+      make:
+        target: sgx-aesmd-demo
+        chdir: "{{ intel_sgx_dp_dir }}"
+      retries: 5
+      delay: 10
+      register: build_aesmd
+      until: build_aesmd is not failed
+
+    - name: tag Intel sgx-aesmd image
+      command: docker tag intel/sgx-aesmd-demo:{{ intel_sgx_dp_version }} {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+
+    - name: push Intel sgx-aesmd image to local registry
+      command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+    - container_runtime == "docker"
+
+# containerd/cri-o is used as container runtime:
+- name: prepare containers images
+  block:
+    - name: build and tag Intel SGX Device Plugin images
+      command: podman build -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_sgx_dp_version }}
+      args:
+        chdir: "{{ intel_sgx_dp_dir }}"
+      changed_when: true
+      with_items:
+        - { file: intel-sgx-initcontainer.Dockerfile, name: intel-sgx-initcontainer }
+        - { file: intel-sgx-plugin.Dockerfile, name: intel-sgx-plugin }
+      when: sgx_dp_build_image_locally
+
+    - name: push Intel SGX Device Plugin images to local registry
+      command: podman push {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
+      changed_when: true
+      loop:
+        - intel-sgx-initcontainer
+        - intel-sgx-plugin
+      when: sgx_dp_build_image_locally
+
+    - name: build and tag Intel sgx-aesmd image
+      command: podman build -f demo/sgx-aesmd-demo/Dockerfile . -t {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      args:
+        chdir: "{{ intel_sgx_dp_dir }}"
+      changed_when: true
+
+    - name: push Intel sgx-aesmd image to local registry
+      command: podman push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      changed_when: true
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - is_icx | default(false) | bool
+    - '"docker" not in container_runtime'
+
+- name: prepare and deploy PSP and RBAC
+  block:
+    - name: make sure directory for PSP and RBAC rules exists
+      file:
+        path: "{{ intel_sgx_psp_rbac_dir }}"
+        state: directory
+        mode: 0755
+
+    - name: copy PSP and RBAC files
+      copy:
+        src: "{{ role_path }}/files/{{ item }}"
+        dest: "{{ intel_sgx_psp_rbac_dir }}/{{ item }}"
+        mode: 0755
+      loop:
+        - sgx-psp.yml
+        - sgx-rbac-cluster-role.yml
+
+    - name: populate RBAC role binding yaml file and push to controller node
+      template:
+        src: "sgx-rbac-role-binding.yml.j2"
+        dest: "{{ intel_sgx_psp_rbac_dir }}/sgx-rbac-role-binding.yml"
+        force: yes
+        mode: preserve
+
+    - name: create PSP and RBAC
+      k8s:
+        state: present
+        src: "{{ intel_sgx_psp_rbac_dir }}/{{ item }}"
+      loop:
+        - sgx-psp.yml
+        - sgx-rbac-cluster-role.yml
+        - sgx-rbac-role-binding.yml
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+    - psp_enabled | default(true)
+
+- name: prepare and deploy Intel SGX Device Plugin
+  block:
+    - name: set values
+      set_fact:
+        sgx_dp_image: "{{ registry_local_address }}/intel-sgx-plugin"
+        sgx_dp_init_image: "{{ registry_local_address }}/intel-sgx-initcontainer"
+        sgx_dp_version: "{{ intel_sgx_dp_version }}"
+      when: sgx_dp_build_image_locally
+
+    - name: populate Intel SGX Plugin yaml file and push to controller node
+      template:
+        src: "intel-sgx-plugin.yml.j2"
+        dest: "/usr/src/intel-sgx-plugin.yml"
+        force: yes
+        mode: preserve
+
+    - name: deploy Intel SGX Device Plugin with the Intel Device Plugin Operator
+      k8s:
+        state: present
+        src: "/usr/src/intel-sgx-plugin.yml"
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - is_icx | default(false) | bool
+
+- name: wait for Intel SGX Device Plugin
+  pause:
+    minutes: 1
   when: is_icx | default(false) | bool
 
-- name: create Helm charts directory if needed
-  file:
-    path: /usr/src/charts
-    state: directory
-    mode: 0755
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
+- name: prepare and deploy Intel SGX aesmd
+  block:
+    - name: create Helm charts directory if needed
+      file:
+        path: /usr/src/charts
+        state: directory
+        mode: 0755
 
-- name: build Intel SGX Device Plugin image
-  make:
-    target: intel-sgx-plugin
-    chdir: "{{ intel_sgx_dp_dir }}"
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - sgx_dp_build_image_locally
-    - is_icx | default(false) | bool
+    - name: populate Intel SGX aesmd Helm chart values template and push to controller node
+      template:
+        src: "aesmd-values.yml.j2"
+        dest: "/usr/src/charts/intel-sgx-aesmd-values.yml"
+        force: yes
+        mode: preserve
 
-- name: build Intel sgx-aesmd image
-  make:
-    target: sgx-aesmd-demo
-    chdir: "{{ intel_sgx_dp_dir }}"
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - is_icx | default(false) | bool
+    - name: copy Helm chart to the controller node
+      copy:
+        src: "{{ role_path }}/charts/intel-sgx-aesmd"
+        dest: "/usr/src/charts/"
+        mode: 0755
 
-- name: build Intel SGX Device Plugin initcontainer image
-  make:
-    target: intel-sgx-initcontainer
-    chdir: "{{ intel_sgx_dp_dir }}"
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - sgx_dp_build_image_locally
-    - is_icx | default(false) | bool
-
-- name: tag Intel sgx-aesmd image
-  command: docker tag intel/sgx-aesmd-demo:{{ sgx_dp_aesmd_image_version }} {{ registry_local_address }}/intel-sgx-aesmd-demo:latest
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - is_icx | default(false) | bool
-
-- name: tag Intel SGX Device Plugin image
-  command: docker tag intel/intel-sgx-plugin:{{ intel_sgx_dp_version }} {{ registry_local_address }}/intel-sgx-plugin:latest
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - sgx_dp_build_image_locally
-    - is_icx | default(false) | bool
-
-- name: tag Intel SGX Device Plugin initcontainer image
-  command: docker tag intel/intel-sgx-initcontainer:{{ intel_sgx_dp_init_version }} {{ registry_local_address }}/intel-sgx-initcontainer:latest
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - sgx_dp_build_image_locally
-    - is_icx | default(false) | bool
-
-- name: push Intel SGX Device Plugin image to local registry
-  command: docker push {{ registry_local_address }}/intel-sgx-plugin:latest
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - sgx_dp_build_image_locally
-    - is_icx | default(false) | bool
-
-- name: push Intel sgx-aesmd image to local registry
-  command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:latest
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - is_icx | default(false) | bool
-
-- name: push Intel SGX Device Plugin initcontainer image to local registry
-  command: docker push {{ registry_local_address }}/intel-sgx-initcontainer:latest
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-    - sgx_dp_build_image_locally
-    - is_icx | default(false) | bool
-
-- name: check if cert-manager namespace exists
-  command: kubectl get namespace {{ cert_manager_namespace }}
-  register: ns_exists
-  failed_when: no
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: create a namespace for cert-manager
-  command: kubectl create namespace {{ cert_manager_namespace }}
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - ns_exists.stderr is defined and "NotFound" in ns_exists.stderr
-    - is_icx | default(false) | bool
-
-- name: add the Jetstack helm repository
-  command: helm repo add jetstack {{ cert_manager_repo }}
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: update local Helm chart repository cache
-  command: helm repo update
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: install the cert-manager Helm chart
-  command: helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --version v1.0.3 --set installCRDs=true
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: change memory limit in Intel One Operator for Device Plugins
-  lineinfile:
-    dest: "{{ intel_sgx_dp_dir }}/deployments/operator/manager/manager.yaml"
-    regexp: 'memory: 30Mi'
-    line: "            memory: 50Mi"
-    mode: '0644'
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: change memory request in Intel One Operator for Device Plugins
-  lineinfile:
-    dest: "{{ intel_sgx_dp_dir }}/deployments/operator/manager/manager.yaml"
-    regexp: 'memory: 20Mi'
-    line: "            memory: 40Mi"
-    mode: '0644'
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: install Intel One Operator for Device Plugins
-  command: kubectl apply -k {{ intel_sgx_dp_dir }}/deployments/operator/default
-  register: result
-  retries: 10
-  delay: 1
-  until: result is not failed
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: copy Helm chart to the controller node
-  copy:
-    src: "{{ role_path }}/charts/intel-sgx-plugin"
-    dest: "/usr/src/charts/"
-    mode: 0755
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: set values for Helm charts
-  set_fact:
-    sgx_dp_image: "{{ registry_local_address }}/intel-sgx-plugin"
-    sgx_dp_version: latest
-    sgx_dp_init_image: "{{ registry_local_address }}/intel-sgx-initcontainer"
-    sgx_dp_init_version: latest
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - sgx_dp_build_image_locally
-    - is_icx | default(false) | bool
-
-- name: populate Intel SGX Plugin Helm chart values template and push to controller node
-  template:
-    src: "sgx_values.yml.j2"
-    dest: "/usr/src/charts/intel-sgx-plugin-values.yml"
-    force: yes
-    mode: preserve
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: wait for Intel One Operator for Device Plugins to become fully available
-  pause:
-    seconds: 90
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-    - is_icx | default(false) | bool
-
-- name: install Intel SGX Plugin Helm chart
-  command: helm upgrade -i intel-sgx-plugin -f /usr/src/charts/intel-sgx-plugin-values.yml --namespace {{ sgx_dp_namespace }} /usr/src/charts/intel-sgx-plugin
+    - name: install Intel SGX aesmd Helm chart
+      command: >-
+        helm upgrade -i intel-sgx-aesmd
+        -f /usr/src/charts/intel-sgx-aesmd-values.yml
+        --namespace {{ sgx_aesmd_namespace }}
+        /usr/src/charts/intel-sgx-aesmd
   when:
     - inventory_hostname == groups['kube-master'][0]
     - is_icx | default(false) | bool

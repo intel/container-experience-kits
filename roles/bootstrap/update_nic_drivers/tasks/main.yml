@@ -40,26 +40,63 @@
       ice: "{{ dataplane_interfaces | selectattr('pf_driver', 'contains', 'ice') | list | length>0 }}"
       iavf: "{{ dataplane_interfaces | select('search', 'iavf') | list | length > 0 }}"
 
+- name: determine custom kernel source dir
+  find:
+    path: /usr/src/kernels
+    file_type: directory
+    patterns: 'gpu_kernel'
+    recurse: yes
+  register: custom_kernel_source
+  when:
+    - gpu_dp_enabled is defined and gpu_dp_enabled
+    - gpu_dp_kernel_version is defined and ansible_kernel == gpu_dp_kernel_version
+
+- name: configure new kernel source
+  make:
+    chdir: "{{ custom_kernel_source.files[0].path }}"
+    target: "{{ item }}"
+  with_items:
+    - oldconfig
+    - prepare
+  when:
+    - gpu_dp_enabled is defined and gpu_dp_enabled
+    - gpu_dp_kernel_version is defined and ansible_kernel == gpu_dp_kernel_version
+
+- name: ensure /usr/lib/modules/$(uname -r)/build points to correct custom kernel source
+  file:
+    state: link
+    src: "{{ custom_kernel_source.files[0].path }}"
+    dest: "/usr/lib/modules/{{ ansible_kernel }}/build"
+    force: yes
+    mode: 0777
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_version >= '8'
+    - gpu_dp_kernel_version is defined and ansible_kernel == gpu_dp_kernel_version
+
 - name: determine kernel source dir
   find:
     path: /usr/src/kernels/
     file_type: directory
+    use_regex: yes
+    patterns: '^(?!gpu.*$).*' # match if not start with 'gpu'
   register: kernel_source
   when:
     - ansible_distribution == "CentOS"
     - ansible_distribution_version >= '8'
+    - gpu_dp_kernel_version is not defined or ansible_kernel != gpu_dp_kernel_version
 
 - name: ensure /usr/lib/modules/$(uname -r)/build points to correct kernel source
   file:
     state: link
-    src: "{{ item.path }}"
+    src: "{{ kernel_source.files[0].path }}"
     dest: "/usr/lib/modules/{{ ansible_kernel }}/build"
     force: yes
     mode: 0777
-  with_items: "{{ kernel_source.files }}"
   when:
     - ansible_distribution == "CentOS"
     - ansible_distribution_version >= '8'
+    - gpu_dp_kernel_version is not defined or ansible_kernel != gpu_dp_kernel_version
 
 # update i40e drivers
 - include: i40e.yml

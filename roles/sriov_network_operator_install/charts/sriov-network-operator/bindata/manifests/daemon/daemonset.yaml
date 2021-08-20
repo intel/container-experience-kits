@@ -1,0 +1,122 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: sriov-network-config-daemon
+  namespace: {{.Namespace}}
+  annotations:
+    release.openshift.io/version: {{.ReleaseVersion}}
+spec:
+  selector:
+    matchLabels:
+      app: sriov-network-config-daemon
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 33%
+  template:
+    metadata:
+      annotations:
+        target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
+      labels:
+        app: sriov-network-config-daemon
+        component: network
+        type: infra
+        openshift.io/component: network
+    spec:
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+        node-role.kubernetes.io/worker:
+      tolerations:
+      - operator: Exists
+      serviceAccountName: sriov-network-config-daemon
+      priorityClassName: "system-node-critical"
+      containers:
+      - name: sriov-cni
+        image: {{.SRIOVCNIImage}}
+        securityContext:
+          privileged: true
+        resources:
+          requests:
+            cpu: 10m
+            memory: 10Mi
+        volumeMounts:
+        - name: cnibin
+          mountPath: /host/opt/cni/bin
+      - name: sriov-infiniband-cni
+        image: {{.SRIOVInfiniBandCNIImage}}
+        securityContext:
+          privileged: true
+        resources:
+          requests:
+            cpu: 10m
+            memory: 10Mi
+        volumeMounts:
+        - name: cnibin
+          mountPath: /host/opt/cni/bin
+      - name: sriov-network-config-daemon
+        image: {{.Image}}
+        command:
+          - sriov-network-config-daemon
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        args:
+          - "start"
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLUSTER_TYPE
+            value: {{.ClusterType}}
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - name: host
+          mountPath: /host
+        - name: bindata
+          mountPath: "/bindata/manifests/plugins/"
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bindata/scripts/clean-k8s-services.sh"]
+      volumes:
+      - name: host
+        hostPath:
+          path: /
+      - name: cnibin
+        hostPath:
+          path: {{.CNIBinPath}}
+      - name: bindata
+        configMap:
+          name: sriov-bindata-conf
+          items:
+            - key: 002-rbac.yaml
+              path: 002-rbac.yaml
+            - key: sriov-device-plugin.yaml
+              path: sriov-device-plugin.yaml
+

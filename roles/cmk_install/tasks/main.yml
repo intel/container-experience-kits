@@ -28,25 +28,42 @@
 - name: build CMK image
   make:
     chdir: "{{ cmk_dir }}"
+  when: container_runtime == "docker"
 
 # NOTE(przemeklal): this fixes problem in CMK with ImagePullPolicy hardcoded to Never and the pod is scheduled on controller node
 - name: tag CMK image
   command: docker tag cmk:{{ cmk_img_version }} {{ registry_local_address }}/cmk:{{ cmk_img_version }}
   changed_when: true
+  when: container_runtime == "docker"
 
 - name: push CMK image to local registry
   command: docker push {{ registry_local_address }}/cmk:{{ cmk_img_version }}
+  changed_when: true
+  when:
+    - container_runtime == "docker"
+    - inventory_hostname == groups['kube-node'][0]
+
+- name: build and tag CMK image
+  command: podman build -f Dockerfile -t {{ registry_local_address }}/cmk:{{ cmk_img_version }}
+  args:
+    chdir: "{{ cmk_dir }}"
+  changed_when: true
+  when: '"docker" not in container_runtime'
+
+- name: push CMK image to local registry
+  command: podman push {{ registry_local_address }}/cmk:{{ cmk_img_version }}
+  changed_when: true
   when:
     - inventory_hostname == groups['kube-node'][0]
-  changed_when: true
+    - '"docker" not in container_runtime'
 
-- name: clean up any preexisting certs/key/CSR files
+- name: clean up any pre-existing certs/key/CSR files
   file: path=/etc/ssl/cmk state=absent
   when: inventory_hostname == groups['kube-master'][0]
   failed_when: false
   become: yes
 
-- name: delete any preexisting certs/key/CSR from Kubernetes
+- name: delete any pre-existing certs/key/CSR from Kubernetes
   command: kubectl delete csr cmk-webhook-{{ item }}.{{ cmk_namespace }}
   when: inventory_hostname == groups['kube-master'][0]
   failed_when: false
@@ -179,7 +196,7 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
-- name: get approved server  certificate
+- name: get approved server certificate
   shell: kubectl get csr cmk-webhook-server.{{ cmk_namespace }} -o jsonpath='{.status.certificate}'
   args:
     chdir: "/etc/ssl/cmk/"
@@ -239,8 +256,13 @@
 - name: restart kube-apiserver after updating admission control configuration
   when: inventory_hostname == groups['kube-master'][0]
   block:
-    - name: remove kube-apiserver Docker container
-      shell: docker ps -af name=k8s_kube-apiserver* -q | xargs --no-run-if-empty docker rm -f
+    - name: remove kube-apiserver container
+      # noqa 305 - shell is used intentionally here
+      shell: >-
+        {{ (container_runtime == 'docker') | ternary('docker ps -af name=k8s_kube-apiserver* -q |
+        xargs --no-run-if-empty docker rm -f',
+        'crictl ps -a --name=kube-apiserver* -q |
+        xargs --no-run-if-empty crictl rm -f')  }}
       args:
         executable: /bin/bash
       register: remove_apiserver_container
@@ -312,11 +334,11 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
-# remove any preexisting configmaps before cmk redeployment
-- name: remove any preexisting configmaps before CMK deployment
+# remove any pre-existing configmaps before cmk redeployment
+- name: remove any pre-existing configmaps before CMK deployment
   command: kubectl delete cm cmk-config-{{ inventory_hostname }}
   when:
-    - inventory_hostname in cmk_hosts_list.split(',')
+    - inventory_hostname in (cmk_hosts_list.split(',') if (cmk_hosts_list is defined and cmk_hosts_list | length > 0) else [])
   delegate_to: "{{ groups['kube-master']|first }}"
   failed_when: false
 

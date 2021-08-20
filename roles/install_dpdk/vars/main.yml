@@ -25,8 +25,6 @@ install_dependencies:
     - libnuma-dev
     - libpcap-dev
     - linux-headers-{{ ansible_kernel }}
-    - meson
-    - ninja-build
     - pkg-config
   RedHat:
     - numactl-devel
@@ -34,6 +32,4 @@ install_dependencies:
     - kernel-devel
     - "@Development tools"
     - elfutils-libelf-devel
-    - meson
-    - ninja-build
     - pkgconfig

@@ -61,9 +61,40 @@
     - "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security multiverse"
   when: ansible_distribution == "Ubuntu"
 
+- name: Add kubic apt repo key
+  apt_key:
+    url: "https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/xUbuntu_{{ ansible_distribution_version }}/Release.key"
+    state: present
+  register: apt_key_download
+  until: apt_key_download is succeeded
+  retries: 4
+  when:
+    - container_runtime == "containerd"
+    - ansible_distribution == "Ubuntu"
+
+- name: Add kubic apt repo
+  apt_repository:
+    repo: "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_{{ ansible_distribution_version }}/ /"
+    state: present
+    filename: devel-kubic-libcontainers-stable
+  when:
+    - container_runtime == "containerd"
+    - ansible_distribution == "Ubuntu"
+
 - name: apt update
   apt: update_cache=yes
   when: ansible_distribution == "Ubuntu"
+
+- name: install podman package
+  apt:
+    name: podman
+    state: present
+  register: podman_package
+  retries: 5
+  until: podman_package is success
+  when:
+    - '"docker" not in container_runtime'
+    - ansible_distribution == "Ubuntu"
 
 - name: install zip
   apt:
@@ -80,13 +111,17 @@
   apt:
     name: python3.8
     state: present
-  when: ansible_os_family == "Debian"
+  when:
+    - ansible_os_family == "Debian"
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version < '21.04'
 
 - name: Install python3.8-dev
   apt:
     name: python3.8-dev
     state: present
-  when: ansible_os_family == "Debian"
+  when:
+    - ansible_os_family == "Debian"
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version < '21.04'
 
 - name: Set python is python3
   alternatives:

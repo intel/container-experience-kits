@@ -1,0 +1,55 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set core_priority_switch
+  set_fact:
+    core_priority_switch: ""
+
+- name: set core_priority_switch
+  set_fact:
+    core_priority_switch: "-a"
+  when:
+    - icx_sst_bf_with_core_priority is defined
+    - icx_sst_bf_with_core_priority
+
+- name: set sst_bf_switch to enable
+  set_fact:
+    icx_sst_bf_switch: "enable"
+  when: icx_sst_bf_enabled
+
+- name: set sst_bf_switch to disable
+  set_fact:
+    icx_sst_bf_switch: "disable"
+  when: not icx_sst_bf_enabled
+
+- name: enable SST-BF
+  command: "intel-speed-select base-freq {{ icx_sst_bf_switch }} {{ core_priority_switch }}"
+  changed_when: true
+
+- name: install the sst-bf-configure systemd service
+  template:
+    src: sst-bf-configure-icx.service.j2
+    dest: /lib/systemd/system/sst-bf-configure.service
+    owner: root
+    group: root
+    mode: u=rwx,g=r,o=r
+
+- name: run sst-bf-configure service on boot
+  systemd:
+    daemon_reload: yes
+    state: restarted
+    name: sst-bf-configure
+    enabled: yes

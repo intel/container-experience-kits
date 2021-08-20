@@ -1,0 +1,65 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: delete sriov-network-operator deployment
+  command: "helm uninstall {{ sriov_network_operator_helm_release_name }} -n {{ sriov_network_operator_namespace }}"
+  failed_when: false
+  register: helm_result
+  changed_when: "helm_result.rc == 0"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: Create sriov-network-operator charts directory if does not exist
+  file:
+    path: "{{ sriov_network_charts_dir }}"
+    state: directory
+    owner: root
+    mode: 0755
+
+- name: copy charts to charts directory
+  copy:
+    src: "{{ role_path }}/charts/sriov-network-operator/"
+    dest: "{{ sriov_network_charts_dir }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: populate sriov-network-operator chart values template and push to controller node
+  template:
+    src: "values.yml.j2"
+    dest: "{{ sriov_network_charts_dir }}/values.yaml"
+    force: yes
+    mode: preserve
+  changed_when: true
+
+- name: deploy sriov-network-operator
+  command: |
+    helm upgrade \
+    --install {{ sriov_network_operator_helm_release_name }} \
+    --create-namespace \
+    --wait \
+    --namespace {{ sriov_network_operator_namespace }} ./
+  args:
+    chdir: "{{ sriov_network_charts_dir }}"
+  changed_when: true
+
+- name: label configured nodes with node-role.kubernetes.io/worker= label
+  shell: "set -o pipefail &&  kubectl label nodes {{ item }} node-role.kubernetes.io/worker= --overwrite"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - hostvars[item]['dataplane_interfaces'] | default({}) | length > 0
+  loop: "{{ groups['kube-node'] }}"

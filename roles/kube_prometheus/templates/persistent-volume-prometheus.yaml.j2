@@ -22,4 +22,4 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - {{ groups['kube-node'][0] }}
+                - {{ hostvars[groups['kube-node'][0]]['ansible_hostname'] }}

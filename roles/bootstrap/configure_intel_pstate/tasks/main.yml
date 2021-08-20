@@ -30,6 +30,6 @@
     - intel_pstate_enabled | default(false)
 
 - name: setup turbo boost
-  include_tasks: setup_intel_pstate.yml
+  include_tasks: setup_turbo.yml
   when:
     - turbo_boost_enabled is defined

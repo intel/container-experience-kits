@@ -14,26 +14,55 @@
 ##   limitations under the License.
 ##
 ---
-- name: validate hyperthreading settings
-  assert:
-    that: ansible_processor_threads_per_core > 1
-    fail_msg: "Please make sure that 'hyperthreading' is enabled in system BIOS"
-
-- name: autogenerate isolcpu range for socket 1
+#2-27
+- name: autogenerate isolcpu physical range for socket 1
   set_fact:
     isolcpus: "{{ cmk_exclusive_num_cores }}\
-              -{{ ansible_processor_cores -1 }}\
-              ,{{ ansible_processor_cores + cmk_exclusive_num_cores }}\
-              -{{ ansible_processor_cores * ansible_processor_threads_per_core - 1 }}"
+              -{{ ansible_processor_cores -1 }}"
   when: cmk_exclusive_num_cores is defined
 
-- name: autogenerate isolcpu range for socket 2
+#30-55
+- name: autogenerate isolcpu logical range for socket 1 hyperthread enabled
+  set_fact:
+    isolcpus: "{{ isolcpus }}\
+              ,{{ ansible_processor_cores + cmk_exclusive_num_cores }}\
+              -{{ ansible_processor_cores * ansible_processor_threads_per_core - 1 }}"
+  when:
+    - cmk_exclusive_num_cores is defined
+    - ansible_processor_threads_per_core > 1
+
+#30-55
+- name: autogenerate isolcpu physical range for socket 2 hyperthread disabled
+  set_fact:
+    isolcpus: "{{ isolcpus }}\
+              ,{{ ansible_processor_cores + cmk_exclusive_num_cores }}\
+              -{{ ansible_processor_vcpus - 1 }}"
+  when:
+    - cmk_exclusive_num_cores is defined
+    - ansible_processor_count > 1
+    - ansible_processor_threads_per_core == 1
+
+#58-83
+- name: autogenerate isolcpu physical range for socket 2 hyperthread enabled
   set_fact:
     isolcpus: "{{ isolcpus }}\
               ,{{ ansible_processor_cores * ansible_processor_threads_per_core + cmk_exclusive_num_cores }}\
-              -{{ ansible_processor_vcpus - ansible_processor_cores - 1 }}\
+              -{{ ansible_processor_vcpus - ansible_processor_cores - 1 }}"
+  when:
+    - cmk_exclusive_num_cores is defined
+    - ansible_processor_count > 1
+    - ansible_processor_threads_per_core > 1
+
+#86-111
+- name: autogenerate isolcpu logical range for socket 2 hyperthread enabled
+  set_fact:
+    isolcpus: "{{ isolcpus }}\
               ,{{ ansible_processor_vcpus - ansible_processor_cores + cmk_exclusive_num_cores }}\
               -{{ ansible_processor_vcpus  - 1 }}"
   when:
     - cmk_exclusive_num_cores is defined
     - ansible_processor_count > 1
+    - ansible_processor_threads_per_core > 1
+
+- debug:
+    msg: "{{ isolcpus }}"

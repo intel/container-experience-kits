@@ -26,7 +26,6 @@
 # - Check Group Vars (exist)
 # - Check Host Vars (exist for each worker node)
 # - Check CMK Hosts (valid targets)
-# - TODO: Check Kubespray (submodules initialized)
 # On All targets (k8s-cluster):
 # - Check Linux Distro
 # - Check Hostnames (match Inventory)
@@ -39,16 +38,16 @@
 # - Check DP Interfaces Name (optional)
 # - Check DP Interfaces Bus Info (pciid)
 # - Check QAT Devices Bus Info (pciid)
-# - Check QAT SRIOV (update driver)
-# - Check OVS DPDK Config (for 1G Hugepages)
-# - Check VPP Config (for 2M Hugepages)
-# - Check CNI Config (for OVS DPDK or VPP and Hugepages)
+# - Check QAT SRIOV VFs (max)
+# - Check SGX configuration
+# - Check OVS DPDK Dependencies (for 1G Hugepages)
+# - Check VPP Dependencies (for 2M Hugepages)
+# - Check CNI Dependencies (for OVS DPDK or VPP and Hugepages)
 # - Check SST (not on RHEL 8.2 or old OSs)
 # - Warn BIOS VT-d (should be enabled)
 # - Warn BIOS Hyper-Threading (should be enabled)
 # - Warn collectd (kernel update needed on old OSs)
-# - Temporary: Check DPDK Version (for OVS support)
-# TBD
+# - Check OVS DPDK Version Compatability (for OVS support)
 
 # additional vars required:
 #  bmra_supported_ansible: # must be version
@@ -63,7 +62,7 @@
 - hosts: 127.0.0.1
   connection: local
   vars:
-    bmra_supported_ansible: 2.9.17
+    bmra_supported_ansible: 2.9.20
     bmra_supported_python: 2.7
 
   tasks:
@@ -82,19 +81,18 @@
 
     - name: Read Group Vars
       stat:
-        path: "{{ inventory_dir }}/group_vars/all.yml"
+        path: "{{ inventory_dir }}/group_vars/"
       register: group_vars_details
 
     - name: Check Group Vars
       assert:
-        that: "group_vars_details.stat.exists and group_vars_details.stat.isreg"
+        that: "group_vars_details.stat.exists and group_vars_details.stat.isdir"
         msg: "File group_vars/all.yml does NOT exist. Must be created per Guide"
 
     - name: Read Host Vars
       stat:
         path: "{{ inventory_dir }}/host_vars/{{ item }}.yml"
       register: host_vars_details
-#      with_inventory_hostnames: kube-node #this works too
       with_items: "{{ groups['kube-node'] }}"
 
     - name: Check Host Vars
@@ -107,7 +105,7 @@
         msg:
           - cmk_enabled = {{ cmk_enabled }} (group_vars/all.yml)
           - cmk_use_all_hosts = {{ cmk_use_all_hosts }} (group_vars/all.yml)
-          - cmk_hosts_list = {{ cmk_hosts_list }} (group_vars/all.yml)
+          - cmk_hosts_list = {{ cmk_hosts_list | default('') }} (group_vars/all.yml)
           - all targets = {{ groups['all'] }} (inventory.ini)
       when: cmk_enabled is defined  # CMK expected true for all profiles except basic
 
@@ -115,13 +113,8 @@
       assert:
         that: "item in groups['all']"
         msg: "Hostname '{{ item }}' is NOT a valid target from inventory.  Please correct the cmk_hosts_list or disable the CMK feature in group vars"
-      with_items: "{{ cmk_hosts_list.split(',') }}"
+      with_items: "{{ (cmk_hosts_list.split(',') if (cmk_hosts_list is defined and cmk_hosts_list | length > 0) else []) }}"
       when: cmk_enabled is defined and cmk_enabled and not cmk_use_all_hosts
-
-#    - name: Check Kubespray
-# TODO ??
-# Initialize git submodules to download Kubespray code.
-# git submodule update --init
 
 
 ##############################################
@@ -130,7 +123,7 @@
 - hosts: k8s-cluster
   vars:
     bmra_supported_distros: [CentOS, RedHat, Ubuntu]
-    bmra_supported_distros_versions: ['7.6', '7.8', '7.9', '8.2', '8.3', '18.04', '20.04']
+    bmra_supported_distros_versions: ['7.6', '7.8', '7.9', '8.2', '8.3', '8.4', '18.04', '20.04', '21.04']
     isolcpus_ranges: []
     isolcpus_discretes: []
 
@@ -147,11 +140,41 @@
 #    - name: Check Linux Across Cluster
 # TODO ?? Linux OS must be the same on all targets (no mix-n-match)
 
+    - name: regather network facts in case hostname recently changed
+      setup:
+        gather_subset: network
     - debug: msg="Inventory target '{{ inventory_hostname }}' has the actual system hostname '{{ ansible_hostname }}'"
     - name: Check Inventory Hostnames
-      assert:
-        that: ("{{ inventory_hostname }}" == "{{ ansible_hostname }}")
-        msg: "Target '{{ inventory_hostname }}' in inventory does NOT match the actual system hostname '{{ ansible_hostname }}'. Please correct the inventory"
+      debug:
+        msg:
+          - "Target '{{ inventory_hostname }}' in inventory does NOT match the actual system hostname '{{ ansible_hostname }}'."
+          - "If it's done intentionally, please ignore this message."
+      when:
+        - inventory_hostname != ansible_hostname
+
+# Early check if SELinux is configured properly
+    - block:
+      - name: "Collect packages facts"
+        package_facts:
+      - debug:
+          msg:
+            - "Current SELinux status:"
+            - "status: {{ ansible_selinux.status | default('') }}"
+            - "policy version:  {{ ansible_selinux.policyvers | default('') }}"
+            - "type: {{ ansible_selinux.type | default('') }}"
+            - "mode: {{ ansible_selinux.mode | default('') }}"
+            - "config_mode: {{ ansible_selinux.config_mode | default('') }}"
+
+      - name: check selinux condition possibly causing system boot failure
+        debug:
+          msg:
+            - "Current SELinux setup might cause the system possibly will not boot up on next reboot."
+            - "Please, check SELinux settings and set it up according to the documentation."
+        when:
+          - "'selinux-policy' not in ansible_facts.packages"
+          - "'selinux-policy-targeted' not in ansible_facts.packages"
+      when:
+        - ansible_os_family == "RedHat"
 
 # STORY: "cmk requires isolcpus to be configured"
     - block:
@@ -159,7 +182,7 @@
           msg:
             - cmk_enabled = {{ cmk_enabled }} (group_vars/all.yml)
             - cmk_use_all_hosts = {{ cmk_use_all_hosts }} (group_vars/all.yml)
-            - cmk_hosts_list = {{ cmk_hosts_list }} (group_vars/all.yml)
+            - cmk_hosts_list = {{ cmk_hosts_list | default('') }} (group_vars/all.yml)
             - cmk_shared_num_cores = {{ cmk_shared_num_cores }} (group_vars/all.yml)
             - cmk_exclusive_num_cores = {{ cmk_exclusive_num_cores }} (group_vars/all.yml)
             - isolcpus_enabled = {{ isolcpus_enabled }} (host_vars)
@@ -235,7 +258,9 @@
 
 #TODO relationship between cmk shared/exclusive cores and isolcpus
 
-      when: cmk_enabled is defined and ansible_hostname in cmk_hosts_list  #CMK expected true for all profiles except basic
+      when:
+        - cmk_enabled is defined
+        - (not cmk_hosts_list is defined) or (inventory_hostname in cmk_hosts_list)  #CMK expected true for all profiles except basic
 
 
 ####################################
@@ -256,7 +281,12 @@
       assert:
         that: "dataplane_interfaces != []"
         msg: "Dataplane (DP) interface(s) on target '{{ ansible_hostname }}' must be set in host_vars. Please correct the configuration"
-      when: dataplane_interfaces is defined
+      when:
+        - dataplane_interfaces is defined
+        - (update_nic_drivers is defined and update_nic_drivers) or
+          (install_ddp_packages is defined and install_ddp_packages) or
+          (sriov_cni_enabled is defined and sriov_cni_enabled) or
+          (sriov_network_operator_enabled is defined and sriov_network_operator_enabled)
 
     - debug:
         msg: "Network interfaces present on target '{{ ansible_hostname }}' = {{ ansible_interfaces }}"
@@ -265,24 +295,17 @@
       set_fact:
         phy_nics_pciids: "{{ phy_nics_pciids + [ ansible_facts[item]['pciid'] ] }}"
       with_items: "{{ ansible_interfaces }}"
-      when: ansible_facts[item] is defined and ansible_facts[item]['type'] == "ether"
+      when: ansible_facts[item]['pciid'] is defined and ansible_facts[item]['type'] == "ether"
 
     - debug: msg="PCI Slots for the NICs on target '{{ ansible_hostname }}' = {{ phy_nics_pciids }}"
 
-# These won't pass with Berta (DP names defined in host_vars are NOT enforced to match device names on target systems
-#    - name: Check DP Interfaces Names
-#      assert:
-#        that: ("{{ item.name }}" in {{ ansible_interfaces }})
-#        msg: "Dataplane interface '{{ item.name }}' defined in host_vars does NOT exist on target. Please correct the configuration"
-#      with_items: "{{ dataplane_interfaces }}"
-#      when: dataplane_interfaces is defined and dataplane_interfaces != []
-
-#    - name: Check DP Interfaces Bus Info
-#      assert:
-#        that: ("{{ item.bus_info }}" in "{{ ansible_facts[item.name]['pciid'] }}")
-#        msg: "Dataplane interface '{{ item.name }}' defined in host_vars does NOT match the Bus Info on target. Please correct the configuration"
-#      with_items: "{{ dataplane_interfaces }}"
-#      when: dataplane_interfaces is defined and dataplane_interfaces != []
+    - name: Check DP Interfaces Names
+      assert:
+        that: ("{{ item.name }}" in {{ ansible_interfaces }})
+        msg: "Dataplane interface '{{ item.name }}' defined in host_vars does NOT exist on target. Please correct the configuration"
+      with_items: "{{ dataplane_interfaces }}"
+      when: dataplane_interfaces is defined and dataplane_interfaces != []
+      ignore_errors: True
 
     - name: Check DP Interfaces Bus Info
       assert:
@@ -290,6 +313,7 @@
         msg: "Dataplane interface '{{ item.name }}' defined with PCI ID '{{ item.bus_info }}' does NOT exist on target. Please correct the configuration"
       with_items: "{{ dataplane_interfaces }}"
       when: dataplane_interfaces is defined and dataplane_interfaces != []
+      ignore_errors: True
 
 
 # QAT Devices list is okay to be left empty (default), but if was defined, device(s) must exist on target
@@ -313,23 +337,94 @@
         msg: "QAT device '{{ item.qat_dev }}' defined with PCI ID '{{ item.qat_id }}' does NOT exist on target. Please correct the configuration"
       with_items: "{{ qat_devices }}"
       when: qat_devices is defined and qat_devices != []
+      ignore_errors: True
 
-
-# STORY: "update_qat_drivers must be true if qat_sriov_numvfs is defined"
+# STORY: "qat_sriov_numvfs should not exceed max supported (16) per each dev_ID"
     - debug:
         msg:
-          - qat_sriov_numvfs = {{ qat_sriov_numvfs }} (host_vars)
+          - qat_sriov_numvfs for {{ item.qat_id }} = {{ item.qat_sriov_numvfs }} (host_vars)
           - update_qat_drivers = {{ update_qat_drivers }} (host_vars)
-      when: qat_sriov_numvfs is defined # expected as '16' and update_qat_drivers as 'true' for all profiles except basic
+      with_items: "{{ qat_devices }}"
+      when: qat_devices is defined and qat_devices != [] # update_qat_drivers expected as 'true' for all profiles except basic
 
-    - name: Check QAT SRIOV
+    - name: Check QAT SRIOV VFs
       assert:
-        that: ({{ qat_sriov_numvfs }} > 0 and {{ update_qat_drivers }}) or {{ qat_sriov_numvfs }} == 0
+        that: ({{ item.qat_sriov_numvfs }} <= 16)
         msg:
           - Incorrect configuration pertaining QAT SRIOV. Conflicting or improper values detected
-          - When SRIOV VFs are set for QAT, the QAT drivers update must be enabled. Please correct the configuration
-      when: qat_sriov_numvfs is defined
+          - When SRIOV VFs are set for QAT, max value is 16 for each ID (max 48 total per card). Please correct the configuration
+      with_items: "{{ qat_devices }}"
+      when:
+        - update_qat_drivers is defined and update_qat_drivers
+        - qat_devices is defined and qat_devices != []
+# OpenSSL & OpenSSL*Engine must only be configured / installed when update_qat_drivers is set to 'true' and qat_devices is defined in host vars
+    - name: check OpenSSL and OpenSSL*Engine requirements
+      assert:
+        that:
+          - update_qat_drivers
+          - qat_devices is defined and qat_devices != []
+        fail_msg: "OpenSSL & OpenSSL*Engine will only configured if update_qat_drivers is set to 'true' & qat_devices is defined in host vars"
+        success_msg: "OpenSSL & OpenSSL*Engine verification completed"
+      when: openssl_install is defined and openssl_install
 
+    - name: check KMRA requirements
+      assert:
+        that:
+          - sgx_dp_enabled
+        fail_msg: "KMRA installation requires sgx_dp_enabled set to 'true'"
+        success_msg: "KMRA requirements verified"
+      when: kmra_enabled is defined and kmra_enabled
+
+    - name: check SGX configuration
+      assert:
+        that:
+          - sgx_enabled
+        fail_msg: "SGX drivers installation requires sgx_enabled set to 'true'"
+        success_msg: "SGX configuration verified"
+      when:
+        - sgx_dp_enabled is defined and sgx_dp_enabled
+        - (ansible_distribution == 'Ubuntu' and ansible_distribution_version != '21.04')
+          or (ansible_os_family == 'RedHat' and ansible_distribution_version != '8.4')
+
+    - name: check NFD configuration
+      assert:
+        that:
+          - nfd_enabled
+        fail_msg: "SGX DP requires nfd_enabled set to 'true'"
+        success_msg: "NFD configuration verified"
+      when: sgx_dp_enabled is defined and sgx_dp_enabled
+
+    - name: check kmra_pccs_api_key presence
+      assert:
+        that:
+          - kmra_pccs_api_key is defined
+        fail_msg:
+          - "kmra_pccs_api_key is not defined"
+        success_msg: "kmra_pccs_api_key presence is verified"
+      when:
+        - kmra_enabled is defined and kmra_enabled
+
+    - name: check PCCS API key length
+      assert:
+        that:
+          - kmra_pccs_api_key | length == 32
+        fail_msg: "PCCS API Key should be 32 bytes long"
+        success_msg: "PCCS API key length verified"
+      when:
+        - kmra_enabled is defined and kmra_enabled
+
+    - name: check PCCS API key is not a placeholder
+      assert:
+        that:
+          - kmra_pccs_api_key is defined
+          - kmra_pccs_api_key != "ffffffffffffffffffffffffffffffff"
+        fail_msg:
+          - "Please, visit https://api.portal.trustedservices.intel.com/provisioning-certification and click on 'Subscribe'"
+          - "to generate PCCS API key."
+          - "PCCS API key is essential for KMRA deployment and usage."
+        success_msg: "PCCS API key verified"
+      when:
+        - kmra_enabled is defined and kmra_enabled
 
 # STORY: "vpp/ovsdpdk require hugepage enabled and configured"
     - debug:
@@ -341,34 +436,36 @@
           - sriov_net_dp = {{ example_net_attach_defs['sriov_net_dp'] }} (group_vars/all.yml)
           - userspace_cni_enabled = {{ userspace_cni_enabled }} (host_vars)
           - sriov_cni_enabled = {{ sriov_cni_enabled }} (host_vars)
+          - sriov_network_operator_enabled = {{ sriov_network_operator_enabled }} (host_vars)
           - bond_cni_enabled = {{ bond_cni_enabled }} (host_vars)
           - ovs_dpdk_enabled = {{ ovs_dpdk_enabled }} (host_vars)
           - userspace_cni_enabled = {{ userspace_cni_enabled }} (host_vars)
           - hugepages_enabled = {{ hugepages_enabled }} (host_vars)
           - default_hugepage_size = {{ default_hugepage_size }} (host_vars)
-          - hugepages_1G = {{ hugepages_1G }} (host_vars)
-          - hugepages_2M = {{ hugepages_2M }} (host_vars)
+          - number_of_hugepages = {{ number_of_hugepages }} (host_vars)
       when: vpp_enabled is defined #host_vars
 
-    - name: Check OVS DPDK Config
+    - name: Check OVS DPDK Dependencies
       assert:
         that: >-
-          ({{ ovs_dpdk_enabled }} and not {{ vpp_enabled }} and {{ hugepages_enabled }} and "{{ default_hugepage_size }}" == "1G" and {{ hugepages_1G }} >= 0)
+          ({{ ovs_dpdk_enabled }} and not {{ vpp_enabled }} and {{ hugepages_enabled }} and
+          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages }} >= 0)
           or {{ vpp_enabled }}
         msg:
           - Incorrect configuration pertaining OVS DPDK. Conflicting or improper values detected
           - When OVS DPDK is enabled, VPP must be disabled and Hugepages must be set to 1G according to host_vars example. Please correct the configuration
-      when: ovs_dpdk_enabled is defined
+      when: ovs_dpdk_enabled is defined and ovs_dpdk_enabled
 
-    - name: Check VPP Config
+    - name: Check VPP Dependencies
       assert:
         that: >-
-          ({{ vpp_enabled }} and not {{ ovs_dpdk_enabled }} and {{ hugepages_enabled }} and "{{ default_hugepage_size }}" == "2M" and {{ hugepages_2M }} >= 0)
+          ({{ vpp_enabled }} and not {{ ovs_dpdk_enabled }} and {{ hugepages_enabled }} and
+          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages }} >= 0)
           or {{ ovs_dpdk_enabled }}
         msg:
           - Incorrect configuration pertaining VPP. Conflicting or improper values detected
           - When VPP is enabled, OVS DPDK must be disabled and Hugepages must be set to 2M according to host_vars example. Please correct the configuration
-      when: vpp_enabled is defined
+      when: vpp_enabled is defined and vpp_enabled
 
 
 # STORY: "cnis require net-attach-defs to be enabled"
@@ -376,13 +473,15 @@
       assert:
         that: >-
           ({{ userspace_cni_enabled }} and {{ ovs_dpdk_enabled }} and {{ example_net_attach_defs['userspace_ovs_dpdk'] }} and not {{ vpp_enabled }} and
-          not {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and "{{ default_hugepage_size }}" == "1G" and {{ hugepages_1G }} >= 0)
+          not {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and
+          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages }} >= 0)
           or ({{ userspace_cni_enabled }} and not {{ ovs_dpdk_enabled }} and not {{ example_net_attach_defs['userspace_ovs_dpdk'] }} and {{ vpp_enabled }}
-          and {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and "{{ default_hugepage_size }}" == "2M" and {{ hugepages_2M }} >= 0)
+          and {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and
+          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages }} >= 0)
         msg:
           - Incorrect configuration pertaining CNI. Conflicting or improper values detected.
           - When CNI is enabled, either OVS DPDK either VPP must be enabled and Hugepages must be according to example files. Please correct the configuration
-      when: userspace_cni_enabled is defined
+      when: userspace_cni_enabled is defined and userspace_cni_enabled
 
 
 # STORY: "If SST enabled, confirm minimum kernel or kernel_update specified"
@@ -390,8 +489,10 @@
       assert:
         that: (not sst_bf_configuration_enabled)
         msg: "SST-BF is NOT supported on {{ ansible_distribution }} {{ ansible_distribution_version }}. Please use a different OS or disable this feature"
-      when: (ansible_distribution == "RedHat" and ansible_distribution_version == '8.2') or ansible_distribution_version in ['7.6', '7.8', '7.9', '18.04']
-
+      when:
+        - sst_bf_configuration_enabled is defined
+        - (ansible_distribution == "RedHat" and ansible_distribution_version == '8.2') or ansible_distribution_version in ['7.6', '7.8', '7.9', '18.04']
+      ignore_errors: True
 
 # STORY: Intel VT-d should be enabled in BIOS
     - name: Check Intel VT-d
@@ -425,19 +526,36 @@
       ignore_errors: True
 
 
-# STORY: TEMPORARY: "ovs requires dpdk version 19.11. the newer 20.* series are not okay (for now)"
+# STORY: TEMPORARY: "ovs dpdk version requirements"
     - debug:
         msg:
           - install_dpdk = {{ install_dpdk }} (host_vars)
           - dpdk_version = {{ dpdk_version }} (host_vars)
           - ovs_dpdk_enabled = {{ ovs_dpdk_enabled }} (host_vars)
-      when: install_dpdk #host_vars
+          - ovs_version = {{ ovs_version }} (host_vars)
+      when:
+        - install_dpdk is defined #host_vars
+        - dpdk_version is defined #host_vars
+        - ovs_version is defined #host_vars
+        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled #host_vars
 
-    - name: Check DPDK Version
+    - name: Check OVS DPDK compatibility
       assert:
-        that: (dpdk_version is version_compare("19.11.6", '=='))
-        msg: "DPDK version {{ dpdk_version }} does NOT support OVS. Must be 19.11.6, not newer. Please correct the host_vars configuration"
-      when: ovs_dpdk_enabled #host_vars
+        that: >-
+          "{{ ovs_version }} == \"v2.15.0\" and {{ dpdk_version }} >= \"20.11\""
+          or "{{ ovs_version }} == \"v2.14.2\" and {{ dpdk_version }} == \"19.11.6\""
+          or "{{ ovs_version }} == \"v2.14.1\" and {{ dpdk_version }} == \"19.11.6\""
+          or "{{ ovs_version }} == \"v2.14.0\" and {{ dpdk_version }} == \"19.11.6\""
+          or "{{ ovs_version }} == \"v2.13.3\" and {{ dpdk_version }} == \"19.11.6\""
+          or "{{ ovs_version }} == \"v2.13.2\" and {{ dpdk_version }} == \"19.11.6\""
+          or "{{ ovs_version }} == \"v2.13.1\" and {{ dpdk_version }} == \"19.11.6\""
+          or "{{ ovs_version }} == \"v2.13.0\" and {{ dpdk_version }} == \"19.11.6\""
+        msg: "OVS {{ ovs_version }} does not build with DPDK version {{ dpdk_version }}. Please correct the host_vars configuration"
+      when:
+        - dpdk_version is defined #host_vars
+        - ovs_version is defined #host_vars
+        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled #host_vars
+
 
     - meta: end_play
 

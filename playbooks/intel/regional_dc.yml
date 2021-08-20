@@ -26,7 +26,18 @@
       when: nfd_enabled | default(true)
     - role: sriov_dp_install
       tags: sriov-net-dp
-      when: sriov_net_dp_enabled | default(false)
+      when:
+        - sriov_net_dp_enabled | default(false)
+        - not sriov_network_operator_enabled | default(false)
+    - role: sriov_network_operator_install
+      tags: sriov-network-operator
+      when:
+        - sriov_network_operator_enabled | default(false)
+        - not sriov_net_dp_enabled | default(false)
+        - not sriov_cni_enabled | default(false)
+    - role: intel_dp_operator
+      tags: dp-operator
+      when: gpu_dp_enabled | default(true)
     - role: gpu_dp_install
       tags: gpu-dp
       when: gpu_dp_enabled | default(true)
@@ -39,7 +50,9 @@
       when: collectd_enabled | default(true)
       vars:
         collectd_profile: full_nfv
-  environment: "{{ proxy_env | d({}) }}"
+  environment:
+    - "{{ proxy_env | d({}) }}"
+    - REGISTRY_AUTH_FILE: "{{ registry_containerd }}"
   any_errors_fatal: true
 
 - hosts: kube-node
@@ -48,7 +61,9 @@
     - role: cluster_defaults
       tags: defaults
     - role: sriov_cni_install
-      when: sriov_cni_enabled | default(false)
+      when:
+        - sriov_cni_enabled | default(false)
+        - not sriov_network_operator_enabled | default(false)
       tags: sriov-cni
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

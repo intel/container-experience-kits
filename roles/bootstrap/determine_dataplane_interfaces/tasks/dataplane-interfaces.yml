@@ -25,7 +25,7 @@
   set_fact:
     dataplane_interface: "{{ dataplane_interface_list.stdout_lines[5] | regex_replace('\\s+Device File: ', '') }}"
 
-- name: update dataplane interface name in configuration file
+- name: update dataplane_interface name in configuration file
   lineinfile:
     dest: "{{ dataplane_interface_configuration_file.path }}"
     regexp: '  name: {{ nic.name }}'

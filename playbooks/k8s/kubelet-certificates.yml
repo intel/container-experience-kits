@@ -53,7 +53,9 @@
         mode: 0644
       with_items: "{{ groups['k8s-cluster'] }}"
       vars:
-        node_ip: "{{ hostvars[item]['ip'] }}"
+        node_ip: "{{ hostvars[item]['ip'] | default(hostvars[item].ansible_default_ipv4['address']) }}"
+        node_hostname: "{{ hostvars[groups['kube-master'][0]]['ansible_hostname'] }}"
+        node_inventory_name: "{{ inventory_hostname }}"
       when: inventory_hostname == groups['kube-master'][0]
 
     - name: create certs from CSRs

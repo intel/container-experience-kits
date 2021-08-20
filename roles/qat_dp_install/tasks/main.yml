@@ -36,6 +36,19 @@
   when:
     - inventory_hostname == groups['kube-master'][0]
 
+- name: Build QAT Plugin before Intel QAT Device Plugin image
+  make:
+    target: qat_plugin
+    chdir: "{{ intel_qat_dp_dir }}"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - qat_dp_build_image_locally
+    - container_runtime == "docker"
+
+- name: update dynamic linker cache after Build QAT Plugin
+  command: "ldconfig"
+  changed_when: true
+
 - name: build Intel QAT Device Plugin image
   make:
     target: intel-qat-plugin
@@ -43,18 +56,41 @@
   when:
     - inventory_hostname == groups['kube-node'][0]
     - qat_dp_build_image_locally
+    - container_runtime == "docker"
 
 - name: tag Intel QAT Device Plugin image
-  command: docker tag intel/intel-qat-plugin:{{ intel_qat_dp_version }} {{ registry_local_address }}/intel-qat-plugin:latest
+  command: docker tag intel/intel-qat-plugin:{{ intel_qat_dp_version }} {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
   when:
     - inventory_hostname == groups['kube-node'][0]
     - qat_dp_build_image_locally
+    - container_runtime == "docker"
 
 - name: push Intel QAT Device Plugin image to local registry
-  command: docker push {{ registry_local_address }}/intel-qat-plugin:latest
+  command: docker push {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
   when:
     - inventory_hostname == groups['kube-node'][0]
     - qat_dp_build_image_locally
+    - container_runtime == "docker"
+
+- name: build and tag Intel QAT Device Plugin image
+  command: podman build -f build/docker/intel-qat-plugin.Dockerfile . -t {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
+  args:
+    chdir: "{{ intel_qat_dp_dir }}"
+  changed_when: true
+  with_items:
+    - { file: intel-qat-plugin.Dockerfile, name: intel-qat-plugin }
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - qat_dp_build_image_locally
+    - '"docker" not in container_runtime'
+
+- name: push Intel QAT Device Plugin image to local registry
+  command: podman push {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
+  changed_when: true
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - qat_dp_build_image_locally
+    - '"docker" not in container_runtime'
 
 - name: copy Helm chart to the controller node
   copy:
@@ -67,11 +103,44 @@
 - name: set values for Helm charts
   set_fact:
     qat_dp_image: "{{ registry_local_address }}/intel-qat-plugin"
-    qat_dp_version: latest
     qat_dp_kernel_drivers: "{{ hostvars[groups['kube-node'][0]].qat_devices[0].qat_pci_type | default('c6xx') }}vf"
   when:
     - inventory_hostname == groups['kube-master'][0]
     - qat_dp_build_image_locally
+
+- name: check if calculated VFs file exists
+  stat:
+    path: "/etc/bmra/bmra_sriov_qat_total_vfs"
+  register: total_vfs_folder
+  when: inventory_hostname == groups['kube-node'][0]
+
+- name: get calculated Vfs value form file
+  command: "cat /etc/bmra/bmra_sriov_qat_total_vfs"
+  register: calulated_vfs
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - total_vfs_folder.stat.exists
+  changed_when: true
+
+- name: set calculated Vfs value from file
+  set_fact:
+    qat_calculated_vfs: "{{ calulated_vfs.stdout }}"
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - total_vfs_folder.stat.exists
+
+- name: update calculated VFs before Helm chart values template push to controller node
+  lineinfile:
+    dest: "{{ role_path }}/templates/qat_values.yml.j2"
+    regexp: 'maxNumDevices:'
+    line: 'maxNumDevices: {{ qat_calculated_vfs }}'
+    mode: 0600
+  delegate_to: localhost
+  become: false
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - total_vfs_folder.stat.exists
+  changed_when: true
 
 - name: populate Intel QAT Plugin Helm chart values template and push to controller node
   template:
@@ -86,3 +155,16 @@
   command: helm upgrade -i intel-qat-plugin -f /usr/src/charts/intel-qat-plugin-values.yml --namespace {{ qat_dp_namespace }} /usr/src/charts/intel-qat-plugin
   when:
     - inventory_hostname == groups['kube-master'][0]
+
+- name: revert template VFs values once Intel QAT Plugin Helm chart installation is finished
+  lineinfile:
+    dest: "{{ role_path }}/templates/qat_values.yml.j2"
+    regexp: 'maxNumDevices:'
+    line: 'maxNumDevices: 00'
+    mode: 0600
+  delegate_to: localhost
+  become: false
+  when:
+    - inventory_hostname == groups['kube-node'][0]
+    - total_vfs_folder.stat.exists
+  changed_when: true

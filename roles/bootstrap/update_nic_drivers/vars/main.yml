@@ -14,35 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-i40e_drivers_name: i40e
-iavf_drivers_name: iavf
-ice_drivers_name: ice
-
-i40e_drivers_version: 2.15.9
-iavf_drivers_version: 4.1.1
-ice_drivers_version: 1.4.11
-
-i40e_drivers_url: https://sourceforge.net/projects/e1000/files/i40e%20stable/{{i40e_drivers_version}}/i40e-{{i40e_drivers_version}}.tar.gz
-i40e_drivers_checksum: sha1:ec8b4794cea15bb3162a74ef3bfe35f2fd08a036
-
-iavf_drivers_url: https://sourceforge.net/projects/e1000/files/iavf%20stable/{{iavf_drivers_version}}/iavf-{{iavf_drivers_version}}.tar.gz
-iavf_drivers_checksum: sha1:7e9f2b4f4b51239e1aa0bf59b7f6663d39c83fb9
-
-ice_drivers_url: https://sourceforge.net/projects/e1000/files/ice%20stable/{{ice_drivers_version}}/ice-{{ice_drivers_version}}.tar.gz
-ice_drivers_checksum: sha1:71adf5cd845dc7c09116042372111f5d21b47c5a
-
-ice_profile_path: /lib/firmware/updates/intel/ice/ddp/
-
 install_dependencies:
   Debian:
     - build-essential
     - linux-headers-{{ ansible_kernel }}
     - libelf-dev
     - ethtool
-    - pciutils
   RedHat:
     - gcc
     - kernel-devel
     - elfutils-libelf-devel
     - ethtool
-    - pciutils

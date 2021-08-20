@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-env-cm
+  namespace: {{ .Release.Namespace }}
+data:
+  http_proxy: {{ .Values.http_proxy | default "" | quote }}
+  https_proxy: {{ .Values.https_proxy | default "" | quote }}
+  no_proxy: {{ .Values.no_proxy | default "" | quote }}
+  PCCS_PORT: {{ .Values.ctk_loadkey.pccs_port | quote }}
+  PCCS_HOSTNAME: {{ .Values.ctk_loadkey.pccs_hostname | quote }}
+  APPHSM_PORT: {{ .Values.ctk_loadkey.apphsm_port | quote }}
+  APPHSM_HOSTNAME: {{ .Values.ctk_loadkey.apphsm_hostname | quote }}
+  SGX_PRV_GID: {{ .Values.ctk_loadkey.sgx_prv_gid | quote }}
+  NGINX_HOSTNAME: {{ .Values.ctk_loadkey.main.hostname | quote }}
+  NGINX_PORT: {{ .Values.ctk_loadkey.main.port | quote }}

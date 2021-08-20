@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+kmra_namespace: kmra
+
+kmra_apphsm_release_name: "kmra-apphsm"
+kmra_ctk_release_name: "kmra-ctk"
+kmra_pccs_release_name: "kmra-pccs"
+
+kmra_apphsm_helm_values_file: "/usr/src/charts/kmra-apphsm-values.yml"
+kmra_ctk_helm_values_file: "/usr/src/charts/kmra-ctk-values.yml"
+kmra_pccs_helm_values_file: "/usr/src/charts/kmra-pccs-values.yml"
+
+kmra_apphsm_chart_path: "/usr/src/charts/kmra-apphsm"
+kmra_ctk_chart_path: "/usr/src/charts/kmra-ctk"
+kmra_pccs_chart_path: "/usr/src/charts/kmra-pccs"
+
+kmra_pccs_image_repo: "intel"
+kmra_pccs_image_name: "kmra"
+kmra_pccs_image_tag: "pccs"
+
+kmra_pccs_rproxy_image_repo: "docker.io"
+kmra_pccs_rproxy_image_name: "nginx"
+kmra_pccs_rproxy_tag: "1.20.1-alpine"
+kmra_pccs_upstream_port: 8082
+kmra_pccs_service_port: 8081
+
+kmra_apphsm_image_repo: "intel"
+kmra_apphsm_image_name: "kmra"
+kmra_apphsm_image_tag: "apphsm"
+
+kmra_apphsm_upstream_port: 5001
+kmra_apphsm_service_port: 5000
+
+kmra_apphsm_rproxy_image_repo: "docker.io"
+kmra_apphsm_rproxy_image_name: "nginx"
+kmra_apphsm_rproxy_tag: "1.20.1-alpine"
+
+kmra_ctk_loadkey_image_repo: "intel"
+kmra_ctk_loadkey_image_name: "kmra"
+kmra_ctk_loadkey_image_tag: "ctk_loadkey"
+kmra_ctk_loadkey_upstream_port: 8082
+kmra_ctk_loadkey_upstream_server_name: 0.0.0.0
+kmra_ctk_loadkey_node_port: 30003
+
+
+kmra_pccs_crt_subj:
+  O: "SGX-PCCS"
+  OU: "root"
+
+kmra_ca_root_crt_subj:
+  O: "AppHSM"
+  OU: "root"
+  CN: "localhost"
+
+kmra_apphsm_crt_subj:
+  O: "AppHSM"
+  OU: "AppHSM"
+  CN: "{{ kmra_apphsm_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
+
+kmra_ctk_crt_subj:
+  O: "AppHSM"
+  OU: "ctk_loadkey_user_id_01234"

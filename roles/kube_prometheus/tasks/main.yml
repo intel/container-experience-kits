@@ -14,6 +14,13 @@
 ##   limitations under the License.
 ##
 ---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - prometheus_srv_expose | default(false)
+
 - name: set default value of install_tas_demo_policy
   set_fact:
     install_tas_demo_policy: false
@@ -25,21 +32,35 @@
     - tas_enabled
     - tas_enable_demo_policy
 
+- name: generate htpasswd file
+  command: htpasswd -Bbn {{ prometheus_srv_user }} {{ prometheus_srv_password }}
+  register: htpasswd
+  when:
+    - inventory_hostname == groups['kube-master'][0]
+    - prometheus_srv_expose | default(false)
+
 - name: create and sign certificate material
   include_role:
     name: create_signed_k8s_certs
   vars:
-    secret_name: "{{ item }}-ssl"
-    service_name: "{{ item }}"
-    key_pair_name: "{{ item }}-tls"
-    host_secrets_folder: "/etc/ssl/{{ item }}"
+    secret_name: "{{ item.name }}-ssl"
+    service_name: "{{ item.name }}"
+    key_pair_name: "{{ item.name }}-tls"
+    host_secrets_folder: "/etc/ssl/{{ item.name }}"
     k8s_namespace: "{{ telemetry_namespace }}"
+    csr_cluster_name: "{{ cluster_name | default('cluster.local') }}"
+  loop:
+    - name: "grafana"
+      expose: true
+    - name: "node-exporter"
+      expose: true
+    - name: "prometheus-adapter"
+      expose: true
+    - name: "prometheus-srv"
+      expose: "{{ prometheus_srv_expose | default(false) }}"
   when:
     - inventory_hostname == groups['kube-master'][0]
-  with_items:
-    - grafana
-    - node-exporter
-    - prometheus-adapter
+    - item.expose
 
 - name: prepare TAS demonstration policy files
   import_tasks: create-tas-demo-policy.yml

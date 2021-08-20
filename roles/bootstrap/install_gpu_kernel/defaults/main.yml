@@ -17,3 +17,8 @@
 gpu_kernel_git_url: "https://github.com/intel-gpu/kernel"
 gpu_kernel_src_dst: "/usr/src/kernels/gpu_kernel/"
 gpu_kernel_flags: "i915.force_probe=* modprobe.blacklist=ast,snd_hda_intel i915.enable_guc=2"
+linux_dg1_firmware_url: "https://repositories.intel.com/graphics/firmware/linux-firmware-dg1_2020.43.tgz"
+
+dracut_version: "055"
+dracut_url: "https://mirrors.edge.kernel.org/pub/linux/utils/boot/dracut/dracut-{{ dracut_version }}.tar.gz"
+dracut_checksum: sha1:a2aac601767f6d1dda0c09ac03fc49e062a4aa96

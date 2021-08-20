@@ -1,0 +1,23 @@
+operator:
+  tolerations:
+    - key: "node-role.kubernetes.io/master"
+      operator: "Exists"
+      effect: "NoSchedule"
+  nodeSelector:
+    node-role.kubernetes.io/master: ""
+  nameOverride: "{{ sriov_network_operator_name_override }}"
+  fullnameOverride: "{{ sriov_network_operator_full_name_override }}"
+  resourcePrefix: "{{ sriov_resource_name_prefix }}"
+  enableAdmissionController: {{ sriov_network_operator_enable_admission_controller }}
+  cniBinPath: "{{ sriov_network_operator_cni_bin_path }}"
+  clusterType: "{{ sriov_network_operator_cluster_type }}"
+
+# Image URIs for sriov-network-operator components
+images:
+  operator: "{{ sriov_network_operator_images.operator }}"
+  sriovConfigDaemon: "{{ sriov_network_operator_images.sriovConfigDaemon }}"
+  sriovCni: "{{ sriov_network_operator_images.sriovCni }}"
+  ibSriovCni: "{{ sriov_network_operator_images.ibSriovCni }}"
+  sriovDevicePlugin: "{{ sriov_network_operator_images.sriovDevicePlugin }}"
+  resourcesInjector: "{{ sriov_network_operator_images.resourcesInjector }}"
+  webhook: "{{ sriov_network_operator_images.webhook }}"

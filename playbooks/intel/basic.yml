@@ -26,14 +26,24 @@
       when: nfd_enabled | default(true)
     - role: sriov_dp_install
       tags: sriov-net-dp
-      when: sriov_net_dp_enabled | default(false)
+      when:
+        - sriov_net_dp_enabled | default(false)
+        - not sriov_network_operator_enabled | default(false)
+    - role: sriov_network_operator_install
+      when:
+        - sriov_network_operator_enabled | default(false)
+        - not sriov_net_dp_enabled | default(false)
+        - not sriov_cni_enabled | default(false)
+      tags: sriov-network-operator
     - role: kube_prometheus
       when: prometheus_operator | default(true)
     - role: collectd_install
       when: collectd_enabled | default(true)
       vars:
         - collectd_profile: basic
-  environment: "{{ proxy_env | d({}) }}"
+  environment:
+    - "{{ proxy_env | d({}) }}"
+    - REGISTRY_AUTH_FILE: "{{ registry_containerd }}"
   any_errors_fatal: true
 
 - hosts: kube-node
@@ -42,7 +52,9 @@
     - role: cluster_defaults
       tags: defaults
     - role: sriov_cni_install
-      when: sriov_cni_enabled | default(false)
+      when:
+        - sriov_cni_enabled | default(false)
+        - not sriov_network_operator_enabled | default(false)
       tags: sriov-cni
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

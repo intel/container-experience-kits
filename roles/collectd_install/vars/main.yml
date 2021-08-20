@@ -18,3 +18,5 @@ collectd_configuration_files_dir: "{{ host_collectd_folder }}/collectd.conf.d"
 
 unsupported_power_skus:
   - "06/6c"
+  - "$0000%@"
+  - "0000%@"

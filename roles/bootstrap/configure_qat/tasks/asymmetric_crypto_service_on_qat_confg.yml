@@ -24,9 +24,25 @@
   changed_when: false
   ignore_errors: true
 
+- name: check if QAT drivers build exists in Ubuntu >= 20.04
+  stat:
+    path: "/usr/src/QAT_drivers/build"
+  register: qat_drivers_verify
+  when:
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04'
+    - '"intel_qat" in qat_confirm_mod.stdout'
+
+- name: start QAT service, if not started in Ubuntu >= 20.04
+  service:
+    state: started
+    name: qat_service
+  when:
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04'
+    - qat_drivers_verify.stat.exists
+
 - name: QAT Kernel Module not found, playbook terminated
   fail:
-     msg: "No QAT module found. Kindly, confirm QAT module on system can also download lates drivers + services as enabling update_qat_drivers: true"
+     msg: "No QAT module found. Kindly, confirm QAT module on system can also download latest drivers + services as enabling update_qat_drivers: true"
   when: '"intel_qat" not in qat_confirm_mod.stdout'
 
 # ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove and use ansible service module
@@ -40,59 +56,5 @@
 
 - name: QAT Service not found, playbook terminated
   fail:
-     msg: "Failed to start qat_service on system. Kindly, download lates drivers + services this can also be achieved as enabling update_qat_drivers: true"
+     msg: "Failed to start qat_service on system. Kindly, download latest drivers + services this can also be achieved as enabling update_qat_drivers: true"
   when: "'up' not in qat_service_check.stdout"
-
-- name: check QAT Kernel Module Pci-Driver id
-  shell: "set -o pipefail && dpdk-devbind.py --status | grep Quick | tr ' ' '\n' | grep drv"
-  args:
-    executable: /bin/bash
-  register: qat_select_driver
-  changed_when: true
-
-- name: set QAT Kernel Module Pci-Driver id
-  set_fact:
-    qat_pci_update: "{{ qat_select_driver.stdout_lines[1] | regex_replace('.*drv=(.*)', '\\1') }}"
-
-- name: check QAT avalability on DPDK-devbind status
-  shell: "set -o pipefail && dpdk-devbind.py --status | grep Quick"
-  register: qat_dpdk_status
-  args:
-    executable: /bin/bash
-  changed_when: true
-
-- name: check QAT id's using DPDK compatible driver on system
-  shell: "set -o pipefail && dpdk-devbind.py --status | grep Quick | tr ' ' '\n' | grep 0000"
-  args:
-    executable: /bin/bash
-  register: qat_select_driver
-  changed_when: true
-
-- name: get first QAT device id using DPDK compatible driver
-  set_fact:
-    qat_id_check: "{{ qat_select_driver.stdout_lines[0] }}"
-
-- name: get second QAT device id using DPDK compatible driver
-  set_fact:
-    qat_id_check_two: "{{ qat_select_driver.stdout_lines[1] }}"
-
-- name: get third QAT device id using DPDK compatible driver
-  set_fact:
-    qat_id_check_three: "{{ qat_select_driver.stdout_lines[2] }}"
-
-- name: validate discovered QAT ids on system with host vars defined QAT ids
-  command: grep -r qat_id
-  args:
-    chdir: "{{ inventory_dir }}/host_vars"
-  register: check_hostvars_file
-  delegate_to: localhost
-  become: false
-  changed_when: true
-
-- name: mismatch of QAT ids using DPDK compatible driver, playbook terminated
-  fail:
-    msg: "found QAT id's using DPDK compatible driver are different as provided in host vars kindly provide correct values in host vars"
-  when:
-    - 'qat_id_check not in check_hostvars_file.stdout'
-    - 'qat_id_check_two not in check_hostvars_file.stdout'
-    - 'qat_id_check_three  not in check_hostvars_file.stdout'

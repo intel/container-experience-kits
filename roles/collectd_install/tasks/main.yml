@@ -14,48 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: Delete barometer-collectd directory
-  file:
-    path: "{{ barometer_collectd_dir }}"
-    state: absent
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-
-- name: Create barometer-collectd directory
-  file:
-    path: "{{ barometer_collectd_dir }}"
-    state: directory
-    mode: 0755
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-
-- name: copy barometer-collectd Dockerfile
-  copy:
-    src: "Dockerfile"
-    dest: "{{ barometer_collectd_dir }}/Dockerfile"
-    mode: 0644
-    owner: root
-    group: root
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-
-# noqa 305 - shell is used intentionally here
-- name: build barometer-collectd image
-  shell: "docker build -t {{ registry_local_address }}/{{ image_collectd.name }}:{{ image_collectd.tag }} ."
-  args:
-    chdir: "{{ barometer_collectd_dir }}"
-    executable: /bin/bash
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-  changed_when: true
-
-# noqa 305 - shell is used intentionally here
-- name: push barometer-collectd image to local registry
-  command: "docker push {{ registry_local_address }}/{{ image_collectd.name }}:{{ image_collectd.tag }}"
-  when:
-    - inventory_hostname == groups['kube-node'][0]
-  changed_when: true
-
 - name: copy collectd configs
   import_tasks: copy-configs.yml
 

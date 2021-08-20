@@ -14,6 +14,8 @@
 ##   limitations under the License.
 ##
 ---
+- name: preflight checks
+  import_playbook: preflight.yml
 - name: configure target hosts OS layer
   import_playbook: infra/access.yml
 - name: provision Kubernetes cluster using kubespray

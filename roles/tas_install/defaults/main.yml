@@ -17,23 +17,20 @@
 # Telemetry Aware Scheduler
 tas_git_url: "https://github.com/intel/telemetry-aware-scheduling.git"
 tas_dir: "/usr/src/telemetry-aware-scheduling"
-tas_git_version: "v0.2"
+tas_git_version: "v0.4"
 # TAS extender configuration directory
 extender_dir: "/usr/src/telemetry-aware-scheduling/deploy/extender-configuration/"
 
 # Descheduler
 descheduler_git_url: https://github.com/kubernetes-sigs/descheduler.git
-descheduler_git_version: "v0.19.0"
+descheduler_git_version: "v0.21.0"
 descheduler_dir: "/usr/src/sigs.k8s.io/descheduler"
 sigs_k8s_io_dir: "/usr/src/sigs.k8s.io"
 
-# Docker local registry
-registry_local_address: "localhost:30500"
 
 # TAS deployment
-tas_controller_image: "{{ registry_local_address }}/tas-controller"
-tas_extender_image: "{{ registry_local_address }}/tas-extender"
-tas_version: "0.1"
+tas_extender_image: "{{ registry_local_address }}/tasextender"
+tas_version: "0.4"
 tas_name: "tas"
 tas_namespace: "monitoring"
 tas_extender_secret_name: "extender-secret"

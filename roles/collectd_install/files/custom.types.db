@@ -1,0 +1,72 @@
+#
+# vCMTS-d types
+#
+
+# common to upstream/downstream
+bits_per_second               rx:DERIVE:0:U,           tx:DERIVE:0:U
+packets_per_second            rx:DERIVE:0:U,           tx:DERIVE:0:U
+octets_per_second             rx:DERIVE:0:U,           tx:DERIVE:0:U
+dropped_per_second            rx:DERIVE:0:U,           tx:DERIVE:0:U
+average_frame_size_per_second rx:GAUGE:0:U,            tx:GAUGE:0:U
+average_frame_size            rx:GAUGE:0:U,            tx:GAUGE:0:U
+rx_dequeue_per_second         pkts_present:DERIVE:0:U, pkts_not_present:DERIVE:0:U
+
+um_yields_per_second          sched:DERIVE:0:U, sleep:DERIVE:0:U
+lm_yields_per_second          sched:DERIVE:0:U, sleep:DERIVE:0:U
+
+cm_lookup                     matched:GAUGE:0:U, unmatched:GAUGE:0:U
+packets_per_cm_lookup         value:GAUGE:0:U
+active_cms_per_second         value:DERIVE:0:U
+ip_addr_per_cm                value:GAUGE:0:U
+crypto_accel                  qat:GAUGE:0:U, aesni:GAUGE:0:U, none:GAUGE:0:U
+crypto_algo                   des:GAUGE:0:U, aes:GAUGE:0:U, none:GAUGE:0:U
+crypto_pkts_buffered          value:GAUGE:0:U
+docsis_frames_per_second      value:DERIVE:0:U
+
+packet_latency                average:GAUGE:0:U, minimum:GAUGE:0:U, maximum:GAUGE:0:U, jitter:GAUGE:0:U
+
+# upstream only
+l2tp_verify                   valid:GAUGE:0:U, invalid:GAUGE:0:U
+uepi_frames_per_second        value:DERIVE:0:U
+uepi_drops_per_second         value:DERIVE:0:U
+uepi_frames                   partial:GAUGE:0:U, full:GAUGE:0:U
+uepi_frame_type               ofdma:GAUGE:0:U, sc_qam:GAUGE:0:U
+content_per_uepi              psp_header:GAUGE:0:U, psp_data:GAUGE:0:U, psp_trailer:GAUGE:0:U, other:GAUGE:0:U
+
+docsis_frames_per_uepi        value:GAUGE:0:U
+docsis_reassembly             success:GAUGE:0:U, fail:GAUGE:0:U
+average_docsis_segment_length value:GAUGE:0:U
+docsis_frames_per_segment     value:GAUGE:0:U
+crc_verify                    success:GAUGE:0:U, fail:GAUGE:0:U
+hcs_verify                    success:GAUGE:0:U, fail:GAUGE:0:U
+
+upstream_cycles               rx:GAUGE:0:U, uepi_verification:GAUGE:0:U, uepi_decap:GAUGE:0:U, docsis_segment_reassembly:GAUGE:0:U, docsis_frame_extraction:GAUGE:0:U, decryption_crc:GAUGE:0:U, tx:GAUGE:0:U
+
+# downstream only
+ip_addr                       value:GAUGE:0:U
+docsis_filters                value:GAUGE:0:U
+docsis_filters_per_cm         value:GAUGE:0:U
+filter                        unmatched:GAUGE:0:U, matched_permit:GAUGE:0:U, matched_deny:GAUGE:0:U
+classifier                    unmatched:GAUGE:0:U, matched_ipv4:GAUGE:0:U, matched_llc:GAUGE:0:U, matched_icmp:GAUGE:0:U
+crc                           generated:GAUGE:0:U, not_generated:GAUGE:0:U
+
+docsis_frames_per_depi        value:GAUGE:0:U
+times_n_psp_seg_per_depi      0:GAUGE:0:U, 1:GAUGE:0:U, 2:GAUGE:0:U, 3:GAUGE:0:U, 4:GAUGE:0:U, 5:GAUGE:0:U, 6:GAUGE:0:U, 7:GAUGE:0:U
+depi_frames                   partial:GAUGE:0:U, full:GAUGE:0:U
+depi_frames_per_second        value:DERIVE:0:U
+
+downstream_cycles             rx:GAUGE:0:U, cm_lookup:GAUGE:0:U, sub_mgmt:GAUGE:0:U, filtering:GAUGE:0:U, classification:GAUGE:0:U, qos:GAUGE:0:U, upper_lower_mac_xfer:GAUGE:0:U, crc_encryption:GAUGE:0:U, docsis_framing:GAUGE:0:U, depi_encap:GAUGE:0:U, tx:GAUGE:0:U
+
+sf_queue_bits_per_second      0:DERIVE:0:U, 1:DERIVE:0:U, 2:DERIVE:0:U, 3:DERIVE:0:U, 4:DERIVE:0:U, 5:DERIVE:0:U
+sf_queue_packets_per_second   0:DERIVE:0:U, 1:DERIVE:0:U, 2:DERIVE:0:U, 3:DERIVE:0:U, 4:DERIVE:0:U, 5:DERIVE:0:U
+sf_queue_selects_per_second   0:DERIVE:0:U, 1:DERIVE:0:U, 2:DERIVE:0:U, 3:DERIVE:0:U, 4:DERIVE:0:U, 5:DERIVE:0:U
+
+channel_bits_per_second       value:DERIVE:0:U
+channel_packets_per_second    value:DERIVE:0:U
+channel_selects_per_second    value:DERIVE:0:U
+
+sched_dropped                 value:GAUGE:0:U
+sched_dropped_per_second      value:DERIVE:0:U
+sched_red_dropped             value:GAUGE:0:U
+sched_red_dropped_per_second  value:DERIVE:0:U
+sched_buffered                value:GAUGE:0:U

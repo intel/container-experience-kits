@@ -1,0 +1,50 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-srv-nginx-conf
+  namespace: monitoring
+data:
+  nginx.conf: |
+    pid /tmp/nginx/nginx.pid;
+
+    events {
+        worker_connections  1024;
+    }
+
+    http {
+      server {
+        listen {{ prometheus_srv_proxy_port }} ssl;
+        server_name {{ prometheus_srv_address }};
+
+        client_body_temp_path /tmp/nginx 1 2;
+        fastcgi_temp_path /tmp/nginx  1 2;
+        proxy_temp_path /tmp/nginx  1 2;
+        scgi_temp_path /tmp/nginx  1 2;
+        uwsgi_temp_path /tmp/nginx  1 2;
+
+        # SSL
+        ssl_certificate /etc/nginx/conf.d/prometheus-srv-ssl.cert;
+        ssl_certificate_key /etc/nginx/conf.d/prometheus-srv-ssl.key;
+
+        # Recommendations from https://raymii.org/s/tutorials/Strong_SSL_Security_On_nginx.html
+        ssl_protocols      {{ prometheus_srv_nginx_ssl_protocols }};
+        ssl_prefer_server_ciphers       on;
+        ssl_ciphers  {{ prometheus_srv_nginx_ssl_ciphers }};
+
+        ssl_session_cache shared:SSL:10m;
+
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        location {{ prometheus_srv_location_exposed }} {
+          auth_basic "Prometheus realm";
+          auth_basic_user_file /etc/nginx/conf.d/auth/haSharedSecret;
+          proxy_pass                          http://127.0.0.1:9090/;
+          proxy_set_header  Host              $http_host;   # required for docker client's sake
+          proxy_set_header  X-Real-IP         $remote_addr; # pass on real client's IP
+          proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+          proxy_set_header  X-Forwarded-Proto $scheme;
+          proxy_read_timeout                  900;
+        }
+      }
+    }

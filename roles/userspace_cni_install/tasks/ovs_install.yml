@@ -14,12 +14,41 @@
 ##   limitations under the License.
 ##
 ---
-- name: install Python3 from epel-release
-  package:
-    name:
-      - python36
-      - python36-devel
-    enablerepo: "epel"
+- name: install RHEL7/CentOS7 workarounds
+  block:
+    - name: install Python3 from epel-release
+      package:
+        name:
+          - python36
+          - python36-devel
+        enablerepo: "epel"
+
+    - name: download pkg-config src
+      unarchive:
+        src: "{{ pkg_config_url }}"
+        dest: "/usr/src"
+        remote_src: yes
+        list_files: yes
+        mode: 0755
+      register: pkg_config_download
+
+    - name: set local pkg-config directory path
+      set_fact:
+        pkg_config_dir: "{{ pkg_config_download.dest  }}/{{ pkg_config_download.files[0] }}"
+
+    - name: configure pkg-config
+      command: ./configure --with-internal-glib
+      args:
+        chdir: "{{ pkg_config_dir }}"
+
+    - name: build pkg-config
+      make:
+        chdir: "{{ pkg_config_dir }}"
+
+    - name: install pkg-config
+      make:
+        chdir: "{{ pkg_config_dir }}"
+        target: install
   when:
     - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
     - ansible_distribution_version < '8'
@@ -57,14 +86,37 @@
     dpdk_build: "static"
   when: dpdk_version is version("20.08", ">=")
 
+- name: install dpdk-devel to prepare OVS-DPDK build in RHEL / CentOS >= 8.2
+  dnf:
+    name: dpdk-devel
+  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+
+- name: update the dynamic linker cache in RHEL / CentOS >= 8.2
+  command: "ldconfig"
+  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+  changed_when: true
+
+- name: prepare OVS-DPDK build in RHEL / CentOS >= 8.2
+  command: ./configure --with-dpdk=yes CFLAGS="-g -O2 -Wno-cast-align"
+  args:
+    chdir: "{{ ovs_dir }}"
+  environment:
+    PKG_CONFIG_PATH: "/usr/local/lib64/pkgconfig:/usr/share/pkgconfig:/usr/lib64/pkgconfig"
+  when:
+    - ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+    - not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
+
 - name: prepare OVS-DPDK build
 # noqa 503 - more than one condition, can't be a handler
   command: ./configure --with-dpdk={{ dpdk_build }} CFLAGS="-g -O2 -Wno-cast-align"
   args:
     chdir: "{{ ovs_dir }}"
   environment:
-    PKG_CONFIG_PATH: /usr/local/lib64/pkgconfig
-  when: not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
+    PKG_CONFIG_PATH: "/usr/local/lib64/pkgconfig:/usr/share/pkgconfig:/usr/lib64/pkgconfig"
+  when:
+    - (ansible_distribution == 'Ubuntu') or
+      (ansible_distribution == 'CentOS' and ansible_distribution_version <= '7.9')
+    - not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
 
 - name: check if OVS distribution files exists
   stat: path={{ ovs_dir }}/distfiles

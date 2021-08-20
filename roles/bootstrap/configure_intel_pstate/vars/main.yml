@@ -13,6 +13,7 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
+---
 intel_turbo_path: /sys/devices/system/cpu/intel_pstate/no_turbo
 intel_pstate_marker: "# intel_pstate"
 acceptable_intel_pstate_values:
@@ -23,3 +24,9 @@ acceptable_intel_pstate_values:
   - hwp_only
   - support_acpi_ppc
   - per_cpu_perf_limits
+
+install_dependencies:
+  Debian:
+    - cpuid
+  RedHat:
+    - cpuid

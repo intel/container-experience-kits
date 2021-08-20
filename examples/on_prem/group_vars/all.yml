@@ -18,9 +18,12 @@
 
 # Kubernetes version
 kubernetes: true
-#kube_version: v1.20.4
-kube_version: v1.19.8
-#kube_version: v1.18.16
+kube_version: v1.21.1
+#kube_version: v1.20.6
+#kube_version: v1.19.8
+
+# Kubernetes container runtime: docker, containerd
+container_runtime: docker
 
 # Run system-wide package update (apt dist-upgrade, yum update, ...)
 # Note: enabling this may lead to unexpected results
@@ -56,8 +59,12 @@ topology_manager_enabled: true
 # There are four supported policies: none, best-effort, restricted, single-numa-node.
 topology_manager_policy: "best-effort"
 
+# OpenShift SRIOV Network Operator
+sriov_network_operator_enabled: true
+sriov_network_operator_namespace: "sriov-network-operator"
+
 # Intel SRIOV Network Device Plugin
-sriov_net_dp_enabled: true
+sriov_net_dp_enabled: false
 sriov_net_dp_namespace: kube-system
 # whether to build and store image locally or use one from public external registry
 sriov_net_dp_build_image_locally: true
@@ -92,15 +99,42 @@ sriovdp_config_data: |
         ]
     }
 
+# Intel Device Plugin Operator
+intel_dp_namespace: kube-system # namespace will be applied for SGX DP and GPU DP
+
 # Intel QAT Device Plugin for Kubernetes
 qat_dp_enabled: true
 qat_dp_namespace: kube-system
 qat_dp_build_image_locally: true
 
+# This feature will enable OpenSSL*Engine
+openssl_engine_enabled: true # To activate OpenSSL*Engine, install_openssl & update_qat_drivers must set to ‘true’ in host_vars
+
 # Intel GPU Device Plugin for Kubernetes
 gpu_dp_enabled: false
-gpu_dp_namespace: kube-system
+gpu_dp_kernel_version: "5.4.48+"
 gpu_dp_build_image_locally: true
+
+# Intel SGX Device Plugin for Kubernetes
+sgx_dp_enabled: true
+sgx_dp_build_image_locally: true
+sgx_aesmd_namespace: kube-system
+# ProvisionLimit is a number of containers that can share
+# the same SGX provision device.
+sgx_dp_provision_limit: 20
+# EnclaveLimit is a number of containers that can share the
+# same SGX enclave device.
+sgx_dp_enclave_limit: 20
+
+# KMRA (Key Management Reference Application)
+kmra_enabled: true
+# The PCCS uses this API key to request collaterals from Intel's Provisioning Certificate Service.
+# User needs to subscribe first to obtain an API key.
+# For how to subscribe to Intel Provisioning Certificate Service and receive an API key,
+# goto https://api.portal.trustedservices.intel.com/provisioning-certification and click on 'Subscribe'.
+kmra_pccs_api_key: "ffffffffffffffffffffffffffffffff"
+# deploy KMRA demo workload (NGINX server)
+kmra_deploy_demo_workload: true
 
 # Intel Telemetry Aware Scheduling
 tas_enabled: true
@@ -110,7 +144,7 @@ tas_enable_demo_policy: false
 
 # Create reference net-attach-def objects
 example_net_attach_defs:
-  sriov_net_dp: true # Update to match host_vars CNI configuration
+  sriov_net_dp: false # Update to match host_vars CNI configuration
 
 ## Proxy configuration ##
 #http_proxy: "http://proxy.example.com:1080"
@@ -142,9 +176,15 @@ helm_enabled: true
 # local Docker Hub mirror, if it exists
 #docker_registry_mirrors:
 #  - http://mirror_ip:mirror_port
+#containerd_registries:
+#  "docker.io":
+#    - "https://registry-1.docker.io"
+#    - "https://mirror_ip:mirror_port"
 
 # Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
-registry_local_address: "localhost:30500"
+# The range of valid ports is 30000-32767
+registry_nodeport: 30500
+registry_local_address: "localhost:{{ registry_nodeport }}"
 
 # Enable Pod Security Policy. This option enables PSP admission controller and creates minimal set of rules.
 psp_enabled: true

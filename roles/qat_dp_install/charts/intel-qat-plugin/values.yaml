@@ -15,15 +15,15 @@
 ##
 ---
 image:   
-  repository: intel/intel-qat-plugin
-  tag: 0.19.0  
+  repository: docker.io/intel/intel-qat-plugin
+  tag: 0.21.0  
   pullPolicy: IfNotPresent 
 
 drivers:
   dpdk: "vfio-pci"
   kernel: "dh895xccvf,c6xxvf,c3xxxvf,d15xxvf,200xxvf,c4xxxvf"
 
-maxNumDevices: "32"
+maxNumDevices: ""
 
 # sets annotation for deployment on apparmor enabled systems
 apparmor:

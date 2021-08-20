@@ -1,0 +1,9 @@
+apiVersion: deviceplugin.intel.com/v1
+kind: SgxDevicePlugin
+metadata:
+  name: intel-sgx-plugin
+spec:
+  image: {{ sgx_dp_image | default("docker.io/intel/intel-sgx-plugin") }}:{{ sgx_dp_version | default("0.21.0") }}
+  initImage: {{ sgx_dp_init_image | default("docker.io/intel/intel-sgx-initcontainer") }}:{{ sgx_dp_version | default("0.21.0") }}
+  enclaveLimit: {{ sgx_dp_enclave_limit }}
+  provisionLimit: {{ sgx_dp_provision_limit }}

@@ -30,14 +30,19 @@
       - setuptools<=44
     extra_args: --upgrade
 
-#pinned python package versions
+#pinned python packages versions
 - name: install Python packages
   pip:
     name:
       - jmespath==0.9.5
       - ruamel.yaml==0.16.13
       - cachetools==4.2.1
+      - markupsafe==1.1.1
+      - jinja2==2.11.3
       - openshift==0.11.2
+      - six>=1.15.0
+      - websocket-client==0.58.0
+      - oauthlib==3.1.0
     state: present
   register: pip_result
   retries: 5

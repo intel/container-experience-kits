@@ -1,0 +1,60 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-env-cm
+  namespace: {{ .Release.Namespace }}
+data:
+  default.json: |
+    {
+      "HTTPS_PORT" : {{ .Values.pccs.main.port | quote }},
+      "hosts" : "127.0.0.1",
+      "uri": "https://api.trustedservices.intel.com/sgx/certification/v3/",
+      "ApiKey": {{ .Values.pccs.main.api_key | quote }},
+      "proxy" : {{ .Values.https_proxy | default "" | quote }},
+      "RefreshSchedule": "0 0 1 * * *",
+      "UserTokenHash" : {{ .Values.pccs.main.user_pass | quote }},
+      "AdminTokenHash" : {{ .Values.pccs.main.admin_pass | quote }},
+      "CachingFillMode" : "LAZY",
+      "LogLevel" : {{ .Values.pccs.main.log_level | quote }},
+      "DB_CONFIG" : "sqlite",
+      "sqlite" : {
+        "database" : "database",
+        "username" : "username",
+        "password" : "password",
+        "options" : {
+          "host": "localhost",
+          "dialect": "sqlite",
+          "pool": {
+            "max": 5,
+            "min": 0,
+            "acquire": 30000,
+            "idle": 10000
+          },
+          "define": {
+            "freezeTableName": true
+          },
+          "logging" : false,
+          "storage": "pckcache.db"
+        }
+      },
+      "myql" : {
+        "database" : "pckcache",
+        "username" : "root",
+        "password" : "mypass",
+        "options" : {
+          "host": "localhost",
+          "dialect": "mysql",
+          "pool": {
+            "max": 5,
+            "min": 0,
+            "acquire": 30000,
+            "idle": 10000
+          },
+          "define": {
+            "freezeTableName": true
+          },
+          "logging" : false
+        }
+      }
+    }

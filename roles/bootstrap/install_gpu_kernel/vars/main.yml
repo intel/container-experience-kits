@@ -26,13 +26,20 @@ install_dependencies:
     - kernel-headers
     - openssl-devel
     - elfutils-libelf-devel
+    - lz4
+    - rsync
+    - kmod-devel
+    - memstrack
   Debian:
     - build-essential
-    - libelf-dev
-    - libssl-dev
+    - git
+    - gcc
     - bison
     - flex
-
-#gpu_kernel_git_url: "https://github.com/intel-gpu/kernel"
-#gpu_kernel_flags: "i915.force_probe=* modprobe.blacklist=ast,snd_hda_intel i915.enable_guc=2"
-
+    - libssl-dev
+    - libelf-dev
+    - make
+    - bc
+    - cpio
+    - openssl
+    - liblz4-tool

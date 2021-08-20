@@ -26,10 +26,35 @@
       when: nfd_enabled | default(true)
     - role: sriov_dp_install
       tags: sriov-net-dp
-      when: sriov_net_dp_enabled | default(true)
+      when:
+        - sriov_net_dp_enabled | default(false)
+        - not sriov_network_operator_enabled | default(true)
+    - role: sriov_network_operator_install
+      tags: sriov-network-operator
+      when:
+        - sriov_network_operator_enabled | default(true)
+        - not sriov_net_dp_enabled | default(false)
+        - not sriov_cni_enabled | default(false)
+    - role: intel_dp_operator
+      tags: dp-operator
+      when: sgx_dp_enabled | default(true) or gpu_dp_enabled | default(false)
+    - role: sgx_dp_install
+      tags: sgx-dp
+      when:
+        - sgx_dp_enabled | default(true)
+        - ansible_os_family == "Debian" or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2')
+    - role: kmra_install
+      tags: kmra
+      when:
+        - kmra_enabled | default(true)
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04')
+          or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2')
     - role: qat_dp_install
       tags: qat-dp
       when: qat_dp_enabled | default(true)
+    - role: openssl_engine_install
+      tags: openssl_engine
+      when: openssl_engine_enabled | default(false)
     - role: cmk_install
       tags: cmk
       when: cmk_enabled | default(true)
@@ -45,7 +70,9 @@
       when: collectd_enabled | default(true)
       vars:
         collectd_profile: full_nfv
-  environment: "{{ proxy_env | d({}) }}"
+  environment:
+    - "{{ proxy_env | d({}) }}"
+    - REGISTRY_AUTH_FILE: "{{ registry_containerd }}"
   any_errors_fatal: true
 
 - hosts: kube-node
@@ -54,7 +81,9 @@
     - role: cluster_defaults
       tags: defaults
     - role: sriov_cni_install
-      when: sriov_cni_enabled | default(true)
+      when:
+        - sriov_cni_enabled | default(false)
+        - not sriov_network_operator_enabled | default(true)
       tags: sriov-cni
     - role: bond_cni_install
       when: bond_cni_enabled | default(false)

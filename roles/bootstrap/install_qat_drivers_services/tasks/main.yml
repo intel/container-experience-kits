@@ -18,6 +18,16 @@
   include_role:
     name: install_dependencies
 
+- name: install libudev-dev package on Ubuntu
+  apt:
+    name: >-
+      {%- if ansible_distribution_version == '21.04' -%}
+      libudev-dev={{ libudev_version }}
+      {%- else -%}
+      libudev-dev
+      {%- endif -%}
+  when: ansible_distribution == "Ubuntu"
+
 - name: create directory /usr/src/QAT_drivers for all QAT dependencies
   file:
     path: /usr/src/QAT_drivers
@@ -35,7 +45,7 @@
 
 - name: unarchive QAT drivers package
   unarchive:
-    src: /usr/src/QAT_drivers/QAT{{ qat_drivers_version }}.tar.gz
+    src: /usr/src/QAT_drivers/qat{{ qat_drivers_version }}.tar.gz
     dest: /usr/src/QAT_drivers
     remote_src: yes
     mode: 0755
@@ -61,6 +71,8 @@
     target: install
   register: qat_make_install
   become: yes
+  notify:
+    - reboot server
 
 - name: playbook terminated, QAT module load blocking on CentOS > 8
   fail:
@@ -90,25 +102,13 @@
     name: qat_service
   register: qat_service_state
 
+# ansible_facts.services is not supported currently with latest QAT drivers 
 - name: check status of QAT service after started
-  service_facts:
-  when: ansible_distribution in ["RedHat", "CentOS"] or
-        ansible_distribution == "Ubuntu" and ansible_distribution_version <= '18.04.4'
-
-- debug:
-    var: ansible_facts.services['qat_service']
-  when: ansible_distribution in ["RedHat", "CentOS"] or
-        ansible_distribution == "Ubuntu" and ansible_distribution_version <= '18.04.4'
-
-#ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove when conditions and merge code as one task.
-- name: check status of QAT service after started on Ubuntu >= 20.04
   command: service qat_service status
   args:
     warn: false
   register: qat_enabled
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04'
   changed_when: true
 
 - debug:
     var: qat_enabled.stdout_lines
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04'

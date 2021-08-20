@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/name: prometheus-operator
-    app.kubernetes.io/version: v0.40.0
+    app.kubernetes.io/version: v0.44.1
   name: prometheus-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -16,3 +16,4 @@ subjects:
 - kind: ServiceAccount
   name: prometheus-operator
   namespace: monitoring
+

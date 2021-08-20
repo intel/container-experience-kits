@@ -42,7 +42,6 @@
   register: helm_update_result
   changed_when: '"Successfully got an update" in helm_update_result.stdout'
 
-
 - name: create Helm charts directory if needed
   file:
     path: /usr/src/charts
@@ -75,21 +74,36 @@
   loop:
     - build
     - image
+  when: container_runtime == "docker"
 
-- name: tag TAS-controller and TAS-extender
+- name: tag TAS image
   # TAS Makefile always creates ":latest" version images
-  command: docker tag {{ item }}:latest {{ registry_local_address }}/{{ item }}:{{ tas_version }}
-  loop:
-    - tas-controller
-    - tas-extender
+  command: docker tag tasextender:latest {{ tas_extender_image }}:{{ tas_version }}
   changed_when: false
+  when: container_runtime == "docker"
+
+- name: push TAS image to local registry
+  command: docker push {{ tas_extender_image }}:{{ tas_version }}
+  changed_when: true
+  when: container_runtime == "docker"
+
+- name: make build
+  make:
+    target: build
+    chdir: "{{ tas_dir }}"
+  when: '"docker" not in container_runtime'
+
+- name: build and tag TAS image
+  command: podman build -f Dockerfile ../../bin/ -t {{ registry_local_address }}/tasextender:{{ tas_version }}
+  args:
+    chdir: "{{ tas_dir }}/telemetry-aware-scheduling/deploy/images"
+  changed_when: true
+  when: '"docker" not in container_runtime'
 
 - name: push TAS-controller and TAS-extender image to local registry
-  command: docker push {{ registry_local_address }}/{{ item }}:{{ tas_version }}
-  loop:
-    - tas-controller
-    - tas-extender
+  command: podman push {{ registry_local_address }}/tasextender:{{ tas_version }}
   changed_when: true
+  when: '"docker" not in container_runtime'
 
 - name: create descheduler directory if needed
   file:
@@ -140,7 +154,7 @@
   until: result.rc == 0
   changed_when: true
 
-- name: Configure arguments from Kubernetes Scheduler file if they exist - dnsPolicy
+- name: configure arguments from Kubernetes Scheduler file if they exist - dnsPolicy
   lineinfile:
     path: /etc/kubernetes/manifests/kube-scheduler.yaml
     insertafter: "spec:"
@@ -149,7 +163,7 @@
     state: present
     mode: 0600
 
-- name: Configure arguments to our kube-scheduler manifest - configmap
+- name: configure arguments to our kube-scheduler manifest - configmap
   lineinfile:
     path: /etc/kubernetes/manifests/kube-scheduler.yaml
     insertafter: "    - kube-scheduler"
@@ -171,9 +185,21 @@
   when:
     - tas_enable_demo_policy
 
+- name: wait for 05 seconds before creating TAS demo policy resource
+  pause:
+    seconds: 5
+  when:
+    - tas_enable_demo_policy
+
 - name: create TAS demo policy resource
   command: kubectl apply -f tas-demo-policy.yml
   args:
     chdir: "/usr/src/charts"
+  register: demo_policy_details
+  when:
+    - tas_enable_demo_policy
+
+- debug:
+    var: demo_policy_details.stdout
   when:
     - tas_enable_demo_policy

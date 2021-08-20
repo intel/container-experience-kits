@@ -15,30 +15,10 @@
 ##
 ---
 # Needs to be fixed in Kubespray Repo.
-- name: Update kubespray roles for python3
-  replace:
-    path: "{{ item }}"
-    regexp: "(.*)yum:(.*)"
-    replace: "\\1package:\\2"
-    mode: 0600
-  with_items:
-    - "{{ playbook_dir }}/kubespray/roles/container-engine/docker/tasks/pre-upgrade.yml"
-    - "{{ playbook_dir }}/kubespray/roles/container-engine/docker/tasks/main.yml"
-    - "{{ playbook_dir }}/kubespray/roles/container-engine/docker-storage/tasks/main.yml"
-    - "{{ playbook_dir }}/kubespray/roles/container-engine/containerd/tasks/containerd_repo.yml"
-    - "{{ playbook_dir }}/kubespray/roles/kubernetes/preinstall/tasks/0070-system-packages.yml"
-
-- name: Update kubespray package manager for CENTOS/RHEL 8
-  replace:
-    path: "{{ playbook_dir }}/kubespray/roles/container-engine/docker/vars/redhat.yml"
-    regexp: "(.*pkg_mgr: )yum(.*)"
-    replace: "\\1dnf\\2"
-    mode: 0600
-  when: target_ansible_pkg_mgr == "dnf"
-
 - name: Skip RHEL subscription manager processing
   replace:
     path: "{{ playbook_dir }}/kubespray/roles/bootstrap-os/tasks/main.yml"
     regexp: "(.*)bootstrap-redhat.yml(.*)"
     replace: "\\1bootstrap-centos.yml\\2"
     mode: 0600
+

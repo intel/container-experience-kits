@@ -16,7 +16,6 @@ spec:
         app: {{ template "node-feature-discovery.fullname" . }}-worker
 {{ include "node-feature-discovery.labels" . | indent 8 }}
     spec:
-      hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - env:

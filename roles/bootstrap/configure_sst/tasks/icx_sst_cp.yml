@@ -1,0 +1,54 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: enable SST CP
+  command: "intel-speed-select core-power enable --priority {{ sst_cp_priority_type }}"
+  changed_when: true
+
+- name: configure CLOS groups
+  command: "intel-speed-select core-power config --clos {{ item.id }} --weight {{ item.frequency_weight }} --min {{ item.min_MHz }} --max {{ item.max_MHz }}"
+  loop: "{{ sst_cp_clos_groups }}"
+  changed_when: true
+
+- name: assign core to CLOS group
+  command: "intel-speed-select -c {{ item.cpus }} core-power assoc --clos {{ item.clos }}"
+  loop: "{{ sst_cp_cpu_clos }}"
+  changed_when: true
+
+- name: install the sst-cp-configure systemd service
+  block:
+    - name: copy service file
+      copy:
+        src: sst-cp-configure-icx.service
+        dest: /lib/systemd/system/sst-cp-configure-icx.service
+        owner: root
+        group: root
+        mode: u=rw,g=r,o=r
+
+    - name: configure /usr/bin/sst_cp_config_icx.sh
+      template:
+        src: sst-cp-config-icx.sh.j2
+        dest: /usr/bin/sst_cp_config_icx.sh
+        owner: root
+        group: root
+        mode: u=rwx,g=r,o=r
+
+- name: run sst-cp-configure-icx service on boot
+  systemd:
+    daemon_reload: yes
+    state: restarted
+    name: sst-cp-configure-icx
+    enabled: yes

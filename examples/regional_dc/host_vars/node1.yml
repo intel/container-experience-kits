@@ -23,7 +23,7 @@ iommu_enabled: false
 dataplane_interfaces: []
 #  - name: enp24s0f0                 # PF interface name
 #    bus_info: "18:00.0"             # pci bus info
-#    pf_driver: i40e                 # PF driver, "i40e", "ice"
+#    pf_driver: ice                  # PF driver, "i40e", "ice"
 #    default_vf_driver: "iavf"       # default driver to be used with VFs if specific driver is not defined in the "sriov_vfs" section
 #    sriov_numvfs: 6                 # total number of VFs to create including VFs listed in the "sriov_vfs" section.
                                      # If total number of VFs listed in the "sriov_vfs" section is greater than "sriov_numvfs" then excessive entities will be ignored.
@@ -34,10 +34,10 @@ dataplane_interfaces: []
 #      vf_05: "vfio-pci"
 #  - name: enp24s0f1
 #    bus_info: "18:00.1"
-#    pf_driver: i40e
+#    pf_driver: ice
 #    default_vf_driver: "vfio-pci"
 #    sriov_numvfs: 4
-#    sriov_vfs: {}                   # no VFs with specific driver on this PF or "sriov_vfs" can be ommited for convenience
+#    sriov_vfs: {}                   # no VFs with specific driver on this PF or "sriov_vfs" can be omitted for convenience
 
 sriov_cni_enabled: false
 
@@ -45,10 +45,10 @@ sriov_cni_enabled: false
 install_dpdk: false
 
 # DPDK version
-dpdk_version: "19.11.6"
+dpdk_version: "21.05"
 
 # Custom DPDK patches local path
-# dpdk_local_patches_dir: "/tmp/patches/dpdk-19.11.6"
+# dpdk_local_patches_dir: "/tmp/patches/dpdk-20.11"
 
 # Set to 'true' to update i40e, ice and iavf kernel modules
 update_nic_drivers: true
@@ -68,9 +68,8 @@ hugepages_enabled: false
 # Hugepage sizes available: 2M, 1G
 default_hugepage_size: 1G
 
-# Sets how many hugepages of each size should be created
-hugepages_1G: 4
-hugepages_2M: 0
+# Sets how many hugepages of 'default_hugepage_size' size should be created
+number_of_hugepages: 4
 
 # CPU isolation from Linux scheduler
 isolcpus_enabled: false
@@ -85,7 +84,7 @@ native_cpu_manager_kube_reserved_cpus: 1000m
 # Explicit list of the CPUs reserved from pods scheduling.
 # Note: Supported only with kube_version 1.17 and newer, overrides native_cpu_manager_system_reserved_cpus and native_cpu_manager_kube_reserved_cpus.
 #native_cpu_manager_reserved_cpus: "0,1,2"
-# Note: All reamining unreserved CPU cores will be consumed by the workloads.
+# Note: All remaining unreserved CPU cores will be consumed by the workloads.
 
 # Telemetry configuration
 # intel_pmu plugin collects information provided by Linux perf interface.

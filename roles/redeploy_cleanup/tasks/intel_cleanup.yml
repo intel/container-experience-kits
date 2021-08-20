@@ -1,0 +1,166 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- debug:
+    msg: "Starting to remove Intel BMRA Container Experience Kit features ..."
+
+- name: remove OVS vswitchd
+  block:
+    - name: stop OVS vswitchd
+      command: /usr/local/share/openvswitch/scripts/ovs-ctl --no-ovsdb-server --db-sock="/usr/local/var/run/openvswitch/db.sock" stop
+      environment:
+        OVS_RUNDIR: /usr/local/var/run/openvswitch
+      changed_when: false
+      failed_when: false
+
+    - name: stop OVS database server
+      command: '/usr/local/share/openvswitch/scripts/ovs-ctl --no-ovs-vswitchd stop'
+      environment:
+        OVS_RUNDIR: /usr/local/var/run/openvswitch
+      changed_when: false
+      failed_when: false
+  when: inventory_hostname in groups['kube-node']
+
+- name: stop systemd services
+  block:
+    - name: find ddp-i40e service
+      shell:
+        cmd: systemctl list-unit-files | grep ddp-i40e | cut -d" " -f1 # noqa 303 - systemctl is used intentionally here
+      register: ddp_i40e_service
+      changed_when: false
+      failed_when: false
+    - name: stop services
+      service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      changed_when: false
+      failed_when: false
+      with_items:
+        - "{{ intel_services_to_stop + (ddp_i40e_service.stdout | ternary([ddp_i40e_service.stdout], [])) }}"
+
+- name: remove custom kernel
+  block:
+    - name: remove custom kernel build files
+      make:
+        dest: "/usr/src/kernels/gpu_kernel/"
+        target: "{{ item }}"
+      with_items:
+        - clean
+        - mrproper
+        - distclean
+      changed_when: false
+      failed_when: false
+
+    - name: find files in /boot to remove
+      find:
+        paths: /boot
+        patterns: "*5.4.48*"
+      register: files_to_delete
+      changed_when: false
+      failed_when: false
+
+    - name: remove custom kernel boot files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"
+      changed_when: false
+      failed_when: false
+
+    - name: remove grub flags
+      lineinfile:
+        dest: /etc/default/grub
+        regexp: 'i915\.force_probe=\*'
+        state: absent
+        mode: 0644
+
+    - name: find generic kernel files in /boot
+      find:
+        paths: /boot
+        patterns: "vmlinuz-*-*"
+      register: kernel_path
+      changed_when: false
+      failed_when: false
+
+    - name: use generic kernel on Ubuntu
+      lineinfile:
+        dest: /etc/default/grub
+        regexp: '^GRUB_DEFAULT='
+        line: 'GRUB_DEFAULT={{ kernel_path.files[0].path }}'
+        state: present
+        mode: 0644
+      changed_when: false
+      failed_when: false
+      become: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: use generic kernel on CentOS/RHEL
+      command: grubby --set-default "{{ kernel_path.files[0].path }}"
+      changed_when: true
+      failed_when: false
+      become: yes
+      when: ansible_distribution == "CentOS"
+
+    - include_role:
+        name: bootstrap/update_grub
+
+- name: cleanup /usr/local/*
+  # ansible find module too slow
+  # noqa 305 - shell is used intentionally here
+  shell:
+    cmd: |
+          find /usr/local/ \
+          -not -wholename "/usr/local/" \
+          -and -not -wholename "/usr/local/share/ca-certificates" \
+          -and -not -wholename "/usr/local/bin" \
+          -and -not -wholename "/usr/local/etc" \
+          -and -not -wholename "/usr/local/games" \
+          -and -not -wholename "/usr/local/include" \
+          -and -not -wholename "/usr/local/lib" \
+          -and -not -wholename "/usr/local/lib64" \
+          -and -not -wholename "/usr/local/libexec" \
+          -and -not -wholename "/usr/local/sbin" \
+          -and -not -wholename "/usr/local/share" \
+          -and -not -wholename "/usr/local/src" \
+          -and -not -name "man" \
+          -delete
+  changed_when: false
+  failed_when: false
+
+- name: cleanup /usr/src/*
+  # ansible find module too slow
+  # noqa 305 - shell is used intentionally here
+  shell:
+    cmd: |
+          find /usr/src/ \
+          -not -wholename "/usr/src/" \
+          -and -not -path "/usr/src/linux-headers-*" \
+          -and -not -path "/usr/src/kernels*" \
+          -and -not -path "/usr/src/debug*" \
+          -delete
+  changed_when: false
+  failed_when: false
+
+- name: remove files
+  import_tasks: remove_files.yml
+  vars:
+    files_to_delete: "{{ intel_dirs_to_remove }}"
+  changed_when: false
+  failed_when: false
+
+- debug:
+    msg: "Intel BMRA Container Experience Kit features have been removed ..."

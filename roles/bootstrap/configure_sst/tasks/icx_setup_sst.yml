@@ -1,0 +1,91 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install 'intel-speed-select' tool on Ubuntu 20.04+ on ICX Platform
+  include_tasks: ubuntu_install_sst_tool.yml
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version > '18.04'
+
+- name: compile and load isst module on CentOS 8.2 on ICX Platform
+  include_tasks: centos8_2_install_isst_interface.yml
+  when:
+    - sst_bf_configuration_enabled and icx_centos8_2_load_isst_modules
+    - ansible_distribution == 'CentOS' and ansible_distribution_version == '8.2'
+
+- name: Intel(R)-Speed-Select-Technology (ISST) verification
+  command: "intel-speed-select --info"
+  register: isst_verify
+  changed_when: true
+
+- debug:
+    var: isst_verify.stderr_lines
+  when: isst_verify is defined
+
+- name:  SST-BF verification
+  command: "intel-speed-select base-freq enable -a"
+  register: sst_bf_verify
+  when: sst_bf_configuration_enabled
+
+- name:  SST-CP verification
+  command: "intel-speed-select core-power enable -a"
+  register: sst_cp_verify
+  when: sst_cp_configuration_enabled
+
+- name:  SST-TF verification
+  command: "intel-speed-select turbo-freq enable -a"
+  register: sst_tf_verify
+  when: sst_tf_configuration_enabled
+
+- name: update the dynamic linker cache before ISST features configuration
+  command: "ldconfig"
+  changed_when: true
+
+- name: configure SST-xx on ICX Platform
+  block:
+    - name: configure SST-BF
+      include_tasks: icx_sst_bf.yml
+      when:
+        - sst_bf_configuration_enabled
+        - '"enable:succes" in sst_bf_verify.stderr'
+    - debug:
+        msg: "Intel(R) SST-BF (feature base-freq) is not supported on platform or already been configured, SST-BF enablement skipped"
+      when:
+        - sst_bf_configuration_enabled
+        - '"enable:succes" not in sst_bf_verify.stderr'
+
+    - name: configure SST-CP
+      include_tasks: icx_sst_cp.yml
+      when:
+        - sst_cp_configuration_enabled
+        - '"enable:succes" in sst_cp_verify.stderr'
+    - debug:
+        msg: "Intel(R) SST-CP (feature core-power) is not supported on platform or already been configured, SST-CP enablement skipped"
+      when:
+        - sst_cp_configuration_enabled
+        - '"enable:succes" not in sst_cp_verify.stderr'
+
+    - name: configure SST-TF
+      include_tasks: icx_sst_tf.yml
+      when:
+        - sst_tf_configuration_enabled
+        - '"enable:succes" in sst_tf_verify.stderr'
+    - debug:
+        msg: "Intel(R) SST-TF (feature turbo-freq) is not supported on platform or already been configured, SST-TF enablement skipped"
+      when:
+        - sst_tf_configuration_enabled
+        - '"enable:succes" not in sst_tf_verify.stderr'
+  when: ansible_distribution == 'Ubuntu' or
+        (ansible_distribution == 'CentOS' and ansible_distribution_version == '8.2' and icx_centos8_2_load_isst_modules) or
+        (ansible_distribution in ['RedHat', 'CentOS'] and ansible_distribution_version >= '8.3')

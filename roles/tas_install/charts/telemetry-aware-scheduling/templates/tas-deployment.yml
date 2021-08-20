@@ -27,23 +27,18 @@ spec:
           effect: NoSchedule
           value: "true"
       containers:
-      - name: tas-controller
-        command:
-        - /controller
-        - --syncPeriod=2s
-        image: "{{ .Values.controllerImage.repository }}:{{ .Values.controllerImage.tag }}"
-        securityContext:
-          runAsUser: 10001
-        imagePullPolicy: {{ .Values.controllerImage.pullPolicy }}
       - name: tas-extender
         command:
         - /extender
-        - --cacheEndpoint=http://127.0.0.1:8111/cache/
+        - --syncPeriod=2s
+        - --port=8111
+        - --v=2
         {{- if .Values.tls.enabled }}
         - --cert={{ .Values.tls.tas_ssl_mount_path }}/{{ .Values.tls.secretName }}.cert
+        - --cacert={{ .Values.tls.tas_ssl_mount_path }}/{{ .Values.tls.secretName }}.cert
         - --key={{ .Values.tls.tas_ssl_mount_path }}/{{ .Values.tls.secretName }}.key
         {{- else }}
-        - --unsafe
+        - --unsafe=true
         {{- end }}
         image: "{{ .Values.extenderImage.repository }}:{{ .Values.extenderImage.tag }}"
         imagePullPolicy: {{ .Values.extenderImage.pullPolicy }}

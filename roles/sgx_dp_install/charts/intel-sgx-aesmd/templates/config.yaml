@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sgx-attestation-conf
+data:
+  aesmd.conf: |
+      default quoting type = ecdsa_256
+  sgx_default_qcnl.conf: |
+      PCCS_URL=https://localhost:8081/sgx/certification/v3/
+      USE_SECURE_CERT=FALSE

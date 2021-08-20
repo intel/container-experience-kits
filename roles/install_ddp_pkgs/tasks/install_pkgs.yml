@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: Create DDP package installation directory
+- name: create DDP package installation directory
   become: yes
   file:
     path: "{{ install_dir }}"
@@ -28,5 +28,3 @@
   loop: "{{ pkgurls }}"
   loop_control:
     loop_var: pkgurl
-
-
