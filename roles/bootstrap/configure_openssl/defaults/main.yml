@@ -15,7 +15,7 @@
 ##
 ---
 openssl_url: "https://github.com/openssl/openssl.git"
-openssl_version: "openssl-3.0.0-beta1"
+openssl_version: "openssl-3.0.0"
 openssl_dir: "/usr/src/OpenSSL"
 openssl_ubuntu_libssldev_pkg: "http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl-dev_1.1.1j-1ubuntu3_amd64.deb"
 

@@ -1,0 +1,251 @@
+---
+## BMRA primary playbook variables ##
+
+# Kubernetes version
+kubernetes: true
+kube_version: v1.21.1
+#kube_version: v1.20.6
+#kube_version: v1.19.8
+
+# Kubernetes container runtime: docker, containerd, crio
+container_runtime: docker
+
+# Run system-wide package update (apt dist-upgrade, yum update, ...)
+# Note: enabling this may lead to unexpected results
+# Tip: you can set this per host using host_vars
+update_all_packages: false
+update_kernel: false
+
+# SELinux configuration state: current, enabled, disabled
+selinux_state: current
+{% if nfd in ['on', 'optional'] %}
+# Node Feature Discovery
+nfd_enabled: {% if nfd == 'on' %}true{% else %}false{% endif %}
+nfd_build_image_locally: false
+nfd_namespace: kube-system
+nfd_sleep_interval: 60s
+{%- endif %}
+
+{%- if cmk in ['on', 'optional'] %}
+# Intel CPU Manager for Kubernetes (CMK)
+cmk_enabled: {% if cmk == 'on' %}true{% else %}false{% endif %}
+cmk_namespace: kube-system
+cmk_hosts_list: node1,node2 # host_vars/node.yml file must exist for all nodes in the list
+cmk_shared_num_cores: 2 # number of CPU cores to be assigned to the "shared" pool on each of the nodes
+cmk_exclusive_num_cores: 2 # number of CPU cores to be assigned to the "exclusive" pool on each of the nodes
+# cmk_shared_mode: packed # choose between: packed, spread, default: packed
+# cmk_exclusive_mode: packed # choose between: packed, spread, default: packed
+autogenerate_isolcpus: true
+{%- endif %}
+{% if native_cpu_manager in ['on', 'optional'] %}
+# Native CPU Manager (Kubernetes built-in)
+# Note: Enabling CMK and built-in Native CPU Manager is NOT recommended.
+# Setting this option as "true" enables the "static" policy, otherwise the default "none" policy is used.
+# The reserved CPU cores settings are individual per each worker node, and therefore are available to configure in the host_vars file
+native_cpu_manager_enabled: {% if native_cpu_manager == 'on' %}true{% else %}false{% endif %}
+{% endif %}
+{% if topology_manager in ['on', 'optional'] -%}
+# Enable Kubernetes built-in Topology Manager
+topology_manager_enabled: {% if topology_manager == 'on' %}true{% else %}false{% endif %}
+# There are four supported policies: none, best-effort, restricted, single-numa-node.
+topology_manager_policy: "best-effort"
+{% endif %}
+
+{%- if sriov_operator in ['on', 'optional'] %}
+# OpenShift SRIOV Network Operator
+sriov_network_operator_enabled: {% if sriov_operator == 'on' %}true{% else %}false{% endif %}
+sriov_network_operator_namespace: "sriov-network-operator"
+{% endif %}
+
+{%- if sriov_network_dp in ['on', 'optional'] %}
+# Intel SRIOV Network Device Plugin
+sriov_net_dp_enabled: {% if sriov_network_dp == 'on' %}true{% else %}false{% endif %}
+sriov_net_dp_namespace: kube-system
+# whether to build and store image locally or use one from public external registry
+sriov_net_dp_build_image_locally: true
+# SR-IOV network device plugin configuration.
+# For more information on supported configuration refer to: https://github.com/intel/sriov-network-device-plugin#configurations
+sriovdp_config_data: |
+    {
+        "resourceList": [{
+                "resourceName": "intel_sriov_netdevice",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed", "1889"],
+                    "drivers": ["iavf", "ixgbevf"]
+                }
+            },
+            {
+                "resourceName": "intel_sriov_dpdk_700_series",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["154c", "10ed"],
+                    "drivers": ["vfio-pci"]
+                }
+            },
+            {
+                "resourceName": "intel_sriov_dpdk_800_series",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["1889"],
+                    "drivers": ["vfio-pci"]
+                }
+            {% if name in ['full_nfv', 'access', 'regional_dc'] -%}    
+            },
+            {
+                "resourceName": "intel_fpga",
+                "deviceType": "accelerator",
+                "selectors": {
+                    "vendors": ["8086"],
+                    "devices": ["0d90"]
+                }
+            }
+            {%- else -%}
+            }
+            {%- endif %}
+        ]
+    }
+{% endif %}
+
+{%- if sgx in ['on', 'optional'] or gpu in ['on', 'optional'] %}
+# Intel Device Plugin Operator
+intel_dp_namespace: kube-system # namespace will be applied for SGX DP and GPU DP
+{% endif %}
+
+{%- if qat_dp in ['on', 'optional'] %}
+# Intel QAT Device Plugin for Kubernetes
+qat_dp_enabled: {% if qat_dp == 'on' %}true{% else %}false{% endif %}
+qat_dp_namespace: kube-system
+qat_dp_build_image_locally: true
+{% endif %}
+
+{%- if openssl in ['on', 'optional'] %}
+# This feature will enable OpenSSL*Engine
+openssl_engine_enabled: {% if openssl == 'on' and qat == 'on' %}true{% else %}false{% endif %} # To activate OpenSSL*Engine set both install_openssl and update_qat_drivers to ‘true’ in host_vars
+{% endif %}
+
+{%- if gpu in ['on', 'optional'] %}
+# Intel GPU Device Plugin for Kubernetes
+gpu_dp_enabled: {% if gpu == 'on' %}true{% else %}false{% endif %}
+gpu_dp_kernel_version: "5.4.48+"
+gpu_dp_build_image_locally: true
+{% endif %}
+
+{%- if sgx_dp in ['on', 'optional'] %}
+# Intel SGX Device Plugin for Kubernetes
+sgx_dp_enabled: {% if sgx_dp == 'on' %}true{% else %}false{% endif %}
+sgx_dp_build_image_locally: true
+sgx_aesmd_namespace: kube-system
+# ProvisionLimit is a number of containers that can share
+# the same SGX provision device.
+sgx_dp_provision_limit: 20
+# EnclaveLimit is a number of containers that can share the
+# same SGX enclave device.
+sgx_dp_enclave_limit: 20
+{% endif %}
+
+{%- if kmra in ['on', 'optional'] %}
+# KMRA (Key Management Reference Application)
+kmra_enabled: {% if kmra == 'on' %}true{% else %}false{% endif %}
+# The PCCS uses this API key to request collaterals from Intel's Provisioning Certificate Service.
+# User needs to subscribe first to obtain an API key.
+# For how to subscribe to Intel Provisioning Certificate Service and receive an API key,
+# goto https://api.portal.trustedservices.intel.com/provisioning-certification and click on 'Subscribe'.
+kmra_pccs_api_key: "ffffffffffffffffffffffffffffffff"
+# deploy KMRA demo workload (NGINX server)
+kmra_deploy_demo_workload: true
+{% endif %}
+
+{%- if istio in ['on', 'optional'] %}
+# Istio operator
+# https://istio.io/latest/docs/setup/install/operator/#install
+istio_enabled: {% if istio == 'on' %}true{% else %}false{% endif %}
+{% endif %}
+
+{%- if tas in ['on', 'optional'] %}
+# Intel Telemetry Aware Scheduling
+tas_enabled: {% if tas == 'on' %}true{% else %}false{% endif %}
+tas_namespace: monitoring
+# create and enable TAS demonstration policy: [true, false]
+tas_enable_demo_policy: false
+{% endif %}
+
+# Telemetry configuration. Collectd and Telegraf variables are mutually exclusive.
+collectd_enabled: false
+telegraf_enabled: true
+collectd_scrap_interval: 30
+telegraf_scrap_interval: 30
+
+{%- if sriov_network_dp in ["on", "optional"] or network_userspace in ["on", "optional"] %}
+# Create reference net-attach-def objects
+example_net_attach_defs:
+{%- if sriov_network_dp in ["on", "optional"] %}
+  sriov_net_dp: {% if sriov_network_dp == "on" %}true{% else %}false{% endif %} # Update to match host_vars CNI configuration
+{%- endif -%}
+{%- if network_userspace in ["on", "optional"] %}
+  userspace_ovs_dpdk: {% if network_userspace == "on" %}true{% else %}false{% endif %} # Update to match host_vars CNI configuration
+  userspace_vpp: false # Update to match host_vars CNI configuration
+{%- endif %}
+{% endif %}
+## Proxy configuration ##
+#http_proxy: "http://proxy.example.com:1080"
+#https_proxy: "http://proxy.example.com:1080"
+#additional_no_proxy: ".example.com,mirror_ip"
+
+# (Ubuntu only) disables DNS stub listener which may cause issues on Ubuntu
+dns_disable_stub_listener: true
+
+# Kubernetes cluster name, also will be used as DNS domain
+cluster_name: cluster.local
+
+## Kubespray variables ##
+
+# supported network plugins(calico, flannel) and kube-proxy configuration
+kube_network_plugin: calico
+kube_network_plugin_multus: true
+kube_pods_subnet: 10.244.0.0/16
+{%- if name in ['regional_dc', 'full_nfv', 'access'] -%}
+{% set mask = 18 %}
+{%- elif name == 'remote_fp' -%}
+{% set mask = 19 %}
+{%- elif name == 'on_prem' -%}
+{% set mask = 21 %}
+{%- elif name == 'basic' -%}
+{% set mask = 22 %}
+{%- endif %}
+kube_service_addresses: 10.233.0.0/{{ mask }}
+kube_proxy_mode: iptables
+
+# comment this line out if you want to expose k8s services of type nodePort externally.
+kube_proxy_nodeport_addresses_cidr: 127.0.0.0/8
+
+# local Docker Hub mirror, if it exists
+#docker_registry_mirrors:
+#  - http://mirror_ip:mirror_port
+#docker_insecure_registries:
+#  - http://docker_insecure_registry_ip
+#containerd_registries:
+#  "docker.io":
+#    - "https://registry-1.docker.io"
+#    - "https://mirror_ip:mirror_port"
+#crio_registries_mirrors:
+#  - prefix: docker.io
+#    insecure: false
+#    blocked: false
+#    location: registry-1.docker.io
+#    mirrors:
+#      - location: mirror_ip:mirror_port
+#        insecure: false
+#crio_insecure_registries:
+#  - http://crio_insecure_registry_ip
+
+# Docker registry running on the cluster allows us to store images not avaialble on Docker Hub, e.g. CMK
+# The range of valid ports is 30000-32767
+registry_nodeport: 30500
+registry_local_address: "localhost:{{ '{{' }} registry_nodeport {{ '}}' }}"
+
+# Enable Pod Security Policy. This option enables PSP admission controller and creates minimal set of rules.
+psp_enabled: true
+
+# Set image pull policy to Always. Pulls images prior to starting containers. Valid credentials must be configured.
+always_pull_enabled: true

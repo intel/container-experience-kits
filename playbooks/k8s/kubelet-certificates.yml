@@ -27,7 +27,7 @@
       register: temp_cert_dir_localhost
 
 
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
   roles:
@@ -42,7 +42,7 @@
         path: "{{ kube_csr_dir }}"
         state: directory
         mode: 0755
-      when: inventory_hostname == groups['kube-master'][0]
+      when: inventory_hostname == groups['kube_control_plane'][0]
 
     - name: template CSR
       template:
@@ -51,12 +51,12 @@
         owner: root
         group: root
         mode: 0644
-      with_items: "{{ groups['k8s-cluster'] }}"
+      with_items: "{{ groups['k8s_cluster'] }}"
       vars:
         node_ip: "{{ hostvars[item]['ip'] | default(hostvars[item].ansible_default_ipv4['address']) }}"
-        node_hostname: "{{ hostvars[groups['kube-master'][0]]['ansible_hostname'] }}"
+        node_hostname: "{{ hostvars[groups['kube_control_plane'][0]]['ansible_hostname'] }}"
         node_inventory_name: "{{ inventory_hostname }}"
-      when: inventory_hostname == groups['kube-master'][0]
+      when: inventory_hostname == groups['kube_control_plane'][0]
 
     - name: create certs from CSRs
       shell:
@@ -64,24 +64,24 @@
               -ca-key {{ kube_cert_dir }}/ca.key \
               -profile kubernetes node-{{ item }}.json | {{ gopath.stdout }}/bin/cfssljson -bare {{ item }}"
         chdir: "{{ kube_csr_dir }}"
-      when: inventory_hostname == groups['kube-master'][0]
-      loop: "{{ groups['k8s-cluster'] }}"
+      when: inventory_hostname == groups['kube_control_plane'][0]
+      loop: "{{ groups['k8s_cluster'] }}"
 
     - name: fetch certs to ansible host
       fetch:
         src: "{{ kube_csr_dir }}/{{ item }}.pem"
         dest: "{{ temp_cert_dir.path }}/"
         flat: yes
-      when: inventory_hostname == groups['kube-master'][0]
-      loop: "{{ groups['k8s-cluster'] }}"
+      when: inventory_hostname == groups['kube_control_plane'][0]
+      loop: "{{ groups['k8s_cluster'] }}"
 
     - name: fetch keys to ansible host
       fetch:
         src: "{{ kube_csr_dir }}/{{ item }}-key.pem"
         dest: "{{ temp_cert_dir.path }}/"
         flat: yes
-      when: inventory_hostname == groups['kube-master'][0]
-      loop: "{{ groups['k8s-cluster'] }}"
+      when: inventory_hostname == groups['kube_control_plane'][0]
+      loop: "{{ groups['k8s_cluster'] }}"
 
     - name: distribute certificates to nodes
       copy:
@@ -90,7 +90,7 @@
         owner: root
         group: root
         mode: u=rw,g=r,o=r
-      with_items: "{{ groups['k8s-cluster'] }}"
+      with_items: "{{ groups['k8s_cluster'] }}"
 
     - name: distribute keys to nodes
       copy:
@@ -99,7 +99,7 @@
         owner: root
         group: root
         mode: u=rw,g=,o=
-      with_items: "{{ groups['k8s-cluster'] }}"
+      with_items: "{{ groups['k8s_cluster'] }}"
 
     - name: insert new values into kubelet configuration
       lineinfile:
@@ -121,7 +121,7 @@
         state: absent
 
 
-- hosts: kube-master
+- hosts: kube_control_plane
   environment: "{{ proxy_env | d({}) }}"
   tasks:
     - name: insert kubelet-authority into api-server configuration
@@ -134,7 +134,7 @@
         - "{{ '- --kubelet-certificate-authority={{ kube_cert_dir }}/ca.crt'|indent(4,true) }}"
 
 
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   gather_facts: false
   tasks:
   - name: restart kubelet on nodes

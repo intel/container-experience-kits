@@ -69,7 +69,7 @@
   until: apt_key_download is succeeded
   retries: 4
   when:
-    - container_runtime == "containerd"
+    - '"docker" not in container_runtime'
     - ansible_distribution == "Ubuntu"
 
 - name: Add kubic apt repo
@@ -78,20 +78,20 @@
     state: present
     filename: devel-kubic-libcontainers-stable
   when:
-    - container_runtime == "containerd"
+    - '"docker" not in container_runtime'
     - ansible_distribution == "Ubuntu"
 
 - name: apt update
   apt: update_cache=yes
   when: ansible_distribution == "Ubuntu"
 
-- name: install podman package
+- name: install buildah package
   apt:
-    name: podman
+    name: buildah
     state: present
-  register: podman_package
+  register: buildah_package
   retries: 5
-  until: podman_package is success
+  until: buildah_package is success
   when:
     - '"docker" not in container_runtime'
     - ansible_distribution == "Ubuntu"

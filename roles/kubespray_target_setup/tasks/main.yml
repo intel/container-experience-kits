@@ -40,9 +40,9 @@
     mode: 0755
 
 - name: copy patched Multus config
-  copy:
+  template:
     dest: /etc/cni/net.d/templates/00-multus.conf
-    src: roles/kubespray_install/files/multus.conf
+    src: roles/kubespray_install/templates/multus.conf.j2
     owner: root
     group: root
     mode: 0644
@@ -53,7 +53,7 @@
     path: "{{ kube_config_dir }}/admission-control"
     state: directory
     mode: 0755
-  when: inventory_hostname in groups['kube-master']
+  when: inventory_hostname in groups['kube_control_plane']
 
 - name: copy admission control configuration file
   template:
@@ -63,7 +63,7 @@
     group: root
     mode: 0644
     force: yes
-  when: inventory_hostname in groups['kube-master']
+  when: inventory_hostname in groups['kube_control_plane']
 
 - name: copy EventRateLimit configuration file
   copy:
@@ -72,4 +72,4 @@
     owner: root
     group: root
     mode: 0644
-  when: inventory_hostname in groups['kube-master']
+  when: inventory_hostname in groups['kube_control_plane']

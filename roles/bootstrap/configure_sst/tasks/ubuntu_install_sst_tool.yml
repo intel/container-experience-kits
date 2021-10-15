@@ -14,14 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-- name: clone git repository with LTS (v5.4) kernel
+- name: clone git repository from torvalds/linux to compile ISST
   git:
     repo: https://github.com/torvalds/linux.git
     dest: speedselect
     clone: yes
-    version: v5.13
+    version: v5.14
 
-- name: compile Intel speed-select
+- name: compile ISST
   make:
     chdir: speedselect/tools/power/x86/intel-speed-select
     params:

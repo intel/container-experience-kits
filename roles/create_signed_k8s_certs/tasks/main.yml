@@ -17,4 +17,4 @@
 - name: create signed Kubernetes certificates
   import_tasks: create_signed_k8s_certs.yml
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]

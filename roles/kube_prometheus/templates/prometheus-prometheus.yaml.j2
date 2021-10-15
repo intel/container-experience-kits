@@ -7,6 +7,10 @@ kind: Prometheus
 metadata:
   labels:
     prometheus: k8s
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 2.29.1
   name: k8s
   namespace: monitoring
 spec:
@@ -17,7 +21,7 @@ spec:
     value: "true"
   containers:
   - name: custom-metrics-apiserver
-    image: directxman12/k8s-prometheus-adapter:v0.8.2
+    image: directxman12/k8s-prometheus-adapter:v0.8.4
     args:
       - --secure-port=6443
       - --tls-cert-file=/etc/prometheus-adapter/ssl/prometheus-adapter-ssl.cert
@@ -73,7 +77,7 @@ spec:
         scheme: HTTPS
       timeoutSeconds: 3
   - name: grafana
-    image: grafana/grafana:7.5.4
+    image: grafana/grafana:8.1.2
     env:
     - name: GF_SERVER_PROTOCOL
       value: https
@@ -198,9 +202,11 @@ spec:
       - mountPath: /grafana-dashboard-definitions/0/collectd-netlink
         name: grafana-dashboard-collectd-netlink
         readOnly: false
+{% if collectd_enabled | default(false) %}
       - mountPath: /grafana-dashboard-definitions/0/collectd-ovs
         name: grafana-dashboard-collectd-ovs
         readOnly: false
+{% endif %}
       - mountPath: /grafana-dashboard-definitions/0/collectd-power
         name: grafana-dashboard-collectd-power
         readOnly: false
@@ -231,7 +237,7 @@ spec:
 {% endif %}
   alerting:
     alertmanagers: []
-  image: quay.io/prometheus/prometheus:v2.22.1
+  image: quay.io/prometheus/prometheus:v2.29.2
   nodeSelector:
     kubernetes.io/os: linux
   podMonitorNamespaceSelector: {}
@@ -251,7 +257,7 @@ spec:
   serviceAccountName: prometheus-k8s
   serviceMonitorNamespaceSelector: {}
   serviceMonitorSelector: {}
-  version: v2.22.1
+  version: v2.29.2
   volumes:
     - name: persistent-volume-grafana
       persistentVolumeClaim:

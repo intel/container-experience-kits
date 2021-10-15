@@ -1,0 +1,10 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "telegraf.fullname" . }}-issuer
+  labels:
+    {{- include "telegraf.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}

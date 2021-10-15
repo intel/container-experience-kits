@@ -34,4 +34,4 @@
 - name: install collectd
   import_tasks: collectd.yml
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]

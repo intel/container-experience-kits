@@ -25,6 +25,14 @@
     version: "{{ cmk_version }}"
     force: yes
 
+# NOTE(krystianmlynek): more information here https://github.com/intel/CPU-Manager-for-Kubernetes/pull/291
+- name: patch isolate.py
+  replace:
+    path: "{{ cmk_dir }}/intel/isolate.py"
+    regexp: 'c = config\.Config\(configmap_name, pod_name\)'
+    replace: 'c = config.Config(configmap_name, pod_name, namespace)'
+    mode: '0700'
+
 - name: build CMK image
   make:
     chdir: "{{ cmk_dir }}"
@@ -41,31 +49,31 @@
   changed_when: true
   when:
     - container_runtime == "docker"
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
 
 - name: build and tag CMK image
-  command: podman build -f Dockerfile -t {{ registry_local_address }}/cmk:{{ cmk_img_version }}
+  command: buildah bud -f Dockerfile -t {{ registry_local_address }}/cmk:{{ cmk_img_version }}
   args:
     chdir: "{{ cmk_dir }}"
   changed_when: true
   when: '"docker" not in container_runtime'
 
 - name: push CMK image to local registry
-  command: podman push {{ registry_local_address }}/cmk:{{ cmk_img_version }}
+  command: buildah push {{ registry_local_address }}/cmk:{{ cmk_img_version }}
   changed_when: true
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - '"docker" not in container_runtime'
 
 - name: clean up any pre-existing certs/key/CSR files
   file: path=/etc/ssl/cmk state=absent
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
   failed_when: false
   become: yes
 
 - name: delete any pre-existing certs/key/CSR from Kubernetes
   command: kubectl delete csr cmk-webhook-{{ item }}.{{ cmk_namespace }}
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
   failed_when: false
   with_items:
     - "client"
@@ -91,13 +99,13 @@
     - "client"
     - "server"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: get GOPATH
   command: go env GOPATH
   register: gopath
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: generate key and CSR
   shell: "set -o pipefail \
@@ -109,7 +117,7 @@
     - "client"
     - "server"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
   become: yes
 
 - name: read generated server key
@@ -118,7 +126,7 @@
     chdir: "/etc/ssl/cmk/"
   register: server_key
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: read generated client key
   command: cat cmk-webhook-client-key.pem
@@ -126,19 +134,19 @@
     chdir: "/etc/ssl/cmk/"
   register: client_key
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: load generated server key
   set_fact:
     cmk_webhook_server_key: "{{ server_key.stdout | b64encode }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: load generated client key
   set_fact:
     cmk_webhook_client_key: "{{ client_key.stdout | b64encode }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: read generated client csr
   command: cat cmk-webhook-client.csr
@@ -146,13 +154,13 @@
     chdir: "/etc/ssl/cmk/"
   register: client_csr
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: load generated client csr
   set_fact:
     cmk_webhook_client_csr: "{{ client_csr.stdout | b64encode }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: read generated server csr
   command: cat cmk-webhook-server.csr
@@ -160,13 +168,13 @@
     chdir: "/etc/ssl/cmk/"
   register: server_csr
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: load generated server csr
   set_fact:
     cmk_webhook_server_csr: "{{ server_csr.stdout | b64encode }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate CMK Kubernetes CA CSR template
   template:
@@ -178,7 +186,7 @@
     - "client"
     - "server"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: send CSR to the Kubernetes API Server
   command: kubectl apply -f /etc/ssl/cmk/cmk-webhook-kube-{{ item }}-csr.yml
@@ -186,7 +194,7 @@
     - "client"
     - "server"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: approve request
   command: kubectl certificate approve cmk-webhook-{{ item }}.{{ cmk_namespace }}
@@ -194,7 +202,7 @@
     - "client"
     - "server"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: get approved server certificate
   shell: kubectl get csr cmk-webhook-server.{{ cmk_namespace }} -o jsonpath='{.status.certificate}'
@@ -202,7 +210,7 @@
     chdir: "/etc/ssl/cmk/"
   register: server_cert
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
   retries: 30
   delay: 1
   until: server_cert.rc == 0
@@ -213,7 +221,7 @@
     chdir: "/etc/ssl/cmk/"
   register: client_cert
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
   retries: 30
   delay: 1
   until: client_cert.rc == 0
@@ -222,13 +230,13 @@
   set_fact:
     cmk_webhook_server_cert: "{{ server_cert.stdout }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: load generated client cert
   set_fact:
     cmk_webhook_client_cert: "{{ client_cert.stdout }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate cmk-webhook.conf file
   template:
@@ -237,7 +245,7 @@
     force: yes
     mode: preserve
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: add MutatingAdmissionWebhook to AdmissionConfiguration
   blockinfile:
@@ -250,11 +258,11 @@
           kind: WebhookAdmissionConfiguration
           kubeConfigFile: /etc/kubernetes/admission-control/cmk-webhook.conf
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 
 - name: restart kube-apiserver after updating admission control configuration
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
   block:
     - name: remove kube-apiserver container
       # noqa 305 - shell is used intentionally here
@@ -286,7 +294,7 @@
     state: directory
     mode: 0755
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: copy CMK Helm chart to the controller node
   copy:
@@ -294,22 +302,20 @@
     dest: "/usr/src/charts/"
     mode: 0755
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
-# adds all kube-nodes to the list of CMK nodes
-- name: build list of CMK hosts
+- name: set fact if controller node in the cmk_hosts
   set_fact:
-    cmk_hosts_list: "{{ groups['kube-node'] | join(',') }}"
+    cmk_use_all_hosts: true
   when:
-    - not cmk_use_all_hosts
-    - (cmk_hosts_list is undefined) or (cmk_hosts_list | length == 0)
+    - inventory_hostname in groups['kube_control_plane']
 
 - name: set values for CMK Helm chart values
   set_fact:
     cmk_image: "{{ registry_local_address }}/cmk"
     cmk_tag: "{{ cmk_img_version }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: read ca cert
   command: cat ca.crt
@@ -317,13 +323,13 @@
     chdir: "/etc/kubernetes/ssl/"
   register: ca_cert
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: load ca cert
   set_fact:
     caBundle_cert: "{{ ca_cert.stdout | b64encode }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate CMK Helm chart values template and push to controller node
   template:
@@ -332,23 +338,27 @@
     force: yes
     mode: preserve
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 # remove any pre-existing configmaps before cmk redeployment
 - name: remove any pre-existing configmaps before CMK deployment
   command: kubectl delete cm cmk-config-{{ inventory_hostname }}
   when:
     - inventory_hostname in (cmk_hosts_list.split(',') if (cmk_hosts_list is defined and cmk_hosts_list | length > 0) else [])
-  delegate_to: "{{ groups['kube-master']|first }}"
+  delegate_to: "{{ groups['kube_control_plane']|first }}"
   failed_when: false
+
+- name: update dynamic linker cache before install CMK helm chart
+  command: "ldconfig"
+  changed_when: true
 
 - name: install CMK helm chart
   command: helm upgrade --install cmk --namespace {{ cmk_namespace }} -f /usr/src/charts/cmk-values.yml /usr/src/charts/cpu-manager-for-kubernetes
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: clean up any certs/key/CSR files
   file: path=/etc/ssl/cmk state=absent
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
   failed_when: false
   become: yes

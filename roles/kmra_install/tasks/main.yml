@@ -23,7 +23,7 @@
     name: sgx_prv
     state: present
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
       or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
@@ -34,7 +34,7 @@
     groups: sgx_prv
     append: yes
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
       or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
@@ -52,7 +52,7 @@
       SUBSYSTEM=="misc",KERNEL=="sgx_enclave",MODE="0666",SYMLINK+="sgx/enclave"
       SUBSYSTEM=="misc",KERNEL=="sgx_provision",GROUP="sgx_prv",MODE="0660",SYMLINK+="sgx/provision"
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
       or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
@@ -61,7 +61,7 @@
   # noqa 305 - shell is used intentionally here
   shell: udevadm trigger
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
       or (ansible_distribution == "RedHat" and ansible_distribution_version == '8.4')
@@ -71,7 +71,7 @@
     database: group
     key: sgx_prv
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
 
 - name: install dependencies
@@ -82,13 +82,13 @@
 - name: cleanup existing artifacts
   include: cleanup.yml
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: label worker node with KMRA label
-  command: kubectl label nodes {{ groups['kube-node'][0] }} app=kmra --overwrite
+  command: kubectl label nodes {{ groups['kube_node'][0] }} app=kmra --overwrite
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: create kmra ns if not existing
@@ -96,7 +96,7 @@
   changed_when: true
   failed_when: false
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: create k8s tls secrets for apphsm and ctk apps
@@ -107,7 +107,7 @@
       - { name: "{{ kmra_apphsm_release_name }}", subj: "{{ kmra_apphsm_crt_subj }}", deploy: true }
       - { name: "{{ kmra_ctk_release_name }}", subj: "{{ kmra_ctk_crt_subj }}", deploy: "{{ kmra_deploy_demo_workload | default(false) }}" }
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: create Helm charts directory if needed
@@ -116,7 +116,7 @@
     state: directory
     mode: 0755
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: copy KMRA Helm chart to the controller node
@@ -129,7 +129,7 @@
     - { chart: 'kmra-apphsm', deploy: true }
     - { chart: 'kmra-ctk', deploy: "{{ kmra_deploy_demo_workload | default(false) }}" }
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
     - item.deploy
 
@@ -171,7 +171,7 @@
         deploy: "{{ kmra_deploy_demo_workload | default(false) }}"
       }
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
     - item.deploy
 
@@ -182,7 +182,7 @@
     -f {{ kmra_pccs_helm_values_file }}
     {{ kmra_pccs_chart_path }}
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: install KMRA AppHSM helm chart
@@ -192,7 +192,7 @@
     -f {{ kmra_apphsm_helm_values_file }}
     {{ kmra_apphsm_chart_path }}
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: install KMRA Ctk loadkey helm chart
@@ -202,6 +202,6 @@
     -f {{ kmra_ctk_helm_values_file }}
     {{ kmra_ctk_chart_path }}
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
     - kmra_deploy_demo_workload | default(false)

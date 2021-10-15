@@ -30,7 +30,7 @@
     dest: "{{ intel_sgx_dp_dir }}"
     force: yes
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
 
 # docker is used as container runtime:
@@ -80,7 +80,7 @@
     - name: push Intel sgx-aesmd image to local registry
       command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
     - container_runtime == "docker"
 
@@ -88,7 +88,7 @@
 - name: prepare containers images
   block:
     - name: build and tag Intel SGX Device Plugin images
-      command: podman build -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_sgx_dp_version }}
+      command: buildah bud -f build/docker/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_sgx_dp_version }}
       args:
         chdir: "{{ intel_sgx_dp_dir }}"
       changed_when: true
@@ -98,7 +98,7 @@
       when: sgx_dp_build_image_locally
 
     - name: push Intel SGX Device Plugin images to local registry
-      command: podman push {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
+      command: buildah push {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
       changed_when: true
       loop:
         - intel-sgx-initcontainer
@@ -106,16 +106,16 @@
       when: sgx_dp_build_image_locally
 
     - name: build and tag Intel sgx-aesmd image
-      command: podman build -f demo/sgx-aesmd-demo/Dockerfile . -t {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      command: buildah bud -f demo/sgx-aesmd-demo/Dockerfile -t {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
       args:
         chdir: "{{ intel_sgx_dp_dir }}"
       changed_when: true
 
     - name: push Intel sgx-aesmd image to local registry
-      command: podman push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      command: buildah push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
       changed_when: true
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - is_icx | default(false) | bool
     - '"docker" not in container_runtime'
 
@@ -152,7 +152,7 @@
         - sgx-rbac-cluster-role.yml
         - sgx-rbac-role-binding.yml
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
     - psp_enabled | default(true)
 
@@ -177,7 +177,7 @@
         state: present
         src: "/usr/src/intel-sgx-plugin.yml"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool
 
 - name: wait for Intel SGX Device Plugin
@@ -213,5 +213,5 @@
         --namespace {{ sgx_aesmd_namespace }}
         /usr/src/charts/intel-sgx-aesmd
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - is_icx | default(false) | bool

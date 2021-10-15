@@ -3,6 +3,11 @@ kind: StorageClass
 metadata:
   name: kube-prometheus
   namespace: monitoring
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 2.29.1
 provisioner: kubernetes.io/no-provisioner
 reclaimPolicy: Retain
 allowVolumeExpansion: false

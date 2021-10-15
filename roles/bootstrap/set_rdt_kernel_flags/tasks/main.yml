@@ -1,0 +1,38 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: ensure that telegraf RDT plugin settings are disabled when collectd is in use
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX=(.*?){{ rdt_marker }}$'
+    state: absent
+  notify:
+    - reboot server
+  when: collectd_enabled | default(false) | bool
+
+- name: set RDT plugin kernel flags
+  set_fact:
+    rdt_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} rdt=cmt,mbmtotal,mbmlocal,l3cat,l3cdp,l2cat,l2cdp,mba" {{ rdt_marker }}'
+
+- name: set RDT plugin kernel flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)" {{ rdt_marker }}$'
+    line: '{{ rdt_cmdline }}'
+    state: present
+    mode: 0664
+  notify:
+    - reboot server

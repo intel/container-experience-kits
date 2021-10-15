@@ -1,0 +1,71 @@
+# Default values for telegraf.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# general settings
+scrapInterval: {{ telegraf_scrap_interval }}
+# port of the prometheus_output plugin to expose
+prometheusMetricsEndpointPort: {{ telegraf_prometheus_metrics_endpoint_port }}
+# whether tpo deploy Prometheus ServiceMonitor
+prometheusServiceMonitor: {{ telegraf_prometheus_service_monitor | bool }}
+
+# telegraf container
+telegraf:
+  image:
+    repository: {{ telegraf_image_name }}
+    tag: "{{ telegraf_image_tag }}"
+    pullPolicy: {{ telegraf_image_pullpolicy }}
+  securityContext:
+    privileged: true
+    allowPrivilegeEscalation: true
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  config: |
+    {{ telegraf_config | indent(4) -}}
+  {% if telegraf_dpdk_socket_path is defined and telegraf_dpdk_socket_path | length > 0 %}
+  dpdk_socket_path: {{ telegraf_dpdk_socket_path }}
+  {% endif %}
+
+# rbac-proxy container
+rbacproxy:
+  image:
+    repository: {{ rbac_proxy_image_name }}
+    sha256: {{ rbac_proxy_image_hash }}
+    tag: {{ rbac_proxy_image_tag }}
+    pullPolicy: {{ rbac_proxy_image_pullpolicy }}
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65534
+  resources:
+    limits:
+      cpu: 20m
+      memory: 40Mi
+    requests:
+      cpu: 10m
+      memory: 20Mi
+  logLevel: 10
+
+# pod level fields
+podAnnotations: {}
+podSecurityContext: {}
+
+nodeSelector:
+  kubernetes.io/os: linux
+
+tolerations:
+  - key: cmk
+    operator: Equal
+    effect: NoSchedule
+    value: "true"
+
+affinity: {}
+

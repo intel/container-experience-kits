@@ -79,7 +79,7 @@
   file:
     path: "{{ openssl_dir }}"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
 
 - name: clone OpenSSL repository
   git:

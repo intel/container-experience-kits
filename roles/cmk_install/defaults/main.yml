@@ -15,8 +15,8 @@
 ##
 ---
 cmk_git_url: "https://github.com/intel/CPU-Manager-for-Kubernetes"
-cmk_version: "v1.5.1"
-cmk_img_version: "v1.5.1"
+cmk_version: "v1.5.2"
+cmk_img_version: "v1.5.2"
 cmk_dir: "/usr/src/cmk"
 
 cmk_untaint_nodes: true

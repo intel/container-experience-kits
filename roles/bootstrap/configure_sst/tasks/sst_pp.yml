@@ -1,0 +1,235 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check SST-PP lock-status
+  command: "intel-speed-select perf-profile get-lock-status"
+  register: sst_perf_lock_status
+  changed_when: true
+
+- debug:
+    var: sst_perf_lock_status.stderr_lines
+
+- name: playbook terminated system is locked for SST-PP
+  fail:
+    msg:
+      - "Intel(R) Speed Select Technology - Performance Profile (Intel(R) SST-PP) is locked. Cannot be unlocked using command"
+      - "kindly, check BIOS setup to unlock or check with your system vendor"
+  when: '"unlock" not in sst_perf_lock_status.stderr'
+
+- name: install packages for SST-PP needed for high priority cores and max freq in Ubuntu >= 20.04
+  apt:
+    name:
+      - "linux-tools-{{ ansible_kernel }}"
+      - "linux-cloud-tools-{{ ansible_kernel }}"
+      - "linux-tools-generic"
+      - "linux-cloud-tools-generic"
+      - "stress"
+  become: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: install stress required for checking runs of busy workload in CentOS / RHEL
+  dnf:
+    name: stress
+  when: ansible_distribution in ["RedHat", "CentOS"]
+
+- name: get ISST settings before SST-PP configuration
+  set_fact:
+    sst_bf_config: "{{ hostvars[groups['kube_node'][0]].sst_pp_config_list[0].sst_bf | default('disable') }}"
+    sst_cp_config: "{{ hostvars[groups['kube_node'][0]].sst_pp_config_list[1].sst_cp | default('disable') }}"
+    sst_tf_config: "{{ hostvars[groups['kube_node'][0]].sst_pp_config_list[2].sst_tf | default('disable') }}"
+    sst_tf_online_cpus: "{{ hostvars[groups['kube_node'][0]].sst_pp_config_list[2].online_cpus_range | default('auto') }}"
+
+- name: set SST-TF status before SST-PP configuration
+  command: "intel-speed-select turbo-freq {{ sst_tf_config }} -a"
+  changed_when: true
+
+- name: set SST-BF status status before SST-PP configuration
+  command: "intel-speed-select base-freq {{ sst_bf_config }} -a"
+  changed_when: true
+
+- name: set SST-CP status before SST-PP configuration
+  command: "intel-speed-select core-power {{ sst_cp_config }} -a"
+  register: sst_cp_status_check
+  changed_when: true
+
+- debug:
+    msg: "SST-TF is enabled, kindly disable SST-TF first then disable SST-CP in host_vars, otherwise SST-CP will be active in all configurations"
+  when: '"turbo-freq feature is still enabled" in sst_cp_status_check.stderr'
+  changed_when: true
+
+- name: check properties of perf-level after configuration of SST-BF, SST-CP and SST-TF
+  shell:
+    cmd: "set -o pipefail && intel-speed-select perf-profile info -l 0 2>&1 | grep 'speed-select'"
+  args:
+    executable: /bin/bash
+  register: sst_perf_check
+  changed_when: true
+
+- debug:
+    var: sst_perf_check.stdout_lines
+
+- name: check config-levels for multiple performance profiles
+  command: "intel-speed-select perf-profile get-config-levels"
+  register: sst_get_perf_level
+  changed_when: true
+
+- debug:
+    var: sst_get_perf_level.stderr_lines
+
+- name: set turbo boost to 0 required for multiple performance profiles
+  command: "echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo"
+  changed_when: true
+
+- name: set config-level for SST-PP
+  shell:
+    cmd: "set -o pipefail && intel-speed-select perf-profile get-config-levels  2>&1 | grep get-config-levels | grep -Eo '[0-9]{1}' | awk 'FNR <= 1'"
+  args:
+    executable: /bin/bash
+  register: sst_pp_level_set
+  changed_when: true
+
+- name: apply config-level for SST-PP
+  command: "intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o"
+  register: config_output
+  changed_when: true
+
+# create dir for SST-PP
+- name: remove existing SST-PP dir if exists
+  file:
+    path: "/usr/src/SST_PP_config"
+    state: absent
+  become: yes
+
+- name: create directory /usr/src/SST_PP_config to save details
+  file:
+    path: /usr/src/SST_PP_config
+    state: directory
+    mode: "u=rwx,g=rx,o=rx"
+  when: '"auto" in sst_tf_online_cpus'
+
+# Config SST-TP turbo-freq When online_cpus_range is set to "auto" in host vars
+- name: get available online CPUs
+  shell:
+    cmd: set -o pipefail && intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o  2>&1 \
+         | grep -i 'online cpu' | grep -Eo '[0-9]{1,4}' | tr "\n" " " | tr ' ' ',' | sed '$ s/,$//g'
+  args:
+    executable: /bin/bash
+  register: online_cpus_range
+  changed_when: true
+
+- name: check vailable online CPUs values for auto config
+  shell:
+    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 \
+         | head -n 59"
+  args:
+    executable: /bin/bash
+  register: read_turbostat_output
+  when: '"auto" in sst_tf_online_cpus'
+
+- name: SST-PP turbostat output when turbo-freq setup is auto configuration
+  debug:
+    msg: "{{ read_turbostat_output.stdout|replace('\\t',' ') }}"
+  when:
+    - '"enable" in sst_tf_config'
+    - '"auto" in sst_tf_online_cpus'
+
+- name: save turbostat output for auto config to SST-PP dir path
+  shell:
+     cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_auto.txt"
+  args:
+    executable: /bin/bash
+    chdir: "/usr/src/SST_PP_config"
+  when:
+    - '"enable" in sst_tf_config'
+    - '"auto" in sst_tf_online_cpus'
+
+# Config SST-TP turbo-freq When online_cpus_range is not set to  "auto" in host vars
+- name: SST-PP turbo-freq setup when not set to auto configuartion
+  include_tasks: sst_pp_user_defined_setup.yml
+  when:
+    - '"enable" in sst_tf_config'
+    - '"auto" not in sst_tf_online_cpus'
+
+# Config SST-TF turbo-freq when all are disabled
+- name: check available online CPUs values when SST-BF,SST-CP and SST-TF are disabled
+  shell:
+    cmd: turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1\
+         | head -n 59
+  args:
+    executable: /bin/bash
+    chdir: "/usr/src/SST_PP_config"
+  register: turbostat_output_for_disabled
+  when:
+    - '"disable" in sst_bf_config'
+    - '"disable" in sst_cp_config'
+    - '"disable" in sst_tf_config'
+
+- name: SST-PP turbostat output when all SST-BF,SST-CP and SST-TF are disabled
+  debug:
+    msg: "{{ turbostat_output_for_disabled.stdout|replace('\\t',' ') }}"
+  when:
+    - '"disable" in sst_bf_config'
+    - '"disable" in sst_cp_config'
+    - '"disable" in sst_tf_config'
+
+- name: save turbostat output to SST-PP dir when SST-BF,SST-CP and SST-TF are disabled
+  shell:
+     cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_disabled.txt"
+  args:
+    executable: /bin/bash
+    chdir: "/usr/src/SST_PP_config"
+  when:
+    - '"disable" in sst_bf_config'
+    - '"disable" in sst_cp_config'
+    - '"disable" in sst_tf_config'
+  changed_when: true
+
+- name: save perf-profile info to SST-PP dir path
+  shell:
+    cmd: set -o pipefail && intel-speed-select perf-profile info -l 0 2>&1 \
+        | grep -E '(core-count:|bucket|max-turbo|high-priority|low-priority)' > sst_pp_perf_profile.txt
+  args:
+    executable: /bin/bash
+    chdir: "/usr/src/SST_PP_config"
+  changed_when: true
+
+- name: save information of config-level perf-profile to SST-PP dir path
+  shell:
+    cmd: set -o pipefail && intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o \
+         | grep -E '(set_tdp_level|online|offline|logical)' >  sst_pp_config_details.txt
+  args:
+    executable: /bin/bash
+    chdir: "/usr/src/SST_PP_config"
+  changed_when: true
+
+- name: update the dynamic linker cache after SST-PP successful configuration
+  command: "ldconfig"
+  changed_when: true
+
+- name: install the SST-PP configure systemd service
+  template:
+    src: sst-pp-configure-icx.service.j2
+    dest: /lib/systemd/system/sst-pp-configure.service
+    owner: root
+    group: root
+    mode: u=rwx,g=r,o=r
+
+- name: run SST-PP configure service on boot
+  systemd:
+    daemon_reload: yes
+    state: restarted
+    name: sst-pp-configure
+    enabled: yes

@@ -1,0 +1,55 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create Helm charts directory if needed
+  file:
+    path: /usr/src/charts
+    state: directory
+    mode: 0755
+
+- name: copy telegraf Helm chart to the controller node
+  copy:
+    src: "{{ role_path }}/charts/telegraf"
+    dest: "/usr/src/charts/"
+    mode: 0755
+
+- name: build telegraf configuration
+  set_fact:
+    telegraf_config: "{{ telegraf_config | default('') + telegraf_plugins_config[telegraf_plugin] }}"
+  loop: "{{ telegraf_profiles[telegraf_profile] | flatten(levels=1) }}"
+  loop_control:
+    loop_var: telegraf_plugin
+
+- name: print out effective telegraf config
+  debug:
+    msg: |
+      "Effective telegraf configuration to use:"
+      "{{ telegraf_config }}"
+
+- name: populate values.yaml template with values
+  template:
+    src: "values.yaml.j2"
+    dest: "{{ telegraf_helm_values_file }}"
+    force: yes
+    mode: preserve
+
+- name: install telegraf helm chart
+  command: >-
+    helm upgrade -i {{ telegraf_release_name }}
+    --namespace {{ telegraf_namespace }}
+    -f {{ telegraf_helm_values_file }}
+    {{ telegraf_chart_path }}
+  changed_when: true

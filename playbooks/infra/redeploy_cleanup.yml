@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }

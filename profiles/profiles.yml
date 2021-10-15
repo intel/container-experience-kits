@@ -1,0 +1,169 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+# How to use this file:
+# --------------------
+# <feature> can be:
+# - on (included and enabled)
+# - optional (included in vars but disabled)
+# - off (not included, might as well drop it from the profile section)
+#
+# except arch:
+# - icx (Ice Lake)
+# - clx (Cascade Lake)
+# - skl (Sky Lake)
+# 
+# features:
+# - arch
+# - nfd
+# - cmk
+# - native_cpu_manager
+# - bond_cni
+# - topology_manager
+# - sriov_operator
+# - sriov_network_dp
+# - network_userspace
+# - sgx
+# - qat
+# - gpu
+# - openssl
+# - tas
+# - ddp
+# - dpdk
+# - pstate
+# - sst
+# - telemetry
+# - rt_kernel  # supported only on CentOS 7 which is not supported since v21.06
+# - kmra
+#
+
+---
+access:
+  arch: icx
+  name: access
+  nfd: on
+  cmk: on
+  native_cpu_manager: optional
+  topology_manager: on
+  sriov_operator: on
+  sriov_network_dp: optional
+  qat: on
+  qat_dp: on
+  openssl: on
+  dpdk: on
+  pstate: optional
+  telemetry: optional
+  istio: on
+
+basic:
+  arch: icx
+  name: basic
+  nfd: on
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: optional
+  dpdk: optional
+  telemetry: optional
+
+full_nfv:
+  arch: icx
+  name: full_nfv
+  nfd: on
+  cmk: on
+  native_cpu_manager: optional
+  topology_manager: on
+  sriov_operator: on
+  sriov_network_dp: optional
+  bond_cni: on
+  network_userspace: on
+  ovs_dpdk: on
+  qat: on
+  qat_dp: on
+  openssl: on
+  gpu: optional
+  sgx: on
+  sgx_dp: on
+  kmra: on
+  tas: on
+  ddp: on
+  dpdk: on
+  pstate: on
+  sst: on
+  telemetry: on
+  istio: on
+
+on_prem:
+  arch: icx
+  name: on_prem
+  nfd: on
+  cmk: on
+  native_cpu_manager: optional
+  topology_manager: on
+  sriov_operator: on
+  sriov_network_dp: optional
+  sgx: on
+  sgx_dp: on
+  qat: on
+  qat_dp: on
+  gpu: optional
+  openssl: on
+  tas: on
+  dpdk: on
+  bond_cni: optional
+  pstate: optional
+  sst: optional
+  telemetry: on
+  kmra: on
+  istio: on
+
+regional_dc:
+  arch: icx
+  name: regional_dc
+  nfd: on
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: optional
+  native_cpu_manager: on
+  gpu: on
+  tas: on
+  dpdk: optional
+  telemetry: on
+  istio: on
+
+remote_fp:
+  arch: icx
+  name: remote_fp
+  nfd: on
+  cmk: on
+  native_cpu_manager: optional
+  topology_manager: on
+  sriov_operator: on
+  sriov_network_dp: optional
+  network_userspace: optional
+  sgx: on
+  sgx_dp: on
+  qat: on
+  qat_dp: optional
+  gpu: optional
+  openssl: on
+  tas: on
+  ddp: on
+  bond_cni: optional
+  dpdk: on
+  pstate: on
+  sst: optional
+  telemetry: on
+  kmra: on
+  istio: on

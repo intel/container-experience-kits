@@ -19,7 +19,7 @@
   failed_when: false
   register: helm_result
   changed_when: "helm_result.rc == 0"
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: Create sriov-network-operator charts directory if does not exist
   file:
@@ -62,4 +62,4 @@
   changed_when: true
   when:
     - hostvars[item]['dataplane_interfaces'] | default({}) | length > 0
-  loop: "{{ groups['kube-node'] }}"
+  loop: "{{ groups['kube_node'] }}"

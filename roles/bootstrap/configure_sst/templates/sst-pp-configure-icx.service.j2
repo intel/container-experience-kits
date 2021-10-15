@@ -1,0 +1,10 @@
+[Unit]
+Description=SST-PP configuration on boot
+AssertPathExists=/usr/bin/intel-speed-select
+
+[Service]
+Type=simple
+ExecStart=intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o
+
+[Install]
+WantedBy=multi-user.target

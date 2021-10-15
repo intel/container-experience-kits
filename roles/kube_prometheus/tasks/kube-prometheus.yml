@@ -33,6 +33,36 @@
     group: root
     mode: u+rwx,g-rwx,o-
 
+- name: copy dashboards yamls
+  copy:
+    src: "dashboards/{{ 'grafana-telegraf-dashboardDefinitions.yaml' if telegraf_enabled else 'grafana-dashboardDefinitions.yaml' }}"
+    dest: "{{ kube_prometheus_path }}"
+    owner: root
+    group: root
+    mode: u+rwx,g-rwx,o-
+
+- name: find template files
+  find:
+    paths: "{{ role_path }}/templates"
+    recurse: no
+    file_type: file
+    use_regex: yes
+    patterns:
+      - '^(?!collectd).*'
+  register: template_files
+  delegate_to: 127.0.0.1
+  when: telegraf_enabled | default(true) | bool
+
+- name: template kube-prometheus yamls
+  template:
+    src: "{{ item.path | basename }}"
+    dest: "{{ kube_prometheus_path }}/{{ item.path | basename | regex_replace('.j2','') }}"
+    owner: root
+    group: root
+    mode: u+rwx,g-rwx,o-
+  with_items: "{{ template_files.files }}"
+  when: telegraf_enabled | default(true) | bool
+
 - name: template kube-prometheus yamls
   template:
     src: "{{ item }}"
@@ -42,6 +72,7 @@
     mode: u+rwx,g-rwx,o-
   with_fileglob:
     - ../templates/*.j2
+  when: collectd_enabled | default(false) | bool
 
 - name: template prometheus-srv yamls
   template:

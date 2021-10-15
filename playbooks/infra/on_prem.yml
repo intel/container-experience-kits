@@ -23,7 +23,7 @@
   any_errors_fatal: true
 
 # apply common cluster node configuration
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   tasks: []
   handlers:
     - name: reboot server
@@ -42,7 +42,7 @@
   any_errors_fatal: true
 
 # apply worker node kernel configuration
-- hosts: kube-node
+- hosts: kube_node
   tasks: []
   handlers:
     - name: reboot server
@@ -57,6 +57,8 @@
       when: intel_pstate_enabled | default(false) | bool
     - role: bootstrap/set_sriov_kernel_flags
       when: iommu_enabled | default(true)
+    - role: bootstrap/set_rdt_kernel_flags
+      when: telegraf_enabled | default(true) | bool
     - role: bootstrap/configure_sst
       tags: sst
       when:
@@ -78,7 +80,7 @@
   any_errors_fatal: true
 
 # install worker node qat software
-- hosts: kube-node
+- hosts: kube_node
   tasks: []
   handlers:
     - name: reboot server
@@ -93,7 +95,7 @@
   any_errors_fatal: true
 
 # install worker node network software
-- hosts: kube-node
+- hosts: kube_node
   tasks: []
   roles:
     - role: cluster_defaults
@@ -109,7 +111,7 @@
   any_errors_fatal: true
 
 # install DPDK and apply SRIOV configuration
-- hosts: kube-node
+- hosts: kube_node
   roles:
     - role: cluster_defaults
     - role: install_dpdk

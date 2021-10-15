@@ -1,0 +1,27 @@
+{{- if .Values.prometheusServiceMonitor }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "telegraf.fullname" . }}
+  labels:
+    k8s-app: telegraf
+    {{- include "telegraf.labels" . | nindent 4 }}
+  namespace: monitoring
+spec:
+  endpoints:
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: {{ .Values.scrapInterval }}s
+    port: https
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: false
+      serverName: {{ include "telegraf.fullname" . }}.{{ .Release.Namespace }}.svc
+      ca:
+        secret:
+          optional: true
+          key: ca.crt
+          name: {{ include "telegraf.fullname" . }}-tls
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telegraf
+{{- end }}

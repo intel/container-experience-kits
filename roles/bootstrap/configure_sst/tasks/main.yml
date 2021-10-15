@@ -29,9 +29,9 @@
   include_role:
     name: check_machine_type
 
-# ICX specific
-- name: configure Intel SST on ICX Platform
-  include_tasks: icx_setup_sst.yml
+# Configuartion for Intel(R) Speed Select Technology "SST-BF,SST-CP,SST-TF and SST-PP"
+- name: configure Intel Speed Select Technology (ISST)
+  include_tasks: sst_bf_cp_tf_pp_setup.yml
   when: is_icx
 
 # CLX specific

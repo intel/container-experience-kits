@@ -18,20 +18,20 @@
   file:
    path: "{{ openssl_centos7_dir }}"
    state: directory
-   mode: "u=rw,g=wx,o=rwx"
+   mode: "u=rwx,g=rx,o=rx"
 
 - name: create directory for perl-5.28.1
   file:
    path: "{{ perl_dir }}"
    state: directory
-   mode: "u=rw,g=wx,o=rwx"
+   mode: "u=rwx,g=rx,o=rx"
 
 - name: download and unarchive perl-5.28.1
   unarchive:
     src: "{{ perl_url }}"
     dest: "{{ perl_dir }}"
     remote_src: yes
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   register: perl_install
   until: perl_install is not failed
   retries: 5
@@ -59,14 +59,14 @@
   file:
     path: "{{ cmake_dir }}"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
 
 - name: download and unarchive cmake-3.19.8
   unarchive:
     src: "{{ cmake_url }}"
     dest: "{{ cmake_dir }}"
     remote_src: yes
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   register: cmake_install
   until: cmake_install is not failed
   retries: 5
@@ -101,14 +101,14 @@
   file:
     path: "{{ nasm_dir }}"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
 
 - name: download and unarchive nasm-2.15.05
   unarchive:
     src: "{{ nasm_url }}"
     dest: "{{ nasm_dir }}"
     remote_src: yes
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   register: nasm_install
   until: nasm_install is not failed
   retries: 5

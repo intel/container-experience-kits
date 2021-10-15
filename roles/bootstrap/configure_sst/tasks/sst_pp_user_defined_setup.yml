@@ -1,0 +1,64 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: validate host_vars CPUs range with online CPUs range in system
+  shell:
+    cmd: set -o pipefail && intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o  2>&1 \
+         | grep -i 'online cpu' | grep -Eo '[0-9]{1,4}' | tr "\n" " " | tr ' ' ',' | grep -Eo '{{ sst_tf_online_cpus }}'
+  args:
+    executable: /bin/bash
+  register: validate_hostvars_cpus
+  ignore_errors: true
+  changed_when: true
+
+- name: playbook terminated available online CPUs mistach
+  fail:
+    msg:
+      - "host vars defined online_cpus_range: {{ sst_tf_online_cpus }} not found in list of online CPUs in system: {{ online_cpus_range.stdout }}"
+      - "to avoid failure, make sure select CPUs from list or else set online_cpus_range to 'auto' in host vars for auto selection of all online CPUs"
+  when: "sst_tf_online_cpus not in validate_hostvars_cpus.stdout"
+
+# user defined turbo-freq setup for SST-PP
+- name: enable user defined online CPUs for turbo-freq configuration
+  command: "intel-speed-select -c {{ sst_tf_online_cpus }} turbo-freq enable -a"
+  changed_when: true
+
+- name: set user defined online CPUs values for turbo-freq configuration
+  shell:
+    cmd: "turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 \
+         | head -n 59"
+  args:
+    executable: /bin/bash
+  register: read_turbostat_values
+  changed_when: true
+
+- name: SST-PP turbostat output when online CPUs is not set to auto configuration
+  debug:
+    msg: "{{ read_turbostat_values.stdout|replace('\\t',' ') }}"
+
+- name: create directory /usr/src/SST_PP_config to save details
+  file:
+    path: /usr/src/SST_PP_config
+    state: directory
+    mode: "u=rwx,g=rx,o=rx"
+
+- name: save turbostat output for user defined online CPUs to SST-PP dir path
+  shell:
+    cmd: "turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 2>&1 | head -n 59 > sst_pp_user_defined_turbostat_output.txt"
+  args:
+    executable: /bin/bash
+    chdir: "/usr/src/SST_PP_config"
+  changed_when: true

@@ -32,7 +32,7 @@
         OVS_RUNDIR: /usr/local/var/run/openvswitch
       changed_when: false
       failed_when: false
-  when: inventory_hostname in groups['kube-node']
+  when: inventory_hostname in groups['kube_node']
 
 - name: stop systemd services
   block:

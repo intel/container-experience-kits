@@ -1,0 +1,158 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "telegraf.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telegraf.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "telegraf.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "telegraf.selectorLabels" . | nindent 8 }}
+    spec:
+      hostNetwork: true
+      serviceAccountName: {{ include "telegraf.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.telegraf.securityContext | nindent 12 }}
+          image: "{{ .Values.telegraf.image.repository }}:{{ .Values.telegraf.image.tag }}"
+          imagePullPolicy: {{ .Values.telegraf.image.pullPolicy }}
+          env:
+            - name: HOST_MOUNT_PREFIX
+              value: /hostfs
+            - name: HOST_ETC
+              value: /hostfs/etc
+            - name: HOST_PROC
+              value: /hostfs/proc
+            - name: HOST_SYS
+              value: /hostfs/sys
+            - name: HOST_VAR
+              value: /hostfs/var
+            - name: HOST_RUN
+              value: /hostfs/run
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - hostname
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.telegraf.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/telegraf/
+              readOnly: true
+            - name: hostself
+              mountPath: /hostfs/proc/self/mounts
+              readOnly: true
+            - name: hostdiskstats
+              mountPath: /hostfs/proc/diskstats
+              readOnly: true
+            - name: hostprocstat
+              mountPath: /hostfs/proc/stat
+              readOnly: true
+            - name: hostnetdev
+              mountPath: /hostfs/proc/net/dev
+              readOnly: true
+            - name: hostutmp
+              mountPath: /hostfs/var/run/utmp
+              readOnly: true
+            - name: hostkdebug
+              mountPath: /sys/kernel/debug
+              readOnly: true
+            - name: hostresctrl
+              mountPath: /sys/fs/resctrl
+              readOnly: false
+            - name: hostudev
+              mountPath: /run/udev
+              readOnly: true
+            {{- if .Values.telegraf.dpdk_socket_path }}
+            - name: hostdpdk
+              mountPath: /var/run/dpdk/rte
+              readOnly: true
+            {{- end }}
+        - name: rbac-proxy
+          {{- if .Values.rbacproxy.image.sha256 }}
+          image: "{{ .Values.rbacproxy.image.repository }}@sha256:{{ .Values.rbacproxy.image.sha256 }}"
+          {{- else }}
+          image: "{{ .Values.rbacproxy.image.repository }}:{{ .Values.rbacproxy.image.tag }}"
+          {{- end }}
+          imagePullPolicy: "{{ .Values.rbacproxy.image.pullPolicy }}"
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/ssl/rbac-proxy
+              readOnly: true
+          ports:
+            - name: https
+              containerPort: {{ .Values.prometheusMetricsEndpointPort }}
+          args:
+            - "--tls-cert-file=/etc/ssl/rbac-proxy/tls.crt"
+            - "--tls-private-key-file=/etc/ssl/rbac-proxy/tls.key"
+            - "--tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305"
+            - "--secure-listen-address=0.0.0.0:{{ .Values.prometheusMetricsEndpointPort }}"
+            - "--upstream=http://127.0.0.1:9272/"
+            - "--v={{ .Values.rbacproxy.logLevel }}"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "telegraf.fullname" . }}-config
+            items:
+              - key: telegraf.conf
+                path: telegraf.conf
+        - name: tls
+          secret:
+            secretName: {{ include "telegraf.fullname" . }}-tls
+        - name: hostself
+          hostPath:
+            path: /proc/self/mounts
+        - name: hostdiskstats
+          hostPath:
+            path: /proc/diskstats
+        - name: hostprocstat
+          hostPath:
+            path: /proc/stat
+        - name: hostnetdev
+          hostPath:
+            path: /proc/net/dev
+        - name: hostutmp
+          hostPath:
+            path: /var/run/utmp
+        - name: hostkdebug
+          hostPath:
+            path: /sys/kernel/debug
+        - name: hostresctrl
+          hostPath:
+            path: /sys/fs/resctrl
+        - name: hostudev
+          hostPath:
+            path: /run/udev
+        {{- if .Values.telegraf.dpdk_socket_path }}
+        - name: hostdpdk
+          hostPath:
+            path: {{ .Values.telegraf.dpdk_socket_path }}
+        {{- end }}

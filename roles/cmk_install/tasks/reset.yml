@@ -22,22 +22,22 @@
   failed_when: false
   register: helm_result
   changed_when: "helm_result.rc == 0"
-  delegate_to: "{{ groups['kube-master'] | first }}"
-  when: inventory_hostname == groups['kube-master'][0]
+  delegate_to: "{{ groups['kube_control_plane'] | first }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: untaint nodes
   command: kubectl taint node "{{ inventory_hostname }}" cmk-
   failed_when: false
   register: untaint_result
   changed_when: "untaint_result.rc == 0"
-  delegate_to: "{{ groups['kube-master']|first }}"
+  delegate_to: "{{ groups['kube_control_plane']|first }}"
 
 - name: unlabel nodes
   command: kubectl label node "{{ inventory_hostname }}" cmk.intel.com/cmk-node-
   failed_when: false
   register: unlabel_result
   changed_when: "unlabel_result.rc == 0"
-  delegate_to: "{{ groups['kube-master']|first }}"
+  delegate_to: "{{ groups['kube_control_plane']|first }}"
 
 - name: remove CMK reports
   command: kubectl delete "{{ item }}"
@@ -47,7 +47,7 @@
   failed_when: false
   register: delete_report_result
   changed_when: "delete_report_result.rc == 0"
-  delegate_to: "{{ groups['kube-master']|first }}"
+  delegate_to: "{{ groups['kube_control_plane']|first }}"
 
 - name: remove CRDs
   command: kubectl delete crd "{{ item }}"
@@ -57,8 +57,8 @@
   failed_when: false
   register: delete_crd_result
   changed_when: "delete_crd_result.rc == 0"
-  delegate_to: "{{ groups['kube-master']|first }}"
-  when: inventory_hostname == groups['kube-master'][0]
+  delegate_to: "{{ groups['kube_control_plane']|first }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: remove files
   file:

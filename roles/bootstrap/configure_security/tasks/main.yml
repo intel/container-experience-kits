@@ -50,7 +50,7 @@
   become: yes
   when:
     - ansible_distribution in ["CentOS", "RedHat"]
-    - inventory_hostname in groups['kube-master']
+    - inventory_hostname in groups['kube_control_plane']
     - fw_enabled
 
 - name: open required ports in the firewall configuration on the node
@@ -59,7 +59,7 @@
   become: yes
   when:
     - ansible_distribution in ["CentOS", "RedHat"]
-    - inventory_hostname in groups['kube-node']
+    - inventory_hostname in groups['kube_node']
     - fw_enabled
 
 - name: add Kubernetes pods and services subnets to the "trusted" zone in firewalld
@@ -82,7 +82,7 @@
   become: yes
   when:
     - ansible_distribution == "Ubuntu"
-    - inventory_hostname in groups['kube-master']
+    - inventory_hostname in groups['kube_control_plane']
     - fw_enabled
 
 - name: open required ports in the firewall configuration on the worker nodes
@@ -91,7 +91,7 @@
   become: yes
   when:
     - ansible_distribution == "Ubuntu"
-    - inventory_hostname in groups['kube-node']
+    - inventory_hostname in groups['kube_node']
     - fw_enabled
 
 - name: allow traffic from Kubernetes subnets
@@ -125,55 +125,21 @@
       root soft nofile unlimited
       root hard nofile unlimited
 
-- name: register selinux status
-  set_fact:
-    selinux_mode: "{{ ansible_selinux.status }}"
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_selinux is defined and ansible_selinux.status == 'disabled'
-    - selinux_mode is not defined
-
-- name: register selinux mode
-  set_fact:
-    selinux_mode: "{{ ansible_selinux.mode }}"
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_selinux is defined and ansible_selinux.status == 'enabled'
-    - selinux_mode is not defined
-
-- name: set selinux policy and state
+- name: enable selinux
   selinux:
-    policy: "{{ selinux_policy | default(ansible_selinux.type) }}"
-    state: "{{ selinux_mode }}"
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_selinux is defined and ansible_selinux.status == 'enabled'
-
-# set SELINUX to disabled when container_runtime is docker
-- name: check SELINUX status in RHEL >= 8.4 when container_runtime is docker
-  command: getenforce
-  register: selinux_status
-  changed_when: true
-  when:
-    - ansible_distribution == "RedHat" and ansible_distribution_version >= '8.4'
-    - container_runtime == "docker"
-
-- name: set SELINUX=disabled in RHEL >= 8.4 when container_runtime is docker
-  lineinfile:
-    path: /etc/selinux/config
-    regexp: '^SELINUX='
-    line: SELINUX=disabled
-    mode: 0644
-  become: yes
+    state: enabled
   notify: reboot server
   when:
-    - ansible_distribution == "RedHat" and ansible_distribution_version >= '8.4'
-    - container_runtime == "docker"
-    - '"Disabled" not in selinux_status.stdout'
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status != "enabled"
+    - selinux_state is defined and selinux_state == "enabled"
 
-- debug:
-    var: selinux_status.stdout
+- name: disable selinux
+  selinux:
+    state: disabled
+  notify: reboot server
   when:
-    - ansible_distribution == "RedHat" and ansible_distribution_version >= '8.4'
-    - container_runtime == "docker"
-    - '"Disabled" in selinux_status.stdout'
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status != "disabled"
+    - (selinux_state is defined and selinux_state == "disabled") or
+      (container_runtime == "docker" and ansible_distribution_version >= '8.4')

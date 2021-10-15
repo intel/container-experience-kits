@@ -15,8 +15,8 @@
 ##
 ---
 sst_bf_configuration_enabled: true
-sst_cp_configuration_enabled: false
-sst_tf_configuration_enabled: false
+sst_cp_configuration_enabled: true
+sst_tf_configuration_enabled: true
 
 icx_centos8_2_load_isst_modules: true
 
@@ -25,7 +25,7 @@ clx_sst_bf_commit_hash: "a3a1869fd88eff5b2b872f447ca69b866e3d318e"
 clx_sst_bf_dir: "/usr/src/CommsPowerManagement"
 clx_sst_bf_exec: "/usr/local/bin/sst_bf.py"
 
-sst_cp_priority_type: 0 # 0 - Proportional, 1 - Ordered
+sst_cp_priority_type: "1" # 0 - Proportional, 1 - Ordered
 sst_cp_clos_groups: # configure up to 4 CLOS groups
   - id: 0
     frequency_weight: 0 # used only with Proportional type
@@ -43,7 +43,7 @@ sst_cp_clos_groups: # configure up to 4 CLOS groups
     frequency_weight: 0 # used only with Proportional type
     min_MHz: 0
     max_MHz: 25500
-sst_cp_cpu_clos:
+sst_cp_cpu_clos: # assign required values to CLOS group after priority type setup
   - clos: 0
     cpus: 1,2,4..6,8-10
   - clos: 1

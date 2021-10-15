@@ -21,6 +21,7 @@
   when:
     - example_net_attach_defs is defined
     - example_net_attach_defs.userspace_ovs_dpdk | default(false) | bool
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create Userspace CNI net-attach-def object to be used with VPP
   k8s:
@@ -29,6 +30,7 @@
   when:
     - example_net_attach_defs is defined
     - example_net_attach_defs.userspace_vpp | default(false) | bool
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create net-attach-def object to be used with SRIOV CNI and Device Plugin
   k8s:
@@ -37,3 +39,4 @@
   when:
     - example_net_attach_defs is defined
     - example_net_attach_defs.sriov_net_dp | default(false) | bool
+    - inventory_hostname == groups['kube_control_plane'][0]

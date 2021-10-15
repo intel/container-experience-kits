@@ -17,13 +17,13 @@
 - name: install dependencies
   include_role:
     name: install_dependencies
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install required Python google-auth module for CentOS 7
   pip:
     name: google-auth==1.24.0
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - ansible_distribution == "CentOS"
     - ansible_distribution_version < '8'
 
@@ -45,7 +45,7 @@
   until: result.status == 200
   retries: 15
   delay: 5
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: generate server and client certificates
   include_tasks: tls.yml
@@ -58,38 +58,38 @@
   file: path=registry_htpasswd state=absent
   delegate_to: localhost
   run_once: yes
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: generate htpasswd file
   command: htpasswd -Bbn docker {{ password }}
   register: htpasswd
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create Helm charts directory if needed
   file:
     path: /usr/src/charts
     state: directory
     mode: 0755
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create Helm registry charts directory if needed
   file:
     path: "{{ container_registry_path }}"
     state: directory
     mode: 0755
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create persistent volume
   k8s:
     state: present
     definition: "{{ lookup('file', '../files/pv.yml') | from_yaml }}"
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create persistent volume claim
   k8s:
     state: present
     definition: "{{ lookup('file', '../files/pvc.yml') | from_yaml }}"
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: copy probe.sh
   copy:
@@ -98,7 +98,7 @@
     owner: root
     group: root
     mode: u+rwx,g-rwx,o-
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: template container-registry
   template:
@@ -109,7 +109,7 @@
     mode: u+rwx,g-rwx,o-
   with_fileglob:
     - ../templates/container-registry/*.j2
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: delete old container registry
   command: "kubectl delete -f {{ container_registry_path }} --namespace {{ registry_namespace }}"
@@ -120,11 +120,11 @@
 - name: install container registry application
   command: "kubectl apply -f {{ container_registry_path }} --namespace {{ registry_namespace }}"
   changed_when: true
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: clean up any certs/key/CSR files
   file: path=/etc/ssl/registry state=absent
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
   failed_when: false
   become: yes
 
@@ -135,7 +135,7 @@
     group: root
     mode: '0700'
     state: directory
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: check nodes status
   block:
@@ -147,7 +147,7 @@
     - debug:
         var: status.stdout_lines
       failed_when: status.stdout is search ("NotReady") or status.stdout is search ("Unknown")
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: wait for container registry to come up on all nodes
   uri:
@@ -189,7 +189,7 @@
   when: container_runtime == "docker"
 
 - name: grant access to the registry
-  command: podman login --authfile="{{ registry_auth }}" -u docker -p "{{ password }}" "{{ registry_local_address }}" --tls-verify=true
+  command: buildah login --authfile="{{ registry_auth }}" -u docker -p "{{ password }}" "{{ registry_local_address }}"
   changed_when: false
   when: '"docker" not in container_runtime'
 

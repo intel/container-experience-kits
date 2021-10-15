@@ -18,7 +18,7 @@
   include_role:
     name: install_dependencies
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - prometheus_srv_expose | default(false)
 
 - name: set default value of install_tas_demo_policy
@@ -36,7 +36,7 @@
   command: htpasswd -Bbn {{ prometheus_srv_user }} {{ prometheus_srv_password }}
   register: htpasswd
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - prometheus_srv_expose | default(false)
 
 - name: create and sign certificate material
@@ -59,7 +59,7 @@
     - name: "prometheus-srv"
       expose: "{{ prometheus_srv_expose | default(false) }}"
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]
     - item.expose
 
 - name: prepare TAS demonstration policy files
@@ -75,7 +75,7 @@
     group: root
     mode: u+rwx,g-rwx,o-
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
   loop:
     - /etc/grafana
     - /etc/prometheus
@@ -83,4 +83,4 @@
 - name: install kube-prometheus
   import_tasks: kube-prometheus.yml
   when:
-    - inventory_hostname == groups['kube-master'][0]
+    - inventory_hostname == groups['kube_control_plane'][0]

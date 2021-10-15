@@ -20,12 +20,6 @@
       - "kube_network_plugin_multus"
     fail_msg: "Multus must be enabled to have fully functional cluster deployment"
 
-- name: assert that Helm is enabled in the config
-  assert:
-    that:
-      - "helm_enabled"
-    fail_msg: "Helm must be enabled to have fully functional cluster deployment"
-
 - name: install kubespray python requirements
   pip:
     requirements: "{{ playbook_dir }}/kubespray/requirements.txt"

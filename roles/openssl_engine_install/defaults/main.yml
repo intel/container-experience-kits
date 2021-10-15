@@ -16,11 +16,11 @@
 ---
 openssl_engine_dir: "/usr/src/OpenSSL"
 openssl_engine_url: "https://github.com/intel/QAT_Engine.git"
-openssl_engine_version: "v0.6.6"
+openssl_engine_version: "v0.6.7"
 nasm_ubuntu_url: "http://archive.ubuntu.com/ubuntu/pool/universe/n/nasm/nasm_2.15.04-1_amd64.deb"
 nasm_centos_rhel_url: "https://www.nasm.us/pub/nasm/releasebuilds/2.15.02/linux/nasm-2.15.02-0.fc31.x86_64.rpm"
 libarchive_url: "https://github.com/libarchive/libarchive/releases/download/3.5.1/libarchive-3.5.1.tar.xz"
 ipp_crypto_url: "https://github.com/intel/ipp-crypto.git"
-ipp_crypto_version: "ippcp_2020u3"
+ipp_crypto_version: "ippcp_2021.3"
 intel_ipsec_url: "https://github.com/intel/intel-ipsec-mb.git"
 intel_ipsec_version: "v1.0"

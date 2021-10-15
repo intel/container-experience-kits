@@ -41,7 +41,7 @@
   file:
     path: "{{ openssl_engine_dir }}/nasm_ubuntu"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   when: ansible_distribution == "Ubuntu"
 
 - name: download nasm required version for Ubuntu
@@ -66,7 +66,7 @@
   file:
     path: "{{ openssl_engine_dir }}/nasm_rhel_centos"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   when:
     - (ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.2') or
       (ansible_distribution == 'RedHat' and ansible_distribution_version >= '8.2')
@@ -107,7 +107,7 @@
   file:
     path: "{{ openssl_engine_dir }}/libarchive_install"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
 
 - name: download and unarchive libarchive required version for CentOS / RHEL >= 8.2
@@ -115,7 +115,7 @@
     src: "{{ libarchive_url }}"
     dest: "{{ openssl_engine_dir }}/libarchive_install"
     remote_src: yes
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   register: libarchive_rhel_version
   until: libarchive_rhel_version is not failed
   retries: 5
@@ -139,7 +139,7 @@
   file:
     path: "{{ openssl_engine_dir }}/IPP_Cryptography"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
 
 - name: clone IIP-Cryptography repository
   git:
@@ -171,7 +171,7 @@
   file:
     path: "{{ openssl_engine_dir }}/IMBC_IPsec"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
 
 - name: clone IMBC-IPsec repository
   git:
@@ -198,7 +198,7 @@
   file:
     path: "{{ openssl_engine_dir }}/Openssl_Engine"
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
 
 - name: clone OpenSSL*Engine repository
   git:

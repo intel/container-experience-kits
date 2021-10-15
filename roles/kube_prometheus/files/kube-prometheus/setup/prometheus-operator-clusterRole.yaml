@@ -1,12 +1,11 @@
-# SPDX-License-Identifier: Apache-2.0
-# Copyright(c) Copyright 2018 CoreOS, Inc
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/name: prometheus-operator
-    app.kubernetes.io/version: v0.44.1
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 0.50.0
   name: prometheus-operator
 rules:
 - apiGroups:

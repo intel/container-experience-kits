@@ -7,6 +7,11 @@ kind: PersistentVolumeClaim
 metadata:
   name: kube-prometheus-prometheus
   namespace: monitoring
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 2.29.1
 spec:
   storageClassName: kube-prometheus
   selector:

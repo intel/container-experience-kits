@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   tasks: []
   roles:
     - role: cluster_defaults
@@ -38,15 +38,25 @@
     - role: kube_prometheus
       when: prometheus_operator | default(true)
     - role: collectd_install
-      when: collectd_enabled | default(true)
+      tags: monitoring
+      when:
+        - collectd_enabled | default(false)
+        - not (telegraf_enabled | default(true))
       vars:
-        - collectd_profile: basic
+        collectd_profile: basic
+    - role: telegraf_install
+      when:
+        - telegraf_enabled | default(true)
+        - not (collectd_enabled | default(false))
+      tags: monitoring
+      vars:
+        telegraf_profile: basic
   environment:
     - "{{ proxy_env | d({}) }}"
     - REGISTRY_AUTH_FILE: "{{ registry_containerd }}"
   any_errors_fatal: true
 
-- hosts: kube-node
+- hosts: kube_node
   tasks: []
   roles:
     - role: cluster_defaults
@@ -59,7 +69,7 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-- hosts: kube-master
+- hosts: kube_control_plane
   tasks: []
   roles:
     - role: net_attach_defs_create

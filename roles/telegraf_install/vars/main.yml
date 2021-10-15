@@ -1,0 +1,167 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+telegraf_plugins_config:
+  agent: |
+    [agent]
+      interval = "5s"
+      round_interval = true
+      metric_batch_size = 10000
+      metric_buffer_limit = 100000
+      collection_jitter = "0s"
+      flush_interval = "5s"
+      flush_jitter = "0s"
+      precision = ""
+      debug = true
+      quiet = false
+      logfile = ""
+      hostname = "$HOSTNAME"
+      omit_hostname = false
+  prometheus_client: |
+    [[outputs.prometheus_client]]
+      listen = "127.0.0.1:9272"
+      metric_version = 2
+      export_timestamp = true
+  output_to_file: |
+    [[outputs.file]]
+      files = ["/tmp/metrics.out"]
+      data_format = "prometheus"
+  intel_rdt: |
+    [[inputs.intel_rdt]]
+      pqos_path = "/usr/local/bin/pqos"
+      cores = ["0-{{ ansible_processor_vcpus - 1 }}"]
+  ras: |
+    [[inputs.ras]]
+  intel_powerstat: |
+    [[inputs.intel_powerstat]]
+      cpu_metrics = [
+        "cpu_frequency",
+        "cpu_busy_frequency",
+        "cpu_temperature",
+        "cpu_c1_state_residency",
+        "cpu_c6_state_residency",
+        "cpu_busy_cycles"
+      ]
+  smart: |
+    [[inputs.smart]]
+      use_sudo = true
+      attributes = true
+  cpu: |
+    [[inputs.cpu]]
+      percpu = true
+      totalcpu = true
+      collect_cpu_time = true
+      report_active = false
+  diskio: |
+    [[inputs.diskio]]
+      device_tags = ["ID_FS_TYPE", "ID_FS_USAGE"]
+  ethtool: |
+    [[inputs.ethtool]]
+  net: |
+    [[inputs.net]]
+  iptables: |
+    [[inputs.iptables]]
+      use_sudo = true
+      use_lock = false
+      table = "filter"
+      chains = [ "INPUT" ]
+  system: |
+    [[inputs.system]]
+  kernel_vmstat: |
+    [[inputs.kernel_vmstat]]
+  cgroups: |
+    [[inputs.cgroup]]
+      paths = [
+        "/sys/fs/cgroup/cpu",
+        "/sys/fs/cgroup/cpu/*",
+        "/sys/fs/cgroup/cpu/*/*",
+      ]
+      files = ["cpuacct.usage", "cpu.cfs_period_us", "cpu.cfs_quota_us", "cpu.shares", "cpu.stat"]
+  disk: |
+    [[inputs.disk]]
+      ignore_fs = ["tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs"]
+  ping: |
+    [[inputs.ping]]
+      urls = ["google.com"]
+      method = "exec"
+      count = 1
+      ping_interval = 1.0
+      timeout = 1.0
+      deadline = 10
+      interface = ""
+      percentiles = [50, 95, 99]
+      binary = "ping"
+  dns_query: |
+    [[inputs.dns_query]]
+      servers = ["8.8.8.8"]
+      network = "tcp"
+      domains = ["google.com"]
+      record_type = "A"
+      port = 53
+      timeout = 2
+  mem: |
+    [[inputs.mem]]
+  temp: |
+    [[inputs.temp]]
+  ipmi_sensor: |
+    [[inputs.ipmi_sensor]]
+      use_sudo = true
+      interval = "30s"
+      timeout = "20s"
+      metric_version = 2
+
+telegraf_profiles:
+  basic: &basic
+    - agent
+    - prometheus_client
+    - output_to_file
+    - intel_rdt
+    - intel_powerstat
+    - ras
+    - cpu
+    - system
+    - mem
+    - smart
+    - diskio
+    - disk
+    - ethtool
+    - net
+    - iptables
+    - ping
+    - dns_query
+    - kernel_vmstat
+    - cgroups
+    - temp
+    - ipmi_sensor
+  on_prem: &on_prem
+    - *basic
+  access: &access
+    - *basic
+  remote_fp: &remote_fp
+    - *basic
+  regional_dc: &regional_dc
+    - *basic
+  full_nfv: &full_nfv
+    - *basic
+
+install_dependencies:
+  Debian:
+    - rasdaemon
+    - intel-cmt-cat
+    - ipmitool
+  RedHat:
+    - rasdaemon
+    - intel-cmt-cat
+    - ipmitool

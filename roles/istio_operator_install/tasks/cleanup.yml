@@ -1,0 +1,66 @@
+##
+##   Copyright (c) 2020-2021 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: remove istio "{{ istio_profile }}" profile first
+  command: "kubectl delete -f {{ istio_profiles_dir }}/{{ istio_profile }}.yaml"
+  changed_when: true
+  failed_when: false
+
+- name: evaluate parameters to be used to delete istio-operator
+  template:
+    src: "istioctl-operator-remove-options.yml.j2"
+    dest: "{{ role_path }}/tasks/istioctl-operator-remove-options.yml"
+    force: yes
+    mode: preserve
+  delegate_to: localhost
+  become: false
+
+- name: include temporary file contained operator cmd with options provided
+  include_vars: "{{ role_path }}/tasks/istioctl-operator-remove-options.yml"
+
+- name: show command for operator removal
+  debug:
+    msg: |
+      Following command will be executed for istio operator removal:
+      {{ argv | join(' ') }}
+  delegate_to: localhost
+  become: false
+
+- name: remove istio-operator
+  command:
+    argv: "{{ argv }}"
+  failed_when: false
+  changed_when: true
+
+- name: remove existing istio resources
+  # noqa 305 - shell is used intentionally here
+  shell: "set -o pipefail && {{ istio_dir }}/bin/istioctl manifest generate | kubectl delete -f -"
+  failed_when: false
+  changed_when: true
+
+- name: remove temporary operator file
+  file:
+    path: "{{ role_path }}/tasks/istioctl-operator-remove-options.yml"
+    state: absent
+  delegate_to: localhost
+  become: false
+
+- name: remove istio release
+  file:
+    path: "{{ istio_dir }}"
+    state: absent
+  failed_when: false
+

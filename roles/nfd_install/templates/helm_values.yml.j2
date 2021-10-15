@@ -1,7 +1,7 @@
 ---
 image:
    repository: {{ nfd_image | default("k8s.gcr.io/nfd/node-feature-discovery") }}
-   tag: {{ nfd_version | default("v0.8.2")}}
+   tag: {{ nfd_version | default("v0.9.0")}}
    pullPolicy: IfNotPresent
 
 config: {{ sgx_dp_args | default(false)}}

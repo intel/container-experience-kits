@@ -76,7 +76,7 @@ spec:
               mountPath: /tmp/probe.sh
 
       nodeSelector:
-        kubernetes.io/hostname: {{ hostvars[groups['kube-master'][0]]['ansible_hostname'] }}
+        kubernetes.io/hostname: {{ hostvars[groups['kube_control_plane'][0]]['ansible_hostname'] }}
       tolerations:
         - effect: NoSchedule
           key: node-role.kubernetes.io/master

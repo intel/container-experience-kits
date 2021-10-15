@@ -32,7 +32,7 @@
   file:
     path: /usr/src/QAT_drivers
     state: directory
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
 
 - name: download QAT drivers package {{ qat_drivers_version }}
   get_url:

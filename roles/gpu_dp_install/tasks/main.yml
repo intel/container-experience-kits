@@ -25,7 +25,7 @@
     dest: "{{ intel_gpu_dp_dir }}"
     force: yes
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - gpu_dp_build_image_locally
 
 # docker is used as container runtime:
@@ -51,7 +51,7 @@
         - intel-gpu-plugin
         - intel-gpu-initcontainer
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - gpu_dp_build_image_locally
     - container_runtime == "docker"
 
@@ -59,7 +59,7 @@
 - name: prepare image for Intel GPU Device Plugin
   block:
     - name: build and tag Intel GPU Device Plugin image
-      command: podman build -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      command: buildah bud -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
       args:
         chdir: "{{ intel_gpu_dp_dir }}"
       changed_when: true
@@ -68,13 +68,13 @@
         - { file: intel-gpu-plugin.Dockerfile, name: intel-gpu-plugin }
 
     - name: push Intel GPU Device Plugin image to local registry
-      command: podman push {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      command: buildah push {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
       changed_when: true
       with_items:
         - { name: intel-gpu-initcontainer }
         - { name: intel-gpu-plugin }
   when:
-    - inventory_hostname == groups['kube-node'][0]
+    - inventory_hostname == groups['kube_node'][0]
     - gpu_dp_build_image_locally
     - '"docker" not in container_runtime'
 
@@ -98,4 +98,4 @@
       k8s:
         state: present
         src: "/usr/src/intel-gpu-plugin.yml"
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]

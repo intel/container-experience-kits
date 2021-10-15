@@ -22,8 +22,12 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-- hosts: k8s-cluster
-  tasks: []
+- hosts: k8s_cluster
+  tasks:
+    - name: regather selinux facts
+      setup:
+        gather_subset: 'selinux'
+      when: ansible_os_family == "RedHat"
   roles:
     - role: cluster_defaults
     - role: kubespray_target_setup
@@ -43,13 +47,22 @@
           [EventRateLimit,{% if always_pull_enabled %} AlwaysPullImages,{% endif %} NodeRestriction{% if psp_enabled %}, PodSecurityPolicy{% endif %}]
         bmra_docker_version: >-
           {% if ansible_distribution_version >= '21.04' %}latest{% else %}19.03{%endif %}
-        flannel_backend_type: >-
-          {% if ansible_distribution_version >= '21.04' %}host-gw{% else %}vxlan{%endif %}
         kube_config_dir: /etc/kubernetes
     - name: set kube_cert_dir
       set_fact:
         kube_cert_dir: "{{ kube_config_dir }}/ssl"
         kube_csr_dir: "{{ kube_config_dir }}/csr"
+    - name: prepare flannel CNI facts
+      set_fact:
+        flannel_backend_type: >-
+          {% if ansible_distribution_version >= '21.04' %}host-gw{% else %}vxlan{%endif %}
+      when: kube_network_plugin == "flannel"
+    - name: prepare calico CNI facts
+      set_fact:
+        calico_network_backend: vxlan
+        calico_vxlan_mode: 'CrossSubnet'
+        calico_ipip_mode: 'Never'
+      when: kube_network_plugin == "calico"
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -72,10 +85,18 @@
                   [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ registry_local_address }}".tls]
                     ca_file   = "/etc/containers/certs.d/{{ registry_local_address }}/ca.crt"
       when: container_runtime == "containerd"
+    - name: add crio runtime vars
+      set_fact:
+        container_manager: crio
+        download_container: false
+        skip_downloads: false
+        etcd_deployment_type: host
+      when: container_runtime == "crio"
 - name: run kubespray
   import_playbook: kubespray/cluster.yml
   vars:
     kubeadm_enabled: true
+    helm_enabled: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
     nginx_image_tag: 1.21.1
     override_system_hostname: false
@@ -85,6 +106,7 @@
     dashboard_enabled: true
     system_cpu_reserved: "{{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
     kube_cpu_reserved: "{{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
+    kubelet_custom_flags: "--cpu-cfs-quota=false"
     kubelet_node_custom_flags: "{{ kubelet_node_custom_flags_prepare | from_yaml }}"
     kube_api_anonymous_auth: true
     kube_feature_gates:
@@ -124,7 +146,7 @@
         hostPath: /etc/kubernetes/admission-control/
         mountPath: /etc/kubernetes/admission-control/
         readOnly: true
-    preinstall_selinux_state: "{{ selinux_mode | default('disabled') }}"
+    preinstall_selinux_state: "{{ ansible_selinux.mode | default('disabled') }}"
     tls_cipher_suites:
       - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
       - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
@@ -132,7 +154,7 @@
     etcd_extra_vars:
       ETCD_CIPHER_SUITES: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
 
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   tasks:
     - name: restart docker daemon to recreate iptables rules
       systemd: name=docker state=restarted
@@ -154,6 +176,25 @@
       when:
         - kube_network_plugin == "flannel"
         - flannel_endpoint.stat.exists
+    - name: wait for kube-apiserver to be up
+      uri:
+        url: "https://127.0.0.1:6443/healthz"
+        validate_certs: no
+      register: results
+      until: results.status == 200
+      retries: 30
+      delay: 5
+    - name: change Liveness & Readiness probes timeout in calico/node daemonset
+      # noqa 305 - shell is used intentionally here
+      shell: >-
+        set -o pipefail && kubectl get ds calico-node -n kube-system -o yaml |
+        sed "s/timeoutSeconds: 1/timeoutSeconds: 10/g" |
+        kubectl replace -f - && sleep 40
+      args:
+        executable: /bin/bash
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+        - kube_network_plugin == "calico"
 
 - hosts: etcd
   tasks:
@@ -173,10 +214,12 @@
         mode: '0700'
         state: directory
 
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   roles:
     - role: cluster_defaults
       tags: defaults
+    - role: cert_manager_install
+      tags: cert-manager
     - role: container_registry
       tags: registry
   environment: "{{ proxy_env | d({}) }}"

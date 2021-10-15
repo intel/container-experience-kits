@@ -1,0 +1,42 @@
+argv:
+  - {{ istio_dir }}/bin/istioctl
+  - operator
+  - remove
+{% if istio_dry_run is defined and istio_dry_run | bool %}
+  - --dry-run
+{% endif -%}
+{% if istio_charts is defined and istio_charts != '' %}
+  - --charts
+  - {{ istio_charts }}
+{% endif -%}
+{% if istio_context is defined and istio_context != '' %}
+  - --context
+  - {{ istio_context }}
+{% endif -%}
+{% if istio_system_namespace is defined and istio_system_namespace != '' %}
+  - --istioNamespace
+  - {{ istio_system_namespace }}
+{% endif -%}
+{% if istio_config_namespace is defined and istio_config_namespace != '' %}
+  - --namespace
+  - {{ istio_config_namespace }}
+{% endif -%}
+{% if istio_operator_namespace is defined and istio_operator_namespace != '' %}
+  - --operatorNamespace
+  - {{ istio_operator_namespace }}
+{% endif -%}
+{% if istio_kubeconfig is defined and istio_kubeconfig != '' %}
+  - --kubeconfig
+  - {{ istio_kubeconfig }}
+{% endif -%}
+{% if istio_revision is defined and istio_revision != '' %}
+  - --revision
+  - {{ istio_revision }}
+{% endif -%}
+{% if istio_vklog is defined and istio_vklog != '' %}
+  - --vklog
+  - {{ istio_vklog }}
+{% endif -%}
+{% if istio_force_removal is defined and istio_force_removal | bool %}
+  - --force
+{% endif -%}

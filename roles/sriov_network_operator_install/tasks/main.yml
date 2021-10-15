@@ -16,12 +16,12 @@
 ---
 - name: load ddp profile
   include_tasks: load_ddp_profile.yml
-  when: inventory_hostname in groups['kube-node']
+  when: inventory_hostname in groups['kube_node']
 
 - name: install sriov-network-operator
   include_tasks: sriov_network_operator_install.yml
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: configure sriov-network-operator
   include_tasks: sriov_network_node_policy_configure.yml
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]

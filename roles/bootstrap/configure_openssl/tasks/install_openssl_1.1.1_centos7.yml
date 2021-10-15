@@ -20,7 +20,7 @@
     src: "{{ openssl_111d_url }}"
     dest: "/usr/local/src/"
     remote_src: yes
-    mode: "u=rw,g=wx,o=rwx"
+    mode: "u=rwx,g=rx,o=rx"
   register: openssl111d_install
   until: openssl111d_install is not failed
   retries: 5

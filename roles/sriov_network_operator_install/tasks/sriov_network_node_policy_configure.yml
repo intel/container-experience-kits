@@ -29,7 +29,7 @@
     mode: preserve
   when:
     - hostvars[item]['dataplane_interfaces'] | default({}) | length > 0
-  loop: "{{ groups['kube-node'] }}"
+  loop: "{{ groups['kube_node'] }}"
 
 - name: apply sriov network node policies configuration
   command: kubectl apply -f  ./

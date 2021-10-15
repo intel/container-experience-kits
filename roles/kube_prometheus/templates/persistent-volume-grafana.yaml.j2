@@ -5,6 +5,10 @@ metadata:
   namespace: monitoring
   labels:
     name: kube-prometheus-grafana
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 8.1.2
 spec:
   capacity:
     storage: 1Gi
@@ -22,4 +26,4 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - {{ hostvars[groups['kube-node'][0]]['ansible_hostname'] }}
+                - {{ hostvars[groups['kube_node'][0]]['ansible_hostname'] }}

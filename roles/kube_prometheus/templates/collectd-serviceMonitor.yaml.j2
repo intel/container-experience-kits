@@ -3,6 +3,7 @@ kind: ServiceMonitor
 metadata:
   labels:
     k8s-app: collectd
+    app.kubernetes.io/name: collectd
   name: collectd
   namespace: monitoring
 spec:

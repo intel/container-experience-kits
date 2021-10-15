@@ -1,0 +1,1 @@
+Relase "{{ .Release.Name }}" was succesfully deployed into the "{{ .Release.Namespace }}" namespace.

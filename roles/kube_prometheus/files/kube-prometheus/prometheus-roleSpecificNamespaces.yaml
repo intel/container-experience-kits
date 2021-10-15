@@ -1,12 +1,13 @@
-# SPDX-License-Identifier: Apache-2.0
-# Copyright(c) Copyright 2018 CoreOS, Inc
-#
-# Modifications copyright (C) 2020 Intel Corporation
 apiVersion: rbac.authorization.k8s.io/v1
 items:
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
   metadata:
+    labels:
+      app.kubernetes.io/component: prometheus
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: kube-prometheus
+      app.kubernetes.io/version: 2.29.1
     name: prometheus-k8s
     namespace: default
   rules:
@@ -28,9 +29,22 @@ items:
     - get
     - list
     - watch
+  - apiGroups:
+    - networking.k8s.io
+    resources:
+    - ingresses
+    verbs:
+    - get
+    - list
+    - watch
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
   metadata:
+    labels:
+      app.kubernetes.io/component: prometheus
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: kube-prometheus
+      app.kubernetes.io/version: 2.29.1
     name: prometheus-k8s
     namespace: kube-system
   rules:
@@ -52,9 +66,22 @@ items:
     - get
     - list
     - watch
+  - apiGroups:
+    - networking.k8s.io
+    resources:
+    - ingresses
+    verbs:
+    - get
+    - list
+    - watch
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
   metadata:
+    labels:
+      app.kubernetes.io/component: prometheus
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: kube-prometheus
+      app.kubernetes.io/version: 2.29.1
     name: prometheus-k8s
     namespace: monitoring
   rules:
@@ -70,6 +97,14 @@ items:
     - watch
   - apiGroups:
     - extensions
+    resources:
+    - ingresses
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - networking.k8s.io
     resources:
     - ingresses
     verbs:

@@ -115,7 +115,10 @@
   package:
     name: "{{ item }}"
     state: present
+  retries: 5
+  delay: 10
   register: source_status
+  until: source_status is not failed
   with_items:
     - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-240.el8.x86_64.rpm"
     - "https://vault.centos.org/8.3.2011/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-240.el8.x86_64.rpm"
@@ -128,7 +131,10 @@
   package:
     name: "{{ item }}"
     state: present
+  retries: 5
+  delay: 10
   register: source_status
+  until: source_status is not failed
   with_items:
     - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-headers-4.18.0-305.3.1.el8.x86_64.rpm"
     - "http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/kernel-devel-4.18.0-305.3.1.el8.x86_64.rpm"
@@ -231,7 +237,7 @@
     state: present
   when: ansible_distribution in ["RedHat", "CentOS"]
 
-- name: Add kubic yum repo and install updated version of podman
+- name: Add kubic yum repo and install updated version of buildah
   block:
   - name: disable container-tools module
     # noqa 305 - shell is used intentionally here
@@ -247,14 +253,17 @@
       gpgcheck: yes
       gpgkey: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_$releasever/repodata/repomd.xml.key
       keepcache: '0'
-  - name: install runc
+  - name: install crun
     dnf:
-      name: runc
+      name: crun
       state: present
-  - name: install podman package
+  - name: install buildah package
     package:
-      name: podman
+      name: buildah
       state: present
+  - name: enable container-tools module
+    # noqa 305 - shell is used intentionally here
+    shell: dnf -y module enable container-tools
   when:
     - ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
     - '"docker" not in container_runtime'

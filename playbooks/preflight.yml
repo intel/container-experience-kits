@@ -26,14 +26,14 @@
 # - Check Group Vars (exist)
 # - Check Host Vars (exist for each worker node)
 # - Check CMK Hosts (valid targets)
-# On All targets (k8s-cluster):
+# On All targets (k8s_cluster):
 # - Check Linux Distro
 # - Check Hostnames (match Inventory)
 # - Check CMK Config (isolcpus defined)
 # - Check isolcpus Total (not more than actual)
 # - Check isolcpus IDs (valid on system)
 # - Check isolcpus OS Reserved (not 0,1,etc)
-# On Worker Nodes Only (kube-node):
+# On Worker Nodes Only (kube_node):
 # - Check DP Interfaces (is not empty)
 # - Check DP Interfaces Name (optional)
 # - Check DP Interfaces Bus Info (pciid)
@@ -93,7 +93,7 @@
       stat:
         path: "{{ inventory_dir }}/host_vars/{{ item }}.yml"
       register: host_vars_details
-      with_items: "{{ groups['kube-node'] }}"
+      with_items: "{{ groups['kube_node'] }}"
 
     - name: Check Host Vars
       assert:
@@ -104,7 +104,6 @@
     - debug:
         msg:
           - cmk_enabled = {{ cmk_enabled }} (group_vars/all.yml)
-          - cmk_use_all_hosts = {{ cmk_use_all_hosts }} (group_vars/all.yml)
           - cmk_hosts_list = {{ cmk_hosts_list | default('') }} (group_vars/all.yml)
           - all targets = {{ groups['all'] }} (inventory.ini)
       when: cmk_enabled is defined  # CMK expected true for all profiles except basic
@@ -114,13 +113,13 @@
         that: "item in groups['all']"
         msg: "Hostname '{{ item }}' is NOT a valid target from inventory.  Please correct the cmk_hosts_list or disable the CMK feature in group vars"
       with_items: "{{ (cmk_hosts_list.split(',') if (cmk_hosts_list is defined and cmk_hosts_list | length > 0) else []) }}"
-      when: cmk_enabled is defined and cmk_enabled and not cmk_use_all_hosts
+      when: cmk_enabled is defined and cmk_enabled
 
 
 ##############################################
 # Prerequisites for Control and Worker Nodes #
 ##############################################
-- hosts: k8s-cluster
+- hosts: k8s_cluster
   vars:
     bmra_supported_distros: [CentOS, RedHat, Ubuntu]
     bmra_supported_distros_versions: ['7.6', '7.8', '7.9', '8.2', '8.3', '8.4', '18.04', '20.04', '21.04']
@@ -173,6 +172,16 @@
         when:
           - "'selinux-policy' not in ansible_facts.packages"
           - "'selinux-policy-targeted' not in ansible_facts.packages"
+
+      - name: check SELinux configuration for CRI-O runtime
+        assert:
+          that:
+            - (ansible_selinux.status == "enabled" and selinux_state is defined and selinux_state == "disabled") or
+              (ansible_selinux.status != "enabled" and selinux_state is defined and selinux_state != "enabled")
+          fail_msg: "CRI-O runtime requires SELinux in disabled state. Please, set selinux_state variable to 'disabled'"
+          success_msg: "CRI-O runtime SELinux configuration verified"
+        when:
+          - container_runtime == "crio"
       when:
         - ansible_os_family == "RedHat"
 
@@ -181,7 +190,6 @@
       - debug:
           msg:
             - cmk_enabled = {{ cmk_enabled }} (group_vars/all.yml)
-            - cmk_use_all_hosts = {{ cmk_use_all_hosts }} (group_vars/all.yml)
             - cmk_hosts_list = {{ cmk_hosts_list | default('') }} (group_vars/all.yml)
             - cmk_shared_num_cores = {{ cmk_shared_num_cores }} (group_vars/all.yml)
             - cmk_exclusive_num_cores = {{ cmk_exclusive_num_cores }} (group_vars/all.yml)
@@ -266,7 +274,7 @@
 ####################################
 # Prerequisites for Worker Node(s) #
 ####################################
-- hosts: kube-node
+- hosts: kube_node
   vars:
     phy_nics_pciids: []
 
@@ -485,6 +493,20 @@
 
 
 # STORY: "If SST enabled, confirm minimum kernel or kernel_update specified"
+    - name: check Intel(R) SST-PP (feature perf-profile) requirements
+      assert:
+        that:
+          - ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04' or
+            (ansible_distribution in ['RedHat', 'CentOS'] and ansible_distribution_version >= '8.3')
+          - turbo_boost_enabled
+        fail_msg:
+           - "Playbook terminated cause of failure might to two reasons: Firstly, SST-PP is only supported in RedHat / CentOS >= 8.3 or Ubuntu >=20.04"
+           - "To proceed further make sure sst_bf_configuration_enabled, sst_cp_configuration_enabled,"
+           - "sst_tf_configuration_enable & sst_pp_configuration_enabled all should be disabled in host_vars"
+           - "Secondly, make sure turbo_boost_enabled in host_vars is set to 'true', as required for turbo-freq configuration"
+        success_msg: "Intel(R) SST-PP (feature perf-profile), verification completed"
+      when: sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
+
     - name: Check SST # see Jira NPF-1545
       assert:
         that: (not sst_bf_configuration_enabled)
@@ -525,6 +547,17 @@
       when: ansible_distribution_version in ['7.6', '18.04']
       ignore_errors: True
 
+# STORY: "collectd and telegraf are mutually exclusive"
+    - name: Fail if collectd and telegraf are both enabled
+      assert:
+        that: >-
+          (({{ collectd_enabled | bool }}) and (not ({{ telegraf_enabled | bool }})))
+          or (not {{ collectd_enabled | bool }} and {{ telegraf_enabled | bool }})
+          or (not {{ collectd_enabled | bool }} and (not ({{ telegraf_enabled | bool }})))
+        msg: "CollectD and Telegraf are mutually exclusive, please enable only one."
+      when:
+        - collectd_enabled is defined
+        - telegraf_enabled is defined
 
 # STORY: TEMPORARY: "ovs dpdk version requirements"
     - debug:

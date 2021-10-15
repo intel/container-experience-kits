@@ -25,42 +25,6 @@
     dest: "{{ intel_dp_operator_dir }}"
     force: yes
 
-- name: prepare and deploy cert-manager
-  block:
-    - name: create Helm charts directory if needed
-      file:
-        path: /usr/src/charts
-        state: directory
-        mode: 0755
-
-    - name: check if cert-manager namespace exists
-      command: kubectl get namespace {{ cert_manager_namespace }}
-      register: ns_exists
-      failed_when: no
-
-    - name: create a namespace for cert-manager
-      command: kubectl create namespace {{ cert_manager_namespace }}
-      when: ns_exists.stderr is defined and "NotFound" in ns_exists.stderr
-
-    - name: add the Jetstack helm repository
-      command: helm repo add jetstack {{ cert_manager_repo }}
-
-    - name: update local Helm chart repository cache
-      command: helm repo update
-
-    - name: install the cert-manager Helm chart
-      command: >-
-        helm upgrade -i cert-manager jetstack/cert-manager
-        --namespace {{ cert_manager_namespace }}
-        --version {{ cert_manager_version }}
-        --set installCRDs=true
-  when:
-    - inventory_hostname == groups['kube-master'][0]
-
-- name: wait for cert-manager to become fully available
-  pause:
-    seconds: 30
-
 - name: prepare and deploy Intel Device Plugins Operator
   block:
     - name: set namespace for Intel Device Plugin Operator to {{ intel_dp_namespace }}
@@ -76,7 +40,7 @@
       retries: 10
       delay: 5
       until: result is not failed
-  when: inventory_hostname == groups['kube-master'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: wait for Intel Device Plugin Operator to become fully available
   pause:

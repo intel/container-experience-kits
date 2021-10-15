@@ -94,14 +94,14 @@
   when: '"docker" not in container_runtime'
 
 - name: build and tag TAS image
-  command: podman build -f Dockerfile ../../bin/ -t {{ registry_local_address }}/tasextender:{{ tas_version }}
+  command: buildah bud -t {{ registry_local_address }}/tasextender:{{ tas_version }} -f Dockerfile ../../bin/
   args:
     chdir: "{{ tas_dir }}/telemetry-aware-scheduling/deploy/images"
   changed_when: true
   when: '"docker" not in container_runtime'
 
 - name: push TAS-controller and TAS-extender image to local registry
-  command: podman push {{ registry_local_address }}/tasextender:{{ tas_version }}
+  command: buildah push {{ registry_local_address }}/tasextender:{{ tas_version }}
   changed_when: true
   when: '"docker" not in container_runtime'
 

@@ -8,6 +8,10 @@ metadata:
   labels:
     prometheus: k8s
     role: alert-rules
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 1.2.2
   name: prometheus-k8s-rules
   namespace: monitoring
 spec:

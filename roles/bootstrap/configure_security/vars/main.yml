@@ -19,8 +19,12 @@ fw_open_ports:
   controller:
     # SSH
     - 22/tcp
+    # Calico networking (BGP)
+    - 179/tcp
     # etcd
     - 2379:2380/tcp
+    # Calico networking (VXLAN)
+    - 4789/udp
     # kube-apiserver
     - 6443/tcp
     # kubelet
@@ -38,6 +42,10 @@ fw_open_ports:
   node:
     # SSH
     - 22/tcp
+    # Calico networking (BGP)
+    - 179/tcp
+    # Calico networking (VXLAN)
+    - 4789/udp
     # kube-apiserver
     - 6443/tcp
     # kubelet

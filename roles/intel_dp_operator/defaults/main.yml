@@ -19,7 +19,3 @@ intel_dp_operator_git_ref: "v0.21.0"
 intel_dp_operator_version: "0.21.0"
 intel_dp_operator_dir: "/usr/src/intel-device-plugins-for-kubernetes-operator"
 intel_dp_namespace: kube-system
-
-cert_manager_namespace: "cert-manager"
-cert_manager_version: "v1.3.1"
-cert_manager_repo: "https://charts.jetstack.io"

@@ -6,6 +6,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: node-exporter
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 1.2.2
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

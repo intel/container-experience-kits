@@ -26,4 +26,4 @@ apphsm:
     port: "{{ kmra_apphsm_service_port }}"
   pccs_port: "{{ kmra_pccs_service_port }}"
   pccs_hostname: "{{ kmra_pccs_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
-  sgx_prv_gid: "{{ hostvars[groups['kube-node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"
+  sgx_prv_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"

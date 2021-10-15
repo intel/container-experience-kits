@@ -1,12 +1,11 @@
-# SPDX-License-Identifier: Apache-2.0
-# Copyright(c) Copyright 2018 CoreOS, Inc
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/name: prometheus-operator
-    app.kubernetes.io/version: v0.44.1
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 0.50.0
   name: prometheus-operator
   namespace: monitoring
 spec:
@@ -15,12 +14,16 @@ spec:
     matchLabels:
       app.kubernetes.io/component: controller
       app.kubernetes.io/name: prometheus-operator
+      app.kubernetes.io/part-of: kube-prometheus
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: prometheus-operator
       labels:
         app.kubernetes.io/component: controller
         app.kubernetes.io/name: prometheus-operator
-        app.kubernetes.io/version: v0.44.1
+        app.kubernetes.io/part-of: kube-prometheus
+        app.kubernetes.io/version: 0.50.0
     spec:
       tolerations:
         - key: node-role.kubernetes.io/master
@@ -29,8 +32,8 @@ spec:
       containers:
       - args:
         - --kubelet-service=kube-system/kubelet
-        - --prometheus-config-reloader=quay.io/prometheus-operator/prometheus-config-reloader:v0.44.1
-        image: quay.io/prometheus-operator/prometheus-operator:v0.44.1
+        - --prometheus-config-reloader=quay.io/prometheus-operator/prometheus-config-reloader:v0.50.0
+        image: quay.io/prometheus-operator/prometheus-operator:v0.50.0
         name: prometheus-operator
         ports:
         - containerPort: 8080
@@ -49,17 +52,24 @@ spec:
         - --secure-listen-address=:8443
         - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
         - --upstream=http://127.0.0.1:8080/
-        image: quay.io/brancz/kube-rbac-proxy:v0.8.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.11.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 8443
           name: https
+        resources:
+          limits:
+            cpu: 20m
+            memory: 40Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
         securityContext:
           runAsGroup: 65532
           runAsNonRoot: true
           runAsUser: 65532
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
