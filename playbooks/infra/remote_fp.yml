@@ -14,14 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- hosts: 127.0.0.1
-  connection: local
-  tasks: []
-  roles:
-    - role: bootstrap/ansible_host
-  environment: "{{ proxy_env | d({}) }}"
-  any_errors_fatal: true
-
 # apply common cluster node configuration
 - hosts: k8s_cluster
   tasks: []

@@ -52,7 +52,7 @@ The software provided here is for reference only and not intended for production
 3. Install dependencies
 
    ```bash
-   pip3 install -r profiles/requirements.txt
+   pip3 install -r requirements.txt
    ```
 
 4. Generate example host_vars, group_vars and inventory for BMRA profiles.
