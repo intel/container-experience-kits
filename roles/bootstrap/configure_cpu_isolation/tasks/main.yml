@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,23 +14,5 @@
 ##   limitations under the License.
 ##
 ---
-- name: ensure that isolcpus settings are disabled when isolcpus_enabled is False
-  lineinfile:
-    dest: /etc/default/grub
-    regexp: '^GRUB_CMDLINE_LINUX=(.*?){{ isolcpus_marker }}$'
-    state: absent
-  register: grub
-  notify:
-    - reboot server
-  when: not (isolcpus_enabled | default(false) | bool)
-
-- name: autogenerate isolcpus
-  include_tasks: autogenerate_isolcpus.yml
-  when:
-    - cmk_enabled is defined and cmk_enabled
-    - autogenerate_isolcpus is defined and autogenerate_isolcpus
-
 - name: setup CPU isolation
   include_tasks: setup_isolcpus.yml
-  when:
-    - isolcpus_enabled | default(false)

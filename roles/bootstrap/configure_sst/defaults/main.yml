@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,15 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-sst_bf_configuration_enabled: true
-sst_cp_configuration_enabled: true
-sst_tf_configuration_enabled: true
-
-icx_centos8_2_load_isst_modules: true
-
 clx_sst_bf_git_url: "https://github.com/intel/CommsPowerManagement.git"
 clx_sst_bf_commit_hash: "a3a1869fd88eff5b2b872f447ca69b866e3d318e"
-clx_sst_bf_dir: "/usr/src/CommsPowerManagement"
+clx_sst_bf_dir: "{{ project_root_dir }}/CommsPowerManagement"
 clx_sst_bf_exec: "/usr/local/bin/sst_bf.py"
 
 sst_cp_priority_type: "1" # 0 - Proportional, 1 - Ordered
@@ -49,5 +43,6 @@ sst_cp_cpu_clos: # assign required values to CLOS group after priority type setu
   - clos: 1
     cpus: 3,7
 
-source_rpm_directory: "/usr/src/rpms"
-rpmbuild_dir: "{{ source_rpm_directory }}/rpmbuild"
+isst_tool_git_url: https://github.com/torvalds/linux.git
+isst_tool_git_version: v5.16
+isst_tool_src_dir: "{{ (project_root_dir, 'speedselect') | path_join }}"

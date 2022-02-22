@@ -35,7 +35,7 @@ data:
             "freezeTableName": true
           },
           "logging" : false,
-          "storage": "pckcache.db"
+          "storage": "/tmp/pckcache.db"
         }
       },
       "myql" : {

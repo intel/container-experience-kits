@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -42,11 +42,11 @@
 - name: copy patched Multus config
   template:
     dest: /etc/cni/net.d/templates/00-multus.conf
-    src: roles/kubespray_install/templates/multus.conf.j2
+    src: multus.conf.j2
     owner: root
     group: root
     mode: 0644
-  when: kube_network_plugin_multus | default(true)
+  when: kube_network_plugin_multus | default(true) | bool
 
 - name: create Kubernetes admission control config dir
   file:
@@ -58,7 +58,7 @@
 - name: copy admission control configuration file
   template:
     dest: "{{ kube_config_dir }}/admission-control/config.yaml"
-    src: config.yaml
+    src: config.yaml.j2
     owner: root
     group: root
     mode: 0644

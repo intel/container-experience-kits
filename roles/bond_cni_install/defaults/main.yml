@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,6 +15,5 @@
 ##
 ---
 bond_cni_git_url: "https://github.com/intel/bond-cni.git"
-bond_cni_dir: "/usr/src/bond-cni"
+bond_cni_dir: "{{ project_root_dir }}/bond-cni"
 bond_cni_version: "v1.0"
-bond_cni_path: "/usr/src/bond-cni/bond"

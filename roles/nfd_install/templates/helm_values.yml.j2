@@ -1,11 +1,98 @@
 ---
 image:
-   repository: {{ nfd_image | default("k8s.gcr.io/nfd/node-feature-discovery") }}
-   tag: {{ nfd_version | default("v0.9.0")}}
-   pullPolicy: IfNotPresent
+  repository: {{ nfd_image | default("k8s.gcr.io/nfd/node-feature-discovery") }}
+  tag: {{ nfd_version | default("v0.10.0")}}
+  pullPolicy: IfNotPresent
 
-config: {{ sgx_dp_args | default(false)}}
+{% if sgx_dp_enabled | default(false) or gpu_dp_enabled | default(false) %}
+nfd_resource_labels:
+{% if sgx_dp_enabled | default(false) %}
+  - "sgx.intel.com/epc"
+{% endif %}
+{% if gpu_dp_enabled | default(false) %}
+  - "gpu.intel.com/memory.max"
+  - "gpu.intel.com/millicores"
+{% endif %}
+{% else %}
+nfd_resource_labels: []
+{% endif %}
 
-sgx_dp_nfd_labels: {{ sgx_dp_labels | default(false)}}
+{% if sgx_dp_enabled | default(false) or gpu_dp_enabled | default(false) %}
+nfd_extra_labels_ns:
+{% if sgx_dp_enabled | default(false) %}
+  - "sgx.intel.com"
+{% endif %}
+{% if gpu_dp_enabled | default(false) %}
+  - "gpu.intel.com"
+{% endif %}
+{% else %}
+nfd_extra_labels_ns: []
+{% endif %}
+
+gpu_dp:
+  enabled: {{ gpu_dp_enabled | default(false) | bool | lower }}
+{% if gpu_dp_max_memory is defined %}
+  max_memory: "{{ gpu_dp_max_memory | human_to_bytes }}"
+{% else %}
+  max_memory: "0"
+{% endif %}
+
+{% if sgx_dp_enabled | default(false) or qat_dp_enabled | default(false) %}
+sgx_dp_enabled: {{ sgx_dp_enabled | default(false) | bool | lower }}
+
+config:
+  sources:
+    custom:
+{% if sgx_dp_enabled | default(false) %}
+      - name: "intel.sgx"
+        labels:
+          intel.sgx: "true"
+        matchFeatures:
+          - feature: cpu.cpuid
+            matchExpressions:
+              SGX: {op: Exists}
+              SGXLC: {op: Exists}
+          - feature: cpu.sgx
+            matchExpressions:
+              enabled: {op: IsTrue}
+{% if not (ansible_distribution == "Ubuntu" and ansible_distribution_version == "20.04") %}
+          - feature: kernel.config
+            matchExpressions:
+              X86_SGX: {op: Exists}
+{% endif %}
+{% endif %}
+{% if qat_dp_enabled | default(false) %}
+      - name: "intel.qat"
+        labels:
+          intel.qat: "true"
+        matchFeatures:
+          - feature: pci.device
+            matchExpressions:
+              vendor: {op: In, value: ["8086"]}
+              device: {op: In, value: {{ qat_supported_pf_dev_ids | list + qat_supported_vf_dev_ids | list }}}
+{% endif %}
+{% endif %}
 
 sleepInterval: {{ nfd_sleep_interval | default("60s")}}
+
+tls:
+  enabled: {{ nfd_tls_enabled | default(false) | bool | lower }}
+  generate: {{ nfd_tls_generate | default(false) | bool | lower }}
+  masterKey: "{{ nfd_tls_master_key }}"
+  masterCert: "{{ nfd_tls_master_cert }}"
+  workerKey: "{{nfd_tls_worker_key}}"
+  workerCert: "{{ nfd_tls_worker_cert }}"
+  caCert: "{{ nfd_tls_ca_cert }}"
+
+
+serviceAccount:
+  create: {{ nfd_sa_create | default(false) | bool | lower }}
+  name: "{{ nfd_sa_name }}"
+
+rbac:
+  enabled: {{ nfd_rbac_enabled | default(false) | bool | lower }}
+
+service:
+  port: {{ nfd_svc_port }}
+  type: "{{ nfd_svc_type }}"
+

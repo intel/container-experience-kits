@@ -1,0 +1,101 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: download and unarchive istio release
+  unarchive:
+    src: "{{ service_mesh_download_url }}"
+    dest: "{{ project_root_dir }}"
+    remote_src: yes
+    list_files: yes
+    mode: 0755
+    extra_opts:
+      - "--transform"
+      - "s/^istio-{{ service_mesh.version }}/istio/"
+  register: istio_download
+  until: istio_download is not failed
+  retries: 5
+
+- name: add istio binaries to the $PATH
+  copy:
+    content: |
+      export PATH={{ service_mesh_release_dir }}/bin:$PATH
+    dest: /etc/profile.d/istioctl.sh
+    mode: 0755
+
+- name: create istio custom manifests directory
+  file:
+    path: "{{ service_mesh_charts_dir }}"
+    state: directory
+    mode: 0755
+
+- name: copy custom istio profile manifest if exists
+  block:
+    - name: copy manifest
+      copy:
+        src: "profiles/{{ service_mesh.profile }}.yaml"
+        dest: "{{ service_mesh_charts_dir }}"
+        owner: root
+        mode: preserve
+  rescue:
+    - name: fallback to empty profile if no requested profile manifest exists
+      set_fact:
+        service_mesh: "{{ service_mesh | combine({'profile':'empty'}, recursive=True) }}"
+  when:
+    - service_mesh.profile not in ['default', 'demo', 'minimal', 'external', 'empty', 'preview']
+
+- name: evaluate parameters to be used for istio service mesh installation
+  template:
+    src: "istioctl-options.yml.j2"
+    dest: "{{ role_path }}/tasks/istioctl-options.yml"
+    force: yes
+    mode: preserve
+  delegate_to: localhost
+  become: false
+
+- name: include temporary file contained options provided
+  include_vars: "{{ role_path }}/tasks/istioctl-options.yml"
+
+- name: print out arguments to be used for istio service mesh installation
+  debug:
+    msg: |
+      Following arguments to be used for istio service mesh installation:
+      {{ argv | join(' ') }}
+  delegate_to: localhost
+  become: false
+
+- name: check if istio system namespace exists
+  command: kubectl get namespace {{ service_mesh.istio_namespace }}
+  register: ns_exists
+  failed_when: false
+  changed_when: false
+
+- name: create istio system namespace for istio resources
+  command: kubectl create namespace "{{ service_mesh.istio_namespace }}"
+  when: ns_exists.stderr is defined and "NotFound" in ns_exists.stderr
+
+- name: install istio service mesh
+  # noqa 305 - shell is used intentionally here
+  shell: "{{ service_mesh_release_dir }}/bin/istioctl install {{ argv | join(' ') }}"
+  args:
+    executable: "/bin/bash"
+  changed_when: true
+
+- name: remove temporary options file
+  file:
+    path: "{{ role_path }}/tasks/istioctl-options.yml"
+    state: absent
+  delegate_to: localhost
+  become: false

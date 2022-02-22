@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -58,8 +58,8 @@
     state: absent
   become: yes
   with_items:
-    - "{{ sriov_config_path }}/bmra_sriov_numvfs"
-    - "{{ sriov_config_path }}/bmra_interfaces"
+    - "{{ sriov_config_path }}/cek_sriov_numvfs"
+    - "{{ sriov_config_path }}/cek_interfaces"
 
 - name: configure VFs
   include_tasks: create_vfs.yml
@@ -77,8 +77,8 @@
 
 - name: copy NIC setup script to /usr/bin
   copy:
-    src: "{{ role_path }}/files/bmra_sriov_nic_init"
-    dest: /usr/local/bin/bmra_sriov_nic_init
+    src: "{{ role_path }}/files/cek_sriov_nic_init"
+    dest: /usr/local/bin/cek_sriov_nic_init
     owner: root
     group: root
     mode: '0700'
@@ -86,8 +86,8 @@
 
 - name: create systemd unit file
   template:
-    src: bmra_sriov_nic_init.service.j2
-    dest: /lib/systemd/system/bmra_sriov_nic_init.service
+    src: cek_sriov_nic_init.service.j2
+    dest: /lib/systemd/system/cek_sriov_nic_init.service
     owner: root
     group: root
     mode: '0644'
@@ -98,5 +98,5 @@
     daemon_reload: yes
     enabled: yes
     state: restarted
-    name: bmra_sriov_nic_init
+    name: cek_sriov_nic_init
   become: yes

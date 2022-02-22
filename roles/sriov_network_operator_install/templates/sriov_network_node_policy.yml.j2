@@ -41,6 +41,7 @@ spec:
   resourceName: {{ hostvars[item]['ansible_hostname'] | replace('-', '_') }}_{{ iface.name }}_{{ sriov_resource_name }}_{{ loop.index }}
   nodeSelector:
     feature.node.kubernetes.io/network-sriov.capable: "true"
+    kubernetes.io/hostname: {{ hostvars[item]['ansible_hostname'] }}
   priority: {{ sriov_vf_default_priority }}
   numVfs: {{ iface.sriov_numvfs }}
   mtu: {{ sriov_vf_default_mtu }}

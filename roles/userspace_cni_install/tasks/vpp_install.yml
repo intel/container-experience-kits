@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -53,12 +53,12 @@
   set_fact:
     vpp_orig_shmmax: "{{ original_sysctl.stdout_lines[0] }}"
     vpp_orig_max_map_count: "{{  original_sysctl.stdout_lines[1] }}"
-    vpp_calc_shmmax: "{{ (default_hugepage_size == '2M') | ternary(number_of_hugepages*2048*1024, number_of_hugepages*1024*1024*1024) }}"
-    vpp_calc_max_map_count: "{{ number_of_hugepages * 3 }}"
+    vpp_calc_shmmax: "{{ (default_hugepage_size == '2M') | ternary(number_of_hugepages_2M*2048*1024, number_of_hugepages_1G*1024*1024*1024) }}"
+    vpp_calc_max_map_count: "{{ (default_hugepage_size == '2M') | ternary(number_of_hugepages_2M*3, number_of_hugepages_1G*3) }}"
 
 - name: pick final sysctl entries values
   set_fact:
-    vpp_nr_hugepages: "{{ number_of_hugepages }}"
+    vpp_nr_hugepages: "{{ (default_hugepage_size == '2M') | ternary(number_of_hugepages_2M, number_of_hugepages_1G) }}"
     vpp_shmmax: "{{ [vpp_calc_shmmax|int, vpp_orig_shmmax|int] | max }}"
     vpp_max_map_count: "{{ [vpp_orig_max_map_count|int, vpp_calc_max_map_count|int] | max }}"
 
@@ -96,11 +96,6 @@
 - name: apply sysctl config
   command: sysctl -p --load=/etc/sysctl.d/80-vpp.conf
   changed_when: true
-
-# NOTE: questions:
-#       do we need to update vpp config to apply some optimizations?
-#       attach NIC ports based on the user configuration?
-#       run vpp in the CMK context?
 
 - name: restart vpp service
   systemd:

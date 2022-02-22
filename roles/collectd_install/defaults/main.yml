@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,8 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-barometer_collectd_dir: "/usr/src/barometer"
-collectd_deployment_dir: "/usr/src/k8s/collectd/"
+collectd_configuration_files_dir: "{{ host_collectd_folder }}/collectd.conf.d"
+barometer_collectd_dir: "{{ project_root_dir }}/barometer"
+collectd_deployment_dir: "{{ project_root_dir }}/k8s/collectd/"
 
 collectd_scrap_interval: 30
 collectd_write_threads: 25
@@ -36,9 +37,6 @@ enable_intel_rdt_plugin: true
 # Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
 intel_rdt_plugin_monitored_cores: ""
 
-# pkgpower plugin collects platform power telemetry data
-enable_pkgpower_plugin: true
-
 # unixsock plugin host socket base dir
 unixsock_host_socket_dir: /var/run/collectd/
 
@@ -47,7 +45,7 @@ enable_custom_types_db: false
 
 image_collectd:
   repository: "opnfv/barometer-collectd"
-  digest: sha256:f30e965aa6195e6ac4ca2410f5a15e3704c92e4afa5208178ca22a7911975d66
+  digest: sha256:a7cea43d9d2f67c38fbf0407786edbe660ee9072945f7bb272b55fd255e8eaca
   pullPolicy: Always
 image_collectd_exporter:
   repository: prom/collectd-exporter
@@ -62,7 +60,7 @@ psp_enabled: true
 collectd_namespace: monitoring
 host_collectd_folder: /opt/collect.d
 pkgpower_repo_url: "https://github.com/intel/CommsPowerManagement.git"
-pkgpower_dir: "/usr/src/CommsPowerManagement"
+pkgpower_dir: "{{ project_root_dir }}/commspowermanagement"
 
 # currently excluded plugins were not delivered with latest stable
 # opnfv/barometer-collectd image (digest sha256:ed5c574f653e)
@@ -81,6 +79,7 @@ collectd_plugins:
     - pkgpower
     - unixsock
     - network
+    - turbostat
     # - write_http
     # - smart
   on_prem:
@@ -97,6 +96,7 @@ collectd_plugins:
     - pkgpower
     - unixsock
     - network
+    - turbostat
     # - write_http
     # - smart
   access:
@@ -115,6 +115,7 @@ collectd_plugins:
     - hugepages
     - unixsock
     - network
+    - turbostat
     # - write_http
     # - smart
   remote_fp:
@@ -131,6 +132,7 @@ collectd_plugins:
     - pkgpower
     - unixsock
     - network
+    - turbostat
     # - write_http
     # - smart
   regional_dc:
@@ -147,6 +149,7 @@ collectd_plugins:
     - pkgpower
     - unixsock
     - network
+    - turbostat
     # - write_http
     # - smart
   full_nfv:
@@ -168,6 +171,7 @@ collectd_plugins:
     - ovs_stats
     - unixsock
     - network
+    - turbostat
     # - write_http
     # - smart
 

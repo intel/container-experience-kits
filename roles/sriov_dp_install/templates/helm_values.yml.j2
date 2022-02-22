@@ -2,8 +2,8 @@
 namespace: {{ sriov_net_dp_namespace | default("kube-system") }}
 
 image:
-  repository: {{ sriov_net_dp_image | default("docker.io/nfvpe/sriov-device-plugin") }}
-  tag: {{ sriov_net_dp_tag | default("v3.2") }}
+  repository: {{ sriov_net_dp_image | default("ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin") }}
+  tag: {{ sriov_net_dp_tag | default("v3.4.0") }}
   pullPolicy: IfNotPresent
 
 configPath: {{ sriov_net_dp_config_path | default("/etc/pcidp/config.json") }}

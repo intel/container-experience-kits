@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@
 
     - name: save VF driver binding
       lineinfile:
-        path: "{{ sriov_config_path }}/bmra_interfaces"
+        path: "{{ sriov_config_path }}/cek_interfaces"
         line: "{{ this_item[0] }} {{ this_item[1].value }}"
         regexp: "^{{ this_item[0] }}"
         create: yes

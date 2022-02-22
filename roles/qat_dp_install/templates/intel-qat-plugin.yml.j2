@@ -1,0 +1,21 @@
+---
+apiVersion: deviceplugin.intel.com/v1
+kind: QatDevicePlugin
+metadata:
+  name: intel-qat-device-plugin
+  # example apparmor annotation
+  # see more details here:
+  #  - https://kubernetes.io/docs/tutorials/clusters/apparmor/#securing-a-pod
+  #  - https://github.com/intel/intel-device-plugins-for-kubernetes/issues/381
+{% if ansible_distribution == "Ubuntu" and qat_dp_apparmor | default("true") %}
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/intel-qat-plugin: {{ qat_dp_apparmor_profile | default("unconfined") }}
+{% endif %}
+spec:
+  image: {{ qat_dp_image | default("docker.io/intel/intel-qat-plugin") }}:{{ intel_qat_dp_version | default("0.23.0") }}
+  dpdkDriver: {{ qat_dp_dpdk_drivers }}
+  kernelVfDrivers: {{ qat_dp_kernel_drivers }}
+  maxNumDevices: {{ qat_dp_max_num_devices }}
+  logLevel: {{ qat_dp_verbosity | default(4) }}
+  nodeSelector:
+    feature.node.kubernetes.io/intel.qat: 'true'

@@ -1,0 +1,150 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# NOTE(pklimowx): repo must be cloned to the controller and, if we want to build
+# images locally, to the first node as well.
+- name: clone Intel Kubernetes Power Manager repository
+  git:
+    repo: "{{ intel_power_manager_git_url }}"
+    version: "{{ intel_power_manager_git_ref }}"
+    dest: "{{ intel_power_manager_dir }}"
+    force: yes
+  when:
+   - inventory_hostname == groups['kube_control_plane'][0] or
+     (inventory_hostname == groups['kube_node'][0] and intel_power_manager.build_image_locally | default(false) | bool)
+
+- name: set facts for Intel Kubernetes Power Manager templates
+  set_fact:
+    power_operator_image: "{{ registry_local_address }}/intel-power-operator"
+    power_operator_image_version: "{{ intel_power_manager_git_ref }}"
+    node_agent_image: "{{ registry_local_address }}/intel-power-node-agent"
+    node_agent_image_version: "{{ intel_power_manager_git_ref }}"
+  when:
+    - intel_power_manager.build_image_locally | default(false) | bool
+
+# NOTE(pklimowx): node-agent DS is deployed automatically via Power Operator after providing
+# PowerProfile. The yaml file needs to be patched before building image to provide correct source for it.
+# Both images depend on intel_power_manager* variable as there is no public image for AppQoS
+- name: patch Node Agent DaemonSet yaml
+  block:
+    - name: use node-agent image from local registry
+      lineinfile:
+        path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
+        regexp: "^        - image: 'intel-power-node-agent:latest'"
+        line: "        - image: '{{ node_agent_image }}:{{ node_agent_image_version }}'"
+
+    - name: use appqos image from local registry
+      lineinfile:
+        path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
+        regexp: "^        - image: 'appqos:latest'"
+        line: "        - image: '{{ app_qos_image }}'"
+  when:
+   - intel_power_manager.build_image_locally | default(false) | bool
+   - inventory_hostname == groups['kube_node'][0]
+
+# docker runtime is in use
+- name: prepare images for Intel Kubernetes Power Manager
+  block:
+    - name: build images for Intel Kubernetes Power Manager
+      command: docker build -f build/{{ item.file }} -t {{ item.name }}:latest .
+      args:
+        chdir: "{{ intel_power_manager_dir }}"
+      with_items:
+        - { file: Dockerfile, name: intel-power-operator }
+        - { file: Dockerfile.nodeagent, name: intel-power-node-agent }
+
+    - name: tag Intel Kubernetes Power Manager images
+      command: docker tag {{ item }}:latest {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
+      with_items:
+        - intel-power-operator
+        - intel-power-node-agent
+
+    - name: push Intel Kubernetes Power Manager images to local registry
+      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
+      with_items:
+        - intel-power-operator
+        - intel-power-node-agent
+  when:
+    - container_runtime == "docker"
+    - intel_power_manager.build_image_locally | default(false) | bool
+    - inventory_hostname == groups['kube_node'][0]
+
+# crio/containerd runtime is in use
+- name: prepare images for Intel Kubernetes Power Manager
+  block:
+    - name: build and tag images for Intel Kubernetes Power Manager
+      command: buildah bud -f build/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_power_manager_git_ref }}
+      args:
+        chdir: "{{ intel_power_manager_dir }}"
+      with_items:
+        - { file: Dockerfile, name: intel-power-operator }
+        - { file: Dockerfile.nodeagent, name: intel-power-node-agent }
+
+    - name: push Intel Kubernetes Power Manager images to local registry
+      command: buildah push {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
+      changed_when: true
+      with_items:
+        - intel-power-operator
+        - intel-power-node-agent
+  when:
+    - container_runtime in ["crio", "containerd"]
+    - intel_power_manager.build_image_locally | default(false) | bool
+    - inventory_hostname == groups['kube_node'][0]
+
+- name: prepare and deploy Intel Power Operator
+  block:
+    - name: apply rbac patch to allow PSP
+      patch:
+        src: "{{ (role_path, 'files', 'rbac.patch') | path_join }}"
+        dest: "{{ (intel_power_manager_dir, 'config', 'rbac', 'rbac.yaml') | path_join }}"
+      when: psp_enabled | default(true) | bool
+
+    - name: apply k8s prerequisites
+      k8s:
+        state: present
+        src: "{{ (intel_power_manager_dir, 'config', 'rbac', item + '.yaml') | path_join }}"
+      with_items:
+        - namespace
+        - rbac
+
+    - name: create and install Intel Power Operator CRDs
+      make:
+        chdir: "{{ intel_power_manager_dir }}"
+
+    - name: populate Intel Kubernetes Power Manager Controller Manager template
+      template:
+        src: controller_manager.yml.j2
+        dest: "{{ (intel_power_manager_dir, 'controller_manager.yml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: deploy Intel Kubernetes Power Manager Controller Manager
+      k8s:
+        state: present
+        src: "{{ (intel_power_manager_dir, 'controller_manager.yml') | path_join }}"
+
+    - name: populate Power Config template
+      template:
+        src: power_config.yml.j2
+        dest: "{{ (intel_power_manager_dir, 'power_config.yml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: apply Power Config
+      k8s:
+        state: present
+        src: "{{ (intel_power_manager_dir, 'power_config.yml') | path_join }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]

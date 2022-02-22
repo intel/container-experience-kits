@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-registry_secret_name: "docker-registry-tls"
+registry_secret_name: "container-registry-tls"
 registry_namespace: "kube-system"
 registry_proxy: 5043
 registry_port: 5000
@@ -30,9 +30,3 @@ release_name: container-registry
 
 registry_auth: "/var/lib/kubelet/config.json"
 registry_auth_env: "REGISTRY_AUTH_FILE=/var/lib/kubelet/config.json"
-
-install_dependencies:
-  Debian:
-    - apache2-utils
-  RedHat:
-    - httpd-tools

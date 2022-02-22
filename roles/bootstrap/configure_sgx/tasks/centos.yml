@@ -1,0 +1,158 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: download DCAP drivers
+  get_url:
+    url: "{{ dcap_driver_url_centos }}"
+    dest: "{{ project_root_dir }}"
+    mode: u=rwx,g=rx,o=rx
+    checksum: "{{ dcap_driver_checksum_centos }}"
+
+- name: check if sgx-{{ dcap_driver_series_centos }} folder is present
+  stat:
+    path: "{{ sgx_folder_check_centos }}"
+  register: folder_check
+  changed_when: true
+
+- debug:
+    msg: "sgx-{{ dcap_driver_series_centos }} is already installed because folder exists, re-installation skipped as it can cause kernel module load issues"
+  when: folder_check.stat.exists
+  changed_when: true
+
+- name: install DCAP driver
+# noqa 305 - shell is used intentionally here
+  shell: "./{{ dcap_driver_version_centos }}"
+  args:
+    chdir: "{{ project_root_dir }}"
+    executable: /bin/bash
+  register: dcap_output_centos
+  failed_when: '"Installation is successful!" not in dcap_output_centos.stdout'
+  changed_when: '"Installation is successful!" in dcap_output_centos.stdout'
+  when: not folder_check.stat.exists
+
+- name: confirm DCAP driver module is installed
+  shell: "set -o pipefail && lsmod | grep sgx"
+  args:
+    chdir: "{{ project_root_dir }}"
+    executable: /bin/bash
+  register: lsmod_output
+  failed_when: '"intel_sgx" not in lsmod_output.stdout'
+  changed_when: false
+
+- debug:
+   var: lsmod_output.stdout_lines
+
+- name: download SGX RPM local repository
+  get_url:
+    url: "{{ sgx_rpm_local_repo_url_centos }}"
+    dest: "{{ project_root_dir }}"
+    mode: u=rwx,g=rx,o=rx
+    checksum: "{{ sgx_rpm_local_repo_checksum_centos }}"
+
+- name: ensure SGX RPM directory exists
+  file:
+    path: "{{ sgx_rpm_directory }}"
+    state: directory
+    mode: u=rwx,g=rx,o=rx
+
+- name: unpack SGX RPM local repository
+  unarchive:
+    src: "{{ project_root_dir }}/{{ sgx_rpm_local_repo_version_centos }}"
+    dest: "{{ sgx_rpm_directory }}"
+    extra_opts: "--strip-components=1"
+    mode: u=rwx,g=rx,o=rx
+    remote_src: yes
+
+- name: add SGX RPM local repository
+  command: "yum-config-manager --add-repo={{ sgx_rpm_directory }}"
+  changed_when: true
+
+- name: disable gpg check in local sgx repo
+  lineinfile:
+    dest: "/etc/yum.repos.d/opt_cek_sgx_rpm_local_repo.repo"
+    insertafter: 'EOF'
+    line: 'gpgcheck=0'
+    mode: '0644'
+
+- name: install sgx platform sw
+  package:
+    disable_gpg_check: yes
+    name:
+      - libsgx-launch
+      - libsgx-urts
+      - libsgx-epid
+      - libsgx-urts
+      - libsgx-quote-ex
+      - libsgx-enclave-common
+      - libsgx-uae-service
+      - sgx-aesm-service
+      - libsgx-dcap-ql
+    state: present
+
+- name: start aesmd service, if not started
+  service:
+    state: started
+    name: aesmd
+
+- name: get aesmd service facts
+  service_facts:
+  register: service_info
+
+- debug:
+    var: service_info.ansible_facts.services['aesmd.service'].state
+  failed_when: "'running' not in service_info.ansible_facts.services['aesmd.service'].state"
+
+- name: download sgx sdk
+  get_url:
+    url: "{{ sgx_sdk_url_centos }}"
+    dest: "{{ project_root_dir }}"
+    mode: u=rwx,g=rx,o=rx
+    checksum: "{{ sgx_sdk_checksum_centos }}"
+
+- name: install sgx sdk
+  shell: "set -o pipefail && echo 'yes' | ./{{ sgx_sdk_version_centos }}"
+  args:
+    chdir: "{{ project_root_dir }}"
+    executable: /bin/bash
+  register: sdk_output
+  failed_when: '"Installation is successful!" not in sdk_output.stdout'
+  changed_when: '"Installation is successful!" in sdk_output.stdout'
+
+- name: setup environment & make code samples in hardware mode to ensure package works well
+  shell: >
+    source {{ project_root_dir }}/sgxsdk/environment &&
+    make
+  args:
+    chdir: "{{ project_root_dir }}/sgxsdk/SampleCode/LocalAttestation"
+    executable: /bin/bash
+  register: make_confirm
+  failed_when: '"The project has been built in hardware debug mode." not in make_confirm.stdout'
+  changed_when: '"The project has been built in hardware debug mode." in make_confirm.stdout'
+
+- name: ensure that sgx driver / psw is installed in hardware mode with code samples
+  command: ./app
+  args:
+    chdir: "{{ project_root_dir }}/sgxsdk/SampleCode/LocalAttestation/bin"
+  register: psw_confirm
+  changed_when: '"Succeed" in psw_confirm.stdout'
+
+- debug:
+    var: psw_confirm.stdout_lines
+  when: '"Succeed" in psw_confirm.stdout'

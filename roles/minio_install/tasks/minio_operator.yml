@@ -1,0 +1,78 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check MinIO Operator Helm charts directory.
+  stat:
+    path: "{{ (project_root_dir, 'charts', 'operator') | path_join }}"
+  register: operator_dir
+
+- name: create MinIO Operator Helm charts directory if needed
+  file:
+    path: "{{ (project_root_dir, 'charts', 'operator') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - operator_dir.stat.exists is defined and not operator_dir.stat.exists
+
+- name: copy MinIO Operator Helm charts to the controller node
+  copy:
+    src: "{{ (role_path, 'charts', 'operator') | path_join }}"
+    dest: "{{ (project_root_dir, 'charts') | path_join }}"
+    mode: 0755
+
+- name: check MinIO Operator Helm charts temp directory.
+  stat:
+    path: "{{ (project_root_dir, 'charts', 'operator', 'temp') | path_join }}"
+  register: operator_temp_dir
+
+- name: create the temp folder for MinIO Operator custom values
+  file:
+    path: "{{ (project_root_dir, 'charts', 'operator', 'temp') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - operator_temp_dir.stat.exists is defined and not operator_temp_dir.stat.exists
+
+- name: populate MinIO Operator Helm charts values template and push to controller node
+  template:
+    src: "minio_operator_custom_values.yml.j2"
+    dest: "{{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-operator-custom-values.yml') | path_join }}"
+    force: yes
+    mode: preserve
+
+- name: create the namespace for MinIO Operator/Console
+  kubernetes.core.k8s:
+    name: "{{ minio_operator_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: label minio on nodes
+  command: >-
+    kubectl label --overwrite nodes {{ item }}
+    {{ minio_storage_worker_key }}={{ minio_storage_worker_value }}
+  loop: "{{ groups['kube_node'] }}"
+  changed_when: true
+
+- name: install MinIO Operator Helm charts
+  command: >-
+    helm install
+    {{ minio_operator_release_name }}
+    {{ (project_root_dir, 'charts/operator') | path_join }}
+    --namespace {{ minio_operator_namespace }}
+    --set installCRDs=true
+    -f {{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-operator-custom-values.yml') | path_join }}
+  changed_when: true

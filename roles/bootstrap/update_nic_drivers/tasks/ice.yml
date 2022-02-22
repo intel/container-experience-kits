@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -23,17 +23,6 @@
 - debug:
     msg: "Currently installed ice version: {{ ice_installed_version.stdout }}"
 
-- name: download ice driver
-  become: yes
-  get_url:
-    url: "{{ ice_driver_url }}"
-    dest: /usr/src
-    checksum: "{{ ice_driver_checksum }}"
-    timeout: 60
-  register: ice_download
-  until: ice_download is not failed
-  retries: 5
-
 - name: unload ice module
   modprobe:
     name: ice
@@ -42,24 +31,37 @@
     - ice_installed_version.stdout != ice_driver_version
     - mgmt_interface_driver.stdout != ice_driver_name
 
-- name: untar ice driver sources
-  unarchive:
-    src: "{{ ice_download.dest }}"
-    dest: /usr/src
-    list_files: yes
-    remote_src: yes
-    mode: 0644
-  become: yes
-  register: ice_untar
+- name: update ice driver
+  block:
+    - name: download ice driver
+      become: yes
+      get_url:
+        url: "{{ ice_driver_url }}"
+        dest: "{{ project_root_dir }}"
+        checksum: "{{ ice_driver_checksum }}"
+        timeout: 60
+      register: ice_download
+      until: ice_download is not failed
+      retries: 5
 
-- name: build and install ice driver
-  make:
-    chdir: "{{ ice_untar.dest }}/{{ ice_untar.files[0] }}/src"
-    target: "{{ item }}"
-  become: yes
-  loop:
-    - clean
-    - install
+    - name: untar ice driver sources
+      unarchive:
+        src: "{{ ice_download.dest }}"
+        dest: "{{ project_root_dir }}"
+        list_files: yes
+        remote_src: yes
+        mode: 0774
+      become: yes
+      register: ice_untar
+
+    - name: build and install ice driver
+      make:
+        chdir: "{{ ice_untar.dest }}/{{ ice_untar.files[0] }}/src"
+        target: "{{ item }}"
+      become: yes
+      loop:
+        - clean
+        - install
   when: ice_installed_version.stdout != ice_driver_version
 
 - name: reboot if driver is used by management interface
@@ -75,15 +77,3 @@
     name: ice
     state: present
 
-- name: get dataplane_interface Device IDs
-  shell: "set -o pipefail && lshw -numeric -businfo -c network | grep -Poi '^.*?{{ item.bus_info }}.*?8086:\\K[0-9a-fA-F]*'"
-  args:
-    executable: /bin/bash
-  register: device_id
-  changed_when: false
-  with_items: "{{ dataplane_interfaces }}"
-
-- name: wait 5 min for CPK devices to initialize
-  pause:
-    minutes: 5
-  when: '"124c" in device_id.results[0].stdout'

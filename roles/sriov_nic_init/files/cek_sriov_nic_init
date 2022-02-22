@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+# Copyright (c) 2020 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+DEVBIND_TOOL=${DEVBIND_TOOL:-"/usr/local/bin/dpdk-devbind.py"}
+SRIOV_NUMVFS_MAPPINGS=${SRIOV_NUMVFS_MAPPINGS:-"/etc/cek/cek_sriov_numvfs"}
+DEVICE_DRIVER_MAPPINGS=${DEVICE_DRIVER_MAPPINGS:-"/etc/cek/cek_interfaces"}
+
+setup_vfs() {
+    echo "Setting up VFs"
+    if [[ ! -r "${SRIOV_NUMVFS_MAPPINGS}" ]]; then
+        echo "File ${SRIOV_NUMVFS_MAPPINGS} doesn't exist, no VFs will be created"
+        return 0
+    fi
+
+    while read -r pci_address numvfs; do
+        if [[ ${pci_address} == "" ]] || [[ ${numvfs} == "" ]]; then
+            echo "Empty PCI address or number of VFs, skipping..."
+            continue
+        fi
+
+        numvfs_path="/sys/bus/pci/devices/${pci_address}/sriov_numvfs"
+        if [[ ! -e "${numvfs_path}" ]]; then
+            echo "Could not find sriov_numvfs for device ${pci_address}, skipping..."
+            continue
+        fi
+
+        read -r current_vfs < "${numvfs_path}"
+
+        echo "Setting up ${numvfs} Virtual Functions on ${pci_address}"
+        if [[ ${current_vfs} -ne ${numvfs} ]]; then
+            # if change is needed we must reset it first
+            echo 0 > "${numvfs_path}"
+            echo "${numvfs}" > "${numvfs_path}"
+        fi
+
+        echo "Setting admin state UP for ${pci_address}"
+        for linkpath in /sys/bus/pci/devices/"${pci_address}"/net/*; do
+            linkname=$(basename "${linkpath}")
+            ip link set dev "${linkname}" up
+        done
+
+    done < "${SRIOV_NUMVFS_MAPPINGS}"
+}
+
+bind_all() {
+    if [[ ! -r "${DEVICE_DRIVER_MAPPINGS}" ]]; then
+        echo "File ${DEVICE_DRIVER_MAPPINGS} doesn't exist, driver bindings won't be changed"
+        return 0
+    fi
+
+    while read -r pci_address driver; do
+        if [[ ${pci_address} == "" ]] || [[ ${driver} == "" ]]; then
+            echo "Empty PCI address or driver, skipping..."
+            continue
+        fi
+
+        echo "Binding ${pci_address} to ${driver}"
+
+        device_path="/sys/bus/pci/devices/${pci_address}"
+
+        # skip if device doesn't exist
+        if [[ ! -e "${device_path}" ]]; then
+            echo "Could not find device ${pci_address}, skipping..."
+            continue
+        fi
+
+        # get current driver
+        if [[ -L "${device_path}/driver" ]]; then
+            current_driver=$(readlink "${device_path}/driver")
+            current_driver=$(basename "$current_driver")
+            echo "Current driver of ${pci_address} is ${current_driver}"
+        else
+            current_driver=""
+        fi
+
+        # don't bind if not needed
+        if [[ "${driver}" != "${current_driver}" ]]; then
+            modprobe -q "${driver}" || true
+            if [[ -e "/sys/bus/pci/drivers/${driver}" ]]; then
+                $DEVBIND_TOOL -b "${driver}" --force "${pci_address}"
+            else
+                echo "Failed to bind ${pci_address}: target driver ${driver} doesn't exist"
+            fi
+        fi
+
+    done < "${DEVICE_DRIVER_MAPPINGS}"
+}
+
+setup_vfs
+bind_all

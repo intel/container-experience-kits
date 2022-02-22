@@ -1,0 +1,89 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create tls folder
+  file:
+    path: "{{ extender.ssl }}"
+    state: directory
+    mode: u=rwX,g=,o=
+    owner: root
+    group: root
+  become: yes
+
+- name: populate cfssl tls templates
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ ('/etc/ssl', extender.name, item ) | path_join }}"
+    force: yes
+    mode: preserve
+  loop:
+    - tls-extender-ca.json
+    - tls-extender.json
+    - tls-extender-client.json
+
+- name: get GOPATH
+  command: /usr/local/go/bin/go env GOPATH
+  register: gopath
+  changed_when: false
+
+- name: generate CA root crt
+  shell: >-
+    set -o pipefail && {{ gopath.stdout }}/bin/cfssl gencert
+    -initca tls-extender-ca.json | {{ gopath.stdout }}/bin/cfssljson -bare ca -
+  args:
+    chdir: "{{ extender.ssl }}"
+    executable: /bin/bash
+  changed_when: true
+
+- name: generate certs
+  shell: >-
+    set -o pipefail && {{ gopath.stdout }}/bin/cfssl gencert
+    -ca=ca.pem -ca-key=ca-key.pem -profile={{ item.name }} {{ item.target }}.json |
+    {{ gopath.stdout }}/bin/cfssljson -bare {{ item.target }}
+  args:
+    chdir: "{{ extender.ssl }}"
+    executable: /bin/bash
+  loop:
+    - { name: server, target: "tls-extender" }
+    - { name: client, target: "tls-extender-client" }
+  changed_when: true
+
+- name: create secret {{ extender.secret_name }}
+  shell: >-
+    set -o pipefail && kubectl create secret generic {{ extender.secret_name }}
+    --namespace {{ pas_namespace }}
+    --from-file={{ extender.secret_name }}.key=tls-extender-key.pem
+    --from-file=ca.crt=ca.pem
+    --from-file={{ extender.secret_name }}.cert=tls-extender.pem
+    -o yaml --dry-run=client | kubectl apply -f -
+  args:
+    chdir: "{{ extender.ssl }}"
+    executable: /bin/bash
+  changed_when: true
+
+- name: remove unneeded files
+  file:
+    state: absent
+    path: "{{ (extender.ssl, item) | path_join }}"
+  loop:
+    - ca.csr
+    - tls-extender-key.pem
+    - tls-extender.pem
+    - tls-extender.csr
+    - tls-extender-client.csr
+    - tls-extender-ca.json
+    - tls-extender.json
+    - tls-extender-client.json

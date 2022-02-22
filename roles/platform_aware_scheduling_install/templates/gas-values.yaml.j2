@@ -1,0 +1,30 @@
+# Default values for gpu-aware-scheduling.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+extenderImage:
+  repository: {{ gas_extender_image }}
+  tag: {{ gas_extender_image_tag }}
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+namespace: {{ pas_namespace | default("kube-system") }}
+fullnameOverride: ""
+clusterName: {{ cluster_name | default("cluster.local") }}
+
+serviceAccount:
+  name: {{ gas_service_account_name | default('') }}
+
+service:
+  type: {{ gas_service_type }}
+  port: {{ gas_service_port }}
+  name: {{ gas_service_name }}
+
+tls:
+  enabled: {{ gas_tls_enabled | default("false") }}
+  secretName: {{ gas_extender_secret_name | default("gas-extender-secret") }}
+  gas_ssl: {{ gas_ssl }}
+
+verbosity: {{ gas_verbosity }}

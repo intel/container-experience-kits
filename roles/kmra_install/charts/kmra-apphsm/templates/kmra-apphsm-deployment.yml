@@ -18,6 +18,10 @@ spec:
         sgx.intel.com/quote-provider: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ .Release.Name }}
+      initContainers:
+      - name: init-tmpfs
+        image: "{{ .Values.apphsm.init.image.repo }}/{{ .Values.apphsm.init.image.name }}:{{ .Values.apphsm.init.image.tag }}"
+        command: ['sh', '-c', "rm -rf /var/lib/softhsm/tokens/*"]
       containers:
       - name: {{ .Release.Name }}
         image: "{{ .Values.apphsm.main.image.repo }}/{{ .Values.apphsm.main.image.name }}:{{ .Values.apphsm.main.image.tag }}"
@@ -29,6 +33,16 @@ spec:
         - name: mtls
           mountPath: /opt/intel/ca
           readOnly: true
+        - name: sgx-qcnl-conf
+          mountPath: /etc/sgx_default_qcnl.conf
+          subPath: sgx_default_qcnl.conf
+          readOnly: true
+        - name: tmpfs
+          mountPath: /tmp
+          subPath: tmp
+        - name: tmpfs
+          mountPath: /var/lib/softhsm/tokens
+          subPath: tokens
         resources:
           limits:
             cpu: 500m
@@ -39,6 +53,8 @@ spec:
             memory: 200Mi
         securityContext:
           runAsUser: 1000
+          runAsGroup: {{ .Values.apphsm.sgx_prv_gid }}
+          readOnlyRootFilesystem: true
       - name: apphsm-rproxy
         image: "{{ .Values.apphsm.rproxy.image.repo }}/{{ .Values.apphsm.rproxy.image.name }}:{{ .Values.apphsm.rproxy.image.tag }}"
         imagePullPolicy: {{ .Values.apphsm.rproxy.image.pullPolicy }}
@@ -79,9 +95,16 @@ spec:
             path: apphsm.crt
           - key: ca.cert
             path: ca.crt
+      - name: sgx-qcnl-conf
+        configMap:
+          name: {{ .Release.Name }}-qcnl-conf
       - name: nginx-conf
         configMap:
           name: {{ .Release.Name }}-rproxy-conf
           items:
             - key: nginx.conf
               path: nginx.conf
+      - name: tmpfs
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi

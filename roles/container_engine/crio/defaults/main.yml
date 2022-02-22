@@ -1,0 +1,83 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+crio_cgroup_manager: "systemd"
+crio_default_runtime: "runc"
+crio_conmon: "/usr/bin/conmon"
+crio_enable_metrics: false
+crio_log_level: "info"
+crio_metrics_port: "9090"
+crio_pause_image: "k8s.gcr.io/pause:3.3"
+
+crio_download_base: "download.opensuse.org/repositories/devel:kubic:libcontainers:stable"
+crio_download_crio: "http://{{ crio_download_base }}:/cri-o:/"
+
+cri_crio_socket: "/var/run/crio/crio.sock"
+
+crun_enabled: false
+
+# Trusted registries to pull unqualified images (e.g. alpine:latest) from
+# By default unqualified images are not allowed for security reasons
+crio_registries: []
+
+# Configure insecure registries.
+crio_insecure_registries: []
+
+# Configure registry auth (if applicable to secure/insecure registries)
+crio_registry_auth: []
+#  - registry: 10.0.0.2:5000
+#    username: user
+#    password: pass
+
+# Define registiries mirror
+crio_registries_mirrors: []
+#  - prefix: docker.io
+#    insecure: false
+#    blocked: false
+#    location: registry-1.docker.io
+#    mirrors:
+#      - location: 172.20.100.52:5000
+#        insecure: true
+#      - location: mirror.gcr.io
+#        insecure: false
+
+crio_seccomp_profile: ""
+crio_selinux: false
+
+# Override system default for storage driver
+# crio_storage_driver: "overlay"
+
+crio_stream_port: "10010"
+
+crio_version: "1.21"
+
+# The crio_runtimes variable defines a list of OCI compatible runtimes.
+crio_runtimes:
+  - name: runc
+    path: /usr/bin/runc
+    type: oci
+    root: /run/runc
+
+# crun is a fast and low-memory footprint OCI Container Runtime fully written in C.
+crun_runtime:
+  name: crun
+  path: /usr/bin/crun
+  type: oci
+  root: /run/crun
+
+# Configure the cri-o pids limit, increase this for heavily multi-threaded workloads
+# see https://github.com/cri-o/cri-o/issues/1921
+crio_pids_limit: 1024

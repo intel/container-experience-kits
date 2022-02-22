@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -57,17 +57,6 @@
         mode: 0644
   when: ansible_distribution in ["CentOS", "RedHat"]
 
-- name: change Intel Speed Select Interface setting
-  lineinfile:
-    path: "{{ gpu_kernel_src_dst }}/.config"
-    regexp: '^# CONFIG_INTEL_SPEED_SELECT_INTERFACE is not set'
-    line: 'CONFIG_INTEL_SPEED_SELECT_INTERFACE=m'
-    state: present
-    mode: 0644
-  when:
-    - ansible_distribution == 'CentOS' and ansible_distribution_version == '8.2'
-    - sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled
-
 - name: modify kernel config while created from Ubuntu 21.04
   block:
     - name: change trusted keys setting
@@ -85,7 +74,7 @@
         line: '#CONFIG_DEBUG_INFO_BTF'
         state: present
         mode: 0644
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04'
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= '20.04'
 
 - name: allow force probe of i915 module
   lineinfile:

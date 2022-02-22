@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 ##
 ---
 - debug:
-    msg: "Starting to remove Intel BMRA Container Experience Kit features ..."
+    msg: "Starting to remove Intel Container Experience Kit features ..."
 
 - name: remove OVS vswitchd
   block:
@@ -42,6 +42,7 @@
       register: ddp_i40e_service
       changed_when: false
       failed_when: false
+
     - name: stop services
       service:
         name: "{{ item }}"
@@ -56,7 +57,7 @@
   block:
     - name: remove custom kernel build files
       make:
-        dest: "/usr/src/kernels/gpu_kernel/"
+        dest: "{{ project_root_dir }}/kernels/gpu_kernel/"
         target: "{{ item }}"
       with_items:
         - clean
@@ -113,7 +114,7 @@
       changed_when: true
       failed_when: false
       become: yes
-      when: ansible_distribution == "CentOS"
+      when: ansible_os_family == "RedHat"
 
     - include_role:
         name: bootstrap/update_grub
@@ -141,17 +142,10 @@
   changed_when: false
   failed_when: false
 
-- name: cleanup /usr/src/*
-  # ansible find module too slow
-  # noqa 305 - shell is used intentionally here
-  shell:
-    cmd: |
-          find /usr/src/ \
-          -not -wholename "/usr/src/" \
-          -and -not -path "/usr/src/linux-headers-*" \
-          -and -not -path "/usr/src/kernels*" \
-          -and -not -path "/usr/src/debug*" \
-          -delete
+- name: cleanup "{{ project_root_dir }}"
+  file:
+    path: "{{ project_root_dir }}"
+    state: absent
   changed_when: false
   failed_when: false
 
@@ -162,5 +156,8 @@
   changed_when: false
   failed_when: false
 
+- name: remove MinIO
+  include_tasks: remove_minio.yml
+
 - debug:
-    msg: "Intel BMRA Container Experience Kit features have been removed ..."
+    msg: "Intel Container Experience Kit features have been removed ..."

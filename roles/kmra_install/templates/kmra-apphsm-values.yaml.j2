@@ -24,6 +24,20 @@ apphsm:
       tag: "{{ kmra_apphsm_rproxy_tag}}"
       pullPolicy: "IfNotPresent"
     port: "{{ kmra_apphsm_service_port }}"
+  init:
+    image:
+      repo: "{{ kmra_apphsm_init_image_repo }}"
+      name: "{{ kmra_apphsm_init_image_name }}"
+      tag: "{{ kmra_apphsm_init_image_tag }}"
+      pullPolicy: "IfNotPresent"
   pccs_port: "{{ kmra_pccs_service_port }}"
   pccs_hostname: "{{ kmra_pccs_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
   sgx_prv_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"
+  use_secure_cert: "{{ kmra_apphsm_use_secure_cert | quote }}"
+  apphsm_key_in_token_name: "{{ kmra_apphsm_key_in_token_name }}"
+  apphsm_token_name: "{{ kmra_apphsm_token_name }}"
+  test_ctk_loadkey_cert_user_id: "{{ kmra_apphsm_test_ctk_loadkey_cert_user_id }}"
+  test_unique_uid: "{{ kmra_apphsm_test_unique_uid }}"
+  default_user_pin: "{{ kmra_apphsm_default_user_pin }}"
+  default_so_pin: "{{ kmra_apphsm_default_so_pin }}"
+

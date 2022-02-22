@@ -43,7 +43,7 @@ Next option defines whether the SRIOV CNI plugin will be installed on the target
 sriov_cni_enabled: true`
 ```
 
-If `sriov_net_dp_enabled` is set to `true` in all.yml (group vars), plase adjust and uncomment below configuration in the node host vars file. Below dictionary will be used to prepare and apply SRIOV Network Device Plugin configuration.
+If `sriov_net_dp_enabled` is set to `true` in all.yml (group vars), please adjust and uncomment below configuration in the node host vars file. Below dictionary will be used to prepare and apply SRIOV Network Device Plugin configuration.
 In the example below we use PF names of the interfaces that we enabled SRIOV for in the above example. Then we define driver bindings for each of them. VFs created on `enp175s0f1` and `enp175s0f2` will be attached to the userspace vfio-pci and igb_uio drivers respectively, which will make them available for use with the userspace dataplane applications. This configuration will also cause assignment of VFs to appropriate resource pools in the SRIOV Network Device Plugin: `intel_sriov_netdevice` for the `enp175s0f0` VFs and `intel_sriov_dpdk` for the `enp175s0f1` VFs.
 ```
 sriov_net_dp_config:

@@ -26,6 +26,12 @@ spec:
           - name: pccs-tls
             mountPath: /opt/intel/pccs/ssl_key
             readOnly: true
+          - name: tmpfs
+            mountPath: /tmp
+            subPath: tmp
+          - name: tmpfs
+            mountPath: /opt/intel/pccs/logs
+            subPath: logs
         resources:
           limits:
             cpu: 500m
@@ -35,6 +41,7 @@ spec:
             memory: 200Mi
         securityContext:
           runAsUser: 65333
+          readOnlyRootFilesystem: true
       - name: pccs-rproxy
         image: "{{ .Values.pccs.rproxy.image.repo }}/{{ .Values.pccs.rproxy.image.name }}:{{ .Values.pccs.rproxy.image.tag }}"
         imagePullPolicy: {{ .Values.pccs.rproxy.image.pullPolicy }}
@@ -85,4 +92,8 @@ spec:
             path: private.pem
           - key: tls.cert
             path: file.crt
+      - name: tmpfs
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
 

@@ -1,0 +1,87 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: load a variable file based on the OS type
+  include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_distribution|lower }}.yml"
+        - "{{ ansible_os_family|lower }}.yml"
+      paths:
+        - ../vars
+
+- include_tasks: containerd_repo.yml
+
+- name: create containerd service systemd directory if it doesn't exist
+  file:
+    path: /etc/systemd/system/containerd.service.d
+    state: directory
+    mode: 0755
+
+- name: write containerd proxy drop-in
+  template:
+    src: http_proxy.conf.j2
+    dest: /etc/systemd/system/containerd.service.d/http-proxy.conf
+    mode: 0644
+  notify: restart containerd
+  when: http_proxy is defined or https_proxy is defined
+
+- name: ensure containerd config directory
+  file:
+    dest: "{{ containerd_cfg_dir }}"
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+
+- name: copy containerd config file
+  template:
+    src: config.toml.j2
+    dest: "{{ containerd_cfg_dir }}/config.toml"
+    owner: "root"
+    mode: 0640
+  notify: restart containerd
+
+- name: ensure containerd packages are installed
+  package:
+    name: "{{ containerd_package_info.pkgs }}"
+    state: present
+  module_defaults:
+    apt:
+      update_cache: true
+    yum:
+      enablerepo: "{{ containerd_package_info.enablerepo | default(omit) }}"
+    dnf:
+      enablerepo: "{{ containerd_package_info.enablerepo | default(omit) }}"
+  register: containerd_task_result
+  until: containerd_task_result is succeeded
+  retries: 4
+  delay: 3
+  notify: restart containerd
+  when: containerd_package_info.pkgs|length > 0
+
+- include_role:  # noqa unnamed-task
+    name: container_engine/crictl
+
+- name: flush handlers
+  meta: flush_handlers
+
+- name: ensure containerd is started and enabled
+  service:
+    name: containerd
+    enabled: yes
+    state: started

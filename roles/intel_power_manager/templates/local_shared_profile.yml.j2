@@ -1,0 +1,11 @@
+---
+apiVersion: "power.intel.com/v1alpha1"
+kind: PowerProfile
+metadata:
+  name: shared-{{ node_name }}
+  namespace: intel-power
+spec:
+  name: "shared-{{ node_name }}"
+  max: {{ max_frequency }}
+  min: {{ min_frequency }}
+  epp: "power"

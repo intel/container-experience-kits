@@ -1,0 +1,77 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+install_dependencies:
+  Debian:
+    - git
+    - make
+  RedHat:
+    - git
+    - make
+
+# Platform Aware Scheduler
+pas_git_url: "https://github.com/intel/platform-aware-scheduling.git"
+pas_dir: "{{ (project_root_dir, 'platform-aware-scheduling') | path_join }}"
+pas_namespace: kube-system
+
+# Descheduler
+descheduler_git_url: https://github.com/kubernetes-sigs/descheduler.git
+descheduler_git_version: "v0.22.1"
+descheduler_dir: "{{ (project_root_dir, 'sigs.k8s.io/descheduler') | path_join }}"
+sigs_k8s_io_dir: "{{ (project_root_dir, 'sigs.k8s.io') | path_join }}"
+
+# TAS deployment
+tas_enabled: false
+tas_build_image_locally: false
+tas_git_version: "tas_v0.1"
+tas_extender_image_tag_default: "0.1"
+tas_version: "{{ ('tas' in tas_git_version) | ternary(tas_git_version[5:], tas_git_version[1:]) }}"
+tas_extender_dir: "telemetry-aware-scheduling"
+tas_extender_image: "{{ (tas_build_image_locally | bool) | ternary(registry_local_address + '/telemetry-aware-scheduling', 'docker.io/intel/telemetry-aware-scheduling') }}"
+tas_extender_image_tag: "{{ (tas_build_image_locally | bool or 'tas' in tas_git_version) | ternary(tas_version, tas_extender_image_tag_default) }}"
+tas_image_build_context: "{{ ('tas' in tas_git_version or not 'tas' in tas_git_version and tas_version is version('0.6', '>')) | ternary('../', './bin') }}"
+tas_build_bin: true
+tas_name: "tas"
+tas_extender_secret_name: "tas-extender-secret"
+tas_service_name: "telemetry-aware-scheduling"
+tas_tls_enabled: true
+tas_ssl: "/etc/ssl/tas"
+tas_enable_demo_policy: false
+tas_service_type: "ClusterIP"
+tas_service_port: 9001
+tas_service_account_name: ''
+tas_verbosity: 4
+
+# GAS deployment
+gas_enabled: false
+gas_build_image_locally: false
+gas_git_version: "gas_v0.1"
+gas_extender_image_tag_default: "0.1"
+gas_version: "{{ ('gas' in gas_git_version) | ternary(gas_git_version[5:], gas_git_version[1:]) }}"
+gas_extender_dir: "gpu-aware-scheduling"
+gas_extender_image: "{{ (gas_build_image_locally | bool) | ternary(registry_local_address + '/gpu-extender', 'docker.io/intel/gpu-extender') }}"
+gas_extender_image_tag: "{{ (gas_build_image_locally | bool or 'gas' in gas_git_version) | ternary(gas_version, gas_extender_image_tag_default) }}"
+gas_image_build_context: "../"
+gas_build_bin: false
+gas_name: "gas"
+gas_extender_secret_name: "gas-extender-secret"
+gas_service_name: "gpu-aware-scheduling"
+gas_tls_enabled: true
+gas_ssl: "/etc/ssl/gas"
+gas_service_type: "ClusterIP"
+gas_service_port: 9001
+gas_service_account_name: ''
+gas_verbosity: 4

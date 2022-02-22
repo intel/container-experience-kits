@@ -1,0 +1,73 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+
+# This task might not be needed as libvirt will use root group
+- name: Add root user to libvirt group
+  user:
+    name: root
+    groups: libvirt
+    append: yes
+
+- name: Update Libvirt to use root user and group
+  lineinfile:
+    path: "/etc/libvirt/qemu.conf"
+    regexp: "#{{ item }}"
+    line: "{{ item }}"
+  with_items:
+    - 'user = "root"'
+    - 'group = "root"'
+
+- name: Add dependency on PCI device services
+  lineinfile:
+    path: "/lib/systemd/system/libvirtd.service"
+    insertafter: "After="
+    regexp: "After={{ item }}"
+    line: "After={{ item }}"
+  with_items:
+    - "cek_sriov_nic_init.service"
+    - "cek_sriov_qat_init.service"
+
+- name: Add startup delay for libvirtd to wait for PCI devices get ready
+  lineinfile:
+    path: "/lib/systemd/system/libvirtd.service"
+    insertafter: "Service"
+    firstmatch: yes
+    regexp: "ExecStartPre=/bin/sleep 10"
+    line: "ExecStartPre=/bin/sleep 10"
+
+- name: Restart Libvirtd service
+  service:
+    name: libvirtd
+    state: restarted
+    daemon_reload: yes
+
+- name: check if /sys/fs/resctrl is available
+  stat:
+    path: "/sys/fs/resctrl"
+  register: resctrl_available
+
+- name: mount resctrl
+  mount:
+    path: /sys/fs/resctrl
+    src: resctrl
+    fstype: resctrl
+    state: mounted
+  when: resctrl_available.stat.exists

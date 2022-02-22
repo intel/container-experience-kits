@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -24,68 +24,36 @@
   register: turbo_details
   changed_when: false
 
-- name: Intel Turbo Boost Technology is enabled in CPU/BIOS, set value = True
+- name: set Intel Turbo Boost Technology is enabled in CPU/BIOS
   set_fact:
     turbo_bios_enabled: True
   when: '"true" in turbo_details.stdout'
 
-- name: Intel Turbo Boost Technology is disabled in CPU/BIOS, set value = False
+- name: set Intel Turbo Boost Technology is disabled in CPU/BIOS
   set_fact:
     turbo_bios_enabled: False
   when: '"false" in turbo_details.stdout'
 
-- name: check if the pstate turbo management file is available
-  stat:
-    path: "{{ intel_turbo_path }}"
-  register: intel_pstate_folder
+- name: configure Intel Turbo Boost Technology
+  block:
+    # returned 1 indicates turbo is now off and returned 0 indicates turbo is now on
+    - name: set turbo boost is enabled
+      set_fact:
+        turbo_value: 1
+      when: not turbo_boost_enabled
 
-- name: pstate turbo management file missing, playbook terminated
-  fail:
-    msg:
-      - "failed to configure sysfs turbo attribute for Intel pstate"
-      - "pstate turbo management file path is missing, please verify BIOS setting Hardware P-States is enabled"
-  when: not intel_pstate_folder.stat.exists
+    - name: set turbo boost is disabled
+      set_fact:
+        turbo_value: 0
+      when: turbo_boost_enabled
 
-- name: check status of turbo_value on system before configuration
-  command: "cat {{ intel_turbo_path }}"
-  register: turbo_status
-  changed_when: true
+    - name: configure sysfs turbo attribute for Intel pstate when turbo_value = {{ turbo_value }}
+      shell: "echo {{ turbo_value }} > {{ intel_turbo_path }}"
+      args:
+        executable: /bin/bash
+  when: turbo_bios_enabled
 
-- debug:
-    msg: "current status of turbo_value on system is = {{ turbo_status.stdout }}"
-
-- name: configuration cannot be continued as turbo_value = 1 (False)
+- name: configuration cannot be continued
   debug:
     msg: "Intel Turbo Boost Technology is disabled in CPU/BIOS, configuration skipped"
   when: not turbo_bios_enabled
-
-# returned 1 indicates turbo is now off and returned 0 indicates turbo is now on
-- name: set turbo_value = 1 when turbo_boost_enabled = false in host vars
-  set_fact:
-    turbo_value: 1
-  when:
-    - turbo_bios_enabled
-    - not turbo_boost_enabled
-
-- name: set turbo_value = 0 when turbo_boost_enabled = true in host vars
-  set_fact:
-    turbo_value: 0
-  when:
-    - turbo_bios_enabled
-    - turbo_boost_enabled
-
-- name: configure sysfs turbo attribute for Intel pstate when turbo_value = {{ turbo_value }}
-  shell: "echo {{ turbo_value }} > {{ intel_turbo_path }}"
-  args:
-    executable: /bin/bash
-  when: turbo_bios_enabled
-
-- name: check status of turbo_value on system after configuration
-  command: "cat {{ intel_turbo_path }}"
-  register: turbo_status_recheck
-  changed_when: true
-  when: turbo_bios_enabled
-
-- debug:
-    msg: "status of turbo_value on system after configuration is = {{ turbo_status_recheck.stdout }}"
-  when: turbo_bios_enabled

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,24 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-# nvmupdate package URLs, checksums and minimum target FW version required (e.g. to enable DDP profiles loading)
-nvmupdate:
-  # 700 Series
-  i40e:
-    nvmupdate_pkg_url: https://downloadmirror.intel.com/25791/eng/700series_nvmupdatepackage_v8_40_linux.tar.gz
-    nvmupdate_pkg_checksum: sha1:D9DF143BF7B1EAF172C5BFA70216FFD7EBCBF980
-    min_required_fw_version: 8.40
-    min_updatable_fw_version: 5.51
-  # 800 Series (CVL)
-  ice:
-    nvmupdate_pkg_url: https://downloadmirror.intel.com/29738/eng/e810_nvmupdatepackage_v3_00_linux.tar_.gz
-    nvmupdate_pkg_checksum: sha1:E03C3F9CFB042EAE5C1C16BED352E09FCDEBD0E6
-    min_required_fw_version: 3.00
-    min_updatable_fw_version: 0.70
-
-nvmupdate_result:
-  stdout: ""
-
 # dependencies
 install_dependencies:
   Debian:

@@ -1,0 +1,66 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Set CRI-O kubic repo name for Ubuntu
+  set_fact:
+    crio_kubic_ubuntu_repo_name: "{{ ((ansible_distribution == 'Ubuntu') | ternary('x','')) ~ ansible_distribution ~ '_' ~ ansible_distribution_version }}"
+  when: ansible_distribution == "Ubuntu"
+
+- name: Add CRI-O kubic apt repo key
+  apt_key:
+    url: "https://{{ crio_download_base }}/{{ crio_kubic_ubuntu_repo_name }}/Release.key"
+    state: present
+  when: crio_kubic_ubuntu_repo_name is defined
+  register: apt_key_download
+  until: apt_key_download is succeeded
+  retries: 4
+  delay: 3
+  environment: "{{ proxy_env }}"
+
+- name: Add CRI-O kubic apt repo
+  apt_repository:
+    repo: "deb http://{{ crio_download_base }}/{{ crio_kubic_ubuntu_repo_name }}/ /"
+    state: present
+    filename: devel-kubic-libcontainers-stable
+  when: crio_kubic_ubuntu_repo_name is defined
+
+- name: add CRI-O kubic cri-o apt repo
+  apt_repository:
+    repo: "deb {{ crio_download_crio }}{{ crio_version }}/{{ crio_kubic_ubuntu_repo_name }}/ /"
+    state: present
+    filename: devel-kubic-libcontainers-stable-cri-o
+  when: crio_kubic_ubuntu_repo_name is defined
+
+- name: add CRI-O kubic yum repo
+  yum_repository:
+    name: devel_kubic_libcontainers_stable
+    description: Stable Releases of Upstream github.com/containers packages (CentOS_$releasever)
+    baseurl: http://{{ crio_download_base }}/CentOS_{{ ansible_distribution_major_version }}/
+    gpgcheck: yes
+    gpgkey: http://{{ crio_download_base }}/CentOS_{{ ansible_distribution_major_version }}/repodata/repomd.xml.key
+    keepcache: '0'
+  when:
+    - ansible_os_family == "RedHat"
+
+- name: add CRI-O kubic yum repo
+  yum_repository:
+    name: "devel_kubic_libcontainers_stable_cri-o_{{ crio_version }}"
+    description: "CRI-O {{ crio_version }} (CentOS_$releasever)"
+    baseurl: "{{ crio_download_crio }}{{ crio_version }}/CentOS_{{ ansible_distribution_major_version }}/"
+    gpgcheck: yes
+    gpgkey: "{{ crio_download_crio }}{{ crio_version }}/CentOS_{{ ansible_distribution_major_version }}/repodata/repomd.xml.key"
+  when:
+    - ansible_os_family == "RedHat"

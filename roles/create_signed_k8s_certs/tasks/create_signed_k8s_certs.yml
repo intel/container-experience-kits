@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -63,12 +63,14 @@
     mode: preserve
 
 - name: get GOPATH
-  command: go env GOPATH
+  command: /usr/local/go/bin/go env GOPATH
   register: gopath
   changed_when: false
 
 - name: generate key and CSR
-  shell: set -o pipefail && {{ gopath.stdout }}/bin/cfssl genkey {{ secret_name }}-csr.json | {{ gopath.stdout }}/bin/cfssljson -bare {{ key_pair_name }}
+  shell: >-
+    set -o pipefail &&
+    {{ gopath.stdout }}/bin/cfssl genkey {{ secret_name }}-csr.json | {{ gopath.stdout }}/bin/cfssljson -bare {{ key_pair_name }}
   args:
     chdir: "{{ host_secrets_folder }}"
     executable: /bin/bash

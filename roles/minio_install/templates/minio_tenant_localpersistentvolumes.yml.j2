@@ -1,0 +1,25 @@
+{%- for pv in hostvars[item]['minio_pv'] %}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+   name: {{ pv.name }}-{{ item }}
+spec:
+   capacity:
+      storage: {{ pv.capacity[:-1] }}
+   volumeMode: Filesystem
+   accessModes:
+   - {{ pv.accessMode }}
+   persistentVolumeReclaimPolicy: {{ pv.persistentVolumeReclaimPolicy }}
+   storageClassName: {{ pv.storageClassName }}
+   local:
+      path: {{ pv.mountPath }}
+   nodeAffinity:
+      required:
+         nodeSelectorTerms:
+         - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+              - {{ item }}
+{% endfor %}

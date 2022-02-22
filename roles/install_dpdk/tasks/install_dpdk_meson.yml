@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,18 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: install Python3 from epel-release
-  package:
-    name:
-      - python36
-      - python36-devel
-      - libselinux-python
-    state: present
-    enablerepo: "epel"
-  when:
-    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
-    - ansible_distribution_version < '8'
-
 - name: install dpdk-devel required for libraries enablement in RHEL / CentOS >= 8.2
   dnf:
     name: dpdk-devel
@@ -37,7 +25,7 @@
       pip:
         name:
           - selinux
-          - meson>=0.53.2
+          - meson>=0.53.2,<0.60.0
           - ninja>=1.10.0
           - pyelftools>=0.26
         state: present

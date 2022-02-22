@@ -23,6 +23,12 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+{{- if .Values.gpu_dp.enabled }}
+{{- if .Values.gpu_dp.max_memory }}
+          - name: GPU_MEMORY_OVERRIDE
+            value: "{{ .Values.gpu_dp.max_memory }}"
+{{- end }}
+{{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           name: nfd-worker
           command:

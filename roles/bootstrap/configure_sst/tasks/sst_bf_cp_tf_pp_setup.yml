@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,12 +17,6 @@
 - name: install 'intel-speed-select' tool on Ubuntu 20.04+ on ICX Platform
   include_tasks: ubuntu_install_sst_tool.yml
   when: ansible_distribution == 'Ubuntu' and ansible_distribution_version > '18.04'
-
-- name: compile and load isst module on CentOS 8.2 on ICX Platform
-  include_tasks: centos8_2_install_isst_interface.yml
-  when:
-    - sst_bf_configuration_enabled and icx_centos8_2_load_isst_modules
-    - ansible_distribution == 'CentOS' and ansible_distribution_version == '8.2'
 
 - name: Intel(R)-Speed-Select-Technology (ISST) verification
   command: "intel-speed-select --info"
@@ -42,21 +36,21 @@
   command: "intel-speed-select base-freq enable -a"
   register: sst_bf_verify
   when:
-    - sst_bf_configuration_enabled
+    - sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled
     - '"get-config-levels:0" in sst_pp_verify.stderr'
 
 - name:  SST-CP verification
   command: "intel-speed-select core-power enable -a"
   register: sst_cp_verify
   when:
-    - sst_cp_configuration_enabled
+    - sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled
     - '"get-config-levels:0" in sst_pp_verify.stderr'
 
 - name:  SST-TF verification
   command: "intel-speed-select turbo-freq enable -a"
   register: sst_tf_verify
   when:
-    - sst_tf_configuration_enabled
+    - sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled
     - '"get-config-levels:0" in sst_pp_verify.stderr'
 
 - name: update the dynamic linker cache before ISST features configuration
@@ -68,54 +62,53 @@
     - name: configure SST-BF
       include_tasks: icx_sst_bf.yml
       when:
-        - sst_bf_configuration_enabled
+        - sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled
         - '"enable:succes" in sst_bf_verify.stderr'
     - debug:
         msg: "Intel(R) SST-BF (feature base-freq) is not supported on platform or already been configured, SST-BF enablement skipped"
       when:
-        - sst_bf_configuration_enabled
+        - sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled
         - '"enable:succes" not in sst_bf_verify.stderr'
       changed_when: true
 
     - name: configure SST-CP
       include_tasks: icx_sst_cp.yml
       when:
-        - sst_cp_configuration_enabled
+        - sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled
         - '"enable:succes" in sst_cp_verify.stderr'
     - debug:
         msg: "Intel(R) SST-CP (feature core-power) is not supported on platform or already been configured, SST-CP enablement skipped"
       when:
-        - sst_cp_configuration_enabled
+        - sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled
         - '"enable:succes" not in sst_cp_verify.stderr'
       changed_when: true
 
     - name: configure SST-TF
       include_tasks: icx_sst_tf.yml
       when:
-        - sst_tf_configuration_enabled
+        - sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled
         - '"enable:succes" in sst_tf_verify.stderr'
     - debug:
         msg: "Intel(R) SST-TF (feature turbo-freq) is not supported on platform or already been configured, SST-TF enablement skipped"
       when:
-        - sst_tf_configuration_enabled
+        - sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled
         - '"enable:succes" not in sst_tf_verify.stderr'
       changed_when: true
   when:
     - '"get-config-levels:0" in sst_pp_verify.stderr'
     - ansible_distribution == 'Ubuntu' or
-      (ansible_distribution == 'CentOS' and ansible_distribution_version == '8.2' and icx_centos8_2_load_isst_modules) or
       (ansible_distribution in ['RedHat', 'CentOS'] and ansible_distribution_version >= '8.3')
 
 # Intel(R) SST-PP (feature perf-profile) configuration
 - name: check if SST-PP dir exists
   stat:
-    path: "/usr/src/SST_PP_config"
+    path: "{{ project_root_dir }}/sst_pp_config"
   register: check_sst_pp_dir
 
 - name: configure Intel(R) SST-PP (perf-profile)
   include_tasks: sst_pp.yml
   when:
-    - sst_pp_configuration_enabled
+    - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
     - not check_sst_pp_dir.stat.exists
     - '"Intel(R) SST-PP (feature perf-profile) is supported" in isst_verify.stderr_lines'
     - ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04' or
@@ -124,7 +117,7 @@
 - debug:
     msg: "Intel(R) SST-PP (perf-profile) is not supported on platform, SST-PP deployment skipped"
   when:
-    - sst_pp_configuration_enabled
+    - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
     - '"Intel(R) SST-PP (feature perf-profile) is supported" not in isst_verify.stderr_lines'
   changed_when: true
 
@@ -132,6 +125,6 @@
   debug:
     msg: "Intel(R) SST-PP (perf-profile) already been configured, SST-PP enablement skipped"
   when:
-    - sst_pp_configuration_enabled
+    - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
     - check_sst_pp_dir.stat.exists
   changed_when: true

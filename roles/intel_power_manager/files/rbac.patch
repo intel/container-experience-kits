@@ -1,0 +1,77 @@
+diff --git a/config/rbac/rbac.yaml b/config/rbac/rbac.yaml
+index 4b2700a..a551cee 100644
+--- a/config/rbac/rbac.yaml
++++ b/config/rbac/rbac.yaml
+@@ -50,7 +50,11 @@ rules:
+ - apiGroups: ["", "power.intel.com", "apps"]
+   resources: ["nodes", "nodes/status", "configmaps", "powerconfigs", "powerconfigs/status", "powerprofiles", "powerprofiles/status", "powerworkloads", "powerworkloads/status", "powernodes", "powernodes/status", "events", "daemonsets"]
+   verbs: ["*"]
+-
++- apiGroups: ['policy']
++  resources: ['podsecuritypolicies']
++  verbs:     ['use']
++  resourceNames:
++    - power-manager-psp
+ ---
+ 
+ apiVersion: rbac.authorization.k8s.io/v1
+@@ -76,7 +80,11 @@ rules:
+ - apiGroups: ["", "power.intel.com"]
+   resources: ["nodes", "nodes/status", "pods", "pods/status", "powerprofiles", "powerprofiles/status", "powerworkloads", "powerworkloads/status", "powernodes", "powernodes/status"]
+   verbs: ["*"]
+-
++- apiGroups: ['policy']
++  resources: ['podsecuritypolicies']
++  verbs:     ['use']
++  resourceNames:
++    - node-agent-psp
+ ---
+ 
+ apiVersion: rbac.authorization.k8s.io/v1
+@@ -93,3 +101,46 @@ roleRef:
+   apiGroup: rbac.authorization.k8s.io
+ 
+ ---
++apiVersion: policy/v1beta1
++kind: PodSecurityPolicy
++metadata:
++  name: power-manager-psp
++spec:
++  privileged: true
++  allowPrivilegeEscalation: true
++  allowedCapabilities:
++  - '*'
++  allowedUnsafeSysctls:
++  - '*'
++  fsGroup:
++    rule: RunAsAny
++  runAsUser:
++    rule: RunAsAny
++  seLinux:
++    rule: RunAsAny
++  supplementalGroups:
++    rule: RunAsAny
++  volumes:
++  - '*'
++---
++apiVersion: policy/v1beta1
++kind: PodSecurityPolicy
++metadata:
++  name: node-agent-psp
++spec:
++  privileged: true
++  allowPrivilegeEscalation: true
++  allowedCapabilities:
++  - '*'
++  allowedUnsafeSysctls:
++  - '*'
++  fsGroup:
++    rule: RunAsAny
++  runAsUser:
++    rule: RunAsAny
++  seLinux:
++    rule: RunAsAny
++  supplementalGroups:
++    rule: RunAsAny
++  volumes:
++  - '*'

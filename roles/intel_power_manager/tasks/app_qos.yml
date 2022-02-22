@@ -1,0 +1,103 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone Intel CMT CAT repository
+  git:
+    repo: "{{ intel_appqos_git_url }}"
+    version: "{{ intel_appqos_git_ref }}"
+    dest: "{{ intel_appqos_dir }}"
+    force: yes
+  when: inventory_hostname in groups['kube_node']
+
+# NOTE(pklimowx): since AppQoS image is not available on docker hub
+# and public images of the Power Operator use `appqos:latest` image,
+# we have to build AppQoS image on each node, and push it to localregistry
+# only once.
+#
+# docker runtime is in use
+- name: prepare image for Application Quality of Service
+  block:
+    # NOTE(pklimowx): w/a for error "ModuleNotFoundError: No module named 'pqos'"
+    - name: copy pqos module to appqos working dir
+      copy:
+        remote_src: yes
+        src: "{{ (intel_appqos_dir, 'lib', 'python', 'pqos') | path_join }}"
+        dest: "{{ (intel_appqos_dir, 'appqos') | path_join }}"
+        mode: 0755
+
+    - name: build image of App QoS
+      command: docker build --no-cache -t appqos -f Dockerfile ../../
+      args:
+        chdir: "{{ (intel_appqos_dir, 'appqos', 'docker') | path_join }}"
+
+    - name: tag App QoS image
+      command: docker tag appqos:latest {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      when: inventory_hostname == groups['kube_node'][0]
+
+    - name: push App QoS image to local registry
+      command: docker push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      when: inventory_hostname == groups['kube_node'][0]
+  when:
+    - container_runtime == "docker"
+    - inventory_hostname in groups['kube_node']
+
+# crio/containerd runtime is in use
+- name: prepare image for Application Quality of Service
+  block:
+    - name: build and tag App QoS image
+      command: buildah bud -f Dockerfile -t {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      args:
+        chdir: "{{ (intel_appqos_dir, 'appqos', 'docker') | path_join }}"
+
+    - name: push App QoS image to local registry
+      command: buildah push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      changed_when: true
+      when: inventory_hostname == groups['kube_node'][0]
+  when:
+    - container_runtime in ["crio", "containerd"]
+    - inventory_hostname in groups['kube_node']
+
+- name: generate App QoS certificates
+  block:
+    - name: create directory for App QoS certs
+      file:
+        state: directory
+        path: "{{ intel_appqos_cert_dir }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0755
+        recurse: yes
+
+    - name: generate certificates
+      command: "{{ item }}"
+      args:
+        chdir: "{{ intel_appqos_cert_dir }}"
+      with_items:
+        - openssl req -nodes -x509 -newkey rsa:4096 -keyout ca.key -out ca.crt -days 365 -subj "/O=AppQoS/OU=root/CN=localhost"
+        - openssl req -nodes -newkey rsa:3072 -keyout appqos.key -out appqos.csr -subj "/O=AppQoS/OU=AppQoS Server/CN=localhost"
+        - openssl x509 -req -in appqos.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out appqos.crt
+
+    - name: copy example App QoS config to /etc/certs/public
+      copy:
+        src: appqos.conf
+        dest: "{{ intel_appqos_cert_dir }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0644
+
+- name: set facts for Intel App QoS templates
+  set_fact:
+    app_qos_image: "{{ registry_local_address }}/appqos:{{ intel_appqos_version }}"

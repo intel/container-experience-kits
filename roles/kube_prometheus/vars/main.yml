@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-kube_prometheus_path: /usr/src/kube-prometheus
+# variables in this file are not intended to be modified by the user directly
+# please use defaults/main.yml instead
+kube_prometheus_path: "{{ project_root_dir }}/kube-prometheus"
 telemetry_namespace: monitoring # this is not templated everywhere yet.
 
 tas_demo_policy_dir: /opt/intel/tas-demo-policy

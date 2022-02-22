@@ -74,7 +74,11 @@ spec:
               mountPath: /sys/kernel/debug
               readOnly: true
             - name: hostresctrl
+            {{- if .Values.on_vms }}
+              mountPath: /root/resctrl
+            {{- else }}
               mountPath: /sys/fs/resctrl
+            {{- end }}
               readOnly: false
             - name: hostudev
               mountPath: /run/udev
@@ -113,10 +117,6 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       volumes:
         - name: config
           configMap:
@@ -147,7 +147,11 @@ spec:
             path: /sys/kernel/debug
         - name: hostresctrl
           hostPath:
+        {{- if .Values.on_vms }}
+            path: /root/resctrl
+        {{- else }}
             path: /sys/fs/resctrl
+        {{- end }}
         - name: hostudev
           hostPath:
             path: /run/udev

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,8 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-qat_drivers_version: '1.7.l.4.14.0-00031'
-qat_drivers_download_url: 'https://downloadmirror.intel.com/30178/eng/qat{{qat_drivers_version }}.tar.gz'
-qat_drivers_pkg_checksum: 'sha1:7D38020917B4D488F875E66ADC4CFF207732CF03'
+qat_drivers_version: 'QAT.L.4.16.0-00017'
+qat_drivers_download_url: 'https://downloadmirror.intel.com/710050/{{qat_drivers_version }}.tar.gz'
+qat_drivers_pkg_checksum: 'sha1:ACD86FD58AE0C96DBAD1F7992829B4B8ACBA9940'
+qat_drivers_dir: "{{ (project_root_dir, 'qat_drivers') | path_join }}"
 
 libudev_version: '247.3-3ubuntu3'

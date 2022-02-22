@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,15 +22,19 @@
   apt:
     name: >-
       {%- if ansible_distribution_version == '21.04' -%}
-      libudev-dev={{ libudev_version }}
+      {%- if on_vms is defined and on_vms -%}
+      ['libudev-dev={{ libudev_version }}*']
+      {%- else -%}
+      ['libudev-dev={{ libudev_version }}']
+      {%- endif -%}
       {%- else -%}
       libudev-dev
       {%- endif -%}
   when: ansible_distribution == "Ubuntu"
 
-- name: create directory /usr/src/QAT_drivers for all QAT dependencies
+- name: create directory {{ qat_drivers_dir }} for all QAT dependencies
   file:
-    path: /usr/src/QAT_drivers
+    path: "{{ qat_drivers_dir }}"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
 
@@ -38,22 +42,22 @@
   get_url:
     url: "{{ qat_drivers_download_url }}"
     checksum: "{{ qat_drivers_pkg_checksum }}"
-    dest: /usr/src/QAT_drivers
+    dest: "{{ qat_drivers_dir }}"
   register: qat_driver
   until: qat_driver is not failed
   retries: 5
 
 - name: unarchive QAT drivers package
   unarchive:
-    src: /usr/src/QAT_drivers/qat{{ qat_drivers_version }}.tar.gz
-    dest: /usr/src/QAT_drivers
+    src: "{{ qat_drivers_dir }}/{{ qat_drivers_version }}.tar.gz"
+    dest: "{{ qat_drivers_dir }}"
     remote_src: yes
     mode: 0755
 
 - name: check all packages are present for QAT drivers installation
   command: ./configure
   args:
-    chdir: /usr/src/QAT_drivers
+    chdir: "{{ qat_drivers_dir }}"
   register: qat_requirements
   ignore_errors: true
   changed_when: true
@@ -67,7 +71,7 @@
 
 - name: make install QAT drivers
   make:
-    chdir: /usr/src/QAT_drivers
+    chdir: "{{ qat_drivers_dir }}"
     target: install
   register: qat_make_install
   become: yes
@@ -80,35 +84,31 @@
       - "Purpose for failure might be an already intel_qat module set up on server. Recommended is to have clean image of OS without pre-installed QAT module."
       - "make uninstall && make clean && make distclean commands can roll-back QAT drivers package {{ qat_drivers_version }} already carried out this point"
   when:
-    - ansible_distribution == "CentOS"
-    - ansible_distribution_version > '8'
+    - ansible_distribution == "CentOS" and ansible_distribution_version >= '8.3'
     - "'ERROR:' in qat_make_install.stderr"
 
 - name: confirm QAT module installed
   shell: "set -o pipefail && lsmod | grep qat"
   args:
-    chdir: "/usr/src/QAT_drivers"
     executable: /bin/bash
   register: qat_confirm
   failed_when: '"intel_qat" not in qat_confirm.stdout'
   changed_when: false
 
-- debug:
-   var: qat_confirm.stdout_lines
+- name: enable SRIOV QAT devices on VMs
+  lineinfile:
+    path: "/etc/default/qat"
+    line: "SRIOV_ENABLE=1"
+    regexp: "^#SRIOV_ENABLE=1"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - on_vms is defined and on_vms
 
-- name: start QAT service, if not started
+- name: make sure QAT service is started and enabled
   service:
-    state: started
+    state: restarted
     name: qat_service
-  register: qat_service_state
-
-# ansible_facts.services is not supported currently with latest QAT drivers 
-- name: check status of QAT service after started
-  command: service qat_service status
-  args:
-    warn: false
-  register: qat_enabled
-  changed_when: true
-
-- debug:
-    var: qat_enabled.stdout_lines
+    enabled: yes

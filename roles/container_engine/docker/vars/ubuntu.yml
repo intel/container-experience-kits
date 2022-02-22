@@ -1,0 +1,48 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# https://download.docker.com/linux/ubuntu/
+docker_versioned_pkg:
+  'latest': docker-ce
+  '18.09': docker-ce=5:18.09.9~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  '19.03': docker-ce=5:19.03.15~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  '20.10': docker-ce=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  'stable': docker-ce=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  'edge': docker-ce=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+
+docker_cli_versioned_pkg:
+  'latest': docker-ce-cli
+  '18.09': docker-ce-cli=5:18.09.9~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  '19.03': docker-ce-cli=5:19.03.15~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  '20.10': docker-ce-cli=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+
+docker_package_info:
+  pkgs:
+    - "{{ containerd_versioned_pkg[containerd_version | string] }}"
+    - "{{ docker_cli_versioned_pkg[docker_cli_version | string] }}"
+    - "{{ docker_versioned_pkg[docker_version | string] }}"
+
+docker_repo_key_info:
+  url: '{{ docker_ubuntu_repo_gpgkey }}'
+  repo_keys:
+    - '{{ docker_ubuntu_repo_repokey }}'
+
+docker_repo_info:
+  repos:
+    - >
+      deb [arch=amd64] {{ docker_ubuntu_repo_base_url }}
+      {{ ansible_distribution_release|lower }}
+      stable

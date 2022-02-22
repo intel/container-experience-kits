@@ -9,6 +9,8 @@ prometheusMetricsEndpointPort: {{ telegraf_prometheus_metrics_endpoint_port }}
 # whether tpo deploy Prometheus ServiceMonitor
 prometheusServiceMonitor: {{ telegraf_prometheus_service_monitor | bool }}
 
+on_vms: {{ on_vms | default(false) }}
+
 # telegraf container
 telegraf:
   image:
@@ -60,12 +62,6 @@ podSecurityContext: {}
 
 nodeSelector:
   kubernetes.io/os: linux
-
-tolerations:
-  - key: cmk
-    operator: Equal
-    effect: NoSchedule
-    value: "true"
 
 affinity: {}
 

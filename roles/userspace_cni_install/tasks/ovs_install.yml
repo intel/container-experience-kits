@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,45 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: install RHEL7/CentOS7 workarounds
-  block:
-    - name: install Python3 from epel-release
-      package:
-        name:
-          - python36
-          - python36-devel
-        enablerepo: "epel"
-
-    - name: download pkg-config src
-      unarchive:
-        src: "{{ pkg_config_url }}"
-        dest: "/usr/src"
-        remote_src: yes
-        list_files: yes
-        mode: 0755
-      register: pkg_config_download
-
-    - name: set local pkg-config directory path
-      set_fact:
-        pkg_config_dir: "{{ pkg_config_download.dest  }}/{{ pkg_config_download.files[0] }}"
-
-    - name: configure pkg-config
-      command: ./configure --with-internal-glib
-      args:
-        chdir: "{{ pkg_config_dir }}"
-
-    - name: build pkg-config
-      make:
-        chdir: "{{ pkg_config_dir }}"
-
-    - name: install pkg-config
-      make:
-        chdir: "{{ pkg_config_dir }}"
-        target: install
-  when:
-    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
-    - ansible_distribution_version < '8'
-
 - name: assert that hugepages are enabled
   assert:
     that: hugepages_enabled | default(false)
@@ -114,8 +75,7 @@
   environment:
     PKG_CONFIG_PATH: "/usr/local/lib64/pkgconfig:/usr/share/pkgconfig:/usr/lib64/pkgconfig"
   when:
-    - (ansible_distribution == 'Ubuntu') or
-      (ansible_distribution == 'CentOS' and ansible_distribution_version <= '7.9')
+    - ansible_distribution == 'Ubuntu'
     - not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
 
 - name: check if OVS distribution files exists
@@ -183,6 +143,95 @@
 - name: set OVS dpdk-lcore-mask
   command: '/usr/local/bin/ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-lcore-mask={{ ovs_dpdk_lcore_mask }}'
   changed_when: true
+
+- name: WA for bug in DPDK initial device scan - block qat devices
+  block:
+    - name: get Device ID from PCI address
+      shell: "set -o pipefail && lspci -s {{ item.qat_id }} -n |cut -f3 -d' ' |cut -f2 -d':'"
+      args:
+        executable: /bin/bash
+      failed_when: false
+      changed_when: false
+      register: dev_ids
+      with_items: "{{ qat_devices }}"
+
+    - name: get Device ID for VFs from PCI address
+      shell: "set -o pipefail && lspci -s {{ item.qat_id }} -vv |grep 'Device ID:' |cut -f4 -d':' |cut -f2 -d' '"
+      args:
+        executable: /bin/bash
+      failed_when: false
+      changed_when: false
+      register: dev_ids_vfs
+      with_items: "{{ qat_devices }}"
+
+    - name: Initialize an empty list for dev_ids
+      set_fact:
+        dev_ids_list_var: []
+
+    - name: Add dev_ids to list
+      set_fact:
+        dev_ids_list_var: "{{ dev_ids_list_var + [ item.stdout ] }}"
+      with_items: "{{ dev_ids.results }}"
+
+    - name: Add dev_ids_vfs to list
+      set_fact:
+        dev_ids_list_var: "{{ dev_ids_list_var + [ item.stdout ] }}"
+      with_items: "{{ dev_ids_vfs.results }}"
+      when: "item.stdout | length>0"
+
+    - name: Print dev_ids_list_var for qat devices
+      debug:
+        msg: "dev_ids_list_var: {{ dev_ids_list_var }}"
+
+    - name: Make dev_ids list unique
+      set_fact:
+        dev_ids_list_var: "{{ dev_ids_list_var | unique }}"
+
+    - name: Print unique dev_ids_list_var for qat devices
+      debug:
+        msg: "unique dev_ids_list_var: {{ dev_ids_list_var }}"
+
+    - name: list QAT devices with vfio-pci driver
+      shell: "set -o pipefail && dpdk-devbind.py -s |grep '{{ item }}' |grep 'drv=vfio-pci' |cut -f1 -d' '"
+      args:
+        executable: /bin/bash
+      failed_when: false
+      register: qat_dev_sub_list
+      changed_when: false
+      with_items: "{{ dev_ids_list_var }}"
+
+    - name: Initialize an empty string for qat_dev_list
+      set_fact:
+        qat_dev_list_var: ""
+
+    - name: Merge qat_dev_sub_lists
+      set_fact:
+        qat_dev_list_var: "{{ qat_dev_list_var }}{{ item.stdout }}\n"
+      with_items: "{{ qat_dev_sub_list.results }}"
+      when: "item.stdout | length>0"
+
+    - name: Initialize an empty string for block_list
+      set_fact:
+        block_list_var: ""
+
+    - name: Prepare info for WA
+      set_fact:
+        block_list_var: "{{ block_list_var }} {{ ovs_dpdk_extra }}{{ item }}"
+      with_items: "{{ qat_dev_list_var.split('\n') }}"
+      when:
+        - "qat_dev_list_var | length>0"
+        - "item | length>0"
+
+    - name: Print block_list_var for qat devices
+      debug:
+        msg: "block_list_var: {{ block_list_var }}"
+
+    - name: set OVS dpdk-extra - WA for bug in DPDK initial device scan
+      command: '/usr/local/bin/ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-extra="{{ block_list_var }}"'
+      changed_when: true
+      when: "block_list_var | length>0"
+  when:
+    - qat_devices is defined and (qat_devices|length>0)
 
 - name: start OVS vswitchd
   command: /usr/local/share/openvswitch/scripts/ovs-ctl --no-ovsdb-server --db-sock="/usr/local/var/run/openvswitch/db.sock" restart

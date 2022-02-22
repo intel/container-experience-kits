@@ -1,14 +1,17 @@
 {
   "hosts": [
-    "docker-registry.kube-system.svc.{{ cluster_name }}",
-    "docker-registry.kube-system.svc",
-    "docker-registry.kube-system",
+    "container-registry.kube-system.svc.{{ cluster_name }}",
+    "container-registry.kube-system.svc",
+    "container-registry.kube-system",
     "localhost",
     "127.0.0.1"
   ],
-  "CN": "localhost",
+  "CN": "system:node:localhost",
   "key": {
     "algo": "rsa",
     "size": 2048
-  }
+  },
+  "names": [{
+    "O": "system:nodes"
+  }]
 }

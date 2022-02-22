@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-
 - hosts: localhost
   connection: local
+  become: no
   gather_facts: false
   tasks:
     - name: create temporary directory for storing certificate material
@@ -26,12 +26,9 @@
       become: no
       register: temp_cert_dir_localhost
 
-
 - hosts: k8s_cluster
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
-  roles:
-    - golang_install
   tasks:
     - name: set temporary certificate location
       set_fact:
@@ -56,6 +53,12 @@
         node_ip: "{{ hostvars[item]['ip'] | default(hostvars[item].ansible_default_ipv4['address']) }}"
         node_hostname: "{{ hostvars[groups['kube_control_plane'][0]]['ansible_hostname'] }}"
         node_inventory_name: "{{ inventory_hostname }}"
+      when: inventory_hostname == groups['kube_control_plane'][0]
+
+    - name: get GOPATH
+      command: /usr/local/go/bin/go env GOPATH
+      register: gopath
+      changed_when: false
       when: inventory_hostname == groups['kube_control_plane'][0]
 
     - name: create certs from CSRs
@@ -113,6 +116,7 @@
 
 - hosts: localhost
   connection: local
+  become: no
   gather_facts: false
   tasks:
     - name: remove directory with certs
@@ -124,15 +128,15 @@
 - hosts: kube_control_plane
   environment: "{{ proxy_env | d({}) }}"
   tasks:
+    - name: set kubelet certificate authority fact
+      set_fact:
+        kubelet_cert_authority: "- --kubelet-certificate-authority={{ kube_cert_dir }}/ca.crt"
     - name: insert kubelet-authority into api-server configuration
       lineinfile:
         path: "{{ kube_config_dir }}/manifests/kube-apiserver.yaml"
         insertbefore: "--tls-cipher-suites"
-        line: "{{ item }}"
+        line: "{{ kubelet_cert_authority|indent(4,true) }}"
         mode: 0600
-      loop:
-        - "{{ '- --kubelet-certificate-authority={{ kube_cert_dir }}/ca.crt'|indent(4,true) }}"
-
 
 - hosts: k8s_cluster
   gather_facts: false

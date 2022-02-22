@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 ##   limitations under the License.
 ##
 ---
+# NOTE(pklimowx): these lists should be updated with complete set of machine SKUs
 supported_clx_skus:
   - "6252N"
   - "6230N"
@@ -25,3 +26,7 @@ supported_icx_skus:
   - "6338N"
   - "5318N"
   - "06/6c"
+  - "6348"
+
+supported_spr_skus:
+  - "0000%@"

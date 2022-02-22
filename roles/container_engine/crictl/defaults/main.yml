@@ -1,0 +1,40 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+crictl_version: "v1.21.0"
+
+image_arch: "amd64"
+
+crictl_download_url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-{{ ansible_system | lower }}-{{ image_arch }}.tar.gz"
+
+crictl_checksums:
+  amd64:
+    v1.22.0: 45e0556c42616af60ebe93bf4691056338b3ea0001c0201a6a8ff8b1dbc0652a
+    v1.21.0: 85c78a35584971625bf1c3bcd46e5404a90396f979d7586f18b11119cb623e24
+    v1.20.0: 44d5f550ef3f41f9b53155906e0229ffdbee4b19452b4df540265e29572b899c
+    v1.19.0: 87d8ef70b61f2fe3d8b4a48f6f712fd798c6e293ed3723c1e4bbb5052098f0ae
+
+crictl_binary_checksum: "{{ crictl_checksums[image_arch][crictl_version] }}"
+
+local_release_dir: "/tmp/releases"
+bin_dir: /usr/local/bin
+
+crictl:
+  version: "{{ crictl_version }}"
+  dest: "{{ local_release_dir }}/crictl-{{ crictl_version }}-linux-{{ image_arch }}.tar.gz"
+  sha256: "{{ crictl_binary_checksum }}"
+  url: "{{ crictl_download_url }}"
+  owner: "root"
+  mode: "0755"

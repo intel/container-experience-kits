@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@
   command: "intel-speed-select turbo-freq {{ sst_tf_config }} -a"
   changed_when: true
 
-- name: set SST-BF status status before SST-PP configuration
+- name: set SST-BF status before SST-PP configuration
   command: "intel-speed-select base-freq {{ sst_bf_config }} -a"
   changed_when: true
 
@@ -109,13 +109,13 @@
 # create dir for SST-PP
 - name: remove existing SST-PP dir if exists
   file:
-    path: "/usr/src/SST_PP_config"
+    path: "{{ project_root_dir }}/sst_pp_config"
     state: absent
   become: yes
 
-- name: create directory /usr/src/SST_PP_config to save details
+- name: create directory sst_pp_config to save details
   file:
-    path: /usr/src/SST_PP_config
+    path: "{{ project_root_dir }}/sst_pp_config"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
   when: '"auto" in sst_tf_online_cpus'
@@ -123,8 +123,17 @@
 # Config SST-TP turbo-freq When online_cpus_range is set to "auto" in host vars
 - name: get available online CPUs
   shell:
-    cmd: set -o pipefail && intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o  2>&1 \
-         | grep -i 'online cpu' | grep -Eo '[0-9]{1,4}' | tr "\n" " " | tr ' ' ',' | sed '$ s/,$//g'
+    cmd: |
+      set -o pipefail && \
+      intel-speed-select \
+      -d perf-profile set-config-level \
+      -l {{ sst_pp_level_set.stdout }} \
+      -o  2>&1 | \
+      grep -i 'online cpu' | \
+      grep -Eo '[0-9]{1,4}' | \
+      tr "\n" " " | \
+      tr ' ' ',' | \
+      sed '$ s/,$//g'
   args:
     executable: /bin/bash
   register: online_cpus_range
@@ -132,8 +141,7 @@
 
 - name: check vailable online CPUs values for auto config
   shell:
-    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 \
-         | head -n 59"
+    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59"
   args:
     executable: /bin/bash
   register: read_turbostat_output
@@ -151,7 +159,7 @@
      cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_auto.txt"
   args:
     executable: /bin/bash
-    chdir: "/usr/src/SST_PP_config"
+    chdir: "{{ project_root_dir }}/sst_pp_config"
   when:
     - '"enable" in sst_tf_config'
     - '"auto" in sst_tf_online_cpus'
@@ -166,11 +174,10 @@
 # Config SST-TF turbo-freq when all are disabled
 - name: check available online CPUs values when SST-BF,SST-CP and SST-TF are disabled
   shell:
-    cmd: turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1\
-         | head -n 59
+    cmd: turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59
   args:
     executable: /bin/bash
-    chdir: "/usr/src/SST_PP_config"
+    chdir: "{{ project_root_dir }}/sst_pp_config"
   register: turbostat_output_for_disabled
   when:
     - '"disable" in sst_bf_config'
@@ -190,7 +197,7 @@
      cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_disabled.txt"
   args:
     executable: /bin/bash
-    chdir: "/usr/src/SST_PP_config"
+    chdir: "{{ project_root_dir }}/sst_pp_config"
   when:
     - '"disable" in sst_bf_config'
     - '"disable" in sst_cp_config'
@@ -199,20 +206,27 @@
 
 - name: save perf-profile info to SST-PP dir path
   shell:
-    cmd: set -o pipefail && intel-speed-select perf-profile info -l 0 2>&1 \
-        | grep -E '(core-count:|bucket|max-turbo|high-priority|low-priority)' > sst_pp_perf_profile.txt
+    cmd: |
+      set -o pipefail && \
+      intel-speed-select perf-profile info \
+      -l 0 2>&1 | \
+      grep -E '(core-count:|bucket|max-turbo|high-priority|low-priority)' > sst_pp_perf_profile.txt
   args:
     executable: /bin/bash
-    chdir: "/usr/src/SST_PP_config"
+    chdir: "{{ project_root_dir }}/sst_pp_config"
   changed_when: true
 
 - name: save information of config-level perf-profile to SST-PP dir path
   shell:
-    cmd: set -o pipefail && intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o \
-         | grep -E '(set_tdp_level|online|offline|logical)' >  sst_pp_config_details.txt
+    cmd: |
+      set -o pipefail && \
+      intel-speed-select \
+      -d perf-profile set-config-level \
+      -l {{ sst_pp_level_set.stdout }} -o | \
+      grep -E '(set_tdp_level|online|offline|logical)' > sst_pp_config_details.txt
   args:
     executable: /bin/bash
-    chdir: "/usr/src/SST_PP_config"
+    chdir: "{{ project_root_dir }}/sst_pp_config"
   changed_when: true
 
 - name: update the dynamic linker cache after SST-PP successful configuration

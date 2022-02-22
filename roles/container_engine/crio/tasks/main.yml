@@ -1,0 +1,154 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: load a variable file based on the OS type
+  include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_distribution|lower }}-{{ ansible_distribution_major_version }}.yml"
+        - "{{ ansible_distribution|lower }}.yml"
+        - "{{ ansible_os_family|lower }}.yml"
+      paths:
+        - ../vars
+
+- name: import crio repo
+  import_tasks: "crio_repo.yml"
+
+- include_role:  # noqa unnamed-task
+    name: container_engine/crictl
+
+- name: build a list of crio runtimes with crun runtime
+  set_fact:
+    crio_runtimes: "{{ crio_runtimes + [crun_runtime] }}"
+  when:
+    - crun_enabled
+
+- name: make sure needed folders exist in the system
+  with_items:
+    - /etc/crio
+    - /etc/containers
+    - /etc/systemd/system/crio.service.d
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+
+- name: install cri-o config
+  template:
+    src: crio.conf.j2
+    dest: /etc/crio/crio.conf
+    mode: 0644
+  register: config_install
+
+- name: install config.json
+  template:
+    src: config.json.j2
+    dest: /etc/crio/config.json
+    mode: 0644
+  register: reg_auth_install
+
+- name: install cri-o packages
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ crio_packages }}"
+  register: package_install
+  until: package_install is succeeded
+  retries: 4
+  delay: 3
+
+- name: remove example CNI configs
+  file:
+    path: "/etc/cni/net.d/{{ item }}"
+    state: absent
+  loop:
+    - 100-crio-bridge.conf
+    - 200-loopback.conf
+
+- name: copy mounts.conf
+  copy:
+    src: mounts.conf
+    dest: /etc/containers/mounts.conf
+    mode: 0644
+  when:
+    - ansible_os_family == 'RedHat'
+  notify: restart crio
+
+- name: create directory for oci hooks
+  file:
+    path: /etc/containers/oci/hooks.d
+    state: directory
+    owner: root
+    mode: 0755
+
+# metacopy=on is available since 4.19 and was backported to RHEL 4.18 kernel
+- name: set metacopy mount options correctly
+  ini_file:
+    dest: /etc/containers/storage.conf
+    section: storage.options.overlay
+    option: mountopt
+    value: '{{ ''"nodev"'' if ansible_kernel is version_compare(("4.18" if ansible_os_family == "RedHat" else "4.19"), "<") else ''"nodev,metacopy=on"'' }}'
+    mode: 0644
+
+- name: create directory registries configs
+  file:
+    path: /etc/containers/registries.conf.d
+    state: directory
+    owner: root
+    mode: 0755
+
+- name: write registries mirror configs
+  template:
+    src: registry_mirror.conf.j2
+    dest: "/etc/containers/registries.conf.d/{{ item.prefix }}.conf"
+    mode: 0644
+  loop: "{{ crio_registries_mirrors }}"
+  notify: restart crio
+
+- name: write cri-o proxy drop-in
+  template:
+    src: http_proxy.conf.j2
+    dest: /etc/systemd/system/crio.service.d/http-proxy.conf
+    mode: 0644
+  notify: restart crio
+  when: http_proxy is defined or https_proxy is defined
+
+- name: ensure crio service is started and enabled
+  service:
+    name: crio
+    daemon_reload: true
+    enabled: true
+    state: started
+  register: service_start
+
+- name: trigger service restart only when needed
+  service:  # noqa 503
+    name: crio
+    state: restarted
+  when:
+    - config_install.changed
+    - reg_auth_install.changed
+    - not package_install.changed
+    - not service_start.changed
+
+- name: verify that crio is running
+  command: "crio-status info"
+  register: get_crio_info
+  until: get_crio_info is succeeded
+  changed_when: false
+  retries: 5
+  delay: 15

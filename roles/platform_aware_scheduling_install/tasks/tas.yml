@@ -1,0 +1,71 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create Descheduler directory if needed
+  file:
+    path: "{{ sigs_k8s_io_dir }}"
+    state: directory
+    mode: 0755
+
+- name: clone Descheduler for Kubernetes
+  git:
+    repo: "{{ descheduler_git_url }}"
+    dest: "{{ descheduler_dir }}"
+    force: yes
+    version: "{{ descheduler_git_version }}"
+  retries: 5
+  delay: 5
+  register: result
+  until: not result.failed
+
+- name: install descheduler
+  make:
+    chdir: "{{ descheduler_dir }}"
+
+- name: copy Helm chart resource definition to controller node
+  copy:
+    src: "{{ (role_path, 'charts/telemetry-aware-scheduling') | path_join }}"
+    dest: "{{ (project_root_dir, 'charts') | path_join }}"
+    mode: preserve
+
+- name: populate tas Helm chart values template and push to controller node
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    force: yes
+    mode: preserve
+  loop:
+    - {
+        src: "tas-values.yaml.j2",
+        dest: "{{ (project_root_dir, 'charts/telemetry-aware-scheduling/values.yaml') | path_join }}"
+      }
+    - {
+        src: "tas-chart.yaml.j2",
+        dest: "{{ (project_root_dir, 'charts/telemetry-aware-scheduling/Chart.yaml') | path_join }}"
+      }
+
+- name: install TAS helm chart
+  command: >-
+    helm upgrade -i {{ tas_name }}
+    --namespace {{ pas_namespace }}
+    ./
+  args:
+    chdir: "{{ (project_root_dir, 'charts/telemetry-aware-scheduling') | path_join }}"
+  retries: 5
+  delay: 5
+  register: result
+  until: result.rc == 0
+  changed_when: true

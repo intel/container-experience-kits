@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,22 +18,6 @@
   include_role:
     name: install_dependencies
   when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: install required Python google-auth module for CentOS 7
-  pip:
-    name: google-auth==1.24.0
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-    - ansible_distribution == "CentOS"
-    - ansible_distribution_version < '8'
-
-- name: install Podman
-  package:
-    name: podman
-  when:
-    - ansible_distribution == "CentOS"
-    - ansible_distribution_version < '8'
-    - '"docker" not in container_runtime'
 
 - name: wait for kube-apiserver to be up
   uri:
@@ -57,6 +41,7 @@
 - name: clean up temporary files
   file: path=registry_htpasswd state=absent
   delegate_to: localhost
+  become: no
   run_once: yes
   when: inventory_hostname == groups['kube_control_plane'][0]
 
@@ -65,14 +50,7 @@
   register: htpasswd
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: create Helm charts directory if needed
-  file:
-    path: /usr/src/charts
-    state: directory
-    mode: 0755
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: create Helm registry charts directory if needed
+- name: create container registry directory
   file:
     path: "{{ container_registry_path }}"
     state: directory
@@ -166,18 +144,6 @@
   pip:
     name:
       - docker==4.3.1
-
-# Ubuntu 18.04 does not support metacopy option
-- name: remove metacopy from storage.conf
-  lineinfile:
-    path: "/etc/containers/storage.conf"
-    regexp: '^mountopt ='
-    line: 'mountopt = "nodev"'
-    state: present
-    mode: 0644
-  when:
-    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '18.04'
-    - '"docker" not in container_runtime'
 
 - name: grant access to the registry to Docker on all nodes
   docker_login:

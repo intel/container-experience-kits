@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -39,3 +39,13 @@
     is_icx: True
   when: item in cpu_model.stdout
   loop: "{{ supported_icx_skus }}"
+
+- name: set is_spr to false
+  set_fact:
+    is_spr: False
+
+- name: check if spr mode
+  set_fact:
+    is_spr: True
+  when: item in cpu_model.stdout
+  loop: "{{ supported_spr_skus }}"

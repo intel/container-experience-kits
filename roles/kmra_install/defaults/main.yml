@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -20,42 +20,66 @@ kmra_apphsm_release_name: "kmra-apphsm"
 kmra_ctk_release_name: "kmra-ctk"
 kmra_pccs_release_name: "kmra-pccs"
 
-kmra_apphsm_helm_values_file: "/usr/src/charts/kmra-apphsm-values.yml"
-kmra_ctk_helm_values_file: "/usr/src/charts/kmra-ctk-values.yml"
-kmra_pccs_helm_values_file: "/usr/src/charts/kmra-pccs-values.yml"
+kmra_apphsm_helm_values_file: "{{ project_root_dir }}/charts/kmra-apphsm-values.yml"
+kmra_ctk_helm_values_file: "{{ project_root_dir }}/charts/kmra-ctk-values.yml"
+kmra_pccs_helm_values_file: "{{ project_root_dir }}/charts/kmra-pccs-values.yml"
 
-kmra_apphsm_chart_path: "/usr/src/charts/kmra-apphsm"
-kmra_ctk_chart_path: "/usr/src/charts/kmra-ctk"
-kmra_pccs_chart_path: "/usr/src/charts/kmra-pccs"
+kmra_apphsm_chart_path: "{{ project_root_dir }}/charts/kmra-apphsm"
+kmra_ctk_chart_path: "{{ project_root_dir }}/charts/kmra-ctk"
+kmra_pccs_chart_path: "{{ project_root_dir }}/charts/kmra-pccs"
 
-kmra_pccs_image_repo: "intel"
-kmra_pccs_image_name: "kmra"
-kmra_pccs_image_tag: "pccs"
+kmra_pccs_image_repo: "docker.io"
+kmra_pccs_image_name: "intel/pccs"
+kmra_pccs_image_tag: "v1"
 
 kmra_pccs_rproxy_image_repo: "docker.io"
 kmra_pccs_rproxy_image_name: "nginx"
-kmra_pccs_rproxy_tag: "1.20.1-alpine"
+kmra_pccs_rproxy_tag: "1.21.5-alpine"
+
 kmra_pccs_upstream_port: 8082
 kmra_pccs_service_port: 8081
 
-kmra_apphsm_image_repo: "intel"
-kmra_apphsm_image_name: "kmra"
-kmra_apphsm_image_tag: "apphsm"
+kmra_apphsm_image_repo: "docker.io"
+kmra_apphsm_image_name: "intel/apphsm"
+kmra_apphsm_image_tag: "v1"
+
+kmra_apphsm_init_image_repo: "docker.io"
+kmra_apphsm_init_image_name: "busybox"
+kmra_apphsm_init_image_tag: "1.35"
 
 kmra_apphsm_upstream_port: 5001
 kmra_apphsm_service_port: 5000
 
+kmra_apphsm_key_in_token_name: "key_1"
+kmra_apphsm_token_name: "token_1"
+kmra_apphsm_test_ctk_loadkey_cert_user_id: "ctk_loadkey_user_id_01234"
+kmra_apphsm_test_unique_uid: "unique_id_1234"
+kmra_apphsm_default_user_pin: "1234"
+kmra_apphsm_default_so_pin: "12345678"
+kmra_apphsm_use_secure_cert: false
+
 kmra_apphsm_rproxy_image_repo: "docker.io"
 kmra_apphsm_rproxy_image_name: "nginx"
-kmra_apphsm_rproxy_tag: "1.20.1-alpine"
+kmra_apphsm_rproxy_tag: "1.21.5-alpine"
 
-kmra_ctk_loadkey_image_repo: "intel"
-kmra_ctk_loadkey_image_name: "kmra"
-kmra_ctk_loadkey_image_tag: "ctk_loadkey"
+kmra_ctk_loadkey_image_repo: "docker.io"
+kmra_ctk_loadkey_image_name: "intel/ctk_loadkey"
+kmra_ctk_loadkey_image_tag: "v1"
+
+kmra_ctk_loadkey_init_image_repo: "docker.io"
+kmra_ctk_loadkey_init_image_name: "busybox"
+kmra_ctk_loadkey_init_image_tag: "1.35"
+
 kmra_ctk_loadkey_upstream_port: 8082
 kmra_ctk_loadkey_upstream_server_name: 0.0.0.0
 kmra_ctk_loadkey_node_port: 30003
 
+kmra_ctk_loadkey_default_user_pin: "4321"
+kmra_ctk_loadkey_default_so_pin: "87654321"
+kmra_ctk_loadkey_client_token: "client_token"
+kmra_ctk_loadkey_client_key_label: "client_key_priv"
+kmra_ctk_loadkey_test_unique_uid: "{{ kmra_apphsm_test_unique_uid }}"
+kmra_ctk_loadkey_use_secure_cert: "{{ kmra_apphsm_use_secure_cert }}"
 
 kmra_pccs_crt_subj:
   O: "SGX-PCCS"
@@ -73,4 +97,4 @@ kmra_apphsm_crt_subj:
 
 kmra_ctk_crt_subj:
   O: "AppHSM"
-  OU: "ctk_loadkey_user_id_01234"
+  OU: "{{ kmra_apphsm_test_ctk_loadkey_cert_user_id }}"

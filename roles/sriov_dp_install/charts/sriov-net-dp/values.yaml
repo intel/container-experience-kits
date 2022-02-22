@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 namespace: kube-system
 
 image:
-  repository: docker.io/nfvpe/sriov-device-plugin
-  tag: v3.2
+  repository: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin
+  tag: v3.4.0
   pullPolicy: IfNotPresent
 
 configPath: /etc/pcidp/config.json

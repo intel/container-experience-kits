@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 ##
 ---
 intel_dp_operator_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_dp_operator_git_ref: "v0.21.0"
-intel_dp_operator_version: "0.21.0"
-intel_dp_operator_dir: "/usr/src/intel-device-plugins-for-kubernetes-operator"
+intel_dp_operator_git_ref: "v0.23.0"
+intel_dp_operator_version: "0.23.0"
+intel_dp_operator_dir: "{{ (project_root_dir, 'intel-dp-operator') | path_join }}"
 intel_dp_namespace: kube-system

@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pas-scheduler-extenders-policy
+  namespace: "{{ pas_namespace }}"
+data:
+  policy.cfg: |
+    {
+        "kind" : "Policy",
+        "apiVersion" : "v1",
+        "extenders" : [
+            {% if tas_enabled | default(false) %}
+            {
+              "urlPrefix": "http{% if tas_tls_enabled %}s{% endif %}://{{ tas_service_name }}.{{ pas_namespace }}.svc.{{ cluster_name }}:{{ tas_service_port }}",
+              "apiVersion": "v1",
+              "prioritizeVerb": "scheduler/prioritize",
+              "filterVerb": "scheduler/filter",
+              "weight": 1,
+              "enableHttps": {% if gas_tls_enabled %}true{% else %}false{% endif %},
+              "managedResources": [
+                  {
+                    "name": "telemetry/scheduling",
+                    "ignoredByScheduler": true
+                  }
+              ],
+              "ignorable": true,
+              {% if tas_tls_enabled %}
+              "tlsConfig": {
+                    "insecure": false,
+                    "certFile": "/host/certs/tas/tls-extender-client.pem",
+                    "keyFile" : "/host/certs/tas/tls-extender-client-key.pem"
+              }
+              {% endif %}
+          }{% if tas_enabled | default(false) and gas_enabled | default(false) %},{% endif %}
+          {% endif %}
+          {% if gas_enabled %}
+          {
+              "urlPrefix": "http{% if gas_tls_enabled %}s{% endif %}://{{ gas_service_name }}.{{ pas_namespace }}.svc.{{ cluster_name }}:{{ gas_service_port }}",
+              "apiVersion": "v1",
+              "filterVerb": "scheduler/filter",
+              "bindVerb": "scheduler/bind",
+              "weight": 1,
+              "enableHttps": {% if gas_tls_enabled %}true{% else %}false{% endif %},
+              "managedResources": [
+                  {
+                    "name": "gpu.intel.com/i915",
+                    "ignoredByScheduler": false
+                  }
+              ],
+              "ignorable": true,
+              {% if gas_tls_enabled %}
+              "tlsConfig": {
+                    "insecure": false,
+                    "certFile": "/host/certs/gas/tls-extender-client.pem",
+                    "keyFile" : "/host/certs/gas/tls-extender-client-key.pem"
+              },
+              {% endif %}
+              "nodeCacheCapable": true
+          }
+          {% endif %}
+        ]
+    }

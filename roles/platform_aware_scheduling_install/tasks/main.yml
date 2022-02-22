@@ -1,0 +1,80 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name : install dependencies
+  include_role:
+    name: install_dependencies
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: restore original kube-scheduler config files
+  include_tasks: backups_restore.yml
+  loop: "{{ kube_scheduler_configs }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: create Helm charts directory if needed
+  file:
+    path: "{{ (project_root_dir, 'charts') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: "create extenders ns if doesn't exist"
+  shell: "set -o pipefail && kubectl create ns {{ pas_namespace }} -o yaml --dry-run=client | kubectl apply -f -"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: build extenders images locally
+  include_tasks: build_image.yml
+  loop: "{{ extenders }}"
+  loop_control:
+    extended: yes
+  when:
+    - item.build
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - tas_build_image_locally | default(false) or gas_build_image_locally | default(false)
+
+- name: create certificates
+  include_tasks: tls.yml
+  loop: "{{ extenders }}"
+  loop_control:
+    extended: yes
+    loop_var: extender
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - extender.tls_enabled
+
+- name: deploy TAS extender
+  include_tasks: tas.yml
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - tas_enabled | default(false)
+
+- name: deploy GAS extender
+  include_tasks: gas.yml
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - gas_enabled | default(false)
+
+- name: configure kube-scheduler
+  include_tasks: create-scheduler-config.yml
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+

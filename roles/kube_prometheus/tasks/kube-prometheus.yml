@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-
 - name: delete previous kube-prometheus manifests
   command: "kubectl delete -f {{ kube_prometheus_path }}"
   changed_when: true
@@ -35,7 +34,7 @@
 
 - name: copy dashboards yamls
   copy:
-    src: "dashboards/{{ 'grafana-telegraf-dashboardDefinitions.yaml' if telegraf_enabled else 'grafana-dashboardDefinitions.yaml' }}"
+    src: "dashboards/{{ 'grafana-telegraf-dashboardDefinitions.yaml' if telegraf_enabled | default(true) else 'grafana-dashboardDefinitions.yaml' }}"
     dest: "{{ kube_prometheus_path }}"
     owner: root
     group: root

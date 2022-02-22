@@ -1,0 +1,17 @@
+
+{
+  "hosts": [
+    "{{ extender.service_name }}.{{ pas_namespace }}.svc.{{ cluster_name | default("cluster.local") }}",
+    "{{ extender.service_name }}.{{ pas_namespace }}.svc",
+    "{{ extender.service_name }}.{{ pas_namespace }}",
+    "{{ extender.service_name }}"
+  ],
+  "CN": "{{ extender.service_name }}.{{ pas_namespace }}.svc",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [{
+    "O": "{{ extender.name }}-extender"
+  }]
+}

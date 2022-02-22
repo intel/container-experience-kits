@@ -1,0 +1,16 @@
+---
+apiVersion: "power.intel.com/v1alpha1"
+kind: PowerConfig
+metadata:
+  name: power-config
+  namespace: intel-power
+spec:
+  powerImage: {{ app_qos_image }}
+  powerNodeSelector:
+    # Add labels here for the Nodes you want the PowerNodeAgent to be applied to
+    intel.power.node: "true"
+  # Add wanted PowerProfiles here; valid entries are as follows:
+  # performance
+  # balance-performance
+  # balance-power
+  powerProfiles: {{ intel_power_manager.power_profiles }}

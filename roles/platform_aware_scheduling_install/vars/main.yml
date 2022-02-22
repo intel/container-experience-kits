@@ -1,0 +1,52 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# variables in this file are not intended to be modified by the user directly
+# please use defaults/main.yml instead
+extenders:
+  - {
+      name: "{{ tas_name }}",
+      dir: "{{ tas_extender_dir }}",
+      image: "{{ tas_extender_image }}",
+      tag: "{{ tas_extender_image_tag }}",
+      context: "{{ tas_image_build_context }}",
+      build: "{{ tas_build_image_locally }}",
+      bin_build: "{{ tas_build_bin }}",
+      secret_name: "{{ tas_extender_secret_name }}",
+      service_name: "{{ tas_service_name }}",
+      tls_enabled: "{{ tas_tls_enabled }}",
+      ssl: "{{ tas_ssl }}",
+      version: "{{ tas_git_version }}"
+    }
+  - {
+      name: "{{ gas_name }}",
+      dir: "{{ gas_extender_dir }}",
+      image: "{{ gas_extender_image }}",
+      tag: "{{ gas_extender_image_tag }}",
+      context: "{{ gas_image_build_context }}",
+      build: "{{ gas_build_image_locally }}",
+      bin_build: "{{ gas_build_bin }}",
+      secret_name: "{{ gas_extender_secret_name }}",
+      service_name: "{{ gas_service_name }}",
+      tls_enabled: "{{ gas_tls_enabled }}",
+      ssl: "{{ gas_ssl }}",
+      version: "{{ gas_git_version }}"
+    }
+
+# kube-scheduler config files to backup
+kube_scheduler_configs:
+  - "/etc/kubernetes/kubescheduler-config.yaml"
+  - "/etc/kubernetes/manifests/kube-scheduler.yaml"

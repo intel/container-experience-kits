@@ -1,0 +1,41 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: ensure containerd repository public key is installed
+  apt_key:
+    id: "{{ item }}"
+    url: "{{ containerd_repo_key_info.url }}"
+    state: present
+  register: keyserver_task_result
+  until: keyserver_task_result is succeeded
+  retries: 4
+  delay: 3
+  with_items: "{{ containerd_repo_key_info.repo_keys }}"
+  when: ansible_distribution == "Ubuntu"
+
+- name: ensure containerd repository is enabled
+  apt_repository:
+    repo: "{{ item }}"
+    state: present
+  with_items: "{{ containerd_repo_info.repos }}"
+  when: ansible_distribution == "Ubuntu"
+
+- name: Configure containerd repository on RedHat/CentOS
+  template:
+    src: "rh_containerd.repo.j2"
+    dest: "{{ yum_repo_dir }}/containerd.repo"
+    mode: 0644
+  when: ansible_os_family == "RedHat"

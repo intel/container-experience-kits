@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
   include_role:
     name: install_dependencies
 
-- name: clone Bond cni repository
+- name: clone Bond CNI repository
   git:
     repo: "{{ bond_cni_git_url }}"
     dest: "{{ bond_cni_dir }}"
@@ -38,9 +38,14 @@
     recurse: yes
     mode: 0755
 
-- name: install Bond cni binary to /opt/cni/bin directory
+- name: get GOPATH
+  command: /usr/local/go/bin/go env GOPATH
+  register: gopath
+  changed_when: false
+
+- name: install Bond CNI binary to /opt/cni/bin directory
   copy:
-    src: "{{ bond_cni_path }}"
+    src: "{{ gopath.stdout }}/bin/bond"
     dest: "/opt/cni/bin/bond"
     mode: 0755
     remote_src: yes

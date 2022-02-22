@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
   include_role:
     name: install_dependencies
 
-- name: configure Asymmetric Crypto service on QAT devices
-  include_tasks: asymmetric_crypto_service_on_qat_confg.yml
+- name: confirm QAT service is correctly installed on the system
+  include_tasks: check_qat_service.yml
 
 - name: create configuration directory if it does not exist
   file:
@@ -30,58 +30,22 @@
 
 - name: remove existing configuration file if it exists
   file:
-    path: "{{ sriov_config_path }}/bmra_sriov_qat_numvfs"
+    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
     state: absent
   become: yes
 
 - name: create file for QAT ids to create defined VFs
   file:
-    path: "{{ sriov_config_path }}/bmra_sriov_qat_numvfs"
+    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
     state: touch
     owner: root
     group: root
     mode: '0700'
   become: yes
-
-- name: fail if requested number of VFs is higher than supported for each QAT id
-  assert:
-    that: item.qat_sriov_numvfs | default(0)| int <= 16
-    fail_msg: "each qat_sriov_numvfs support max 16 Vfs. Kindly modify qat_sriov_numvfs range <= 16 in host vars for qat_devices list defined per qat_dev"
-  with_items: "{{ qat_devices }}"
-
-- name: remove existing calculated VFs file if it exists
-  file:
-    path: "{{ sriov_config_path }}/bmra_sriov_qat_total_vfs"
-    state: absent
-  become: yes
-
-- name: create calculated VFs config file
-  file:
-    path: "{{ sriov_config_path }}/bmra_sriov_qat_total_vfs"
-    state: touch
-    owner: root
-    group: root
-    mode: '0700'
-  become: yes
-
-- name: calculate total VFs as defined in host vars
-  set_fact:
-    total: "{{ total|default(0)|int + item.qat_sriov_numvfs | default(0)|int }}"
-  with_items: "{{ qat_devices }}"
-
-- debug:
-    msg: "calculated VFs = {{ total }}"
-
-- name: save total calculated VFs = {{ total }} to file
-  shell: "echo {{ total }} > bmra_sriov_qat_total_vfs"
-  args:
-    chdir: "{{ sriov_config_path }}"
-    executable: /bin/bash
-  changed_when: true
 
 - name: populate QAT vf template with vfs per bus location
   lineinfile:
-    path: "{{ sriov_config_path }}/bmra_sriov_qat_numvfs"
+    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
     line: "{{ item.qat_id }} {{ item.qat_sriov_numvfs | default(0) }}"
     owner: root
     group: root
@@ -91,8 +55,8 @@
 
 - name: copy QAT SRIOV setup script to /usr/local/bin
   copy:
-    src: "{{ role_path }}/files/bmra_sriov_qat_init"
-    dest: /usr/local/bin/bmra_sriov_qat_init
+    src: "{{ role_path }}/files/cek_sriov_qat_init"
+    dest: /usr/local/bin/cek_sriov_qat_init
     owner: root
     group: root
     mode: '0700'
@@ -100,17 +64,17 @@
 
 - name: create systemd unit file
   template:
-    src: bmra_sriov_qat_init.service.j2
-    dest: /lib/systemd/system/bmra_sriov_qat_init.service
+    src: cek_sriov_qat_init.service.j2
+    dest: /lib/systemd/system/cek_sriov_qat_init.service
     owner: root
     group: root
     mode: '0644'
   become: yes
 
-- name: ensure that systemd service is enabled on startup and restarted to apply the configuration
+- name: ensure that systemd service is enabled and restarted
   systemd:
-    daemon_reload: yes
-    enabled: yes
+    name: cek_sriov_qat_init
     state: restarted
-    name: bmra_sriov_qat_init
+    enabled: yes
+    daemon_reload: yes
   become: yes

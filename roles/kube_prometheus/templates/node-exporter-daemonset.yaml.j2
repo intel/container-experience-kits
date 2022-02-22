@@ -7,7 +7,7 @@ kind: DaemonSet
 metadata:
   labels:
     app.kubernetes.io/name: node-exporter
-    app.kubernetes.io/version: v1.2.2
+    app.kubernetes.io/version: 1.3.1
   name: node-exporter
   namespace: monitoring
 spec:
@@ -18,7 +18,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: node-exporter
-        app.kubernetes.io/version: v1.2.2
+        app.kubernetes.io/version: 1.3.1
     spec:
       containers:
       - args:
@@ -31,7 +31,7 @@ spec:
 {% if install_tas_demo_policy %}
         - --collector.textfile.directory=/host/tas-demo-policy
 {% endif %}
-        image: quay.io/prometheus/node-exporter:v1.2.2
+        image: quay.io/prometheus/node-exporter:v1.3.1
         name: node-exporter
         resources:
           limits:
@@ -98,10 +98,6 @@ spec:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
           operator: Exists
-        - key: cmk
-          operator: Equal
-          effect: NoSchedule
-          value: "true"
       volumes:
       - hostPath:
           path: /proc

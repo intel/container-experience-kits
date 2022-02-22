@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,28 +14,22 @@
 ##   limitations under the License.
 ##
 ---
-- name: clone git repository from torvalds/linux to compile ISST
+- name: clone git repository to compile ISST
   git:
-    repo: https://github.com/torvalds/linux.git
-    dest: speedselect
-    clone: yes
-    version: v5.14
+    repo: "{{ isst_tool_git_url }}"
+    dest: "{{ isst_tool_src_dir }}"
+    depth: 1
+    force: true
+    version: "{{ isst_tool_git_version }}"
 
-- name: compile ISST
+- name: compile and install ISST
   make:
-    chdir: speedselect/tools/power/x86/intel-speed-select
+    chdir: "{{ (isst_tool_src_dir, 'tools', 'power', 'x86', 'intel-speed-select') | path_join }}"
+    target: install
     params:
       NUM_THREADS: "{{ ansible_processor_vcpus }}"
 
-- name: copy compiled binary to folder
-  copy:
-    src: speedselect/tools/power/x86/intel-speed-select/intel-speed-select
-    dest: /usr/bin/intel-speed-select
-    remote_src: yes
-    mode: u+rwx,g+rx,o+rx
-  become: yes
-
 - name: remove repository
   file:
-    path: speedselect
+    path: "{{ isst_tool_src_dir }}"
     state: absent

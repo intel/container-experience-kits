@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -86,6 +86,12 @@
     dest: "{{ gpu_kernel_src_dst }}"
   changed_when: false
 
+- name: ensure destination directory exists
+  file:
+    path: /lib/firmware/i915
+    state: directory
+    mode: 0755
+
 - name: untar dg1 tar.gz archive
   unarchive:
     src: "{{ gpu_kernel_src_dst }}/linux-firmware-dg1_2020.43.tgz"
@@ -115,10 +121,6 @@
   command: cp -r "{{ gpu_kernel_src_dst }}/gpu_custom_kernel/lib/modules/{{ gpu_dp_kernel_version }}" /lib/modules/
   changed_when: false
   become: yes
-
-- name: install dracut-{{ dracut_version }}
-  include_tasks: centos82_dracut_install.yml
-  when: ansible_distribution == 'CentOS' and ansible_distribution_version == '8.2'
 
 - name: install custom kernel
   command: >-

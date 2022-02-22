@@ -1,0 +1,103 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check current golang version
+  shell: /usr/local/go/bin/go version|sed -e 's/go version go//g'|cut -d' ' -f1
+  failed_when: false
+  changed_when: false
+  register: go_version
+
+- debug:
+    msg: |
+         "installed golang version = {{ go_version.stdout if go_version.stdout else 'None' }}"
+         "required golang version = {{ golang_version }}"
+
+- name: start procedure to install golang in required version
+  block:
+  - name: uninstall existing golang
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+      - "/usr/local/go"
+      - "$HOME/go"
+
+  - name: download golang tarball
+    get_url:
+      url: "{{ golang_download_url }}"
+      checksum: "{{ golang_download_checksum }}"
+      dest: "{{ project_root_dir }}"
+    register: golang_download
+    until: golang_download is not failed
+    retries: 5
+
+  - name: untar downloaded golang tarball
+    unarchive:
+      src: "{{ golang_download.dest }}"
+      dest: /usr/local
+      copy: no
+      mode: 0755
+
+  - name: set GOPATH env and add golang bin to PATH for all users
+    copy:
+      content: |
+        export GOROOT=/usr/local/go
+        export GOPATH=$HOME/go
+        export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+      dest: /etc/profile.d/golang.sh
+      mode: 0755
+
+  - name: create symlinks to golang binaries
+    file:
+      state: link
+      src: /usr/local/go/bin/{{ item }}
+      dest: /usr/bin/{{ item }}
+      mode: 0755
+    with_items:
+      - go
+      - gofmt
+  when: golang_version != go_version.stdout
+
+# golang is successfully installed in required version
+# add GOPATH to ansible facts
+- name: get GOPATH
+  command: go env GOPATH
+  register: gopath
+  changed_when: false
+
+- name: start procedure to install cfssl and cfssljson in required versions
+  block:
+    - name: check current cfssl version
+      shell: go version -m $(which cfssl) | grep mod | awk '{print $3}'
+      failed_when: false
+      register: cfssl_current_version
+
+    - name: check latest cfssl version
+      shell: go list -m -versions github.com/cloudflare/cfssl | awk '{print $7}'  # $7 should be latest varsion
+      failed_when: false
+      register: cfssl_latest_version
+
+    - name: install cfssl in latest version
+      command: go install github.com/cloudflare/cfssl/cmd/cfssl@latest
+      when: cfssl_current_version.stdout != cfssl_latest_version.stdout
+
+    # NOTE(pklimowx): cfssljson doesn't return useful version information
+    # we have to lose 1s here
+    - name: install cfssljson in latest version
+      command: go install github.com/cloudflare/cfssl/cmd/cfssljson@latest
+  when:
+    - groups['kube_control_plane'] | length > 0
+    - inventory_hostname == groups['kube_control_plane'][0]

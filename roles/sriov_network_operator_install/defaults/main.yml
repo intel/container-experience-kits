@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -13,23 +13,24 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
+
 #sriov-network-operator: github.com/k8snetworkplumbingwg/sriov-network-operator
 
-sriov_network_charts_dir: /usr/src/charts/sriov-network-operator/
-sriov_network_policies_dir: "/usr/src/charts/sriov-network-nodes-policies/"
+sriov_network_charts_dir: "{{ (project_root_dir, 'charts', 'sriov-network-operator') | path_join }}"
+sriov_network_policies_dir: "{{ (project_root_dir, 'charts', 'sriov-network-nodes-policies') | path_join }}"
 
 sriov_network_operator_namespace: "sriov-network-operator"
 sriov_network_operator_helm_release_name: "sriov-network-operator"
 
 # helm values defaults
 sriov_network_operator_images:
-  operator: ghcr.io/k8snetworkplumbingwg/sriov-network-operator@sha256:d7e00e67b3dd08b617b58b946d5011180bd96366691f42e0bdc2b2c2d1cf558e
-  sriovConfigDaemon: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-config-daemon@sha256:8fcf89d4f4fdae0ae8cd8b5af418bb76f8f3e7554d470d2d882c358bfed81662
-  sriovCni: ghcr.io/k8snetworkplumbingwg/sriov-cni@sha256:8d230288fa370cf29216bdf05a587d85e94ce56d6a1b87c49f2fd927a28e32f2
-  ibSriovCni: ghcr.io/k8snetworkplumbingwg/ib-sriov-cni@sha256:f12b07657643bbd642b06db383e245408dee80436f78b481171b7ca152772937
-  sriovDevicePlugin: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin@sha256:2d6a1b9c5da8d7fa0e78bcc31b2011e248282e7fc86987f3a4b2962823e6a50d
-  resourcesInjector: ghcr.io/k8snetworkplumbingwg/network-resources-injector@sha256:881650109af96f7ac197399f4355895b907f0f268109dce82c622df76b928ade
-  webhook: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-webhook@sha256:ac7ac12369ad8daed8c2c3045bf3fdfcb0a3e13fddd83ee5dd72d9220d93dbfa
+  operator: ghcr.io/k8snetworkplumbingwg/sriov-network-operator@sha256:bc9d64da2c753490841481fb094cc9a0656cc2c7d24c46b3d6ba4f53d4f93aba
+  sriovConfigDaemon: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-config-daemon@sha256:fbd76e85bb5301642ca6205f54f31a6560a75754d4e8d1264691c14718938a89
+  sriovCni: ghcr.io/k8snetworkplumbingwg/sriov-cni@sha256:ab4675dcea6c4a810997e728da3a7890ea47ec9f13cf5e744c1b0bd3cc1a6978
+  ibSriovCni: ghcr.io/k8snetworkplumbingwg/ib-sriov-cni@sha256:3eb56b423056c145a1a428df9dd2681fd3ccdd85ffd6d620e5dbe295dd721507
+  sriovDevicePlugin: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin@sha256:571bcdc70baa7bbd9e78ec3ae546c0db2f668ca1f1f64a625e03f53889a78c4a
+  resourcesInjector: ghcr.io/k8snetworkplumbingwg/network-resources-injector@sha256:48e66db279e4965e1172323dff1d909ea68106685b784340838de3a64f7afbd6
+  webhook: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-webhook@sha256:80725232b6a7459e2b3213136294f7c08a4f0efe76465519406958ad95f38efd
 
 sriov_resource_name_prefix: "intel.com"
 sriov_network_operator_name_override: ""

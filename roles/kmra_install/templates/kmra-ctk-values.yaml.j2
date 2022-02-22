@@ -18,9 +18,21 @@ ctk_loadkey:
       pullPolicy: IfNotPresent
     port:  "{{ kmra_ctk_loadkey_upstream_port }}"
     hostname: "{{ kmra_ctk_loadkey_upstream_server_name | default('0.0.0.0')}}"
+  init:
+    image:
+      repo: "{{ kmra_ctk_loadkey_init_image_repo }}"
+      name: "{{ kmra_ctk_loadkey_init_image_name }}"
+      tag: "{{ kmra_ctk_loadkey_init_image_tag }}"
+      pullPolicy: IfNotPresent
   node_port: "{{ kmra_ctk_loadkey_node_port }}"
   pccs_port: "{{ kmra_pccs_service_port }}"
   pccs_hostname: "{{ kmra_pccs_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
   apphsm_port: "{{ kmra_apphsm_service_port }}"
   apphsm_hostname: "{{ kmra_apphsm_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
   sgx_prv_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"
+  use_secure_cert: "{{ kmra_ctk_loadkey_use_secure_cert | quote }}"
+  client_token: "{{ kmra_ctk_loadkey_client_token }}"
+  client_key_label: "{{kmra_ctk_loadkey_client_key_label }}"
+  test_unique_uid: "{{ kmra_ctk_loadkey_test_unique_uid }}"
+  default_user_pin: "{{ kmra_ctk_loadkey_default_user_pin }}"
+  default_so_pin: "{{ kmra_ctk_loadkey_default_so_pin }}"

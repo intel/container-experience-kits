@@ -1,0 +1,13 @@
+[Unit]
+Description=Intel Container Experience Kits SR-IOV configuration for QAT devices
+AssertPathExists=/usr/local/bin/cek_sriov_qat_init
+Before=qat.service
+
+[Service]
+Environment=SRIOV_NUMVFS_MAPPINGS={{ sriov_config_path }}/cek_sriov_qat_numvfs
+Type=oneshot
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/local/bin/cek_sriov_qat_init
+
+[Install]
+WantedBy=multi-user.target

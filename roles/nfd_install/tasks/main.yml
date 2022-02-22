@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: install dependencies
+- name: install dependencies for NFD
   include_role:
     name: install_dependencies
 
@@ -88,7 +88,7 @@
 
 - name: create Helm charts directory if needed
   file:
-    path: /usr/src/charts
+    path: "{{ (project_root_dir, 'charts') | path_join }}"
     state: directory
     mode: 0755
   when:
@@ -96,8 +96,8 @@
 
 - name: copy NFD Helm chart to the controller node
   copy:
-    src: "{{ role_path }}/charts/node-feature-discovery"
-    dest: "/usr/src/charts/"
+    src: "{{ (role_path, 'charts', 'node-feature-discovery') | path_join }}"
+    dest: "{{ (project_root_dir, 'charts') | path_join }}"
     mode: 0755
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
@@ -118,18 +118,10 @@
     - not nfd_build_image_locally
     - inventory_hostname == groups['kube_control_plane'][0]
 
-- name: set values for NFD Helm chart values for SGX DP
-  set_fact:
-    sgx_dp_args: "{{ nfd_sgx_dp_args }}"
-    sgx_dp_labels: true
-  when:
-    - sgx_dp_enabled | default(false)
-    - inventory_hostname == groups['kube_control_plane'][0]
-
 - name: populate NFD Helm chart values template and push to controller node
   template:
     src: "helm_values.yml.j2"
-    dest: "/usr/src/charts/nfd-values.yml"
+    dest: "{{ (project_root_dir, 'charts', 'nfd-values.yml') | path_join }}"
     force: yes
     mode: preserve
   when:
@@ -153,6 +145,10 @@
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install NFD helm chart
-  command: helm upgrade -i node-feature-discovery --namespace {{ nfd_namespace }} -f /usr/src/charts/nfd-values.yml /usr/src/charts/node-feature-discovery
+  command: >-
+    helm upgrade -i node-feature-discovery
+    --namespace {{ nfd_namespace }}
+    -f {{ (project_root_dir, 'charts', 'nfd-values.yml') | path_join }}
+    {{ (project_root_dir, 'charts', 'node-feature-discovery') | path_join }}
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

@@ -1,0 +1,42 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Convert cpu list to CSV
+  shell: set -o pipefail && echo "{{ item.cpus }}" | perl -pe 's/(\d+)-(\d+)/join(",", $1..$2)/ge'
+  args:
+    executable: /bin/bash
+  register: cpus_csv
+  changed_when: true
+
+- name: Convert CSV to list
+  set_fact:
+    cpu_list: "{{ cpus_csv.stdout.split(',') }}"
+
+- name: Update VM CPU pinning
+  command: virsh vcpupin "{{ item.name }}" "{{ index }}" "{{ value }}" --live --config
+  loop: "{{ cpu_list }}"
+  loop_control:
+    index_var: index
+    loop_var: value
+  changed_when: true
+
+- name: Update VM emulator pinning
+  command: virsh emulatorpin "{{ item.name }}" "{{ item.emu_cpus }}" --live --config
+  changed_when: true
+
+- name: Update VM NUMA alignment
+  command: virsh numatune "{{ item.name }}" --nodeset "{{ item.numa }}" --live --config
+  changed_when: true

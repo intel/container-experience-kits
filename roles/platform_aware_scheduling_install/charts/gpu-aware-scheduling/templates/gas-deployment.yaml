@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gpu-aware-scheduling.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+{{ include "gpu-aware-scheduling.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "gpu-aware-scheduling.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ randAlphaNum 5 | quote }}
+      labels:
+{{ include "gpu-aware-scheduling.labels" . | indent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ template "gpu-aware-scheduling.serviceAccountName" . }}
+      containers:
+      - name: gas-extender
+        command:
+        - /extender
+        - --v={{ .Values.verbosity }}
+        {{- if .Values.tls.enabled }}
+        - --cert={{ .Values.tls.gas_ssl }}/{{ .Values.tls.secretName }}.cert
+        - --cacert={{ .Values.tls.gas_ssl }}/ca.crt
+        - --key={{ .Values.tls.gas_ssl }}/{{ .Values.tls.secretName }}.key
+        {{- else }}
+        - --unsafe=true
+        {{- end }}
+        image: "{{ .Values.extenderImage.repository }}:{{ .Values.extenderImage.tag }}"
+        imagePullPolicy: {{ .Values.extenderImage.pullPolicy }}
+        securityContext:
+          runAsUser: 10001
+        {{- if .Values.tls.enabled }}
+        volumeMounts:
+        - name: certs
+          mountPath: {{ .Values.tls.gas_ssl }}
+      volumes:
+      - name: certs
+        secret:
+          secretName: {{ .Values.tls.secretName }}
+      {{- end}}
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+

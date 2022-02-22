@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,18 +15,5 @@
 ##
 ---
 openssl_url: "https://github.com/openssl/openssl.git"
-openssl_version: "openssl-3.0.0"
-openssl_dir: "/usr/src/OpenSSL"
-openssl_ubuntu_libssldev_pkg: "http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl-dev_1.1.1j-1ubuntu3_amd64.deb"
-
-# CentOS <= 7.9 requirements
-openssl_centos7_dir: "/usr/src/centos7_openssl_packages"
-perl_dir: "{{ openssl_centos7_dir }}/perl"
-perl_url: "https://www.cpan.org/src/5.0/perl-5.28.1.tar.gz"
-cmake_dir: "{{ openssl_centos7_dir }}/cmake"
-cmake_url: "https://github.com/Kitware/CMake/releases/download/v3.19.8/cmake-3.19.8.tar.gz"
-openssl_111d_url: "https://www.openssl.org/source/openssl-1.1.1d.tar.gz"
-nasm_url: "https://www.nasm.us/pub/nasm/releasebuilds/2.15.05/nasm-2.15.05.tar.xz"
-nasm_dir: "{{ openssl_centos7_dir }}/nasm"
-gcc_url: "https://ftp.gnu.org/gnu/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz"
-gcc_dir: "{{ openssl_centos7_dir }}/gcc"
+openssl_version: "openssl-3.0.1"
+openssl_dir: "{{ (project_root_dir, 'openssl') | path_join }}"

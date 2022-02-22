@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,128 +14,108 @@
 ##   limitations under the License.
 ##
 ---
-# dependencies
-- name: install Golang
-  import_role:
-    name: golang_install
-  when: inventory_hostname == groups['kube_control_plane'][0]
+# server
+- name: configure master node
+  block:
+    - name: clean up any preexisting certs/key/CSR files
+      file: path=/etc/ssl/registry state=absent
+      failed_when: false
+      become: yes
 
-  # server
-- name: clean up any preexisting certs/key/CSR files
-  file: path=/etc/ssl/registry state=absent
-  failed_when: false
-  become: yes
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: create registry SSL directory
+      become: yes
+      file:
+        path: /etc/ssl/registry
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
 
-- name: create registry SSL directory
-  become: yes
-  file:
-    path: /etc/ssl/registry
-    state: directory
-    mode: '0700'
-    owner: root
-    group: root
-  when:
-    inventory_hostname == groups['kube_control_plane'][0]
+    - name: delete any preexisting certs/key/CSR from Kubernetes
+      command: kubectl delete csr registry.{{ registry_namespace }}
+      failed_when: false
 
-- name: delete any preexisting certs/key/CSR from Kubernetes
-  command: kubectl delete csr registry.{{ registry_namespace }}
-  when: inventory_hostname == groups['kube_control_plane'][0]
-  failed_when: false
+    - name: delete any preexisting secrets from Kubernetes
+      command: kubectl delete secret -n {{ registry_namespace }} {{ registry_secret_name }}
+      failed_when: false
 
-- name: delete any preexisting secrets from Kubernetes
-  command: kubectl delete secret -n {{ registry_namespace }} {{ registry_secret_name }}
-  when: inventory_hostname == groups['kube_control_plane'][0]
-  failed_when: false
+    - name: populate registry CSR template
+      template:
+        src: "registry_csr.json.j2"
+        dest: "/etc/ssl/registry/registry-csr.json"
+        force: yes
+        mode: preserve
+      become: yes
 
-- name: populate registry CSR template
-  template:
-    src: "registry_csr.json.j2"
-    dest: "/etc/ssl/registry/registry-csr.json"
-    force: yes
-    mode: preserve
-  become: yes
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: get GOPATH
+      command: /usr/local/go/bin/go env GOPATH
+      register: gopath
+      changed_when: false
 
-- name: get GOPATH
-  command: /usr/local/go/bin/go env GOPATH
-  register: gopath
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: generate key and CSR
+      shell: >-
+        set -o pipefail && {{ gopath.stdout }}/bin/cfssl genkey registry-csr.json | {{ gopath.stdout }}/bin/cfssljson -bare registry
+      args:
+        chdir: "/etc/ssl/registry/"
+        executable: /bin/bash
+      become: yes
 
-- name: generate key and CSR
-  shell: set -o pipefail && {{ gopath.stdout }}/bin/cfssl genkey registry-csr.json | {{ gopath.stdout }}/bin/cfssljson -bare registry
-  args:
-    chdir: "/etc/ssl/registry/"
-    executable: /bin/bash
-  when: inventory_hostname == groups['kube_control_plane'][0]
-  become: yes
+    - name: read generated key
+      command: cat registry-key.pem
+      args:
+        chdir: "/etc/ssl/registry/"
+      register: key
 
-- name: read generated key
-  command: cat registry-key.pem
-  args:
-    chdir: "/etc/ssl/registry/"
-  register: key
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: load generated key
+      set_fact:
+        registry_key: "{{ key.stdout }}"
 
-- name: load generated key
-  set_fact:
-    registry_key: "{{ key.stdout }}"
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: read generated csr
+      command: cat registry.csr
+      args:
+        chdir: "/etc/ssl/registry/"
+      register: csr
 
-- name: read generated csr
-  command: cat registry.csr
-  args:
-    chdir: "/etc/ssl/registry/"
-  register: csr
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: load generated csr
+      set_fact:
+        registry_csr: "{{ csr.stdout | b64encode }}"
 
-- name: load generated csr
-  set_fact:
-    registry_csr: "{{ csr.stdout | b64encode }}"
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: populate registry Kubernetes CA CSR template
+      template:
+        src: "kube_registry_csr.yml.j2"
+        dest: "/etc/ssl/registry/kube-registry-csr.yml"
+        force: yes
+        mode: preserve
 
-- name: populate registry Kubernetes CA CSR template
-  template:
-    src: "kube_registry_csr.yml.j2"
-    dest: "/etc/ssl/registry/kube-registry-csr.yml"
-    force: yes
-    mode: preserve
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: send CSR to the Kubernetes API Server
+      command: kubectl apply -f /etc/ssl/registry/kube-registry-csr.yml
 
-- name: send CSR to the Kubernetes API Server
-  command: kubectl apply -f /etc/ssl/registry/kube-registry-csr.yml
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: approve request
+      command: kubectl certificate approve registry.kube-system
 
-- name: approve request
-  command: kubectl certificate approve registry.kube-system
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: get approved certificate
+      shell: kubectl get csr registry.kube-system -o jsonpath='{.status.certificate}'
+      args:
+        chdir: "/etc/ssl/registry"
+      register: cert
+      retries: 30
+      delay: 1
+      until: cert.stdout | length > 0
 
-- name: get approved certificate
-  shell: kubectl get csr registry.kube-system -o jsonpath='{.status.certificate}'
-  args:
-    chdir: "/etc/ssl/registry"
-  register: cert
-  when: inventory_hostname == groups['kube_control_plane'][0]
-  retries: 30
-  delay: 1
-  until: cert.stdout | length > 0
+    - name: load generated cert
+      set_fact:
+        registry_cert: "{{ cert.stdout | b64decode }}"
 
-- name: load generated cert
-  set_fact:
-    registry_cert: "{{ cert.stdout | b64decode }}"
-  when: inventory_hostname == groups['kube_control_plane'][0]
+    - name: create TLS secret for registry
+      command: >-
+        kubectl create -n {{ registry_namespace }} secret generic {{ registry_secret_name }}
+        --from-literal=tls.crt='{{ registry_cert }}'
+        --from-literal=tls.key='{{ registry_key }}'
 
-- name: create TLS secret for registry
-  command: >-
-    kubectl create -n {{ registry_namespace }} secret generic {{ registry_secret_name }}
-    --from-literal=tls.crt='{{ registry_cert }}'
-    --from-literal=tls.key='{{ registry_key }}'
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: clean up
-  file: path=/etc/ssl/registry state=absent
-  failed_when: false
-  become: yes
+    - name: clean up
+      file: path=/etc/ssl/registry state=absent
+      failed_when: false
+      become: yes
   when: inventory_hostname == groups['kube_control_plane'][0]
 
 # copy CA file so that registry clients can validate its certificate

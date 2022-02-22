@@ -1,0 +1,177 @@
+# How to use this file:
+# --------------------
+# <feature> can be:
+# - on (included and enabled)
+# - optional (included in vars but disabled)
+# - off (not included, might as well drop it from the profile section)
+#
+# features:
+# - vm_mode
+# - on_vms
+# - nfd
+# - isolcpu
+# - native_cpu_manager
+# - bond_cni
+# - topology_manager
+# - sriov_operator
+# - sriov_network_dp
+# - network_userspace
+# - sgx
+# - qat
+# - gpu
+# - openssl
+# - tas
+# - ddp
+# - dpdk
+# - pstate
+# - sst
+# - telemetry
+# - kmra
+# - wireguard
+
+# sriov_operator is permanently disabled in VM mode
+# kmra is temporary disabled in VM mode - needs to be tested
+# sst is temporary disabled in VM mode
+# ovs_dpdk and network_userspace disabled temporary - waiting for new ovs version 2.17 compatible with dpdk 21.11
+---
+access:
+  name: access
+  vm_mode: on
+  on_vms: optional
+  nfd: on
+  isolcpu: optional
+  native_cpu_manager: on
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: on
+  qat: on
+  qat_dp: on
+  openssl: on
+  dpdk: on
+  pstate: optional
+  telemetry: optional
+  service_mesh: on
+  wireguard: on
+  firewall: optional
+
+basic:
+  name: basic
+  vm_mode: on
+  on_vms: optional
+  nfd: on
+  isolcpu: optional
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: optional
+  dpdk: optional
+  telemetry: optional
+  wireguard: on
+  firewall: optional
+
+full_nfv:
+  name: full_nfv
+  vm_mode: on
+  on_vms: optional
+  nfd: on
+  isolcpu: optional
+  native_cpu_manager: on
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: on
+  bond_cni: on
+  network_userspace: optional
+  ovs_dpdk: optional
+  qat: on
+  qat_dp: on
+  openssl: on
+  gpu: optional
+  sgx: optional
+  sgx_dp: optional
+  kmra: optional
+  tas: on
+  gas: optional
+  ddp: on
+  dpdk: on
+  pstate: on
+  sst: optional
+  telemetry: on
+  service_mesh: on
+  wireguard: on
+  firewall: optional
+
+on_prem:
+  name: on_prem
+  vm_mode: on
+  on_vms: optional
+  nfd: on
+  isolcpu: optional
+  native_cpu_manager: on
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: on
+  sgx: optional
+  sgx_dp: optional
+  qat: on
+  qat_dp: on
+  gpu: optional
+  openssl: on
+  tas: on
+  gas: optional
+  dpdk: on
+  bond_cni: optional
+  pstate: optional
+  sst: optional
+  telemetry: on
+  kmra: optional
+  service_mesh: on
+  wireguard: on
+  firewall: optional
+
+regional_dc:
+  name: regional_dc
+  vm_mode: on
+  on_vms: optional
+  nfd: on
+  isolcpu: optional
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: optional
+  native_cpu_manager: on
+  gpu: on
+  tas: on
+  gas: on
+  dpdk: optional
+  telemetry: on
+  service_mesh: on
+  wireguard: on
+  firewall: optional
+
+remote_fp:
+  name: remote_fp
+  vm_mode: on
+  on_vms: optional
+  nfd: on
+  isolcpu: optional
+  native_cpu_manager: on
+  topology_manager: on
+  sriov_operator: optional
+  sriov_network_dp: on
+  network_userspace: optional
+  sgx: optional
+  sgx_dp: optional
+  qat: on
+  qat_dp: optional
+  gpu: optional
+  openssl: on
+  tas: on
+  gas: optional
+  ddp: on
+  bond_cni: optional
+  dpdk: on
+  pstate: on
+  sst: optional
+  telemetry: on
+  kmra: optional
+  service_mesh: on
+  wireguard: on
+  firewall: optional

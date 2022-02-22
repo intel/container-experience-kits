@@ -12,7 +12,8 @@ The software provided here is for reference only and not intended for production
     git submodule update --init
     ```
 
-2. Decide which configuration profile you want to use and optionally export environmental variable. (> **_NOTE:_** It will be used only to ease execution of the steps listed below.)
+2. Decide which configuration profile you want to use and optionally export environmental variable.
+   > **_NOTE:_** It will be used only to ease execution of the steps listed below.
     - For **Kubernetes Basic Infrastructure** deployment:
 
         ```bash
@@ -49,33 +50,43 @@ The software provided here is for reference only and not intended for production
         export PROFILE=full_nfv
         ```
 
+    - For **Kubernetes Storage Infrastructure** deployment:
+
+        ```bash
+        export PROFILE=storage
+        ```
+
 3. Install dependencies
 
    ```bash
-   pip3 install -r profiles/requirements.txt
+   pip3 install -r requirements.txt
    ```
 
-4. Generate example host_vars, group_vars and inventory for BMRA profiles.
+4. Generate example host_vars, group_vars and inventory files for Intel Container Experience Kits profiles.
+
+   > **_NOTE:_** It is **highly recommended** to read [this](docs/generate_profiles.md) file before profiles generation.
 
     ```bash
-    make bmra-profiles
-    ```
-
-    > **_NOTE:_** You can provide the optional `profile` argument to automatically copy files needed for deployment. Then, you can skip both the 4th and the 6th steps.
-
-    ```bash
-    make bmra-profiles profile=$PROFILE
+    make examples
     ```
 
 5. Copy example inventory file to the project root dir.
 
     ```bash
-    cp examples/${PROFILE}/inventory.ini .
+    cp examples/k8s/${PROFILE}/inventory.ini .
+    ```
+
+    or, for VM case:
+
+    ```bash
+    cp examples/vm/${PROFILE}/inventory.ini .
     ```
 
 6. Update inventory file with your environment details.
 
-    > **_NOTE:_** at this stage you can inspect your target environment by running:
+    For VM case: update details relevant for vm_host
+
+    > **_NOTE:_** At this stage you can inspect your target environment by running:
 
     ```bash
     ansible -i inventory.ini -m setup all > all_system_facts.txt
@@ -86,14 +97,26 @@ The software provided here is for reference only and not intended for production
 7. Copy group_vars and host_vars directories to the project root dir.
 
     ```bash
-    cp -r examples/${PROFILE}/group_vars examples/${PROFILE}/host_vars .
+    cp -r examples/k8s/${PROFILE}/group_vars examples/k8s/${PROFILE}/host_vars .
+
+    or
+
+    For VM case:
+    cp -r examples/vm/${PROFILE}/group_vars examples/vm/${PROFILE}/host_vars .
     ```
 
 8. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
 
     > **_NOTE:_** Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
 
-9. RECOMMENDED: Apply bug fix patch for Kubespray submodule (Required for RHEL 8+).
+    For VM case:
+    - update details relevant for vm_host (e.g.: datalane_interfaces, ...)
+    - update VMs definition in host_vars/host-for-vms-1.yml
+    - update/create host_vars for all defined VMs (e.g.: host_vars/vm-ctrl-1.yml and host_vars/vm-work-1.yml)  
+      Needed details are at least dataplane_interfaces  
+      For more details see [VM case configuration guide](docs/vm_config_guide.md)
+
+9. **Recommended:** Apply bug fix patch for Kubespray submodule (Required for RHEL 8+).
 
     ```bash
     ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
@@ -105,23 +128,34 @@ The software provided here is for reference only and not intended for production
     ansible-playbook -i inventory.ini playbooks/${PROFILE}.yml
     ```
 
+    or, for VM case:
+
+    ```bash
+    ansible-playbook -i inventory.ini playbooks/vm.yml
+    ```
+
+    > **_NOTE:_** VMs are accessible from ansible host via ssh vm-ctrl-1 or ssh vm-work-1
+
 ## Configuration
 
 Refer to the documentation linked below to see configuration details for selected capabilities and deployment profiles.
 
 - [SRIOV Network Device Plugin and SRIOV CNI plugin](docs/sriov.md)
-
+- [MinIO Operator](docs/storage.md)
+- [VM case configuration guide](docs/vm_config_guide.md)
 ## Prerequisites and Requirements
 
-- Python present on the target servers depending on the target distribution. Python 3 is highly recommended, but Python 2 is still supported for CentOS 7.
-- Ansible 2.9.20 installed on the Ansible host machine (the one you run these playbooks from).
+> **_NOTE:_** Packages requirements might be installed in 3rd step.
+
+- Python present on the target servers depending on the target distribution. Python3 is required.
+- Ansible 3.4.0 and ansible-base 2.10.15 installed on the Ansible host machine (the one you run these playbooks from).
 - python-pip3 installed on the Ansible machine.
 - python-netaddr installed on the Ansible machine.
 - SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).
 - Internet access on all target servers is mandatory. Proxy is supported.
 - At least 8GB of RAM on the target servers/VMs for minimal number of functions (some Docker image builds are memory-hungry and may cause OOM kills of Docker registry - observed with 4GB of RAM), more if you plan to run heavy workloads such as NFV applications.
-- For the `RHEL`-like OSes `SELinux` must be configured prior to the BMRA deployment and required `SELinux`-related packages should be installed.
-  `BMRA` itself is keeping initial `SELinux` state but `SELinux`-related packages might be installed during `k8s` cluster deployment as a dependency, for `Docker` engine e.g.,
+- For the `RHEL`-like OSes `SELinux` must be configured prior to the CEK deployment and required `SELinux`-related packages should be installed.
+  `CEK` itself is keeping initial `SELinux` state but `SELinux`-related packages might be installed during `k8s` cluster deployment as a dependency, for `Docker` engine e.g.,
   causing OS boot failure or other inconsistencies if `SELinux` is not configured properly.
   Preferable `SELinux` state is `permissive`.
   For more details, please, refer to the respective OS documentation.

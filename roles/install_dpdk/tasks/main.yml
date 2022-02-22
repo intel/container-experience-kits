@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 - name: download DPDK
   unarchive:
     src: "{{ dpdk_url }}"
-    dest: "/usr/src"
+    dest: "{{ project_root_dir }}"
     remote_src: yes
     list_files: yes
     mode: 0755
@@ -38,33 +38,48 @@
 
 - name: set local dpdk directory path
   set_fact:
-    dpdk_dir: "{{ dpdk_download.dest  }}/{{ dpdk_download.files[0] }}"
+    dpdk_dir: "{{ (dpdk_download.dest, dpdk_download.files[0]) | path_join }}"
     dpdk_base_name: "{{ dpdk_download.files[0] | regex_replace('\\/$', '') }}"
 
-- name: "Apply DPDK patches if provided"
+- name: Apply DPDK patches if provided
   block:
     - name: check if local DPDK patches dir exists
       stat:
         path: "{{ dpdk_local_patches_dir }}"
-      delegate_to: "127.0.0.1"
+      delegate_to: "localhost"
       register: dpdk_patches_dir_exists
+      become: false
 
-    - name: find DPDK patches available
+    - name: find DPDK patches
       find:
-        paths: "{{ dpdk_local_patches_dir }}/{{ dpdk_base_name }}"
+        paths: "{{ (dpdk_local_patches_dir, dpdk_base_name) | path_join }}"
         recurse: yes
-      when: dpdk_patches_dir_exists.stat.exists|bool and dpdk_patches_dir_exists.stat.isdir|bool
+      when:
+        - dpdk_patches_dir_exists.stat.exists | bool
+        - dpdk_patches_dir_exists.stat.isdir | bool
+      delegate_to: "localhost"
       register: patches_found
+      become: false
 
     - name: apply DPDK patches
       patch:
         remote_src: no
         src: "{{ item.path }}"
         basedir: "{{ dpdk_dir }}"
-        strip: 2
+        strip: "{{ dpdk_local_patches_strip }}"
         state: present
       with_items: "{{ patches_found.files }}"
-      when: patches_found.matched > 0
+      when:
+        - not patches_found.skipped | default(false)
+        - patches_found.matched > 0
+
+    - name: warn user if patches were not found
+      fail:
+        msg: "[WARNING] DPDK patches were not found, no patches been applied."
+      when:
+        - patches_found.skipped | default(false) or patches_found.matched == 0
+      ignore_errors: true
+
   when: dpdk_local_patches_dir is defined
 
 - name: include install_dpdk task for DPDK <= 20.08 versions

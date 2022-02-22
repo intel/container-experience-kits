@@ -1,0 +1,34 @@
+[Unit]
+Description=Docker Application Container Engine
+Documentation=http://docs.docker.com
+{% if ansible_os_family == "RedHat" %}
+After=network.target containerd.service
+BindsTo=containerd.service
+{% elif ansible_distribution == "Ubuntu" %}
+After=network.target docker.socket containerd.service
+BindsTo=containerd.service
+Wants=docker.socket
+{% endif %}
+
+[Service]
+Type=notify
+Environment=GOTRACEBACK=crash
+ExecReload=/bin/kill -s HUP $MAINPID
+Delegate=yes
+KillMode=process
+ExecStart={{ docker_bin_dir }}/dockerd \
+          $DOCKER_OPTS
+{% if systemd_version.stdout|int >= 226 %}
+TasksMax=infinity
+{% endif %}
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+TimeoutStartSec=1min
+# restart the docker process if it exits prematurely
+Restart=on-failure
+StartLimitBurst=3
+StartLimitInterval=60s
+
+[Install]
+WantedBy=multi-user.target

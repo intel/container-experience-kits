@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,101 +14,48 @@
 ##   limitations under the License.
 ##
 ---
-- name: check if firewall service is enabled on the target server
-# noqa 303 - systemctl is called intentionally here
-  command: systemctl is-enabled {{ firewall_svc[ansible_distribution] }}
-  register: fw_service_enabled
-  failed_when: fw_service_enabled.rc not in [0, 1]
-  become: yes
-  vars:
-    firewall_svc:
-      CentOS: firewalld
-      RedHat: firewalld
-      Ubuntu: ufw
-  changed_when: false
+- name: configure firewall rules
+  block:
+    - name: ensure that firewall is running if the service is enabled
+      systemd:
+        name: "{{ firewall_svc[ansible_distribution] }}"
+        state: started
+        enabled: yes
+        masked: no
+        daemon_reload: yes
+      vars:
+        firewall_svc:
+          CentOS: firewalld
+          RedHat: firewalld
+          Ubuntu: ufw
+      become: yes
 
-- name: register firewall service status
-  set_fact:
-    fw_enabled: "{{ fw_service_enabled.rc == 0 | default(false) | bool }}"
+    - name: configure firewall on RedHat distributions
+      include_tasks: fw_redhat.yaml
+      when: ansible_os_family == "RedHat"
 
-- name: ensure that firewall is running if the service is enabled
+    - name: configure firewall on Debian distributions
+      include_tasks: fw_debian.yaml
+      when: ansible_os_family == "Debian"
+  when: firewall_enabled | default(false) | bool
+
+- name: make sure firewall is disabled
   systemd:
     name: "{{ firewall_svc[ansible_distribution] }}"
-    state: started
+    state: stopped
+    enabled: no
+    masked: yes
+    daemon_reload: yes
   vars:
     firewall_svc:
       CentOS: firewalld
       RedHat: firewalld
       Ubuntu: ufw
-  when:
-    - fw_enabled
   become: yes
+  when: not firewall_enabled | default(false) | bool
 
-- name: open required ports in the firewall configuration on the controller
-  command: firewall-cmd --zone=public --add-port={{ item | regex_replace(':', '-') }} --permanent
-  with_items: "{{ fw_open_ports['controller'] }}"
-  become: yes
-  when:
-    - ansible_distribution in ["CentOS", "RedHat"]
-    - inventory_hostname in groups['kube_control_plane']
-    - fw_enabled
-
-- name: open required ports in the firewall configuration on the node
-  command: firewall-cmd --zone=public --add-port={{ item | regex_replace(':', '-') }} --permanent
-  with_items: "{{ fw_open_ports['node'] }}"
-  become: yes
-  when:
-    - ansible_distribution in ["CentOS", "RedHat"]
-    - inventory_hostname in groups['kube_node']
-    - fw_enabled
-
-- name: add Kubernetes pods and services subnets to the "trusted" zone in firewalld
-  command: firewall-cmd --zone=trusted --permanent --add-source={{ item }}
-  with_items: "{{ fw_open_subnets }}"
-  when:
-    - ansible_distribution in ["CentOS", "RedHat"]
-    - fw_enabled
-
-- name: apply firewall configuration
-  command: firewall-cmd --reload
-  become: yes
-  when:
-    - ansible_distribution in ["CentOS", "RedHat"]
-    - fw_enabled
-
-- name: open required ports in the firewall configuration on the controller nodes
-  command: ufw allow {{ item }}
-  with_items: "{{ fw_open_ports['controller'] }}"
-  become: yes
-  when:
-    - ansible_distribution == "Ubuntu"
-    - inventory_hostname in groups['kube_control_plane']
-    - fw_enabled
-
-- name: open required ports in the firewall configuration on the worker nodes
-  command: ufw allow {{ item }}
-  with_items: "{{ fw_open_ports['node'] }}"
-  become: yes
-  when:
-    - ansible_distribution == "Ubuntu"
-    - inventory_hostname in groups['kube_node']
-    - fw_enabled
-
-- name: allow traffic from Kubernetes subnets
-  command: ufw allow from {{ item }}
-  become: yes
-  with_items: "{{ fw_open_subnets }}"
-  when:
-    - ansible_distribution == "Ubuntu"
-    - fw_enabled
-
-- name: enable ufw
-  ufw:
-    state: enabled
-  become: yes
-  when:
-    - ansible_distribution == "Ubuntu"
-    - fw_enabled
+- name: configure SELinux
+  include_tasks: selinux.yaml
 
 # fix for file size limit bug on RHEL-based distros, please see https://access.redhat.com/solutions/33993
 - name: fix file size limit settings bug
@@ -124,22 +71,3 @@
       root hard fsize unlimited
       root soft nofile unlimited
       root hard nofile unlimited
-
-- name: enable selinux
-  selinux:
-    state: enabled
-  notify: reboot server
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_selinux.status != "enabled"
-    - selinux_state is defined and selinux_state == "enabled"
-
-- name: disable selinux
-  selinux:
-    state: disabled
-  notify: reboot server
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_selinux.status != "disabled"
-    - (selinux_state is defined and selinux_state == "disabled") or
-      (container_runtime == "docker" and ansible_distribution_version >= '8.4')

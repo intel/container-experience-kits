@@ -1,0 +1,194 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: backup kube-scheduler config files
+  copy:
+    src: "{{ item }}"
+    dest: "{{ ('/etc/kubernetes', item | basename) | path_join }}.bak"
+    remote_src: true
+    mode: preserve
+  loop: "{{ kube_scheduler_configs }}"
+
+- name: copy current kube-scheduler config files to tmp files
+  copy:
+    src: "{{ item }}"
+    dest: "{{ ('/tmp', item | basename) | path_join }}"
+    remote_src: true
+    mode: preserve
+  loop: "{{ kube_scheduler_configs }}"
+
+- name: Scheduler configuration
+  block:
+    - name: configure API version in kube-scheduler config file
+      lineinfile:
+        path: /tmp/kubescheduler-config.yaml
+        line: "apiVersion: kubescheduler.config.k8s.io/v1beta2"
+        regexp: "apiVersion: "
+        state: present
+        mode: 0600
+
+    - name: add extender conifguration in kube-scheduler config file
+      blockinfile:
+        path: /tmp/kubescheduler-config.yaml
+        mode: 0600
+        block: |
+          extenders:
+          {% if tas_enabled %}
+            - urlPrefix: "http{% if tas_tls_enabled %}s{% endif %}://{{ tas_service_name }}.{{ pas_namespace }}.svc.{{ cluster_name }}:{{ tas_service_port }}"
+              prioritizeVerb: "scheduler/prioritize"
+              filterVerb: "scheduler/filter"
+              weight: 1
+              enableHTTPS: {% if tas_tls_enabled %}true{% else %}false{% endif %}{{''}}
+              managedResources:
+                - name: "telemetry/scheduling"
+                  ignoredByScheduler: true
+              ignorable: true
+          {% if tas_tls_enabled %}
+              tlsConfig:
+                insecure: false
+                certFile: "/host/certs/tas/tls-extender-client.pem"
+                keyFile: "/host/certs/tas/tls-extender-client-key.pem"
+          {% endif %}
+          {% endif %}
+          {% if gas_enabled %}
+            - urlPrefix: "http{% if gas_tls_enabled %}s{% endif %}://{{ gas_service_name }}.{{ pas_namespace }}.svc.{{ cluster_name }}:{{ gas_service_port }}"
+              prioritizeVerb: "scheduler/prioritize"
+              filterVerb: "scheduler/filter"
+              bindVerb: "scheduler/bind"
+              weight: 1
+              enableHTTPS: {% if gas_tls_enabled %}true{% else %}false{% endif %}{{''}}
+              managedResources:
+                - name: "gpu.intel.com/i915"
+                  ignoredByScheduler: true
+              ignorable: true
+          {% if gas_tls_enabled %}
+              tlsConfig:
+                insecure: false
+                certFile: "/host/certs/gas/tls-extender-client.pem"
+                keyFile: "/host/certs/gas/tls-extender-client-key.pem"
+          {% endif %}
+          {% endif %}
+  when: kube_version is version('v1.22', '>=')
+
+- name: configure kube-scheduler with ConfigMap
+  block:
+    - name: create extenders policy ConfigMap manifest
+      template:
+        src: "pas-extenders-configmap.yaml.j2"
+        dest: "{{ (project_root_dir, 'charts/pas-extenders-configmap.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: create ConfigMap instance
+      shell: >-
+        set -o pipefail &&
+        kubectl apply -f ./pas-extenders-configmap.yaml
+        --namespace {{ pas_namespace }}
+        --dry-run=client -o yaml | kubectl apply -f -
+      args:
+        chdir: "{{ (project_root_dir, 'charts') | path_join }}"
+        executable: /bin/bash
+      changed_when: true
+
+    - name: create ClusterRole for kube-scheduler to read ConfigMaps
+      template:
+        src: "pas-cluster-role-configmapgetter.yaml.j2"
+        dest: "{{ (project_root_dir, 'charts/pas-cluster-role-configmapgetter.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: create kube-scheduler ClusterRole
+      shell: >-
+        set -o pipefail &&
+        kubectl apply -f ./pas-cluster-role-configmapgetter.yaml
+        --dry-run=client -o yaml | kubectl apply -f -
+
+      args:
+        chdir: "{{ (project_root_dir, 'charts') | path_join }}"
+        executable: /bin/bash
+      changed_when: true
+
+    - name: configure arguments to our kube-scheduler manifest - configmap
+      lineinfile:
+        path: /tmp/kube-scheduler.yaml
+        insertafter: "    - kube-scheduler"
+        line: "{{ item.arg }}={{ item.value }}"
+        regexp: "{{ item.arg }}"
+        state: present
+        mode: 0600
+      with_items:
+      - { arg: "    - --policy-configmap", value: "pas-scheduler-extenders-policy" }
+      - { arg: "    - --policy-configmap-namespace", value: "{{ pas_namespace }}" }
+  when: kube_version is version('v1.22', '<')
+
+- name: configure arguments from Kubernetes Scheduler file - dnsPolicy
+  lineinfile:
+    path: /tmp/kube-scheduler.yaml
+    insertafter: "spec:"
+    line: "  dnsPolicy: ClusterFirstWithHostNet"
+    regexp: "  dnsPolicy: "
+    state: present
+    mode: 0600
+
+- name: add volume with certs
+  block:
+    - name: configure volumes
+      blockinfile:
+        path: /tmp/kube-scheduler.yaml
+        mode: 0600
+        insertafter: "  volumes:"
+        marker: "# {mark} - ANSIBLE MANAGED BLOCK"
+        marker_begin: "volumes"
+        marker_end: "volumes"
+        block: |2
+            - hostPath:
+                path: {{ item.ssl }}
+              name: {{ item.name }}-extender-client
+      loop: "{{ extenders }}"
+
+    - name: volumeMount with certs
+      blockinfile:
+        path: /tmp/kube-scheduler.yaml
+        mode: 0600
+        insertafter: "    volumeMounts:"
+        marker: "# {mark} - ANSIBLE MANAGED BLOCK"
+        marker_begin: "mounts"
+        marker_end: "mounts"
+        block: |4
+                - mountPath: /host/certs/{{ item.name }}
+                  name: {{ item.name }}-extender-client
+                  readOnly: true
+      loop: "{{ extenders }}"
+  when:
+    - item.tls_enabled
+
+- name: copy new kube-scheduler config files from tmp files
+  copy:
+    src: "{{ ('/tmp', item | basename) | path_join }}"
+    dest: "{{ item }}"
+    remote_src: true
+    mode: preserve
+  loop: "{{ kube_scheduler_configs }}"
+
+- name: remove tmp config files
+  file:
+    state: absent
+    path: "{{ ('/tmp', item | basename) | path_join }}"
+  loop: "{{ kube_scheduler_configs }}"
+
+- name: wait for kube-scheduler
+  pause:
+    seconds: 10

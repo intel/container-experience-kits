@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,8 +16,17 @@
 ---
 - name: validate host_vars CPUs range with online CPUs range in system
   shell:
-    cmd: set -o pipefail && intel-speed-select -d perf-profile set-config-level -l {{ sst_pp_level_set.stdout }} -o  2>&1 \
-         | grep -i 'online cpu' | grep -Eo '[0-9]{1,4}' | tr "\n" " " | tr ' ' ',' | grep -Eo '{{ sst_tf_online_cpus }}'
+    cmd: |
+      set -o pipefail && \
+      intel-speed-select \
+      -d perf-profile set-config-level \
+      -l {{ sst_pp_level_set.stdout }} \
+      -o  2>&1 | \
+      grep -i 'online cpu' | \
+      grep -Eo '[0-9]{1,4}' | \
+      tr "\n" " " | \
+      tr ' ' ',' | \
+      grep -Eo '{{ sst_tf_online_cpus }}'
   args:
     executable: /bin/bash
   register: validate_hostvars_cpus
@@ -38,8 +47,7 @@
 
 - name: set user defined online CPUs values for turbo-freq configuration
   shell:
-    cmd: "turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 \
-         | head -n 59"
+    cmd: "turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59"
   args:
     executable: /bin/bash
   register: read_turbostat_values
@@ -49,9 +57,9 @@
   debug:
     msg: "{{ read_turbostat_values.stdout|replace('\\t',' ') }}"
 
-- name: create directory /usr/src/SST_PP_config to save details
+- name: create directory sst_pp_config to save details
   file:
-    path: /usr/src/SST_PP_config
+    path: "{{ project_root_dir }}/sst_pp_config"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
 
@@ -60,5 +68,5 @@
     cmd: "turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 2>&1 | head -n 59 > sst_pp_user_defined_turbostat_output.txt"
   args:
     executable: /bin/bash
-    chdir: "/usr/src/SST_PP_config"
+    chdir: "{{ project_root_dir }}/sst_pp_config"
   changed_when: true

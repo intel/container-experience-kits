@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -78,6 +78,7 @@
     - gpu_dp_build_image_locally
     - '"docker" not in container_runtime'
 
+# start deployment of GPU DP
 - name: prepare and deploy GPU Device Plugin
   block:
     - name: set values
@@ -87,15 +88,21 @@
         gpu_dp_version: "{{ intel_gpu_dp_version }}"
       when: gpu_dp_build_image_locally
 
+    - name: create directory for GPU DP files
+      file:
+        state: directory
+        path: "{{ project_root_dir }}/gpu_dp/"
+        mode: 0644
+
     - name: populate Intel GPU Device Plugin yaml file and push to controller node
       template:
         src: "intel-gpu-plugin.yml.j2"
-        dest: "/usr/src/intel-gpu-plugin.yml"
+        dest: "{{ project_root_dir }}/gpu_dp/intel-gpu-plugin.yml"
         force: yes
         mode: preserve
 
     - name: deploy Intel GPU Device Plugin with the Intel Device Plugin Operator
       k8s:
         state: present
-        src: "/usr/src/intel-gpu-plugin.yml"
+        src: "{{ project_root_dir }}/gpu_dp/intel-gpu-plugin.yml"
   when: inventory_hostname == groups['kube_control_plane'][0]

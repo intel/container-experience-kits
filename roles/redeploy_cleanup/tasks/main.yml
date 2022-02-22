@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 - name: reset and remove Kubernetes cluster
   import_tasks: k8s_cleanup.yml
 
-- name: remove Intel BMRA Container Experience Kit features artifacts
+- name: remove Intel Container Experience Kit features artifacts
   import_tasks: intel_cleanup.yml
 
 - name: reboot

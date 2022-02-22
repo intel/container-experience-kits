@@ -1,0 +1,27 @@
+{{- if .Values.demoPolicy -}}
+apiVersion: telemetry.intel.com/v1alpha1
+kind: TASPolicy
+metadata:
+  name: demo-policy
+  namespace: {{ .Release.Namespace }}
+spec:
+  strategies:
+    deschedule:
+      rules:
+      - metricname: health_metric
+        operator: Equals
+        target: 2
+    dontschedule:
+      rules:
+      - metricname: health_metric
+        operator: Equals
+        target: 1
+      - metricname: health_metric
+        operator: Equals
+        target: 2
+    scheduleonmetric:
+      rules:
+      - metricname: health_metric
+        operator: LessThan
+{{- end -}}
+

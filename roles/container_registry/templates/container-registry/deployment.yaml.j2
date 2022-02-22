@@ -1,5 +1,5 @@
 ---
-# Source: docker-registry/templates/deployment.yaml
+# Source: container-registry/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,13 +37,13 @@ spec:
               mountPath: /etc/nginx
             - name: htpasswd
               mountPath: "/etc/nginx/conf.d/auth"
-        - name: docker-registry
+        - name: container-registry
           image: "{{ registry_image }}"
           imagePullPolicy: IfNotPresent
           command:
           - /bin/registry
           - serve
-          - /etc/docker/registry/config.yml
+          - /etc/container/registry/config.yml
           livenessProbe:
             exec:
               command:
@@ -71,7 +71,7 @@ spec:
             - name: data
               mountPath: /var/lib/registry/
             - name: "{{ release_name }}-config"
-              mountPath: "/etc/docker/registry"
+              mountPath: "/etc/container/registry"
             - name: probe
               mountPath: /tmp/probe.sh
 

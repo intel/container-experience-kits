@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,9 +15,12 @@
 ##
 ---
 intel_gpu_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_gpu_dp_git_ref: "v0.21.0"
-intel_gpu_dp_version: "0.21.0"
-intel_gpu_dp_dir: "/usr/src/intel-device-plugins-for-kubernetes-gpu"
+intel_gpu_dp_git_ref: "v0.23.0"
+intel_gpu_dp_version: "0.23.0"
+intel_gpu_dp_dir: "{{ (project_root_dir, 'intel-gpu-dp') | path_join }}"
 
-gpu_shared_devices: 10
-gpu_dp_build_image_locally: true
+gpu_dp_shared_devices: 10
+gpu_dp_verbosity: 4
+gpu_dp_monitor_resources: false
+gpu_dp_fractional_manager: false
+gpu_dp_build_image_locally: false

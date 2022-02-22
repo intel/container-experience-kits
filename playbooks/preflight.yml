@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -25,11 +25,9 @@
 # - Check Python version (min)
 # - Check Group Vars (exist)
 # - Check Host Vars (exist for each worker node)
-# - Check CMK Hosts (valid targets)
 # On All targets (k8s_cluster):
 # - Check Linux Distro
 # - Check Hostnames (match Inventory)
-# - Check CMK Config (isolcpus defined)
 # - Check isolcpus Total (not more than actual)
 # - Check isolcpus IDs (valid on system)
 # - Check isolcpus OS Reserved (not 0,1,etc)
@@ -47,39 +45,41 @@
 # - Warn BIOS VT-d (should be enabled)
 # - Warn BIOS Hyper-Threading (should be enabled)
 # - Warn collectd (kernel update needed on old OSs)
-# - Check OVS DPDK Version Compatability (for OVS support)
+# - Check OVS DPDK Version Compatibility (for OVS support)
+# - Check MinIO requirements
 
 # additional vars required:
-#  bmra_supported_ansible: # must be version
-#  bmra_supported_python: # min version
-#  bmra_supported_distros: [] # list
-#  bmra_supported_distros_versions: [] # list
+#  cek_supported_ansible: # must be version
+#  cek_supported_python: # min version
+#  cek_supported_distros: [] # list
+#  cek_supported_distros_versions: [] # list
 
 
 ##################################
 # Prerequisites for Ansible Host #
 ##################################
 - hosts: 127.0.0.1
+  any_errors_fatal: true
   connection: local
   vars:
-    bmra_supported_ansible: 2.9.20
-    bmra_supported_python: 2.7
+    cek_supported_ansible: 2.10.15
+    cek_supported_python: 3
 
   tasks:
 
     - debug: msg="Ansible version is {{ ansible_version.string }}"
     - name: Check Ansible Version
       assert:
-        that: (ansible_version.full is version_compare(bmra_supported_ansible, '=='))
-        msg: "Ansible version must be {{ bmra_supported_ansible }}. Please update"
+        that: (ansible_version.full is version_compare(cek_supported_ansible, '=='))
+        msg: "Ansible version must be {{ cek_supported_ansible }}. Please update"
 
     - debug: msg="Python version is {{ ansible_python_version }}"
     - name: Check Python Version
       assert:
-        that: (ansible_python_version is version_compare(bmra_supported_python, '>='))
-        msg: "Python version must be at least {{ bmra_supported_python }}. Please update"
+        that: (ansible_python_version is version_compare(cek_supported_python, '>='))
+        msg: "Python version must be at least {{ cek_supported_python }}. Please update"
 
-    - name: Read Group Vars
+    - name: read Group Vars
       stat:
         path: "{{ inventory_dir }}/group_vars/"
       register: group_vars_details
@@ -89,52 +89,47 @@
         that: "group_vars_details.stat.exists and group_vars_details.stat.isdir"
         msg: "File group_vars/all.yml does NOT exist. Must be created per Guide"
 
-    - name: Read Host Vars
+    - name: read Host Vars
       stat:
         path: "{{ inventory_dir }}/host_vars/{{ item }}.yml"
       register: host_vars_details
       with_items: "{{ groups['kube_node'] }}"
 
-    - name: Check Host Vars
+    - name: check Host Vars
       assert:
         that: "item.stat.exists and item.stat.isreg"
         msg: "File host_vars/{{ item.item }}.yml does NOT exist. Must be created per Guide"
       with_items: "{{ host_vars_details.results }}"
 
-    - debug:
-        msg:
-          - cmk_enabled = {{ cmk_enabled }} (group_vars/all.yml)
-          - cmk_hosts_list = {{ cmk_hosts_list | default('') }} (group_vars/all.yml)
-          - all targets = {{ groups['all'] }} (inventory.ini)
-      when: cmk_enabled is defined  # CMK expected true for all profiles except basic
-
-    - name: Check Intel CMK Hosts
-      assert:
-        that: "item in groups['all']"
-        msg: "Hostname '{{ item }}' is NOT a valid target from inventory.  Please correct the cmk_hosts_list or disable the CMK feature in group vars"
-      with_items: "{{ (cmk_hosts_list.split(',') if (cmk_hosts_list is defined and cmk_hosts_list | length > 0) else []) }}"
-      when: cmk_enabled is defined and cmk_enabled
-
+    - name: show profile name
+      debug:
+        msg: "Profile name is: {{ profile_name | default('not generated') }}"
 
 ##############################################
 # Prerequisites for Control and Worker Nodes #
 ##############################################
-- hosts: k8s_cluster
+- hosts: k8s_cluster,vm_host
+  any_errors_fatal: true
   vars:
-    bmra_supported_distros: [CentOS, RedHat, Ubuntu]
-    bmra_supported_distros_versions: ['7.6', '7.8', '7.9', '8.2', '8.3', '8.4', '18.04', '20.04', '21.04']
+    cek_supported_distros: [RedHat, Ubuntu]
+    cek_supported_distros_versions: ['8.5', '20.04', '21.04', '21.10']
     isolcpus_ranges: []
     isolcpus_discretes: []
 
   tasks:
+    - name: end play for VM host
+      meta: end_host
+      when:
+        - "'vm_host' in group_names"
+        - on_vms is defined and on_vms
 
     - debug: msg="Linux distribution on target is {{ ansible_distribution }} {{ ansible_distribution_version }} {{ ansible_distribution_release }}"
     - name: Check Linux Distro and Version
       assert:
-        that: "ansible_distribution in bmra_supported_distros and ansible_distribution_version in bmra_supported_distros_versions"
+        that: "ansible_distribution in cek_supported_distros and ansible_distribution_version in cek_supported_distros_versions"
         msg:
           - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}' is NOT supported
-          - Must be one of {{ bmra_supported_distros }} and version {{ bmra_supported_distros_versions }}
+          - Must be one of {{ cek_supported_distros }} and version {{ cek_supported_distros_versions }}
 
 #    - name: Check Linux Across Cluster
 # TODO ?? Linux OS must be the same on all targets (no mix-n-match)
@@ -164,7 +159,7 @@
             - "mode: {{ ansible_selinux.mode | default('') }}"
             - "config_mode: {{ ansible_selinux.config_mode | default('') }}"
 
-      - name: check selinux condition possibly causing system boot failure
+      - name: check SELinux condition possibly causing system boot failure
         debug:
           msg:
             - "Current SELinux setup might cause the system possibly will not boot up on next reboot."
@@ -185,14 +180,29 @@
       when:
         - ansible_os_family == "RedHat"
 
-# STORY: "cmk requires isolcpus to be configured"
+    - name: check kubernetes and container runtime variables
+      assert:
+        that:
+          - (not kubernetes and container_runtime_only_deployment) or
+            (not kubernetes and not container_runtime_only_deployment)
+        fail_msg: >-
+          "For container runtime only deployment set container_runtime_only_deployment as "true" and kubernetes as "false".
+          Set both variables as "false" to perform only host configuration."
+      when:
+        - not kubernetes or container_runtime_only_deployment
+
+    - name: assert that Multus is enabled in the config
+      assert:
+        that:
+          - "kube_network_plugin_multus"
+        fail_msg: "SRIOV and the Userspace CNI plugin require Multus for a fully functional cluster deployment"
+      when: sriov_net_dp_enabled is defined and sriov_net_dp_enabled or
+            sriov_cni_enabled is defined and sriov_cni_enabled or
+            userspace_cni_enabled is defined and userspace_cni_enabled
+
     - block:
       - debug:
           msg:
-            - cmk_enabled = {{ cmk_enabled }} (group_vars/all.yml)
-            - cmk_hosts_list = {{ cmk_hosts_list | default('') }} (group_vars/all.yml)
-            - cmk_shared_num_cores = {{ cmk_shared_num_cores }} (group_vars/all.yml)
-            - cmk_exclusive_num_cores = {{ cmk_exclusive_num_cores }} (group_vars/all.yml)
             - isolcpus_enabled = {{ isolcpus_enabled }} (host_vars)
             - isolcpus = {{ isolcpus }} (host_vars)
             - ansible_processor_count = {{ ansible_processor_count }}
@@ -202,20 +212,20 @@
             - CPUs Reserved for OS = 0...{{ ansible_processor_count - 1 }}
 #            - CPUs Reserved for OS = {{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }} # [E207] Nested jinja pattern
 
-      - name: Check Intel CMK Config
+      - name: check CPUs isolation
         assert:
-          that: ({{ cmk_enabled }} and {{ isolcpus_enabled }} and "{{ isolcpus }}" | length > 0)
+          that: ( "{{ isolcpus }}" | length > 0 )
           msg:
-            - Incorrect configuration pertaining Intel CMK. Conflicting or improper values detected
-            - When Intel CMK is enabled, CPUs isolation ('isolcpus') must be set according to the example file for host_vars. Please correct the configuration
+            - Incorrect configuration. Conflicting or improper values detected
+            - CPUs isolation ('isolcpus') must be set according to the example file for host_vars. Please correct the configuration
 
-      - name: Split isolcpus Groups
+      - name: split isolcpus Groups
         set_fact:
           isolcpus_groups: "{{ isolcpus.split(',') }}"
 
       - debug: msg="isolcpus_groups = {{ isolcpus_groups }}"
 
-      - name: Filter isolcpus Ranges
+      - name: filter isolcpus Ranges
         set_fact:
           isolcpus_ranges: "{{ isolcpus_ranges + [item] }}"
         with_items: "{{ isolcpus_groups }}"
@@ -223,7 +233,7 @@
 
       - debug: msg="isolcpus_ranges = {{ isolcpus_ranges }}"
 
-      - name: Filter isolcpus Discretes
+      - name: filter isolcpus Discretes
         set_fact:
           isolcpus_discretes: "{{ isolcpus_discretes + [item] }}"
         with_items: "{{ isolcpus_groups }}"
@@ -231,61 +241,60 @@
 
       - debug: msg="isolcpus_discretes = {{ isolcpus_discretes }}"
 
-      - name: Build isolcpus List
+      - name: build isolcpus List
         set_fact:
           isolcpus_list: "{{ isolcpus_list | default([]) | union(isolcpus_discretes) | union([item]) }}"
         with_sequence: "{{ isolcpus_ranges }}"
 
       - debug: msg="isolcpus_list = {{ isolcpus_list }}"
 
-      - name: Check isolcpus Total
+      - name: check isolcpus Total
         assert:
           that: "{{ isolcpus_list | length }} <= ansible_processor_vcpus"
           msg:
             - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
             - The number of isolcpus {{ isolcpus_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
-        when: isolcpus is defined
 
-      - name: Check isolcpus IDs
+      - name: check isolcpus IDs
         assert:
           that: "item | int <= ansible_processor_vcpus"
           msg:
             - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
             - The CPU ID {{ item }} set for isolcpus is NOT actually present on target. Please correct the configuration
         with_items: "{{ isolcpus_list }}"
-        when: isolcpus is defined
 
-      - name: Check isolcpus OS Reserved
+      - name: check isolcpus OS Reserved
         assert:
           that: "item not in isolcpus_list"
           msg:
             - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
             - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for isolcpus. Please correct the configuration
         with_items: "{{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }}"
-        when: isolcpus is defined
-
-#TODO relationship between cmk shared/exclusive cores and isolcpus
 
       when:
-        - cmk_enabled is defined
-        - (not cmk_hosts_list is defined) or (inventory_hostname in cmk_hosts_list)  #CMK expected true for all profiles except basic
-
+        - isolcpus_enabled is defined and isolcpus_enabled | bool
 
 ####################################
 # Prerequisites for Worker Node(s) #
 ####################################
-- hosts: kube_node
+- hosts: kube_node,vm_host
+  any_errors_fatal: true
   vars:
     phy_nics_pciids: []
 
   tasks:
+    - name: end play for VM host
+      meta: end_host
+      when:
+        - "'vm_host' in group_names"
+        - on_vms is defined and on_vms
 
 # STORY: "nic bus info specified is present on system"
     - debug:
         msg: "Dataplane (DP) interface(s) defined in host_vars = {{ dataplane_interfaces }}"
       when: dataplane_interfaces is defined
 
-    - name: Check DP Interfaces
+    - name: check DP Interfaces
       assert:
         that: "dataplane_interfaces != []"
         msg: "Dataplane (DP) interface(s) on target '{{ ansible_hostname }}' must be set in host_vars. Please correct the configuration"
@@ -299,7 +308,7 @@
     - debug:
         msg: "Network interfaces present on target '{{ ansible_hostname }}' = {{ ansible_interfaces }}"
 
-    - name: Read Physical NICs PCIIDs
+    - name: read Physical NICs PCIIDs
       set_fact:
         phy_nics_pciids: "{{ phy_nics_pciids + [ ansible_facts[item]['pciid'] ] }}"
       with_items: "{{ ansible_interfaces }}"
@@ -307,64 +316,115 @@
 
     - debug: msg="PCI Slots for the NICs on target '{{ ansible_hostname }}' = {{ phy_nics_pciids }}"
 
-    - name: Check DP Interfaces Names
-      assert:
-        that: ("{{ item.name }}" in {{ ansible_interfaces }})
-        msg: "Dataplane interface '{{ item.name }}' defined in host_vars does NOT exist on target. Please correct the configuration"
-      with_items: "{{ dataplane_interfaces }}"
-      when: dataplane_interfaces is defined and dataplane_interfaces != []
-      ignore_errors: True
-
-    - name: Check DP Interfaces Bus Info
+    - name: check DP Interfaces Bus Info
       assert:
         that: ("{{ item.bus_info }}" in "{{ phy_nics_pciids }}")
         msg: "Dataplane interface '{{ item.name }}' defined with PCI ID '{{ item.bus_info }}' does NOT exist on target. Please correct the configuration"
       with_items: "{{ dataplane_interfaces }}"
       when: dataplane_interfaces is defined and dataplane_interfaces != []
-      ignore_errors: True
 
+    - name: check first DP interface driver and DDP package
+      block:
+        - name: Check first DP interface driver
+          assert:
+            that: "dataplane_interfaces[0].pf_driver == ansible_facts[item]['module']"
+            msg: >-
+              "Dataplane interface '{{ dataplane_interfaces[0].name }}' 'pf_driver' is set to '{{ dataplane_interfaces[0].pf_driver }}'.
+              Please, set it to '{{ ansible_facts[item]['module'] }}'."
+          loop: "{{ ansible_interfaces }}"
+          when:
+            - ansible_facts[item]['pciid'] is defined and ansible_facts[item]['type'] == "ether"
+            - dataplane_interfaces[0].bus_info in ansible_facts[item]['pciid']
 
-# QAT Devices list is okay to be left empty (default), but if was defined, device(s) must exist on target
-    - debug:
-        msg: "QAT device(s) defined in host_vars = {{ qat_devices }}"
-      when: qat_devices is defined
+        - name: check if selected DDP package corresponds PF driver ice
+          assert:
+            that: "{{ dataplane_interfaces[0].ddp_profile is regex('^ice_comms*') }}"
+            msg: "ddp_profile '{{ dataplane_interfaces[0].ddp_profile }}' doesn't correspond pf_driver '{{ dataplane_interfaces[0].pf_driver }}'"
+          when:
+            - dataplane_interfaces[0].ddp_profile is defined
+            - dataplane_interfaces[0].ddp_profile | length > 0
+            - dataplane_interfaces[0].pf_driver == "ice"
+            - install_ddp_packages is defined and install_ddp_packages
 
-    - name: Read QAT PCIIDs
-      shell: lshw -businfo -numeric | grep -i quickassist
-      register: lshw_qat
-      ignore_errors: True
-      when: qat_devices is defined
+        - name: check if selected DDP package corresponds PF driver i40e
+          assert:
+            that: "{{ dataplane_interfaces[0].ddp_profile in ddp_profiles_allowed }}"
+            msg: "ddp_profile '{{ dataplane_interfaces[0].ddp_profile }}' doesn't correspond pf_driver '{{ dataplane_interfaces[0].pf_driver }}'"
+          when:
+            - dataplane_interfaces[0].ddp_profile is defined
+            - dataplane_interfaces[0].ddp_profile | length > 0
+            - dataplane_interfaces[0].pf_driver == "i40e"
+            - install_ddp_packages is defined and install_ddp_packages
+          vars:
+            ddp_profiles_allowed:
+              - ecpri.pkg
+              - esp-ah.pkg
+              - ppp-oe-ol2tpv2.pkgo
+              - mplsogreudp.pkg
+              - gtp.pkgo
+      when:
+        - dataplane_interfaces is defined and dataplane_interfaces | length > 0
 
-    - debug:
-        msg: "QAT devices found on target = {{ lshw_qat.stdout }}"
-      when: qat_devices is defined
+    - name: check QAT Devices list is configured properly
+      block:
+        - debug:
+            msg: "QAT device(s) defined in host_vars = {{ qat_devices }}"
 
-    - name: Check QAT Devices' Bus Info
-      assert:
-        that: ("{{ item.qat_id }}" in """{{ lshw_qat.stdout }}""")
-        msg: "QAT device '{{ item.qat_dev }}' defined with PCI ID '{{ item.qat_id }}' does NOT exist on target. Please correct the configuration"
-      with_items: "{{ qat_devices }}"
-      when: qat_devices is defined and qat_devices != []
-      ignore_errors: True
+        - name: read QAT PCIIDs
+          shell: "set -o pipefail && lshw -businfo -numeric | egrep -i '{{ qat_supported_pf_dev_ids | join('|') }}'"
+          args:
+            executable: /bin/bash
+          register: lshw_qat_host
+          when:
+            - on_vms is not defined or not on_vms
 
-# STORY: "qat_sriov_numvfs should not exceed max supported (16) per each dev_ID"
-    - debug:
-        msg:
-          - qat_sriov_numvfs for {{ item.qat_id }} = {{ item.qat_sriov_numvfs }} (host_vars)
-          - update_qat_drivers = {{ update_qat_drivers }} (host_vars)
-      with_items: "{{ qat_devices }}"
-      when: qat_devices is defined and qat_devices != [] # update_qat_drivers expected as 'true' for all profiles except basic
+        - name: read QAT PCIIDs on VMs
+          shell: "set -o pipefail && lshw -businfo -numeric | egrep -i '{{ (qat_supported_vf_dev_ids + qat_supported_pf_dev_ids) | join('|') }}'"
+          args:
+            executable: /bin/bash
+          register: lshw_qat_vms
+          when:
+            - on_vms is defined and on_vms
 
-    - name: Check QAT SRIOV VFs
-      assert:
-        that: ({{ item.qat_sriov_numvfs }} <= 16)
-        msg:
-          - Incorrect configuration pertaining QAT SRIOV. Conflicting or improper values detected
-          - When SRIOV VFs are set for QAT, max value is 16 for each ID (max 48 total per card). Please correct the configuration
-      with_items: "{{ qat_devices }}"
+        - name: store lshw_qat
+          set_fact:
+            lshw_qat: "{% if (on_vms is defined and on_vms) %}{{ lshw_qat_vms }}{% else %}{{ lshw_qat_host }}{% endif %}"
+
+        - debug:
+            msg: "QAT devices found on target = {{ lshw_qat.stdout }}"
+
+        - name: check QAT Devices' Bus Info
+          assert:
+            that: ("{{ item.qat_id }}" in """{{ lshw_qat.stdout }}""")
+            msg: "QAT device defined with PCI ID '{{ item.qat_id }}' does NOT exist on target. Please correct the configuration"
+          with_items: "{{ qat_devices }}"
+        # STORY: "qat_sriov_numvfs should not exceed max supported (16) per each dev_ID"
+        - debug:
+            msg:
+              - qat_sriov_numvfs for {{ item.qat_id }} = {{ item.qat_sriov_numvfs }} (host_vars)
+              - update_qat_drivers = {{ update_qat_drivers }} (host_vars)
+          with_items: "{{ qat_devices }}"
+
+        - name: check QAT SRIOV VFs
+          assert:
+            that: ({{ item.qat_sriov_numvfs }} <= 16)
+            msg:
+              - Incorrect configuration pertaining QAT SRIOV. Conflicting or improper values detected
+              - When SRIOV VFs are set for QAT, max value is 16 for each ID (max 48 total per card). Please correct the configuration
+          with_items: "{{ qat_devices }}"
       when:
         - update_qat_drivers is defined and update_qat_drivers
         - qat_devices is defined and qat_devices != []
+
+# GPU DP Fractional Resources must be passed in correct format
+    - name: check if the GPU max memory is passed in correct format
+      assert:
+        that:
+          - "{{ gpu_dp_max_memory.split(' ') | length == 2 }}"  # value is passed in format <value><space><unit>
+          - "{{ gpu_dp_max_memory.split(' ')[1] in ['GB', 'MB', 'KB', 'Kb'] }}"  # supported units
+        fail_msg: "Please provide variable value in correct format. Use <value><space><unit> format, e.g. '8 GB'"
+      when: gpu_dp_max_memory is defined
+
 # OpenSSL & OpenSSL*Engine must only be configured / installed when update_qat_drivers is set to 'true' and qat_devices is defined in host vars
     - name: check OpenSSL and OpenSSL*Engine requirements
       assert:
@@ -383,16 +443,15 @@
         success_msg: "KMRA requirements verified"
       when: kmra_enabled is defined and kmra_enabled
 
-    - name: check SGX configuration
+    - name: check Intel SGX DP configuration
       assert:
         that:
-          - sgx_enabled
-        fail_msg: "SGX drivers installation requires sgx_enabled set to 'true'"
-        success_msg: "SGX configuration verified"
+          - configure_sgx is defined
+          - configure_sgx
+        fail_msg:
+            - "Please set configure_sgx to true in host vars to allow SGX configuration on the system"
       when:
         - sgx_dp_enabled is defined and sgx_dp_enabled
-        - (ansible_distribution == 'Ubuntu' and ansible_distribution_version != '21.04')
-          or (ansible_os_family == 'RedHat' and ansible_distribution_version != '8.4')
 
     - name: check NFD configuration
       assert:
@@ -434,6 +493,27 @@
       when:
         - kmra_enabled is defined and kmra_enabled
 
+# Validate Hugepage settings
+    - name: validate hugepage settings
+      block:
+        - name: validate default hugepage size setting
+          assert:
+            that: default_hugepage_size == "2M" or default_hugepage_size == "1G"
+            fail_msg: "Valid sizes for hugepage are: [2M, 1G], given: {{ default_hugepage_size }}."
+
+        - name: validate that at least one 1G hugepage is requested
+          assert:
+            that: number_of_hugepages_1G > 0
+            fail_msg: "number_of_hugepages_1G should not be equal to 0. Please update host vars settings."
+          when: default_hugepage_size == "1G"
+
+        - name: validate that at least one 2M hugepage is requested
+          assert:
+            that: number_of_hugepages_2M > 0
+            fail_msg: "number_of_hugepages_2M should not be equal to 0. Please update host vars settings."
+          when: default_hugepage_size == "2M"
+      when: hugepages_enabled | default(false) | bool
+
 # STORY: "vpp/ovsdpdk require hugepage enabled and configured"
     - debug:
         msg:
@@ -450,49 +530,65 @@
           - userspace_cni_enabled = {{ userspace_cni_enabled }} (host_vars)
           - hugepages_enabled = {{ hugepages_enabled }} (host_vars)
           - default_hugepage_size = {{ default_hugepage_size }} (host_vars)
-          - number_of_hugepages = {{ number_of_hugepages }} (host_vars)
-      when: vpp_enabled is defined #host_vars
+          - number_of_hugepages_1G = {{ number_of_hugepages_1G }} (host_vars)
+          - number_of_hugepages_2M = {{ number_of_hugepages_2M }} (host_vars)
+      when: vpp_enabled is defined and vpp_enabled # host_vars
 
-    - name: Check OVS DPDK Dependencies
+    - name: check OVS DPDK Dependencies
       assert:
         that: >-
           ({{ ovs_dpdk_enabled }} and not {{ vpp_enabled }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages }} >= 0)
+          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages_1G }} >= 0)
           or {{ vpp_enabled }}
         msg:
           - Incorrect configuration pertaining OVS DPDK. Conflicting or improper values detected
-          - When OVS DPDK is enabled, VPP must be disabled and Hugepages must be set to 1G according to host_vars example. Please correct the configuration
+          - When OVS DPDK is enabled, VPP must be disabled and default_hugepage_size must be set to 1G according to host_vars example.
+          - Also check these conditions in group_vars, example_net_attach_defs['userspace_ovs_dpdk']=true, example_net_attach_defs['userspace_vpp']=false.
+          - Please correct the configuration
       when: ovs_dpdk_enabled is defined and ovs_dpdk_enabled
 
-    - name: Check VPP Dependencies
+    - name: check VPP Dependencies
       assert:
         that: >-
           ({{ vpp_enabled }} and not {{ ovs_dpdk_enabled }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages }} >= 0)
+          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages_2M }} >= 0)
           or {{ ovs_dpdk_enabled }}
         msg:
           - Incorrect configuration pertaining VPP. Conflicting or improper values detected
-          - When VPP is enabled, OVS DPDK must be disabled and Hugepages must be set to 2M according to host_vars example. Please correct the configuration
+          - When VPP is enabled, OVS DPDK must be disabled and default_hugepage_size must be set to 2M according to host_vars example.
+          - Also check these conditions in group_vars, example_net_attach_defs['userspace_ovs_dpdk']=false, example_net_attach_defs['userspace_vpp']=true.
+          - Please correct the configuration.
       when: vpp_enabled is defined and vpp_enabled
 
 
 # STORY: "cnis require net-attach-defs to be enabled"
-    - name: Check CNI Config
+    - name: check CNI Config
       assert:
         that: >-
           ({{ userspace_cni_enabled }} and {{ ovs_dpdk_enabled }} and {{ example_net_attach_defs['userspace_ovs_dpdk'] }} and not {{ vpp_enabled }} and
           not {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages }} >= 0)
+          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages_1G }} >= 0)
           or ({{ userspace_cni_enabled }} and not {{ ovs_dpdk_enabled }} and not {{ example_net_attach_defs['userspace_ovs_dpdk'] }} and {{ vpp_enabled }}
           and {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages }} >= 0)
+          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages_2M }} >= 0)
         msg:
           - Incorrect configuration pertaining CNI. Conflicting or improper values detected.
-          - When CNI is enabled, either OVS DPDK either VPP must be enabled and Hugepages must be according to example files. Please correct the configuration
+          - When Userspace CNI is enabled, either OVS DPDK or VPP must be enabled, default_hugepage_size must also set under these options.
+          - 1. If VPP is enabled, ovs_dpdk_enabled=false, default_hugepage_size = 2M in host_vars; and
+          -      example_net_attach_defs['userspace_ovs_dpdk']=false, example_net_attach_defs['userspace_vpp']=true in group_vars.
+          - 2. If OVS DPDK is enabled, default_hugepage_size = 1G in host_vars; and
+          -      vpp_enabled=false, example_net_attach_defs['userspace_ovs_dpdk']=true, example_net_attach_defs['userspace_vpp']=false in group_vars.
+          - Please correct the configuration.
       when: userspace_cni_enabled is defined and userspace_cni_enabled
 
 
 # STORY: "If SST enabled, confirm minimum kernel or kernel_update specified"
+    - name: check platform before SST-PP verification
+      command: "cat /sys/devices/cpu/caps/pmu_name"
+      when: sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
+      changed_when: true
+      register: verify_platform_for_sst_pp
+
     - name: check Intel(R) SST-PP (feature perf-profile) requirements
       assert:
         that:
@@ -505,50 +601,47 @@
            - "sst_tf_configuration_enable & sst_pp_configuration_enabled all should be disabled in host_vars"
            - "Secondly, make sure turbo_boost_enabled in host_vars is set to 'true', as required for turbo-freq configuration"
         success_msg: "Intel(R) SST-PP (feature perf-profile), verification completed"
-      when: sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
-
-    - name: Check SST # see Jira NPF-1545
-      assert:
-        that: (not sst_bf_configuration_enabled)
-        msg: "SST-BF is NOT supported on {{ ansible_distribution }} {{ ansible_distribution_version }}. Please use a different OS or disable this feature"
       when:
-        - sst_bf_configuration_enabled is defined
-        - (ansible_distribution == "RedHat" and ansible_distribution_version == '8.2') or ansible_distribution_version in ['7.6', '7.8', '7.9', '18.04']
-      ignore_errors: True
+        - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
+        - "'skylake' not in verify_platform_for_sst_pp.stdout"
+
+    - name: Intel(R) SST-PP (feature perf-profile) not available
+      fail:
+        msg:
+          - "SST-PP is not supported on {{ verify_platform_for_sst_pp.stdout }} platform"
+          - "Make sure sst_pp_configuration_enabled is set to false in host vars"
+      when:
+        - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
+        - "'skylake' in verify_platform_for_sst_pp.stdout"
 
 # STORY: Intel VT-d should be enabled in BIOS
-    - name: Check Intel VT-d
-      shell: dmesg | grep DMAR | grep remapping
-      register: dmesg_dmar_remap
-      ignore_errors: True
-      changed_when: False
+    - name: check Intel VT-d on BMs
+      block:
+        - name: Check Intel VT-d
+          shell: "set -o pipefail && dmesg | grep DMAR | grep remapping"
+          args:
+            executable: /bin/bash
+          register: dmesg_dmar_remap
+          changed_when: False
 
-    - debug: msg="dmesg >> {{ dmesg_dmar_remap.stdout }}"
+        - debug: msg="dmesg >> {{ dmesg_dmar_remap.stdout }}"
 
-    - name: Warn about Intel VT-d
-      fail:
-        msg: "Warning: Intel VT-d appears DISABLED on target.  Please check BIOS under 'Advanced > Integrated IO Configuration' and Enable if necessary"
-      when: dmesg_dmar_remap.stdout|length  == 0
-      ignore_errors: True
-
+        - name: warn about Intel VT-d
+          fail:
+            msg: "Warning: Intel VT-d appears DISABLED on target.  Please check BIOS under 'Advanced > Integrated IO Configuration' and Enable if necessary"
+          when:
+            - dmesg_dmar_remap.stdout|length  == 0
+      when:
+        - on_vms is not defined or not on_vms
 
 # STORY: CPU Hyper-Threading should be enabled in BIOS
-    - name: Warn about Hyper-Threading
+    - name: warn about Hyper-Threading
       fail:
         msg: "Warning: CPU Hyper-Threading is DISABLED on target.  Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
       when: ansible_processor_threads_per_core != 2
-      ignore_errors: True
-
-
-# STORY: "check for collectd. See Jira NPF-1687"
-    - name: Warn about collectd
-      fail:
-        msg: "Warning: On {{ ansible_distribution }} {{ ansible_distribution_version }} collectd won't work unless 'update_kernel' is enabled in group_vars"
-      when: ansible_distribution_version in ['7.6', '18.04']
-      ignore_errors: True
 
 # STORY: "collectd and telegraf are mutually exclusive"
-    - name: Fail if collectd and telegraf are both enabled
+    - name: fail if collectd and telegraf are both enabled
       assert:
         that: >-
           (({{ collectd_enabled | bool }}) and (not ({{ telegraf_enabled | bool }})))
@@ -558,6 +651,21 @@
       when:
         - collectd_enabled is defined
         - telegraf_enabled is defined
+
+# STORY: "istio 1.9 requires k8s version 1.20 at most"
+    - name: fail if istio version is not compatible with current k8s version
+      assert:
+        that:
+          - "{{ kube_version is version('v1.21', '<') }}"
+        msg: |
+          "Selected Istio service mesh version: '{{ service_mesh.version }}' is not compatible with selected k8s version: '{{ kube_version }}'"
+          "Please, refer to the compatibility table at https://istio.io/latest/docs/releases/supported-releases/"
+      when:
+        - kubernetes
+        - not container_runtime_only_deployment
+        - service_mesh is defined
+        - service_mesh.version is defined
+        - service_mesh.version is version("1.10", "<")
 
 # STORY: TEMPORARY: "ovs dpdk version requirements"
     - debug:
@@ -572,23 +680,66 @@
         - ovs_version is defined #host_vars
         - ovs_dpdk_enabled is defined and ovs_dpdk_enabled #host_vars
 
-    - name: Check OVS DPDK compatibility
+    - name: check OVS DPDK compatibility
       assert:
-        that: >-
-          "{{ ovs_version }} == \"v2.15.0\" and {{ dpdk_version }} >= \"20.11\""
-          or "{{ ovs_version }} == \"v2.14.2\" and {{ dpdk_version }} == \"19.11.6\""
-          or "{{ ovs_version }} == \"v2.14.1\" and {{ dpdk_version }} == \"19.11.6\""
-          or "{{ ovs_version }} == \"v2.14.0\" and {{ dpdk_version }} == \"19.11.6\""
-          or "{{ ovs_version }} == \"v2.13.3\" and {{ dpdk_version }} == \"19.11.6\""
-          or "{{ ovs_version }} == \"v2.13.2\" and {{ dpdk_version }} == \"19.11.6\""
-          or "{{ ovs_version }} == \"v2.13.1\" and {{ dpdk_version }} == \"19.11.6\""
-          or "{{ ovs_version }} == \"v2.13.0\" and {{ dpdk_version }} == \"19.11.6\""
+        that:
+          ovs_version == 'v2.16.2' and (dpdk_version < '21.11' and dpdk_version >= '21.08')
+          or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
+          or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
+          or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.14.1' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.14.0' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.3' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.2' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.1' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.0' and dpdk_version == '19.11.6'
         msg: "OVS {{ ovs_version }} does not build with DPDK version {{ dpdk_version }}. Please correct the host_vars configuration"
       when:
         - dpdk_version is defined #host_vars
         - ovs_version is defined #host_vars
         - ovs_dpdk_enabled is defined and ovs_dpdk_enabled #host_vars
 
+    - name: check settings for Intel Power Operator
+      assert:
+        that:
+          - intel_power_manager.power_profiles | length > 0
+          - intel_power_manager.power_nodes | length > 0
+        fail_msg: "Intel Power Operator is enabled, but either Power Profiles or Power Nodes are not specified in group vars."
+      when: intel_power_manager is defined and intel_power_manager.enabled
+
+    - name: check if Intel Power Operator is only Intel SST feature enalbed
+      assert:
+        that:
+          - not (sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled or
+            sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled or
+            sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled or
+            sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled)
+        fail_msg:
+          - "Currently Intel Power Operator and other Intel SST features are mutually exclusive."
+          - "Please disable the SST-TF, SST-CP and SST-PP in host vars."
+      when: intel_power_manager is defined and intel_power_manager.enabled
+
+# STORY: "MinIO requires number of nodes should be more than the minimum number of nodes defined in group_vars/all/minio_tenant_servers"
+    - name: check MinIO configuration
+      block:
+        - name: check MinIO minimum number of nodes
+          assert:
+            that: "{{ minio_tenant_servers |int }} <= {{ groups['kube_node']|length |int }}"
+            msg: |
+              "Incorrect configuration."
+              "The number of MinIO tenant servers '{{ minio_tenant_servers |int }}' defined in group vars must be"
+               "less or equal to the number of nodes '{{ groups['kube_node']|length |int }}'"
+
+        - name: make sure the MinIO tenant volumes per server >= the MiniO PV list
+          assert:
+            that: "{{ minio_pv|length |int }} >= {{ minio_tenant_volumes_per_server |int }}"
+            msg:
+              - "Incorrect configuration."
+              - "The number of MinIO Persistent Volumes (PVs) '{{ minio_pv|length |int }}' defined in the host vars must be"
+              - "equal or more than MinIO Tenant Volumes per Server '{{ minio_tenant_volumes_per_server }}' defined in group vars."
+      when:
+        - kubernetes
+        - minio_enabled is defined and minio_enabled
 
     - meta: end_play
 

@@ -1,0 +1,72 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone PAS repository
+  git:
+    repo: "{{ pas_git_url }}"
+    version: "{{ item.version }}"
+    dest: "{{ pas_dir }}"
+    force: yes
+  retries: 5
+  delay: 5
+  register: result
+  until: not result.failed
+
+- name: "prepare to build {{ item.image }} extender image locally"
+  block:
+    - name: build extender binary externally
+      make:
+        target: build
+        chdir: "{{ (pas_dir, item.dir) | path_join }}"
+      when:
+        - item.bin_build
+
+    - name: "find Dockerfile for {{ item.image }} extender image"
+      find:
+        paths: "{{ (pas_dir, item.dir, 'deploy/images')  | path_join }}"
+        recurse: true
+        use_regex: true
+        patterns: "^[/a-zA-Z-_0-9]*Dockerfile.*$"
+      register: dockerfile
+      failed_when: dockerfile.skipped | default(false) or dockerfile.matched == 0 or dockerfile.files | length == 0
+
+- name: "build {{ item.image }} extender image locally"
+  block:
+    - name: "build {{ item.image }} extender image"
+      command: "docker build -t {{ item.image }}:{{ item.tag }} -f {{ dockerfile.files[0].path }} {{ item.context }}"
+      args:
+        chdir: "{{ (pas_dir, item.dir) | path_join }}"
+      changed_when: false
+
+    - name: "push {{ item.image }} extender image to local registry"
+      command: "docker push {{ item.image }}:{{ item.tag }}"
+      changed_when: true
+  when:
+    - container_runtime == "docker"
+
+- name: "build {{ item.image }} extender image locally"
+  block:
+    - name: "build and tag {{ item.image }} extender image"
+      command: "buildah bud -t {{ item.image }}:{{ item.tag }} -f {{ dockerfile.files[0].path }} {{ item.context }}"
+      args:
+        chdir: "{{ (pas_dir, item.dir) | path_join }}"
+      changed_when: true
+
+    - name: "push {{ item.image }} extender image extender image to local registry"
+      command: buildah push {{ item.image }}:{{ item.tag }}
+      changed_when: true
+  when:
+    - '"docker" not in container_runtime'

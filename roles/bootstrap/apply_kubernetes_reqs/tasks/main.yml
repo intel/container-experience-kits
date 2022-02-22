@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -28,37 +28,33 @@
   changed_when: false
   become: yes
 
-# for CentOS 7.x this is enough
+# swap disabling routine
 - name: disable swap usage
   command: swapoff -a
   changed_when: false
   become: yes
 
-# for other OSes additional actions are required
 - name: get swap service unit name
   shell: set -o pipefail | systemctl list-unit-files | grep \.swap | awk '{print $1}' # noqa 303
+  args:
+    executable: /bin/bash
   register: unit_name
   changed_when: false
   become: yes
-  when: not (ansible_distribution == "CentOS" and ansible_distribution_version < '8')
 
 - name: stop swap service
   systemd:
     state: stopped
     name: "{{ unit_name.stdout }}"
   become: yes
-  when:
-    - not (ansible_distribution == "CentOS" and ansible_distribution_version < '8')
-    - '"swap" in unit_name.stdout'
+  when: '"swap" in unit_name.stdout'
 
 - name: mask swap service to /dev/null
   systemd:
     name: "{{ unit_name.stdout }}"
     masked: yes
   become: yes
-  when:
-    - not (ansible_distribution == "CentOS" and ansible_distribution_version < '8')
-    - '"swap" in unit_name.stdout'
+  when: '"swap" in unit_name.stdout'
 
 # note: this uses "failed_when: false" for the cases where br_netfilter is built Linux into kernel and not listed as a module
 # please see here for more information: https://github.com/kubernetes/kubernetes/issues/23385

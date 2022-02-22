@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -23,17 +23,6 @@
 - debug:
     msg: "Currently installed iavf version: {{ iavf_installed_version.stdout }}"
 
-- name: download iavf driver
-  get_url:
-    url: "{{ iavf_driver_url }}"
-    dest: /usr/src
-    checksum: "{{ iavf_driver_checksum }}"
-    timeout: 60
-  register: iavf_download
-  until: iavf_download is not failed
-  retries: 5
-  when: iavf_installed_version.stdout != iavf_driver_version
-
 - name: unload iavf module
   modprobe:
     name: iavf
@@ -42,25 +31,36 @@
     - iavf_installed_version.stdout != iavf_driver_version
     - mgmt_interface_driver.stdout != iavf_driver_name
 
-- name: untar iavf driver sources
-  unarchive:
-    src: "{{ iavf_download.dest }}"
-    dest: /usr/src
-    remote_src: yes
-    list_files: yes
-    mode: 0644
-  become: yes
-  register: iavf_untar
-  when: iavf_installed_version.stdout != iavf_driver_version
+- name: update iavf driver
+  block:
+    - name: download iavf driver
+      get_url:
+        url: "{{ iavf_driver_url }}"
+        dest: "{{ project_root_dir }}"
+        checksum: "{{ iavf_driver_checksum }}"
+        timeout: 60
+      register: iavf_download
+      until: iavf_download is not failed
+      retries: 5
 
-- name: build and install iavf driver
-  make:
-    chdir: "{{ iavf_untar.dest }}/{{ iavf_untar.files[0] }}/src"
-    target: "{{ item }}"
-  become: yes
-  with_items:
-    - clean
-    - install
+    - name: untar iavf driver sources
+      unarchive:
+        src: "{{ iavf_download.dest }}"
+        dest: "{{ project_root_dir }}"
+        remote_src: yes
+        list_files: yes
+        mode: 0774
+      become: yes
+      register: iavf_untar
+
+    - name: build and install iavf driver
+      make:
+        chdir: "{{ iavf_untar.dest }}/{{ iavf_untar.files[0] }}/src"
+        target: "{{ item }}"
+      become: yes
+      with_items:
+        - clean
+        - install
   when: iavf_installed_version.stdout != iavf_driver_version
 
 - name: reboot if driver is used by management interface

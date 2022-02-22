@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,11 +17,16 @@
 - name: determine machine type
   include_role:
     name: check_machine_type
+  when:
+    - inventory_hostname == groups['kube_node'][0]
 
 - name: install dependencies
   include_role:
     name: install_dependencies
-  when: is_icx | default(false) | bool
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+    - is_icx | default(false) | bool or
+      is_spr | default(false) | bool
 
 - name: clone Intel Device Plugins repository
   git:
@@ -31,7 +36,8 @@
     force: yes
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool
+    - is_icx | default(false) | bool or
+      is_spr | default(false) | bool
 
 # docker is used as container runtime:
 - name: prepare containers images
@@ -81,7 +87,8 @@
       command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool
+    - is_icx | default(false) | bool or
+      is_spr | default(false) | bool
     - container_runtime == "docker"
 
 # containerd/cri-o is used as container runtime:
@@ -116,9 +123,11 @@
       changed_when: true
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool
+    - is_icx | default(false) | bool or
+      is_spr | default(false) | bool
     - '"docker" not in container_runtime'
 
+# start deployment of SGX DP
 - name: prepare and deploy PSP and RBAC
   block:
     - name: make sure directory for PSP and RBAC rules exists
@@ -153,7 +162,8 @@
         - sgx-rbac-role-binding.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
-    - is_icx | default(false) | bool
+    - hostvars[groups['kube_node'][0]]['is_icx'] or
+      hostvars[groups['kube_node'][0]]['is_spr']
     - psp_enabled | default(true)
 
 - name: prepare and deploy Intel SGX Device Plugin
@@ -168,50 +178,54 @@
     - name: populate Intel SGX Plugin yaml file and push to controller node
       template:
         src: "intel-sgx-plugin.yml.j2"
-        dest: "/usr/src/intel-sgx-plugin.yml"
+        dest: "{{ project_root_dir }}/intel-sgx-plugin.yml"
         force: yes
         mode: preserve
 
     - name: deploy Intel SGX Device Plugin with the Intel Device Plugin Operator
       k8s:
         state: present
-        src: "/usr/src/intel-sgx-plugin.yml"
+        src: "{{ project_root_dir }}/intel-sgx-plugin.yml"
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
-    - is_icx | default(false) | bool
+    - hostvars[groups['kube_node'][0]]['is_icx'] or
+      hostvars[groups['kube_node'][0]]['is_spr']
 
 - name: wait for Intel SGX Device Plugin
   pause:
     minutes: 1
-  when: is_icx | default(false) | bool
+  when:
+    - is_icx | default(false) | bool or
+      is_spr | default(false) | bool
 
 - name: prepare and deploy Intel SGX aesmd
   block:
     - name: create Helm charts directory if needed
       file:
-        path: /usr/src/charts
+        path: "{{ project_root_dir }}/charts"
         state: directory
         mode: 0755
 
     - name: populate Intel SGX aesmd Helm chart values template and push to controller node
       template:
         src: "aesmd-values.yml.j2"
-        dest: "/usr/src/charts/intel-sgx-aesmd-values.yml"
+        dest: "{{ project_root_dir }}/charts/intel-sgx-aesmd-values.yml"
         force: yes
         mode: preserve
 
     - name: copy Helm chart to the controller node
       copy:
         src: "{{ role_path }}/charts/intel-sgx-aesmd"
-        dest: "/usr/src/charts/"
+        dest: "{{ project_root_dir }}/charts/"
         mode: 0755
 
     - name: install Intel SGX aesmd Helm chart
       command: >-
         helm upgrade -i intel-sgx-aesmd
-        -f /usr/src/charts/intel-sgx-aesmd-values.yml
+        -f {{ project_root_dir }}/charts/intel-sgx-aesmd-values.yml
         --namespace {{ sgx_aesmd_namespace }}
-        /usr/src/charts/intel-sgx-aesmd
+        {{ project_root_dir }}/charts/intel-sgx-aesmd
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
-    - is_icx | default(false) | bool
+    - hostvars[groups['kube_node'][0]]['is_icx'] or
+      hostvars[groups['kube_node'][0]]['is_spr']

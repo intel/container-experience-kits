@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -20,6 +20,13 @@
     state: directory
     owner: root
     mode: 0755
+
+- name: prepare custom SriovNetworkNodePolicy manifests if provided
+  include: custom_sriov_network_policies_configure.yml
+  loop: "{{ groups['kube_node'] }}"
+  loop_control:
+    loop_var: node
+    extended: yes
 
 - name: template sriov-network-policies
   template:

@@ -1,0 +1,137 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Make sure user directories exist
+  file:
+    path: "{{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+    recurse: yes
+  loop: "{{ vms }}"
+
+- name: Destroy VMs if changing state
+  command: virsh destroy {{ item.name }}
+  loop: "{{ vms }}"
+  changed_when: true
+  ignore_errors: true
+
+- name: Undefine VMs if changing state
+  command: virsh undefine {{ item.name }}
+  loop: "{{ vms }}"
+  changed_when: true
+  ignore_errors: true
+
+- name: Remove VM disk images if changing state
+  file:
+    path: "{{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/cek.qcow2"
+    state: absent
+  loop: "{{ vms }}"
+
+- name: Remove VM config images if changing state
+  file:
+    path: "{{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/cek.iso"
+    state: absent
+  loop: "{{ vms }}"
+
+- name: Check for SSH public key on VM host
+  stat:
+    path: /root/.ssh/id_rsa.pub
+  register: remote_pub_file
+
+- name: Verify that SSH public key on VM host exists
+  assert:
+    that: remote_pub_file.stat.exists
+    msg: "SSH public key (/root/.ssh/id_rsa.pub) on VM Host does not exist, and must be created"
+
+- name: Fetch SSH public key from VM host
+  slurp:
+    src: /root/.ssh/id_rsa.pub
+  register: remote_pub
+
+- name: Generate cloud-init user-data
+  template:
+    src: user-data.j2
+    dest: "{{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/user-data"
+    mode: 0644
+  loop: "{{ vms }}"
+
+- name: Generate cloud-init meta-data
+  template:
+    src: meta-data.j2
+    dest: "{{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/meta-data"
+    mode: 0644
+  loop: "{{ vms }}"
+
+- name: check if {{ vm_image_destination_file }} is already downloaded
+  stat:
+    path: "{{ vm_image_destination_file }}"
+  register: vm_image_downloaded
+
+- block:
+    - name: download vm_image checksums file
+      get_url:
+        url: "{{ vm_image_checksums }}"
+        dest: "{{ vm_project_root_dir }}/{{ vm_image }}.checksums"
+        mode: 0440
+      register: result_sum
+      retries: "{{ number_of_retries | default(5) }}"
+      until: result_sum is succeeded
+      delay: "{{ retry_delay | default(3) }}"
+
+    - name: extract checksum for requested image
+      shell: set -o pipefail && cat "{{ vm_project_root_dir }}/{{ vm_image }}.checksums" | grep "{{ vm_image }}" | cut -f1 -d' '
+      args:
+        executable: /bin/bash
+      register: vm_image_checksum
+
+    - name: download vm_image file
+      get_url:
+        url: "{{ vm_image_url }}"
+        dest: "{{ vm_project_root_dir }}/{{ vm_image }}"
+        mode: 0440
+        checksum: "md5:{{ vm_image_checksum.stdout }}"
+      register: result
+      retries: "{{ number_of_retries | default(5) }}"
+      until: result is succeeded
+      delay: "{{ retry_delay | default(3) }}"
+
+  when: not vm_image_downloaded.stat.exists
+
+- name: Register vm_image path
+  stat:
+    path: "{{ vm_project_root_dir }}/{{ vm_image }}"
+  register: img
+
+- name: Check that OS vm_image exists
+  fail:
+    msg: "Image not found in playbook directory"
+  when: not img.stat.exists
+
+- name: Create disk images for VMs
+  command: >
+    qemu-img create -f qcow2 -F qcow2 -o backing_file={{ vm_project_root_dir }}/{{ vm_image }}
+    {{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/cek.qcow2 256G
+  loop: "{{ vms }}"
+  changed_when: true
+
+- name: Create config images for VMs
+  command: >
+    genisoimage -output {{ vm_project_root_dir }}//{{ item.type }}/{{ item.name }}/cek.iso -volid cidata -joliet
+    -rock {{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/meta-data {{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/user-data
+  loop: "{{ vms }}"
+  changed_when: true

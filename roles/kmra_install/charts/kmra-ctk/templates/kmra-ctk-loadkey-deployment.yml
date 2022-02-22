@@ -17,6 +17,10 @@ spec:
         sgx.intel.com/quote-provider: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ .Release.Name }}
+      initContainers:
+      - name: init-tmpfs
+        image: "{{ .Values.ctk_loadkey.init.image.repo }}/{{ .Values.ctk_loadkey.init.image.name }}:{{ .Values.ctk_loadkey.init.image.tag }}"
+        command: ['sh', '-c', "rm -rf /opt/intel/cryptoapitoolkit/tokens/*"]
       containers:
       - name: {{ .Release.Name }}
         image: "{{ .Values.ctk_loadkey.main.image.repo }}/{{ .Values.ctk_loadkey.main.image.name }}:{{ .Values.ctk_loadkey.main.image.tag }}"
@@ -31,6 +35,16 @@ spec:
         - name: mtls
           mountPath: /opt/intel/ca
           readOnly: true
+        - name: sgx-qcnl-conf
+          mountPath: /etc/sgx_default_qcnl.conf
+          subPath: sgx_default_qcnl.conf
+          readOnly: true
+        - name: tmpfs
+          mountPath: /tmp
+          subPath: tmp
+        - name: tmpfs
+          mountPath: /opt/intel/cryptoapitoolkit/tokens
+          subPath: tokens
         resources:
           limits:
             cpu: 500m
@@ -41,6 +55,8 @@ spec:
             memory: 200Mi
         securityContext:
           runAsUser: 1000
+          runAsGroup: {{ .Values.ctk_loadkey.sgx_prv_gid }}
+          readOnlyRootFilesystem: true
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -62,3 +78,11 @@ spec:
             path: ctk_loadkey.crt
           - key: ca.cert
             path: ca.crt
+      - name: sgx-qcnl-conf
+        configMap:
+          name: {{ .Release.Name }}-qcnl-conf
+      - name: tmpfs
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+

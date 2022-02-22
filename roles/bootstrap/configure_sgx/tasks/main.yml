@@ -1,0 +1,68 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: determine machine type
+  include_role:
+    name: check_machine_type
+
+- name: install dependencies - cpuid
+  package:
+    name: cpuid
+    state: present
+  when: is_icx or is_spr
+
+- name: check CPU/BIOS is enabled for SGX
+  shell: set -o pipefail && cpuid | grep -i sgx | grep -v ENCL
+  args:
+    executable: /bin/bash
+  register: cpuid_output
+  when: is_icx or is_spr
+  changed_when: false
+
+- name: SGX is not enabled in BIOS
+  fail:
+    msg:
+      - "Please enable all required options for Intel SGX in BIOS."
+      - "If failure persists, check with your system vendor."
+  when:
+    - is_icx or is_spr
+    - "'false' in cpuid_output.stdout"
+
+- name: configure SGX on Ubuntu distribution
+  include_tasks: ubuntu.yml
+  when:
+    - ansible_distribution == 'Ubuntu' and ansible_distribution_version < '21.04'
+    - is_icx or is_spr
+
+- name: configure SGX on CentOS distribution
+  include_tasks: centos.yml
+  when:
+    - ansible_distribution == "CentOS" and ansible_distribution_version < '8.4'
+    - is_icx or is_spr
+
+- name: configure SGX on RHEL distribution
+  include_tasks: rhel.yml
+  when:
+    - ansible_distribution == 'RedHat' and ansible_distribution_version < '8.4'
+    - is_icx or is_spr
+
+- name: SGX configuration is successful
+  debug:
+    msg:
+      - "The BIOS check passed..."
+      - "The system is properly configured..."
+      - "Intel SGX Device Plugin may be deployed now!"
+  when: is_icx or is_spr

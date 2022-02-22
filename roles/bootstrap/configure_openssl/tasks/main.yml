@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,11 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: install libssl-dev development files in Ubuntu 21.04
-  apt:
-    deb: "{{ openssl_ubuntu_libssldev_pkg }}"
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '21.04'
-
 - name: install dependencies for OpenSSL
   include_role:
     name: install_dependencies
@@ -26,7 +21,6 @@
 - name: confirm module before OpenSSL installation
   shell: "set -o pipefail && lsmod | grep qat"
   args:
-    chdir: "/usr/src"
     executable: /bin/bash
   register: confirm_mod
   failed_when: '"intel_qat" not in confirm_mod.stdout'
@@ -35,7 +29,7 @@
 
 - name: Module not found, playbook terminated
   fail:
-     msg: "No QAT module found. Kindly, confirm QAT module on system can also download latest drivers + services as enabling update_qat_drivers: true"
+     msg: "No QAT module found. Please set update_qat_drivers to true in host vars to resolve issue."
   when: '"intel_qat" not in confirm_mod.stdout'
 
 - debug:
@@ -52,28 +46,10 @@
 
 - name: Service not found, playbook terminated
   fail:
-     msg: "Failed to start qat_service on system. Kindly, download latest drivers + services this can also be achieved as enabling update_qat_drivers: true"
+     msg: "Failed to start qat_service on system. Please check if QAT configuration in host vars is correct."
   when:
     - "'up' not in service_check.stdout"
 
-- name: check if OpenSSL dir exists in CentOS <= 7.9
-  stat:
-    path: "{{ openssl_centos7_dir }}"
-  register: centos7_openssl_stat_result
-  when: ansible_distribution == 'CentOS' and ansible_distribution_version <= '7.9'
-  changed_when: true
-
-- name: install required packages in CentOS 7.9 before OpenSSL Configuration
-  include_tasks: install_req_packages_centos7.yml
-  when:
-    - ansible_distribution == 'CentOS' and ansible_distribution_version <= '7.9'
-    - not centos7_openssl_stat_result.stat.exists
-
-- name: install required packages in CentOS 7.9 before OpenSSL Configuration
-  include_tasks: install_openssl_1.1.1_centos7.yml
-  when:
-    - ansible_distribution == 'CentOS' and ansible_distribution_version <= '7.9'
-    - not centos7_openssl_stat_result.stat.exists
 # OpenSSL build
 - name: create directory {{ openssl_dir }} for all OpenSSL dependencies
   file:
@@ -96,25 +72,30 @@
   changed_when: true
   ignore_errors: true
 
-- name: playbook terminated. Configuration for OpenSSL is missing requirements
+- name: Configuration for OpenSSL is missing requirements, playbook terminated
   fail:
     msg:
-      - "OpenSSL configuration failed. Make sure QAT drivers + services are properly configured as per requirements for OpenSSL*Engine"
+      - "OpenSSL configuration failed. Please make sure all requirements, described in host vars/group vars, for OpenSSL*Engine are satisfied."
   when: '"OpenSSL has been successfully configured" not in openssl_config.stdout'
 
-- debug:
-    var: openssl_config.stdout_lines
-  when: '"OpenSSL has been successfully configured" in openssl_config.stdout'
+- name: detect number of cores on system
+  command: nproc
+  register: nproc_out
+  changed_when: false
 
 - name: make depend once OpenSSL has been successfully configured
   make:
     chdir: "{{ openssl_dir }}"
     target: depend
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
 
 - name: make install once OpenSSL has been successfully configured
   make:
     chdir: "{{ openssl_dir }}"
     target: install
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout | int / 2 }}" # accelerate, but do not break the installation
 
 - name: exporting environment variable for OpenSSL dynamic engines at runtime
   command: /bin/bash -c  "export OPENSSL_ENGINES=/usr/local/ssl/lib/engines-1.1"
@@ -126,13 +107,3 @@
 - name: reload the dynamic linker cache
   command: "ldconfig"
   changed_when: true
-
-- name: verify OpenSSL dir after successful configuration
-  command: "ls -al"
-  args:
-    chdir: "/usr/local/ssl"
-  register: verify_openssl
-  changed_when: true
-
-- debug:
-    var: verify_openssl.stdout_lines

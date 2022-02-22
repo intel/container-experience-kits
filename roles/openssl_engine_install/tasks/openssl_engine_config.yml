@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,99 +18,15 @@
   include_role:
     name: install_dependencies
 
-- name: remove pre-installed openssl version in CentOS <= 7.9
-  yum:
-    name: openssl
-    state: absent
-  when: ansible_distribution == 'CentOS' and ansible_distribution_version <= '7.9'
-
-- name: install gcc and g++ required version for Ubuntu <= 18.04.4
-  apt:
-   name:
-    - gcc-8
-    - g++-8
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version <= '18.04.4'
-
-- name: set (gcc) in auto mode for <= Ubuntu 18.04.4 before OpenSSL Configuration
-  command: "update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8 --slave /usr/bin/gcov gcov /usr/bin/gcov-8"
-  changed_when: true
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version <= '18.04.4'
-
-# Need to install version 2.15 or later of nasm*, which is not provided by default for the Ubuntu 20.04 distribution
-- name: create dir {{ openssl_engine_dir }}/nasm_ubuntu for nasm dependencies in Ubuntu
-  file:
-    path: "{{ openssl_engine_dir }}/nasm_ubuntu"
-    state: directory
-    mode: "u=rwx,g=rx,o=rx"
-  when: ansible_distribution == "Ubuntu"
-
-- name: download nasm required version for Ubuntu
-  get_url:
-    url: "{{ nasm_ubuntu_url }}"
-    dest: "{{ openssl_engine_dir }}/nasm_ubuntu"
-  register: ubuntu_version
-  until: ubuntu_version is not failed
-  retries: 5
-  when: ansible_distribution == "Ubuntu"
-
-- name: install nasm required version for Ubuntu
-  command: 'dpkg -i nasm_2.15.04-1_amd64.deb'
-  args:
-    chdir: "{{ openssl_engine_dir }}/nasm_ubuntu"
-  become: yes
-  when: ansible_distribution == "Ubuntu"
-  changed_when: true
-
-# need to install version 2.15 or later of nasm*, which is not provided by default for the CentOS 8.2 distribution
-- name: create dir {{ openssl_engine_dir }}/nasm_rhel_centos for nasm dependencies in CentOS / RHEL
-  file:
-    path: "{{ openssl_engine_dir }}/nasm_rhel_centos"
-    state: directory
-    mode: "u=rwx,g=rx,o=rx"
-  when:
-    - (ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.2') or
-      (ansible_distribution == 'RedHat' and ansible_distribution_version >= '8.2')
-
-- name: download nasm required version for CentOS / RHEL
-  get_url:
-    url: "{{ nasm_centos_rhel_url }}"
-    dest: "{{ openssl_engine_dir }}/nasm_rhel_centos"
-  register: centos_rhel_version
-  until: centos_rhel_version is not failed
-  retries: 5
-  when:
-    - (ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.2') or
-      (ansible_distribution == 'RedHat' and ansible_distribution_version >= '8.2')
-
-# NOTE: dnf module refuse to install source package.
-- name: install nasm required version for CentOS / RHEL
-  command:
-    cmd: "dnf install -y nasm-2.15.02-0.fc31.x86_64.rpm"
-    warn: false
-  args:
-    chdir: "{{ openssl_engine_dir }}/nasm_rhel_centos"
-  when:
-    - (ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.2') or
-      (ansible_distribution == 'RedHat' and ansible_distribution_version >= '8.2')
-  changed_when: true
-
-- name: nasm version after installation must be >= 2.15
-  command: "nasm --version"
-  register: nasm_version
-  changed_when: true
-
-- debug:
-    msg: "The nasm version after installation is: {{ nasm_version.stdout }}"
-
-# install libarchive required version in CentOS / RHEL >= 8.2
-- name: create dir {{ openssl_engine_dir }}/libarchive_install in CentOS / RHEL >= 8.2
+# install libarchive required version in CentOS / RHEL >= 8.3
+- name: create dir {{ openssl_engine_dir }}/libarchive_install in CentOS / RHEL >= 8.3
   file:
     path: "{{ openssl_engine_dir }}/libarchive_install"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
 
-- name: download and unarchive libarchive required version for CentOS / RHEL >= 8.2
+- name: download and unarchive libarchive required version for CentOS / RHEL >= 8.3
   unarchive:
     src: "{{ libarchive_url }}"
     dest: "{{ openssl_engine_dir }}/libarchive_install"
@@ -119,84 +35,93 @@
   register: libarchive_rhel_version
   until: libarchive_rhel_version is not failed
   retries: 5
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
 
-- name: configure libarchive with PATH in CentOS / RHEL >= 8.2
+- name: configure libarchive with PATH in CentOS / RHEL >= 8.3
   command: './configure --prefix=/usr --disable-static'
   args:
     chdir: "{{ openssl_engine_dir }}/libarchive_install/libarchive-3.5.1"
   changed_when: true
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
 
-- name: make install libarchive in CentOS / RHEL >= 8.2
+- name: detect number of cores on system
+  command: nproc
+  register: nproc_out
+  changed_when: false
+
+- name: make install libarchive in CentOS / RHEL >= 8.3
   make:
     chdir: "/{{ openssl_engine_dir }}/libarchive_install/libarchive-3.5.1"
     target: install
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
+  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
 
 # Building Intel® Integrated Performance Primitives Cryptography
-- name: create directory {{ openssl_engine_dir }}/IPP_Cryptography for IIPC dependencies
+- name: create directory for Intel IPPC dependencies
   file:
-    path: "{{ openssl_engine_dir }}/IPP_Cryptography"
+    path: "{{ openssl_engine_dir }}/ipp_cryptography"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
 
-- name: clone IIP-Cryptography repository
+- name: clone Intel IPP-Cryptography repository
   git:
     repo: "{{ ipp_crypto_url }}"
     version: "{{ ipp_crypto_version }}"
-    dest: "{{ openssl_engine_dir }}/IPP_Cryptography"
+    dest: "{{ openssl_engine_dir }}/ipp_cryptography"
     force: yes
 
-- name: prepare the build by running cmake for IIP-Cryptography once successfully configured
+- name: prepare the build by running cmake for Intel IPP-Cryptography once successfully configured
   command: 'cmake . -Bbuild -DCMAKE_INSTALL_PREFIX=/usr'
   args:
-    chdir: "{{ openssl_engine_dir }}/IPP_Cryptography/sources/ippcp/crypto_mb"
+    chdir: "{{ openssl_engine_dir }}/ipp_cryptography/sources/ippcp/crypto_mb"
   changed_when: true
 
-- name: make perform IIP-Cryptography full build
-  command: 'make -j'
+- name: build Intel IPP-Cryptography
+  command: 'make -j{{ nproc_out.stdout | int }}'
   args:
-    chdir: "{{ openssl_engine_dir }}/IPP_Cryptography/sources/ippcp/crypto_mb/build"
+    chdir: "{{ openssl_engine_dir }}/ipp_cryptography/sources/ippcp/crypto_mb/build"
   changed_when: true
 
-- name: make install IIP-Cryptography
+- name: make install Intel IPP-Cryptography
   make:
-    chdir: "{{ openssl_engine_dir }}/IPP_Cryptography/sources/ippcp/crypto_mb/build"
+    chdir: "{{ openssl_engine_dir }}/ipp_cryptography/sources/ippcp/crypto_mb/build"
     target: install
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
   become: yes
 
 # Building the Intel® Multi-Buffer Crypto for IPsec Library
-- name: create directory {{ openssl_engine_dir }}/IMBC_IPsec for IMBC-IPsec dependencies
+- name: create directory for Intel MBC-IPsec dependencies
   file:
-    path: "{{ openssl_engine_dir }}/IMBC_IPsec"
+    path: "{{ openssl_engine_dir }}/imbc_ipsec"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
 
-- name: clone IMBC-IPsec repository
+- name: clone Intel MBC-IPsec repository
   git:
     repo: "{{ intel_ipsec_url }}"
     version: "{{ intel_ipsec_version }}"
-    dest: "{{ openssl_engine_dir }}/IMBC_IPsec"
+    dest: "{{ openssl_engine_dir }}/imbc_ipsec"
     force: yes
 
-- name: build IMBC-IPsec Library
-  command: 'make -j SAFE_DATA=y SAFE_PARAM=y SAFE_LOOKUP=y'
+- name: build Intel MBC-IPsec Library
+  command: 'make -j{{ nproc_out.stdout | int }} SAFE_DATA=y SAFE_PARAM=y SAFE_LOOKUP=y'
   args:
-    chdir: "{{ openssl_engine_dir }}/IMBC_IPsec"
+    chdir: "{{ openssl_engine_dir }}/imbc_ipsec"
   changed_when: true
 
-- name: make install IMBC-IPsec Library
-  command: 'make install NOLDCONFIG=y'
+- name: make install Intel MBC-IPsec Library
+  command: 'make install -j{{ nproc_out.stdout | int }} NOLDCONFIG=y'
   args:
-    chdir: "{{ openssl_engine_dir }}/IMBC_IPsec"
+    chdir: "{{ openssl_engine_dir }}/imbc_ipsec"
   become: yes
   changed_when: true
 
 # Building the Intel Quick Assist Technology Engine for OpenSSL
-- name: create directory {{ openssl_engine_dir }}/Openssl_Engine for dependencies
+- name: create directory for OpenSSL*Engine dependencies
   file:
-    path: "{{ openssl_engine_dir }}/Openssl_Engine"
+    path: "{{ openssl_engine_dir }}/openssl_engine"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
 
@@ -204,92 +129,45 @@
   git:
     repo: "{{ openssl_engine_url }}"
     version: "{{ openssl_engine_version }}"
-    dest: "{{ openssl_engine_dir }}/Openssl_Engine"
+    dest: "{{ openssl_engine_dir }}/openssl_engine"
     force: yes
 
 - name: autogen configuration for OpenSSL*Engine
   command: ./autogen.sh
   args:
-    chdir: "{{ openssl_engine_dir }}/Openssl_Engine"
+    chdir: "{{ openssl_engine_dir }}/openssl_engine"
   changed_when: true
 
 - name: check all configuration is present for OpenSSL*Engine
   command:  "./configure --enable-multibuff_offload --enable-ipsec_offload --enable-multibuff_ecx --enable-qat_sw"
   args:
-    chdir: "{{ openssl_engine_dir }}/Openssl_Engine"
+    chdir: "{{ openssl_engine_dir }}/openssl_engine"
   changed_when: false
 
 - name: Build OpenSSL*Engine Library once successfully configured
-  command: 'make -j'
+  command: 'make -j{{ nproc_out.stdout | int }}'
   args:
-    chdir: "{{ openssl_engine_dir }}/Openssl_Engine"
+    chdir: "{{ openssl_engine_dir }}/openssl_engine"
   changed_when: true
 
 - name: make install OpenSSL*Engine
   make:
-    chdir: "{{ openssl_engine_dir }}/Openssl_Engine"
+    chdir: "{{ openssl_engine_dir }}/openssl_engine"
     target: install
-
-- name: check OpenSSL new built after installation is completed
-  command: openssl version -b
-  register: openssl_new_built
-  changed_when: true
-
-- debug:
-    var: openssl_new_built.stdout_lines
-
-- name: verify OpenSSL dir after successful installation
-  command: "ls -al"
-  args:
-    chdir: "/usr/local/ssl"
-  register: verify_openssl
-  changed_when: true
-
-- debug:
-    var: verify_openssl.stdout_lines
-
-- name: check OpenSSL*Engine dir after successful installation
-  command: openssl version -e
-  register: openssl_ver_confirm
-  changed_when: true
-  when: ansible_distribution == "Ubuntu"
-
-- debug:
-   var: openssl_ver_confirm.stdout_lines
-  when: ansible_distribution == "Ubuntu"
-
-- name: verify that the engine is present in debug output in Ubuntu
-  command: 'ls -l /usr/lib/x86_64-linux-gnu/engines-1.1'
-  register: openssl_ls_ubuntu
-  changed_when: true
-  when: ansible_distribution == "Ubuntu"
-
-- debug:
-   var: openssl_ls_ubuntu.stdout_lines
-  when: ansible_distribution == "Ubuntu"
-
-- name: confirm OPENSSLDIR and ENGINEDIR dir after installation
-  shell: "set -o pipefail && openssl version -a | grep OPENSSLDIR: && openssl version -a | grep ENGINESDIR:"
-  args:
-    executable: /bin/bash
-  register: openssl_engine_dir
-  when: ansible_distribution in ["RedHat", "CentOS"]
-
-- debug:
-    var: openssl_engine_dir.stdout_lines
-  when: ansible_distribution in ["RedHat", "CentOS"]
-
-- name: verify that the engine is present in debug output in RHEL / CentOS
-  command: 'ls -l /usr/lib64/engines-1.1'
-  register: openssl_ls_rhel_centos
-  changed_when: true
-  when: ansible_distribution in ["RedHat", "CentOS"]
-
-- debug:
-    var: openssl_ls_rhel_centos.stdout_lines
-  when: ansible_distribution in ["RedHat", "CentOS"]
+  environment:
+    "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
 
 - name: update the dynamic linker cache
   command: "ldconfig"
   when: ansible_distribution in ["RedHat", "CentOS"]
   changed_when: true
+
+- name: once OpenSSL*Engine in place ensure it loads successfully
+  command: openssl engine -v qatengine
+  register: confirm_openssl_engine
+  changed_when: true
+
+- name: OpenSSL*Engine command returns errors, playbook terminated
+  fail:
+     msg: "OpenSSL Engine failed to load... Cause of failure can be unsupported hardware or misconfiguration of Intel QAT OpenSSL*Engine"
+  when: "openssl_engine_version not in confirm_openssl_engine.stdout"

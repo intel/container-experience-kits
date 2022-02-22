@@ -1,9 +1,0 @@
-{% if kube_version is version_compare('v1.17', '>=') %}
-apiVersion: apiserver.config.k8s.io/v1
-{% else %}
-apiVersion: apiserver.k8s.io/v1alpha1
-{% endif %}
-kind: AdmissionConfiguration
-plugins:
-- name: EventRateLimit
-  path: eventconfig.yaml

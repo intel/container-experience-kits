@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-qcnl-conf
+  namespace: {{ .Release.Namespace }}
+data:
+  sgx_default_qcnl.conf: |
+    PCCS_URL=https://{{ .Values.apphsm.pccs_hostname }}:{{ .Values.apphsm.pccs_port }}/sgx/certification/v3/
+    # To accept insecure HTTPS cert, set this option to FALSE
+    USE_SECURE_CERT={{ (upper .Values.apphsm.use_secure_cert) }}

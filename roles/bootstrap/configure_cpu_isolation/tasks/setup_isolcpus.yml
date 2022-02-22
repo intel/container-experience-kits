@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -35,12 +35,6 @@
 - name: set isolcpus flag
   set_fact:
     isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }} nr_cpus={{ ansible_processor_vcpus }}"
-
-- name: set isolcpus flag for realtime kernel
-  set_fact:
-    isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }} nr_cpus={{ ansible_processor_vcpus }} idle=poll"
-  when:
-    - install_real_time_package | default(false)
 
 - name: prepare CPU isolation grub commandline string
   set_fact:

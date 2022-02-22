@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -23,17 +23,6 @@
 - debug:
     msg: "Currently installed i40e version: {{ i40e_installed_version.stdout }}"
 
-- name: download i40e driver
-  get_url:
-    url: "{{ i40e_driver_url }}"
-    dest: /usr/src
-    checksum: "{{ i40e_driver_checksum }}"
-    timeout: 60
-  register: i40e_download
-  until: i40e_download is not failed
-  retries: 5
-  when: i40e_installed_version.stdout != i40e_driver_version
-
 - name: unload i40e module
   modprobe:
     name: i40e
@@ -42,25 +31,36 @@
     - i40e_installed_version.stdout != i40e_driver_version
     - mgmt_interface_driver.stdout != i40e_driver_name
 
-- name: untar i40e driver sources
-  unarchive:
-    src: "{{ i40e_download.dest }}"
-    dest: /usr/src
-    list_files: yes
-    remote_src: yes
-    mode: 0644
-  become: yes
-  register: i40e_untar
-  when: i40e_installed_version.stdout != i40e_driver_version
+- name: update i40e driver
+  block:
+    - name: download i40e driver
+      get_url:
+        url: "{{ i40e_driver_url }}"
+        dest: "{{ project_root_dir }}"
+        checksum: "{{ i40e_driver_checksum }}"
+        timeout: 60
+      register: i40e_download
+      until: i40e_download is not failed
+      retries: 5
 
-- name: build and install i40e driver
-  make:
-    chdir: "{{ i40e_untar.dest }}/{{ i40e_untar.files[0] }}/src"
-    target: "{{ item }}"
-  become: yes
-  with_items:
-    - clean
-    - install
+    - name: untar i40e driver sources
+      unarchive:
+        src: "{{ i40e_download.dest }}"
+        dest: "{{ project_root_dir }}"
+        list_files: yes
+        remote_src: yes
+        mode: 0774
+      become: yes
+      register: i40e_untar
+
+    - name: build and install i40e driver
+      make:
+        chdir: "{{ i40e_untar.dest }}/{{ i40e_untar.files[0] }}/src"
+        target: "{{ item }}"
+      become: yes
+      with_items:
+        - clean
+        - install
   when: i40e_installed_version.stdout != i40e_driver_version
 
 - name: reboot if driver is used by management interface

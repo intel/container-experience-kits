@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -82,12 +82,31 @@
       register: existing_containers
       changed_when: false
       failed_when: false
+      when:
+        - container_runtime == "docker"
     - name: remove running or stopped containers
       command: "docker rm -f {{ item }}"
       with_items:
         - "{{ existing_containers.stdout  | default([]) }}"
       when:
         -  existing_containers.stdout | length > 0
+        -  container_runtime == "docker"
+      changed_when: false
+      failed_when: false
+    - name: list running or stopped containers
+      command: crictl ps -a -q
+      register: crictl_existing_containers
+      changed_when: false
+      failed_when: false
+      when:
+        - container_runtime != "docker"
+    - name: remove running or stopped containers
+      command: "crictl rm -f {{ item }}"
+      with_items:
+        - "{{ crictl_existing_containers.stdout  | default([]) }}"
+      when:
+        -  crictl_existing_containers.stdout | length > 0
+        -  container_runtime != "docker"
       changed_when: false
       failed_when: false
 
@@ -98,12 +117,31 @@
       register: container_images
       changed_when: false
       failed_when: false
+      when:
+        -  container_runtime == "docker"
     - name: remove container images
       command: "docker rmi -f {{ item }}"
       with_items:
         - "{{ container_images.stdout | default([]) }}"
       when:
         -  container_images.stdout | length > 0
+        -  container_runtime == "docker"
+      changed_when: false
+      failed_when: false
+    - name: list existing containers images
+      command: crictl images -q
+      register: crictl_container_images
+      changed_when: false
+      failed_when: false
+      when:
+        -  container_runtime != "docker"
+    - name: remove container images
+      command: "crictl rmi {{ item }}"
+      with_items:
+        - "{{ crictl_container_images.stdout | default([]) }}"
+      when:
+        -  container_runtime != "docker"
+        -  crictl_container_images.stdout | length > 0
       changed_when: false
       failed_when: false
   when:
@@ -141,6 +179,23 @@
     state: restarted
   changed_when: false
   failed_when: false
+  when: container_runtime == "docker"
+
+- name: restart containerd service
+  service:
+    name: containerd
+    state: restarted
+  changed_when: false
+  failed_when: false
+  when: container_runtime == "containerd"
+
+- name: restart crio service
+  service:
+    name: crio
+    state: restarted
+  changed_when: false
+  failed_when: false
+  when: container_runtime == "crio"
 
 - debug:
     msg: "k8s cluster has been removed ..."

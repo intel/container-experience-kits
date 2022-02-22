@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2021 Intel Corporation.
+##   Copyright (c) 2020-2022 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -23,19 +23,6 @@
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'rdt' ] }}"
   when: not enable_intel_rdt_plugin
-
-- name: read CPU type
-  shell:
-    cmd: lscpu | grep "Model name:"
-  register: cpu_model
-  changed_when: false
-
-- name: disable pkgppower plugin
-  set_fact:
-    exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'pkgpower' ] }}"
-    enable_pkgpower_plugin: false
-  when: item in cpu_model.stdout
-  loop: '{{ unsupported_power_skus }}'
 
 - name: prepare list of plugins to be deployed
   set_fact:
