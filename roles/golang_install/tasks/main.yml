@@ -14,29 +14,37 @@
 ##   limitations under the License.
 ##
 ---
-- name: uninstall existing golang
-  file:
-    path: "{{ item }}"
-    state: absent
-  with_items:
-    - "/usr/local/go"
-    - "$HOME/go"
+- name: check existing golang version
+  command: go version
+  register: goversion
+  ignore_errors: yes
 
-- name: download golang tarball
-  get_url:
-    url: "{{ golang_download_url }}"
-    checksum: "{{ golang_download_checksum }}"
-    dest: /usr/src
-  register: golang_download
-  until: golang_download is not failed
-  retries: 5
+- block:
+  - name: uninstall existing golang
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+      - "/usr/local/go"
+      - "$HOME/go"
 
-- name: untar downloaded golang tarball
-  unarchive:
-    src: "{{ golang_download.dest }}"
-    dest: /usr/local
-    copy: no
-    mode: 0755
+  - name: download golang tarball
+    get_url:
+      url: "{{ golang_download_url }}"
+      checksum: "{{ golang_download_checksum }}"
+      dest: /usr/src
+    register: golang_download
+    until: golang_download is not failed
+    retries: 5
+
+  - name: untar downloaded golang tarball
+    unarchive:
+      src: "{{ golang_download.dest }}"
+      dest: /usr/local
+      copy: no
+      mode: 0755
+  when:
+    - goversion.stdout is not defined or golang_version not in goversion.stdout
 
 - name: set GOPATH env and add golang bin to PATH for all users
   copy:
