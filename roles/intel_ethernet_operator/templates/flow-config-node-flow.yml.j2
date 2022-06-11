@@ -1,0 +1,6 @@
+apiVersion: flowconfig.intel.com/v1
+kind: NodeFlowConfig
+metadata:
+  name: {{ hostvars[node_name]['ansible_hostname'] }}
+  namespace: {{ intel_ethernet_operator_namespace }}
+spec:

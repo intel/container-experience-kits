@@ -155,7 +155,7 @@
   when: container_runtime == "docker"
 
 - name: grant access to the registry
-  command: buildah login --authfile="{{ registry_auth }}" -u docker -p "{{ password }}" "{{ registry_local_address }}"
+  command: podman login --authfile="{{ registry_auth }}" -u docker -p "{{ password }}" "{{ registry_local_address }}"
   changed_when: false
   when: '"docker" not in container_runtime'
 

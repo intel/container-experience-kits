@@ -14,6 +14,29 @@
 ##   limitations under the License.
 ##
 ---
+- name: Generate VM image vars
+  template:
+    src: vm_image_vars.yml.j2
+    dest: "vm_image_vars.yml"
+    mode: 0644
+  delegate_to: localhost
+  when: inventory_hostname == groups['vm_host'][0]
+
+- name: Include vars for VM image
+  include_vars: "vm_image_vars.yml"
+
+- name: Generate VM image links vars
+  template:
+    src: vm_image_links_vars.yml.j2
+    dest: "vm_image_links_vars.yml"
+    mode: 0644
+  delegate_to: localhost
+  when: inventory_hostname == groups['vm_host'][0]
+
+- name: Include vars for VM image links
+  include_vars: "vm_image_links_vars.yml"
+
+
 - name: Make sure user directories exist
   file:
     path: "{{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}"
@@ -48,20 +71,18 @@
     state: absent
   loop: "{{ vms }}"
 
-- name: Check for SSH public key on VM host
-  stat:
-    path: /root/.ssh/id_rsa.pub
-  register: remote_pub_file
-
-- name: Verify that SSH public key on VM host exists
-  assert:
-    that: remote_pub_file.stat.exists
-    msg: "SSH public key (/root/.ssh/id_rsa.pub) on VM Host does not exist, and must be created"
+- name: Generate SSH keypair if not present
+  openssh_keypair:
+    path: /root/.ssh/id_rsa
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['vm_host'] }}"
 
 - name: Fetch SSH public key from VM host
   slurp:
     src: /root/.ssh/id_rsa.pub
   register: remote_pub
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['vm_host'] }}"
 
 - name: Generate cloud-init user-data
   template:
@@ -88,13 +109,17 @@
         url: "{{ vm_image_checksums }}"
         dest: "{{ vm_project_root_dir }}/{{ vm_image }}.checksums"
         mode: 0440
+        force: yes
       register: result_sum
       retries: "{{ number_of_retries | default(5) }}"
       until: result_sum is succeeded
       delay: "{{ retry_delay | default(3) }}"
+      environment:
+        http_proxy: "{{ http_proxy }}"
+        https_proxy: "{{ https_proxy }}"
 
     - name: extract checksum for requested image
-      shell: set -o pipefail && cat "{{ vm_project_root_dir }}/{{ vm_image }}.checksums" | grep "{{ vm_image }}" | cut -f1 -d' '
+      shell: set -o pipefail && cat "{{ vm_project_root_dir }}/{{ vm_image }}.checksums" | grep "{{ vm_image }}" | cut "{{ vm_image_checksum_cut_line }}" -d' '
       args:
         executable: /bin/bash
       register: vm_image_checksum
@@ -104,11 +129,14 @@
         url: "{{ vm_image_url }}"
         dest: "{{ vm_project_root_dir }}/{{ vm_image }}"
         mode: 0440
-        checksum: "md5:{{ vm_image_checksum.stdout }}"
+        checksum: "{{ vm_image_checksum_type }}:{{ vm_image_checksum.stdout }}"
       register: result
       retries: "{{ number_of_retries | default(5) }}"
       until: result is succeeded
       delay: "{{ retry_delay | default(3) }}"
+      environment:
+        http_proxy: "{{ http_proxy }}"
+        https_proxy: "{{ https_proxy }}"
 
   when: not vm_image_downloaded.stat.exists
 

@@ -14,87 +14,101 @@
 ##   limitations under the License.
 ##
 ---
-kmra_namespace: kmra
-
-kmra_apphsm_release_name: "kmra-apphsm"
-kmra_ctk_release_name: "kmra-ctk"
-kmra_pccs_release_name: "kmra-pccs"
-
-kmra_apphsm_helm_values_file: "{{ project_root_dir }}/charts/kmra-apphsm-values.yml"
-kmra_ctk_helm_values_file: "{{ project_root_dir }}/charts/kmra-ctk-values.yml"
-kmra_pccs_helm_values_file: "{{ project_root_dir }}/charts/kmra-pccs-values.yml"
-
-kmra_apphsm_chart_path: "{{ project_root_dir }}/charts/kmra-apphsm"
-kmra_ctk_chart_path: "{{ project_root_dir }}/charts/kmra-ctk"
-kmra_pccs_chart_path: "{{ project_root_dir }}/charts/kmra-pccs"
-
-kmra_pccs_image_repo: "docker.io"
-kmra_pccs_image_name: "intel/pccs"
-kmra_pccs_image_tag: "v1"
-
-kmra_pccs_rproxy_image_repo: "docker.io"
-kmra_pccs_rproxy_image_name: "nginx"
-kmra_pccs_rproxy_tag: "1.21.5-alpine"
-
-kmra_pccs_upstream_port: 8082
-kmra_pccs_service_port: 8081
-
-kmra_apphsm_image_repo: "docker.io"
-kmra_apphsm_image_name: "intel/apphsm"
-kmra_apphsm_image_tag: "v1"
-
-kmra_apphsm_init_image_repo: "docker.io"
-kmra_apphsm_init_image_name: "busybox"
-kmra_apphsm_init_image_tag: "1.35"
-
-kmra_apphsm_upstream_port: 5001
-kmra_apphsm_service_port: 5000
-
-kmra_apphsm_key_in_token_name: "key_1"
-kmra_apphsm_token_name: "token_1"
-kmra_apphsm_test_ctk_loadkey_cert_user_id: "ctk_loadkey_user_id_01234"
-kmra_apphsm_test_unique_uid: "unique_id_1234"
-kmra_apphsm_default_user_pin: "1234"
-kmra_apphsm_default_so_pin: "12345678"
-kmra_apphsm_use_secure_cert: false
-
-kmra_apphsm_rproxy_image_repo: "docker.io"
-kmra_apphsm_rproxy_image_name: "nginx"
-kmra_apphsm_rproxy_tag: "1.21.5-alpine"
-
-kmra_ctk_loadkey_image_repo: "docker.io"
-kmra_ctk_loadkey_image_name: "intel/ctk_loadkey"
-kmra_ctk_loadkey_image_tag: "v1"
-
-kmra_ctk_loadkey_init_image_repo: "docker.io"
-kmra_ctk_loadkey_init_image_name: "busybox"
-kmra_ctk_loadkey_init_image_tag: "1.35"
-
-kmra_ctk_loadkey_upstream_port: 8082
-kmra_ctk_loadkey_upstream_server_name: 0.0.0.0
-kmra_ctk_loadkey_node_port: 30003
-
-kmra_ctk_loadkey_default_user_pin: "4321"
-kmra_ctk_loadkey_default_so_pin: "87654321"
-kmra_ctk_loadkey_client_token: "client_token"
-kmra_ctk_loadkey_client_key_label: "client_key_priv"
-kmra_ctk_loadkey_test_unique_uid: "{{ kmra_apphsm_test_unique_uid }}"
-kmra_ctk_loadkey_use_secure_cert: "{{ kmra_apphsm_use_secure_cert }}"
-
-kmra_pccs_crt_subj:
-  O: "SGX-PCCS"
-  OU: "root"
-
-kmra_ca_root_crt_subj:
-  O: "AppHSM"
-  OU: "root"
-  CN: "localhost"
-
-kmra_apphsm_crt_subj:
-  O: "AppHSM"
-  OU: "AppHSM"
-  CN: "{{ kmra_apphsm_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
-
-kmra_ctk_crt_subj:
-  O: "AppHSM"
-  OU: "{{ kmra_apphsm_test_ctk_loadkey_cert_user_id }}"
+# This var is not intended to be customized by user
+# Define respective field in the group_vars/all.yml instead
+kmra_defaults:
+  namespace: kmra
+  ca_root_crt_subj:
+    O: "AppHSM"
+    OU: "root"
+    CN: "localhost"
+  apphsm:
+    enabled: false
+    release_name: "kmra-apphsm"
+    helm_values_file: "{{ (project_root_dir, 'charts', 'kmra-apphsm-values.yml') | path_join }}"
+    chart_path: "{{ (project_root_dir, 'charts', 'kmra-apphsm') |  path_join }}"
+    image_repo: "docker.io"
+    image_name: "intel/apphsm"
+    image_tag: "v2.1"
+    init_image_repo: "docker.io"
+    init_image_name: "busybox"
+    init_image_tag: "1.35"
+    upstream_port: 5000
+    hostname: "{{ hostvars[groups['kube_node'][0]]['ansible_default_ipv4']['address'] }}"
+    test_ctk_loadkey_cert_user_id: "ctk_loadkey_user_id_01234"
+    generic_client_cert_id: "generic_client_id_01234"
+    default_user_pin: "1234"
+    default_so_pin: "12345678"
+    use_secure_cert: false
+    crt_subj:
+      O: "AppHSM"
+      OU: "AppHSM"
+      CN: "localhost"
+    app_keys:
+      - id: "unique_id_1234"
+        token_name: "token_1"
+        pin: "1234"
+        key_name: "client_key_priv"
+        token_cert: "testcert1.crt"
+        token_key: "testkey1.pem"
+        crt_subj:
+          O: "SampleOrganisation"
+          CN: "localhost"
+      - id: "tcsissuer.tcs.intel.com/sandbox.my-ca"
+        token_name: "token_2"
+        pin: "1234"
+        key_name: "key_2"
+        token_cert: "testcert2.crt"
+        token_key: "testkey2.pem"
+        crt_subj:
+          O: "SampleOrganisation"
+          CN: "localhost"
+      - id: "tcsclusterissuer.tcs.intel.com/{{ service_mesh.sgx_signer.name | default('sgx-signer') }}"
+        token_name: "token_3"
+        pin: "1234"
+        key_name: "key_3"
+        token_cert: "testcert3.crt"
+        token_key: "testkey3.pem"
+        crt_subj:
+          O: "SampleOrganisation"
+          CN: "localhost"
+  pccs:
+    enabled: false
+    api_key: "ffffffffffffffffffffffffffffffff"
+    release_name: "kmra-pccs"
+    helm_values_file: "{{ (project_root_dir, 'charts', 'kmra-pccs-values.yml') | path_join }}"
+    chart_path: "{{ (project_root_dir,  'charts', 'kmra-pccs') | path_join }}"
+    sgx_provisioning_api_url: "https://api.trustedservices.intel.com/sgx/certification/v3/"
+    image_repo: "docker.io"
+    image_name: "intel/pccs"
+    image_tag: "v2.1"
+    upstream_port: 8081
+    hostname: "localhost"
+    crt_subj:
+      O: "SGX-PCCS"
+      OU: "root"
+    db_name: "pckcache"
+    db_user: "root"
+    db_passwd: "changeThisPassword"
+  ctk_loadkey_demo:
+    enabled: false
+    release_name: "kmra-ctk"
+    helm_values_file: "{{ (project_root_dir, 'charts', 'kmra-ctk-values.yml') | path_join }}"
+    chart_path: "{{ (project_root_dir, 'charts', 'kmra-ctk') | path_join }}"
+    image_repo: "docker.io"
+    image_name: "intel/ctk_loadkey"
+    image_tag: "v2.1"
+    init_image_repo: "docker.io"
+    init_image_name: "busybox"
+    init_image_tag: "1.35"
+    upstream_port: 8082
+    upstream_server_name: "127.0.0.1"
+    default_user_pin: "4321"
+    default_so_pin: "87654321"
+    client_token: "client_token"
+    client_key_label: "client_key_priv"
+    test_unique_uid: "unique_id_1234"
+    use_secure_cert: false
+    crt_subj:
+      O: "AppHSM"
+      OU: "ctk_loadkey_user_id_01234"

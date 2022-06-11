@@ -38,9 +38,11 @@ spec:
               mountPath: "/var/run/.client"
             - name: dpdksocketpath
               mountPath: "/var/run/dpdk/rte/telemetry"
+{% if enable_pkgpower_plugin %}
             - name: pkgpower
               mountPath: "/sys/devices/virtual/powercap/intel-rapl/"
               readOnly: true
+{% endif %}
             - name: hugepages
               mountPath: "/sys/kernel/mm/hugepages"
               readOnly: true
@@ -93,9 +95,11 @@ spec:
         - name: dpdksocketpath
           hostPath:
             path: /var/run/dpdk/rte/telemetry
+{% if enable_pkgpower_plugin %}
         - name: pkgpower
           hostPath:
             path: /sys/devices/virtual/powercap/intel-rapl/
+{% endif %}
         - name: hugepages
           hostPath:
             path: /sys/kernel/mm/hugepages

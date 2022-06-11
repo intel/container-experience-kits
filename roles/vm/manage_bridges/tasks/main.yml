@@ -1,0 +1,69 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Configure VXLAN bridges
+  include_tasks: configure_bridges.yml
+  loop: "{{ vms }}"
+  when: item.vxlan is defined
+
+- name: Get service facts
+  service_facts:
+
+- name: networking service
+  block:
+    - name: Configure VXLAN interfaces (networking service)
+      include_tasks: intfs_networking.yml
+      loop: "{{ vms }}"
+      when:
+        - item.vxlan is defined
+
+    - name: Restart networking
+      systemd:
+        state: restarted
+        name: networking
+
+  when:
+    - ansible_facts.services['networking.service'] is defined
+    - ansible_facts.services['networking.service'].state != "stopped"
+    - ansible_facts.services['networking.service'].status != "not-found"
+
+- name: networkd service
+  block:
+    - name: Initialize VXLAN list
+      set_fact:
+        vxlan_list: []
+
+    - name: Collect VXLANs in use
+      set_fact:
+        vxlan_list: "{{ vxlan_list + [ item.vxlan ] }}"
+      loop: "{{ vms }}"
+      when:
+        - item.vxlan is defined
+
+    - name: Remove duplicates in list
+      set_fact:
+        vxlan_list: "{{ vxlan_list | unique }}"
+
+    - name: Configure VXLAN interfaces (systemd networkd)
+      include_tasks: intfs_networkd.yml
+      when:
+        - vxlan_list is defined and vxlan_list | length > 0
+
+  when:
+    - (ansible_facts.services['networking.service'] is not defined) or
+      ((ansible_facts.services['networking.service'] is defined) and
+      (ansible_facts.services['networking.service'].state == "stopped") and
+      (ansible_facts.services['networking.service'].status == "not-found"))

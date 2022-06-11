@@ -43,14 +43,14 @@
     - name: use node-agent image from local registry
       lineinfile:
         path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
-        regexp: "^        - image: 'intel-power-node-agent:latest'"
-        line: "        - image: '{{ node_agent_image }}:{{ node_agent_image_version }}'"
+        regexp: "^        - image: intel/power-node-agent:{{ intel_power_manager_git_ref }}"
+        line: "        - image: {{ node_agent_image }}:{{ node_agent_image_version }}"
 
     - name: use appqos image from local registry
       lineinfile:
         path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
         regexp: "^        - image: 'appqos:latest'"
-        line: "        - image: '{{ app_qos_image }}'"
+        line: "        - image: {{ app_qos_image }}"
   when:
    - intel_power_manager.build_image_locally | default(false) | bool
    - inventory_hostname == groups['kube_node'][0]
@@ -86,7 +86,7 @@
 - name: prepare images for Intel Kubernetes Power Manager
   block:
     - name: build and tag images for Intel Kubernetes Power Manager
-      command: buildah bud -f build/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_power_manager_git_ref }}
+      command: podman build -f build/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_power_manager_git_ref }} .
       args:
         chdir: "{{ intel_power_manager_dir }}"
       with_items:
@@ -94,7 +94,7 @@
         - { file: Dockerfile.nodeagent, name: intel-power-node-agent }
 
     - name: push Intel Kubernetes Power Manager images to local registry
-      command: buildah push {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
+      command: podman push {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
       changed_when: true
       with_items:
         - intel-power-operator

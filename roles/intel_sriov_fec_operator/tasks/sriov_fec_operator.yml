@@ -1,0 +1,73 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone Intel Smart Edge Open (SEO) FEC Operator
+  git:
+    repo: "{{ intel_sriov_fec_operator_git }}"
+    version: "{{ intel_sriov_fec_operator_git_ref }}"
+    dest: "{{ intel_sriov_fec_operator_dir }}"
+    force: yes
+
+- name: build Intel Smart Edge Open (SEO) FEC Operator
+  make:
+    target: "{{ item }}"
+    chdir: "{{ (intel_sriov_fec_operator_dir, 'sriov-fec') | path_join }}"
+    params:
+      IMAGE_REGISTRY: "{{ registry_local_address }}"
+      CONTAINER_TOOL: "{{ intel_sriov_fec_operator_tool }}"
+      TLS_VERIFY: "{{ intel_sriov_fec_operator_make_tls }}"
+  environment:
+    PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ opm_dir }}"
+  loop:
+    - build_all
+    - build_index
+
+- name: create FEC Operator files directory on controller
+  file:
+    path: "{{ intel_sriov_fec_operator_files_dir }}"
+    state: directory
+    mode: '0644'
+
+- name: generate FEC Operator CR files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ (intel_sriov_fec_operator_files_dir, item.dst) | path_join }}"
+    force: yes
+    mode: preserve
+  loop:
+    - { src: 'acc100-cr.yaml.j2', dst: 'acc100-cr.yaml' }
+    - { src: 'catalog.yml.j2', dst: 'catalog.yml' }
+    - { src: 'operator-group.yml.j2', dst: 'operator-group.yml' }
+    - { src: 'subscription.yml.j2', dst: 'subscription.yml' }
+
+- name: create FEC Operator namespace
+  k8s:
+    name: "{{ intel_sriov_fec_operator_namespace }}"
+    kind: Namespace
+    state: present
+
+- name: deploy Catalog, Operator Group, Subscription pods
+  k8s:
+    state: present
+    src: "{{ (intel_sriov_fec_operator_files_dir, item) | path_join }}"
+  loop:
+    - catalog.yml
+    - operator-group.yml
+    - subscription.yml
+
+- name: wait for pods
+  pause:
+    seconds: 90

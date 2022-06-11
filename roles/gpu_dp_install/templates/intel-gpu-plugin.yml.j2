@@ -12,4 +12,7 @@ spec:
   resourceManager: {{ gpu_dp_fractional_manager | default(false) }}
   preferredAllocationPolicy: {{ gpu_dp_prefered_allocation | default('none') }}
   nodeSelector:
+    # check if node has required PCI IDs
     feature.node.kubernetes.io/pci-0300_8086.present: 'true'
+    # check if node custom gpu kernel installed
+    feature.node.kubernetes.io/kernel-version.full: '{{ gpu_dp_kernel_version[:-1] }}'

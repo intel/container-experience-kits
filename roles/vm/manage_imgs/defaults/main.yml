@@ -14,13 +14,13 @@
 ##   limitations under the License.
 ##
 ---
-# VM image for Ubuntu 20.04
-
 vm_project_root_dir: "{{ (project_root_dir, 'vm') | path_join }}"
 
-vm_image_version: "20.04"
-vm_image: "ubuntu-{{ vm_image_version }}-server-cloudimg-amd64.img"
-vm_image_url: "https://cloud-images.ubuntu.com/releases/{{ vm_image_version }}/release/{{ vm_image }}"
+# Default VM image distribution
+vm_image_distribution: "ubuntu"
 
-vm_image_checksums: "https://cloud-images.ubuntu.com/releases/{{ vm_image_version }}/release/MD5SUMS"
-vm_image_destination_file: "{{ vm_project_root_dir }}/{{ vm_image }}"
+# VM image for Ubuntu - default version 20.04
+vm_image_version_ubuntu: "20.04"
+
+# VM image for Rocky - default version 8.5
+vm_image_version_rocky: "8.5"

@@ -14,11 +14,11 @@
 ##   limitations under the License.
 ##
 ---
-openssl_engine_dir: "{{ project_root_dir }}/openssl"
+openssl_engine_dir: "{{ (project_root_dir, 'openssl') | path_join }}"
 openssl_engine_url: "https://github.com/intel/QAT_Engine.git"
-openssl_engine_version: "v0.6.10"
+openssl_engine_version: "v0.6.12"
 libarchive_url: "https://github.com/libarchive/libarchive/releases/download/v3.5.1/libarchive-3.5.1.tar.xz"
 ipp_crypto_url: "https://github.com/intel/ipp-crypto.git"
 ipp_crypto_version: "ippcp_2021.5"
 intel_ipsec_url: "https://github.com/intel/intel-ipsec-mb.git"
-intel_ipsec_version: "v1.1"
+intel_ipsec_version: "v1.2"

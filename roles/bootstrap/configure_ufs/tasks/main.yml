@@ -1,0 +1,49 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: check presence of power.py script file
+  stat:
+    path: "{{ (project_root_dir, 'CommsPowerManagement', 'power.py') | path_join }}"
+  register: power_script
+
+- name: create CommsPowerManagement folder if not present
+  file:
+    state: directory
+    dest: "{{ (project_root_dir, 'CommsPowerManagement') | path_join }}"
+    mode: 0755
+  when: not power_script.stat.exists
+
+- name: download power.py script file if not present
+  get_url:
+    url: https://raw.githubusercontent.com/intel/CommsPowerManagement/72e58b1939e9aa13d3ad0137e9d674968c45dfcb/power.py
+    dest: "{{ (project_root_dir, 'CommsPowerManagement', 'power.py') | path_join }}"
+    mode: "0744"
+  when: not power_script.stat.exists
+
+- name: create ufs service
+  template:
+    src: ufs.service.j2
+    dest: /etc/systemd/system/ufs.service
+    mode: "0644"
+  register: ufs_service_file
+
+- name: enable ufs service
+# noqa 503 - intentionally implemented as not a handler
+  service:
+    name: ufs
+    enabled: yes
+    state: restarted
+    daemon_reload: yes
+  when: ufs_service_file.changed

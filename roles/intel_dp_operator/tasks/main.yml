@@ -14,9 +14,16 @@
 ##   limitations under the License.
 ##
 ---
-- name: install dependencies
+- name: install dependencies for Intel Device Plugin Operator
   include_role:
     name: install_dependencies
+
+- name: put additional labels for nodes
+  include_tasks: add_dp_labels.yml
+  loop: "{{ groups['kube_node'] }}"
+  loop_control:
+    loop_var: node_name
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: clone Intel Device Plugins repository
   git:

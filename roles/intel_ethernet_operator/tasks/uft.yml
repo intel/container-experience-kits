@@ -1,0 +1,44 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone UFT repository
+  git:
+    repo: "{{ uft_git }}"
+    version: "{{ uft_git_ref }}"
+    dest: "{{ uft_dir }}"
+    force: yes
+
+- name: prepare UFT image
+  block:
+    - name: build UFT image
+      command: podman build -f images/Dockerfile.uft . -t {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }} --build-arg DPDK_TAG={{ dpdk_tag }}
+      args:
+        chdir: "{{ uft_dir }}"
+
+    - name: push UFT image
+      command: podman push {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
+  when: container_runtime != "docker"
+
+- name: prepare UFT image
+  block:
+    - name: build UFT image
+      command: docker build --build-arg DPDK_TAG={{ dpdk_tag }} -f images/Dockerfile.uft . -t {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
+      args:
+        chdir: "{{ uft_dir }}"
+
+    - name: push UFT image
+      command: docker push {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
+  when: container_runtime == "docker"

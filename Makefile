@@ -1,7 +1,8 @@
 CEK_DIRECTORIES_WITH_SHELL_FILES ?= roles/ examples/ playbooks/infra/ playbooks/intel/
 ARCH ?= 'icx'
+NIC ?= 'cvl'
 PLAYBOOKS_DIRS = playbooks playbooks/infra playbooks/intel
-PLAYBOOK_NAMES = access basic full_nfv on_prem regional_dc remote_fp storage
+PLAYBOOK_NAMES = access basic full_nfv on_prem regional_dc remote_fp storage build_your_own
 
 # set default target available with simple 'make' command
 .DEFAULT_GOAL := examples
@@ -38,7 +39,8 @@ k8s-profile: clean-playbooks
 	--output examples/k8s \
 	--mode k8s \
 	-p $(PROFILE) \
-	-a $(ARCH)
+	-a $(ARCH) \
+	-n ${NIC}
 
 vm-profile: clean-playbooks
 	python3 generate/render.py \
@@ -50,7 +52,8 @@ vm-profile: clean-playbooks
 	--output examples/vm \
 	--mode vm \
 	-p $(PROFILE) \
-	-a $(ARCH)
+	-a $(ARCH) \
+	-n ${NIC}
 
 clean: clean-playbooks clean-project-root-dir
 

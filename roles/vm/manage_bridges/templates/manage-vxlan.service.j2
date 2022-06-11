@@ -1,0 +1,15 @@
+[Unit]
+Description=Manage VXLANs for VMs
+After=network.target
+After=libvirtd.service
+StartLimitIntervalSec=600
+StartLimitBurst=4
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5s
+ExecStart={{ (project_root_dir, 'vm', 'manage-vxlan.sh') | path_join }}
+
+[Install]
+WantedBy=multi-user.target

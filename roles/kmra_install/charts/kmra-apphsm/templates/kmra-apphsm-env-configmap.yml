@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-env
+  namespace: {{ .Release.Namespace }}
+data:
+  http_proxy: {{ .Values.http_proxy | default "" | quote }}
+  https_proxy: {{ .Values.https_proxy | default "" | quote }}
+  no_proxy: {{ .Values.no_proxy | default "" | quote }}
+

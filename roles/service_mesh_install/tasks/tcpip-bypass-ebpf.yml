@@ -30,12 +30,15 @@
 - name: populate tcpip-bypass-ebpf manifest template with values
   template:
     src: "tcpip-bypass-ebpf.yaml.j2"
-    dest: "{{ service_mesh_charts_dir }}/tcpip-bypass-ebpf.yaml"
+    dest: "{{ (service_mesh_charts_dir, 'tcpip-bypass-ebpf.yaml') |  path_join }}"
     force: yes
     mode: preserve
 
-- name: deploly tcpip-bypass-ebpf
-  shell: "set -o pipefail && kubectl apply -f {{ service_mesh_charts_dir }}/tcpip-bypass-ebpf.yaml -o yaml --dry-run=client | kubectl apply -f -"
+- name: deploy tcpip-bypass-ebpf
+  shell: |-
+    set -o pipefail && \
+    kubectl apply -f "{{ (service_mesh_charts_dir, 'tcpip-bypass-ebpf.yaml') |  path_join }}" \
+    -o yaml --dry-run=client | kubectl apply -f -
   args:
     executable: /bin/bash
   changed_when: true

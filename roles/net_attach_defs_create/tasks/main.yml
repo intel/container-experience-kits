@@ -40,3 +40,23 @@
     - example_net_attach_defs is defined
     - example_net_attach_defs.sriov_net_dp | default(false) | bool
     - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: create net-attach-def object to be used with CNDP device plugin
+  vars:
+    cndp_k8s_manifest_dir: "{{ (project_root_dir, 'cndp_k8s_manifest') |  path_join }}"
+  block:
+    - name: create directory for CNDP k8s manifest files
+      file:
+        path: "{{ cndp_k8s_manifest_dir }}"
+        state: directory
+        mode: "644"
+
+    - name: create CNDP network attachment definitions
+      include_tasks: cndp_net_attach_def.yml
+
+  when:
+    - cndp_dp_enabled | default(false)
+    - cndp_net_attach_def_enabled | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "20.04") or
+      (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.5")

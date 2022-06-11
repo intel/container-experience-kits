@@ -14,35 +14,44 @@
 ##   limitations under the License.
 ##
 ---
-- name: Set CRI-O kubic repo name for Ubuntu
+- name: set CRI-O kubic repo name for Ubuntu
   set_fact:
     crio_kubic_ubuntu_repo_name: "{{ ((ansible_distribution == 'Ubuntu') | ternary('x','')) ~ ansible_distribution ~ '_' ~ ansible_distribution_version }}"
+
+- name: set CRI-O kubic repo name for Ubuntu >= 21.10
+  set_fact:
+    crio_kubic_ubuntu_21_10_repo_name: "xUbuntu_21.04"
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.10"
+
+- name: ubuntu configuration block
+  block:
+    - name: Add CRI-O kubic apt repo key
+      apt_key:
+        url: >-
+          https://{{ crio_download_base }}/{{ crio_kubic_ubuntu_21_10_repo_name
+          if ansible_distribution_version >= '21.10' else crio_kubic_ubuntu_repo_name }}/Release.key
+        state: present
+      register: apt_key_download
+      until: apt_key_download is succeeded
+      retries: 4
+      delay: 3
+      environment: "{{ proxy_env }}"
+
+    - name: Add CRI-O kubic apt repo
+      apt_repository:
+        repo: >-
+          deb http://{{ crio_download_base }}/{{ crio_kubic_ubuntu_21_10_repo_name
+          if ansible_distribution_version >= '21.10' else crio_kubic_ubuntu_repo_name }}/ /
+        state: present
+        filename: devel-kubic-libcontainers-stable
+
+    - name: add CRI-O kubic cri-o apt repo
+      apt_repository:
+        repo: >-
+          deb {{ crio_download_crio }}{{ crio_version }}/{{ crio_kubic_ubuntu_repo_name }}/ /
+        state: present
+        filename: devel-kubic-libcontainers-stable-cri-o
   when: ansible_distribution == "Ubuntu"
-
-- name: Add CRI-O kubic apt repo key
-  apt_key:
-    url: "https://{{ crio_download_base }}/{{ crio_kubic_ubuntu_repo_name }}/Release.key"
-    state: present
-  when: crio_kubic_ubuntu_repo_name is defined
-  register: apt_key_download
-  until: apt_key_download is succeeded
-  retries: 4
-  delay: 3
-  environment: "{{ proxy_env }}"
-
-- name: Add CRI-O kubic apt repo
-  apt_repository:
-    repo: "deb http://{{ crio_download_base }}/{{ crio_kubic_ubuntu_repo_name }}/ /"
-    state: present
-    filename: devel-kubic-libcontainers-stable
-  when: crio_kubic_ubuntu_repo_name is defined
-
-- name: add CRI-O kubic cri-o apt repo
-  apt_repository:
-    repo: "deb {{ crio_download_crio }}{{ crio_version }}/{{ crio_kubic_ubuntu_repo_name }}/ /"
-    state: present
-    filename: devel-kubic-libcontainers-stable-cri-o
-  when: crio_kubic_ubuntu_repo_name is defined
 
 - name: add CRI-O kubic yum repo
   yum_repository:

@@ -16,14 +16,14 @@
 ---
 - name: create Helm charts directory if needed
   file:
-    path: "{{ project_root_dir }}/charts"
+    path: "{{ (project_root_dir, 'charts') | path_join }}"
     state: directory
     mode: 0755
 
 - name: copy telegraf Helm chart to the controller node
   copy:
     src: "{{ role_path }}/charts/telegraf"
-    dest: "{{ project_root_dir }}/charts"
+    dest: "{{ (project_root_dir, 'charts') | path_join }}"
     mode: 0755
 
 - name: build telegraf configuration

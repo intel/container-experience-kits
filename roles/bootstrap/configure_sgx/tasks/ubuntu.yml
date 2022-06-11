@@ -25,55 +25,52 @@
     mode: '0700'
   become: yes
 
-- name: download DCAP drivers on Ubuntu 20.04
-  get_url:
-    url: "{{ dcap_driver_url_ubuntu_20 }}"
-    dest: "{{ sgx_config_dir }}"
-    mode: u=rwx,g=rx,o=rx
-    checksum: "{{ dcap_driver_checksum_ubuntu_20 }}"
-
-- name: check if sgx-{{ dcap_driver_series_ubuntu_20 }} folder present on Ubuntu 20.04
-  stat:
-    path: "{{ sgx_folder_check_ubuntu_20 }}"
-  register: folder_re_check
-  changed_when: true
-
-- debug:
-    msg: "sgx-{{ dcap_driver_series_ubuntu_20 }} is already installed because folder exists, re-installation skipped as it can cause kernel module load issues"
-  when:
-    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04'
-    - folder_re_check.stat.exists
-  changed_when: true
-
-- name: install DCAP driver on Ubuntu 20.04
-# noqa 305 - shell is used intentionally here
-  shell: "./{{ dcap_driver_version_ubuntu_20 }}"
-  args:
-    chdir: "{{ sgx_config_dir }}"
-    executable: /bin/bash
-  register: dcap_output_ubuntu_20
-  failed_when: '"Installation is successful!" not in dcap_output_ubuntu_20.stdout'
-  changed_when: '"Installation is successful!" in dcap_output_ubuntu_20.stdout'
-  when:
-    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04'
-    - not folder_re_check.stat.exists
-
 - name: confirm DCAP driver module installed
-  shell: "set -o pipefail && lsmod | grep sgx"
-  args:
-    chdir: "{{ sgx_config_dir }}"
-    executable: /bin/bash
+  command: "lsmod"
   register: lsmod_output
-  failed_when: '"intel_sgx" not in lsmod_output.stdout'
   changed_when: false
 
-- name: Load SGX module (DCAP)
-  modprobe:
-    name: intel_sgx
-    state: present
+- name: if intel_sgx module is not available, the block is executed
+  block:
+    - name: download DCAP drivers
+      get_url:
+        url: "{{ dcap_driver_url_ubuntu_20 }}"
+        dest: "{{ sgx_config_dir }}"
+        mode: u=rwx,g=rx,o=rx
+        checksum: "{{ dcap_driver_checksum_ubuntu_20 }}"
 
-- debug:
-   var: lsmod_output.stdout_lines
+    - name: install DCAP driver
+    # noqa 305 - shell is used intentionally here
+      shell: "./{{ dcap_driver_version_ubuntu_20 }}"
+      args:
+        chdir: "{{ sgx_config_dir }}"
+        executable: /bin/bash
+      register: dcap_output_ubuntu_20
+      failed_when: '"Installation is successful!" not in dcap_output_ubuntu_20.stdout'
+      changed_when: '"Installation is successful!" in dcap_output_ubuntu_20.stdout'
+
+    - name: Load SGX module (DCAP)
+      modprobe:
+        name: intel_sgx
+        state: present
+  when:
+    - not update_kernel
+    - '"intel_sgx" not in lsmod_output.stdout'
+    - ansible_distribution_version < '21.04'
+
+# WA: sgx packages are available only in the 'focal' repo
+# Remove when https://download.01.org/intel-sgx/sgx_repo/ubuntu repo updated
+- name: set sgx release name
+  set_fact:
+    sgx_release_name: "{{ (ansible_distribution_version < '21.04') | ternary(ansible_distribution_release, 'focal') }}"
+
+# WA: Some sgx packages depend on exact versions of packages available only in 'focal' repo
+# Remove when https://download.01.org/intel-sgx/sgx_repo/ubuntu repo updated
+- name: add 'focal' apt repository
+  apt_repository:
+    repo: "deb http://archive.ubuntu.com/ubuntu focal main"
+  when:
+    - ansible_distribution_version >= '21.04'
 
 - name: add {{ sgx_apt_source_list }} repo key
   apt_key:
@@ -81,30 +78,32 @@
 
 - name: add sgx apt repository
   apt_repository:
-    repo: "deb {{ sgx_apt_repo_url }} {{ ansible_distribution_release }} main"
+    repo: "deb {{ sgx_apt_repo_url }} {{ sgx_release_name }} main"
     filename: "{{ sgx_apt_source_list }}"
 
 - name: install sgx platform sw
   apt:
     name:
-      - libsgx-launch={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - libsgx-urts={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - libsgx-epid={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - libsgx-urts={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - libsgx-quote-ex={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - libsgx-enclave-common={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - libsgx-uae-service={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - sgx-aesm-service={{ sgx_pkg_version }}-{{ ansible_distribution_release }}1
-      - libsgx-dcap-ql={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-ae-qe3={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-ae-qve={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-qe3-logic={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-pce-logic={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-dcap-ql-dev={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-dcap-default-qpl={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-dcap-default-qpl-dev={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-dcap-quote-verify={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
-      - libsgx-dcap-quote-verify-dev={{ sgx_pkg_dcap_version }}-{{ ansible_distribution_release }}1
+      - libsgx-launch={{ sgx_pkg_version }}-{{ sgx_release_name }}1
+      - libsgx-epid={{ sgx_pkg_version }}-{{ sgx_release_name }}1
+      - libsgx-urts={{ sgx_pkg_version }}-{{ sgx_release_name }}1
+      - libsgx-quote-ex={{ sgx_pkg_version }}-{{ sgx_release_name }}1
+      - libsgx-enclave-common={{ sgx_pkg_version }}-{{ sgx_release_name }}1
+      - libsgx-uae-service={{ sgx_pkg_version }}-{{ sgx_release_name }}1
+      - sgx-aesm-service={{ sgx_pkg_version }}-{{ sgx_release_name }}1
+      - libsgx-dcap-ql={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-ae-qe3={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-ae-qve={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-qe3-logic={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-pce-logic={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-dcap-ql-dev={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-dcap-default-qpl={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-dcap-default-qpl-dev={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-dcap-quote-verify={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-dcap-quote-verify-dev={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-ra-network={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - libsgx-ra-uefi={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - sgx-ra-service={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
 
 - name: start aesmd service, if not started
   service:
@@ -112,7 +111,7 @@
     name: aesmd
 
 # ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove when conditions and merge code as one task.
-- name: check status of aesmd service after started on Ubuntu 20.04
+- name: check status of aesmd service after started
   command: systemctl status aesmd.service
   args:
     warn: false
@@ -122,14 +121,14 @@
 - debug:
     var: aesmd_enabled.stdout_lines
 
-- name: download sgx sdk on Ubuntu 20.04
+- name: download sgx sdk
   get_url:
     url: "{{ sgx_sdk_url_ubuntu_20 }}"
     dest: "{{ sgx_config_dir }}"
     mode: u=rwx,g=rx,o=rx
     checksum: "{{ sgx_sdk_checksum_ubuntu_20 }}"
 
-- name: install sgx sdk on Ubuntu 20.04
+- name: install sgx sdk
   shell: "set -o pipefail && echo 'yes' | ./{{ sgx_sdk_version_ubuntu_20 }}"
   args:
     chdir: "{{ sgx_config_dir }}"

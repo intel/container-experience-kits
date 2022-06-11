@@ -3,9 +3,10 @@
 1. [Installing Dependencies](#install-dependencies)
 2. [Creating Sample Profiles](#creating-sample-profiles)
 3. [Discover Supported Architectures](#discover-supported-architectures)
-4. [Discover Supported Profiles](#discover-supported-profiles)
-5. [Example Commands](#example-commands)
-6. [Playbooks Generation](#playbook-generation)
+4. [Discover Supported Ethernet Network Adapters](#discover-supported-ethernet-network-adapters)
+5. [Discover Supported Profiles](#discover-supported-profiles)
+6. [Example Commands](#example-commands)
+7. [Playbooks Generation](#playbook-generation)
 
 ---
 
@@ -47,6 +48,13 @@ At the moment, Container Experience Kits supports the following machine architec
 
 Architecture acronym, e.g. skl, will be passed to the make command via the optional `ARCH` parameter. It is important to be aware of the machine's type before generating profiles as some functionalities are exclusive for specific architectures.
 
+## Discover Supported Ethernet Network Adapters
+
+At the moment, Container Experience Kits supports the following Ethernet Network Adapters:
+* `cvl` - Columbiaville (default) - 'Intel(R) Ethernet 800 Series Network Adapters'
+* `fvl` - Fortville - 'Intel(R) Ethernet 700 Series Network Adapters'
+
+Ethernet Network Adapter acronym, e.g cvl, will be passed to the make command via the optional `NIC` parameter.
 ## Discover Supported Profiles
 
 At the moment, Container Experience Kits supports the following profiles:
@@ -58,6 +66,7 @@ At the moment, Container Experience Kits supports the following profiles:
 * regional_dc
 * remote_fp
 * storage
+* build_your_own
 
 Profile's name will be passed to the make command via the required `PROFILE` parameter. Each profile includes some specific sort of functionalities. Choose the profile that suits you the most via inspecting the examples generated [here](#creating-sample-profiles).
 If you would like to know more about CEK profiles read section 2.2 in [here](https://networkbuilders.intel.com/solutionslibrary/container-bare-metal-for-2nd-3rd-generation-intel-xeon-scalable-processor).
@@ -65,19 +74,19 @@ If you would like to know more about CEK profiles read section 2.2 in [here](htt
 
 ## Example Commands
 
-To generate files needed for deployment of `full_nfv` profile, for `Sapphire Rapids` machines, in `k8s` mode, the following command must be executed:
+To generate files needed for deployment of `full_nfv` profile, for `Sapphire Rapids` machines, in `k8s` mode, with `cvl` Ethernet Network Adapter the following command must be executed:
 
 ```bash
-make k8s-profile PROFILE=full_nfv ARCH=spr
+make k8s-profile PROFILE=full_nfv ARCH=spr NIC=cvl
 ```
 
 To generate the same profile as above, but for `vm` mode, run:
 
 ```bash
-make vm-profile PROFILE=full_nfv ARCH=spr
+make vm-profile PROFILE=full_nfv ARCH=spr NIC=cvl
 ```
 
-The values of both `PROFILE` and `ARCH` parameters are up to you. Please update accordingly.
+The values of `PROFILE`, `ARCH` and `NIC` parameters are up to you. Please update accordingly.
 
 If you run both commands from above, you should see backups folder in your project root directory:
 

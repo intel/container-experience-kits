@@ -24,13 +24,13 @@ sriov_network_operator_helm_release_name: "sriov-network-operator"
 
 # helm values defaults
 sriov_network_operator_images:
-  operator: ghcr.io/k8snetworkplumbingwg/sriov-network-operator@sha256:bc9d64da2c753490841481fb094cc9a0656cc2c7d24c46b3d6ba4f53d4f93aba
-  sriovConfigDaemon: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-config-daemon@sha256:fbd76e85bb5301642ca6205f54f31a6560a75754d4e8d1264691c14718938a89
+  operator: ghcr.io/k8snetworkplumbingwg/sriov-network-operator@sha256:3f1b2e2d0792e96f2c6031a8bc8e42a4a093e573844f15f6f6f2c086646b19ba
+  sriovConfigDaemon: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-config-daemon@sha256:9916b47350ad85be883e54e761baf617d6ca9b3bb4656b75d57194b52af46995
   sriovCni: ghcr.io/k8snetworkplumbingwg/sriov-cni@sha256:ab4675dcea6c4a810997e728da3a7890ea47ec9f13cf5e744c1b0bd3cc1a6978
   ibSriovCni: ghcr.io/k8snetworkplumbingwg/ib-sriov-cni@sha256:3eb56b423056c145a1a428df9dd2681fd3ccdd85ffd6d620e5dbe295dd721507
-  sriovDevicePlugin: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin@sha256:571bcdc70baa7bbd9e78ec3ae546c0db2f668ca1f1f64a625e03f53889a78c4a
+  sriovDevicePlugin: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin@sha256:830672be46c0c828333af0fe076e5c515396baea3a7c0ad21752077e62c4594c
   resourcesInjector: ghcr.io/k8snetworkplumbingwg/network-resources-injector@sha256:48e66db279e4965e1172323dff1d909ea68106685b784340838de3a64f7afbd6
-  webhook: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-webhook@sha256:80725232b6a7459e2b3213136294f7c08a4f0efe76465519406958ad95f38efd
+  webhook: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-webhook@sha256:e435b2a4676e0ee74189636641a6e14b0979b9b96ec2904b03a1b446dfbb1262
 
 sriov_resource_name_prefix: "intel.com"
 sriov_network_operator_name_override: ""

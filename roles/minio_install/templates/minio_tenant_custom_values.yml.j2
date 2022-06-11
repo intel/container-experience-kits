@@ -28,6 +28,11 @@ tenants:
         size: 1Gi
         ## storageClass specifies the storage class name to be used for this pool
         storageClassName: local-storage
+        ## Used to specify annotations for pods
+{% if minio_tenant_sriov_resources is defined %}
+        annotations:
+          k8s.v1.cni.cncf.io/networks: {{ minio_tenant_sriov_resources | map(attribute='sriov_network') | join(',') }}
+{% endif %}
         ## Used to specify a toleration for a pod
         tolerations: { }
         ## nodeSelector parameters for MinIO Pods. It specifies a map of key-value pairs. For the pod to be
@@ -48,7 +53,19 @@ tenants:
                   - minio-tenant
               topologyKey: kubernetes.io/hostname
         ## Configure resource requests and limits for MinIO containers
+{% if minio_tenant_sriov_resources is defined %}
+        resources:
+          requests:
+{% for request in (minio_tenant_sriov_resources | map(attribute='resource') | map(attribute='requests')) %}
+{{ request | indent (width=12, first=True)}}
+{% endfor %}
+          limits:
+{% for limit in (minio_tenant_sriov_resources | map(attribute='resource') | map(attribute='limits')) %}
+{{ limit | indent (width=12, first=True) }}
+{% endfor %}
+{% else %}
         resources: { }
+{% endif %}
         ## Configure security context
         securityContext: { }
         ## Configure topology constraints

@@ -20,7 +20,7 @@ This file contains functions needed for profile generation in VM mode
 
 import argparse
 import os
-from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, create_backups
+from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, add_nic_parameter, create_backups
 
 def render_vm_profiles(args: argparse.Namespace) -> None:
     """Creates example CEK profiles in VM mode"""
@@ -35,6 +35,9 @@ def render_vm_profiles(args: argparse.Namespace) -> None:
     # add architecture information
     add_arch_parameter(vm_profiles, args)
 
+    # add nic information
+    add_nic_parameter(vm_profiles, args)
+
     # create example diretory with all profiles and its files for VM configuration
     _create_vms_examples(vm_profiles, args)
 
@@ -43,6 +46,9 @@ def render_vm_profiles(args: argparse.Namespace) -> None:
 
     # add architecture information
     add_arch_parameter(host_vm_profiles, args)
+
+    # add nic information
+    add_nic_parameter(host_vm_profiles, args)
 
     # create example diretory with all profiles and its files
     _create_host_vm_examples(host_vm_profiles, args)
@@ -81,6 +87,9 @@ def _create_host_example(config: dict, vars_path_prefix: str, inventory_path: st
     create_dir_idempotent(host_vars_dir_path)
 
     render(args.host, config, os.path.join(host_vars_dir_path, "host-for-vms-1.yml"))
+    config_secondary = dict(config)
+    config_secondary['secondary_host'] = 'true'
+    render(args.host, config_secondary, os.path.join(host_vars_dir_path, "host-for-vms-2.yml"))
     render(args.group, config, os.path.join(group_vars_dir_path, "all.yml"))
 
     # do not generate inventory file if already there

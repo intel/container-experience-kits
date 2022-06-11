@@ -12,32 +12,24 @@ no_proxy: "{{ proxy_env.no_proxy | quote }}"
 apphsm:
   main:
     image:
-      repo: "{{ kmra_apphsm_image_repo }}"
-      name: "{{ kmra_apphsm_image_name }}"
-      tag: "{{ kmra_apphsm_image_tag }}"
+      repo: "{{ kmra.apphsm.image_repo }}"
+      name: "{{ kmra.apphsm.image_name }}"
+      tag: "{{ kmra.apphsm.image_tag }}"
       pullPolicy: IfNotPresent
-    port: "{{ kmra_apphsm_upstream_port }}"
-  rproxy:
-    image:
-      repo: "{{ kmra_apphsm_rproxy_image_repo }}"
-      name: "{{ kmra_apphsm_rproxy_image_name }}"
-      tag: "{{ kmra_apphsm_rproxy_tag}}"
-      pullPolicy: "IfNotPresent"
-    port: "{{ kmra_apphsm_service_port }}"
+    port: "{{ kmra.apphsm.upstream_port }}"
+    hostname: "{{ kmra.apphsm.hostname }}"
   init:
     image:
-      repo: "{{ kmra_apphsm_init_image_repo }}"
-      name: "{{ kmra_apphsm_init_image_name }}"
-      tag: "{{ kmra_apphsm_init_image_tag }}"
+      repo: "{{ kmra.apphsm.init_image_repo }}"
+      name: "{{ kmra.apphsm.init_image_name }}"
+      tag: "{{ kmra.apphsm.init_image_tag }}"
       pullPolicy: "IfNotPresent"
-  pccs_port: "{{ kmra_pccs_service_port }}"
-  pccs_hostname: "{{ kmra_pccs_release_name }}.{{ kmra_namespace }}.svc.{{ cluster_name }}"
-  sgx_prv_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"
-  use_secure_cert: "{{ kmra_apphsm_use_secure_cert | quote }}"
-  apphsm_key_in_token_name: "{{ kmra_apphsm_key_in_token_name }}"
-  apphsm_token_name: "{{ kmra_apphsm_token_name }}"
-  test_ctk_loadkey_cert_user_id: "{{ kmra_apphsm_test_ctk_loadkey_cert_user_id }}"
-  test_unique_uid: "{{ kmra_apphsm_test_unique_uid }}"
-  default_user_pin: "{{ kmra_apphsm_default_user_pin }}"
-  default_so_pin: "{{ kmra_apphsm_default_so_pin }}"
-
+  pccs_port: "{{ kmra.pccs.upstream_port }}"
+  pccs_hostname: "{{ kmra.pccs.hostname }}"
+  use_secure_cert: "{{ kmra.apphsm.use_secure_cert | quote }}"
+  test_ctk_loadkey_cert_user_id: "{{ kmra.apphsm.test_ctk_loadkey_cert_user_id }}"
+  generic_client_cert_id: "{{ kmra.apphsm.generic_client_cert_id }}"
+  ctk_loadkey_demo_enabled: "{{ kmra.ctk_loadkey_demo.enabled | bool | lower }}"
+  default_user_pin: "{{ kmra.apphsm.default_user_pin }}"
+  default_so_pin: "{{ kmra.apphsm.default_so_pin }}"
+  keys: {{ kmra.apphsm.app_keys }}

@@ -1,0 +1,37 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  components:
+    pilot:
+      k8s:
+        env:
+          - name: CERT_SIGNER_DOMAIN
+            value: tcsclusterissuer.tcs.intel.com
+          - name: EXTERNAL_CA
+            value: ISTIOD_RA_KUBERNETES_API
+          - name: PILOT_CERT_PROVIDER
+            value: k8s.io/tcsclusterissuer.tcs.intel.com/{{ service_mesh.sgx_signer.name }}
+        overlays:
+          - kind: ClusterRole
+            name: istiod-clusterrole-istio-system
+            patches:
+              - path: rules[-1]
+                value: |
+                  apiGroups:
+                  - certificates.k8s.io
+                  resourceNames:
+                  - tcsclusterissuer.tcs.intel.com/*
+                  resources:
+                  - signers
+                  verbs:
+                  - approve
+  meshConfig:
+    defaultConfig:
+      proxyMetadata:
+        PROXY_CONFIG_XDS_AGENT: "true"
+        ISTIO_META_CERT_SIGNER: {{ service_mesh.sgx_signer.name }}
+    caCertificates:
+    - pem: |
+        {{ tcs_issuer_secret.stdout | indent(8, false) }}
+      certSigners:
+      - tcsclusterissuer.tcs.intel.com/{{ service_mesh.sgx_signer.name }}

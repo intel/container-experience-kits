@@ -70,7 +70,7 @@
       find:
         paths: /boot
         patterns: "*5.4.48*"
-      register: files_to_delete
+      register: boot_files_to_delete
       changed_when: false
       failed_when: false
 
@@ -78,7 +78,7 @@
       file:
         path: "{{ item.path }}"
         state: absent
-      with_items: "{{ files_to_delete.files }}"
+      with_items: "{{ boot_files_to_delete.files }}"
       changed_when: false
       failed_when: false
 
@@ -126,7 +126,7 @@
     cmd: |
           find /usr/local/ \
           -not -wholename "/usr/local/" \
-          -and -not -wholename "/usr/local/share/ca-certificates" \
+          -and -not -wholename "/usr/local/share/ca-certificates*" \
           -and -not -wholename "/usr/local/bin" \
           -and -not -wholename "/usr/local/etc" \
           -and -not -wholename "/usr/local/games" \
@@ -142,13 +142,6 @@
   changed_when: false
   failed_when: false
 
-- name: cleanup "{{ project_root_dir }}"
-  file:
-    path: "{{ project_root_dir }}"
-    state: absent
-  changed_when: false
-  failed_when: false
-
 - name: remove files
   import_tasks: remove_files.yml
   vars:
@@ -156,8 +149,10 @@
   changed_when: false
   failed_when: false
 
-- name: remove MinIO
-  include_tasks: remove_minio.yml
+- name: reload the dynamic linker cache
+  command: "ldconfig"
+  changed_when: true
+  failed_when: false
 
 - debug:
     msg: "Intel Container Experience Kit features have been removed ..."

@@ -14,6 +14,19 @@
 ##   limitations under the License.
 ##
 ---
+- name: configure apt proxy
+  lineinfile:
+    path: "/etc/apt/apt.conf.d/00-proxy"
+    regexp: "Acquire::{{ item.type }}::Proxy "
+    line: "Acquire::{{ item.type }}::Proxy \"{{ item.value }}/\";"
+    state: present
+    create: yes
+    mode: 0664
+  with_items:
+    - { type: 'http', value: "{{ http_proxy | default('') }}" }
+    - { type: 'https', value: "{{ https_proxy | default('') }}" }
+  when: http_proxy is defined or https_proxy is defined
+
 - name: reconfigure unattended-upgrades package
   command: dpkg-reconfigure --priority=low unattended-upgrades
   args:
@@ -54,44 +67,30 @@
     - "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse"
   when: ansible_distribution == "Ubuntu"
 
-- name: Add kubic apt repo key
-  apt_key:
-    url: >-
-      https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/xUbuntu_
-      {%- if ansible_distribution_version >= '21.04' -%}21.04{%- else -%}20.04{%- endif -%}/Release.key
-    state: present
-  register: apt_key_download
-  until: apt_key_download is succeeded
-  retries: 4
-  when:
-    - '"docker" not in container_runtime'
-    - ansible_distribution == "Ubuntu"
+- name: add kupic repo
+  block:
+    - name: Add kubic apt repo key
+      apt_key:
+        url: >-
+          https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/xUbuntu_20.04/Release.key
+        state: present
+      register: apt_key_download
+      until: apt_key_download is succeeded
+      retries: 4
 
-- name: Add kubic apt repo
-  apt_repository:
-    repo: >-
-      deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_
-      {%- if ansible_distribution_version >= '21.04' -%}21.04{%- else -%}20.04{%- endif -%}/ /
-    state: present
-    filename: devel-kubic-libcontainers-stable
+    - name: Add kubic apt repo
+      apt_repository:
+        repo: >-
+          deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/ /
+        state: present
+        filename: devel-kubic-libcontainers-stable
   when:
     - '"docker" not in container_runtime'
-    - ansible_distribution == "Ubuntu"
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04'
 
 - name: apt update
   apt: update_cache=yes
   when: ansible_distribution == "Ubuntu"
-
-- name: install buildah package
-  apt:
-    name: buildah
-    state: present
-  register: buildah_package
-  retries: 5
-  until: buildah_package is success
-  when:
-    - '"docker" not in container_runtime'
-    - ansible_distribution == "Ubuntu"
 
 - name: install zip
   apt:

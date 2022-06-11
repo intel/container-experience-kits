@@ -3,17 +3,22 @@ users:
   - name: root
     ssh-authorized-keys:
       - {{ lookup('file', '/root/.ssh/id_rsa.pub') }}
-      - {{ remote_pub['content'] | b64decode }}
+{% for pub in remote_pub.results %}
+      - {{ pub['content'] | b64decode }}
+{%- endfor %}
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     groups: sudo
     shell: /bin/bash
     lock_passwd: false
-    hashed_passwd: '$1$SaltSalt$w7n4uc3jGqZjF4WrPfDhN0'
+    hashed_passwd: '{{ vm_hashed_passwd }}'
 
 
 runcmd:
   - echo "Starting cloud-init runcmd execution"
   - for i in `cat /etc/environment`; do export $i; done
+{% if vm_image_distribution == "ubuntu" %}
+  - netplan apply
+{% endif %}
 {% if item.type == "work" %}
   - systemctl daemon-reload
   - systemctl enable unsafe-iommu.service
@@ -22,9 +27,45 @@ runcmd:
   - echo "End of cloud-init runcmd execution"
 
 package_update: true
-package_upgrade: true
+{% if vm_image_distribution == "rocky" %}
+packages:
+  - python3
+  - vim
+package_reboot_if_required: true
+{% endif %}
 
 write_files:
+{% if vm_image_distribution == "ubuntu" %}
+  - path: /etc/netplan/99-custom.yaml
+    content: |
+     network:
+       ethernets:
+         enp2s0:
+           dhcp4: true
+       version: 2
+  - path: /etc/apt/apt.conf.d/00-proxy
+    permissions: '0640'
+    owner: root
+    content: |
+      Acquire::http { Proxy "{{ http_proxy | default('') }}"; };
+      Acquire::https { Proxy "{{ https_proxy | default('') }}"; };
+{% endif %}
+{% if vm_image_distribution == "rocky" %}
+  - path: /etc/sysconfig/network-scripts/ifcfg-eth1
+    content: |
+     BOOTPROTO=dhcp
+     DEVICE=eth1
+     ONBOOT=yes
+     PEERDNS=yes
+     TYPE=Ethernet
+     USERCTL=no
+  - path: /etc/dnf/dnf.conf
+    permissions: '0640'
+    owner: root
+    content: |
+      proxy="{{ http_proxy | default('') }}"
+    append: true
+{% endif %}
   - path: /etc/environment
     content: |
       PROFILE=full_nfv
@@ -39,12 +80,6 @@ write_files:
   - path: /root/.ssh/id_rsa.pub
     content: {{ lookup('file', '/root/.ssh/id_rsa.pub') }}
     permissions: '0644'
-  - path: /etc/apt/apt.conf.d/00-proxy
-    permissions: '0640'
-    owner: root
-    content: |
-      Acquire::http { Proxy "{{ http_proxy | default('') }}"; };
-      Acquire::https { Proxy "{{ https_proxy | default('') }}"; };
 
 {% if item.type == "work" %}
   - path: /etc/systemd/system/unsafe-iommu.service

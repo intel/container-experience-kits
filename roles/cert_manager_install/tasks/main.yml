@@ -42,4 +42,4 @@
 
 - name: wait for cert-manager to become fully available
   pause:
-    seconds: 30
+    seconds: 60

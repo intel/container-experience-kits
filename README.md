@@ -12,8 +12,9 @@ The software provided here is for reference only and not intended for production
     git submodule update --init
     ```
 
-2. Decide which configuration profile you want to use and optionally export environmental variable.
-   > **_NOTE:_** It will be used only to ease execution of the steps listed below.
+2. Decide which configuration profile you want to use and export environmental variable.
+   For VM case is PROFILE environment variable mandatory.
+   > **_NOTE:_** For non-VM case it will be used only to ease execution of the steps listed below.
     - For **Kubernetes Basic Infrastructure** deployment:
 
         ```bash
@@ -56,6 +57,12 @@ The software provided here is for reference only and not intended for production
         export PROFILE=storage
         ```
 
+    - For **Kubernetes Build-Your-Own Infrastructure** deployment:
+
+        ```bash
+        export PROFILE=build_your_own
+        ```
+
 3. Install dependencies
 
    ```bash
@@ -67,7 +74,7 @@ The software provided here is for reference only and not intended for production
    > **_NOTE:_** It is **highly recommended** to read [this](docs/generate_profiles.md) file before profiles generation.
 
     ```bash
-    make examples
+    make examples ARCH=<skl,clx,**icx**,spr> NIC=<fvl,**cvl**>
     ```
 
 5. Copy example inventory file to the project root dir.
@@ -112,11 +119,11 @@ The software provided here is for reference only and not intended for production
     For VM case:
     - update details relevant for vm_host (e.g.: datalane_interfaces, ...)
     - update VMs definition in host_vars/host-for-vms-1.yml
-    - update/create host_vars for all defined VMs (e.g.: host_vars/vm-ctrl-1.yml and host_vars/vm-work-1.yml)  
-      Needed details are at least dataplane_interfaces  
+    - update/create host_vars for all defined VMs (e.g.: host_vars/vm-ctrl-1.yml and host_vars/vm-work-1.yml)
+      Needed details are at least dataplane_interfaces
       For more details see [VM case configuration guide](docs/vm_config_guide.md)
 
-9. **Recommended:** Apply bug fix patch for Kubespray submodule (Required for RHEL 8+).
+9. **Recommended:** Apply bug fix patch for Kubespray submodule (Required for RHEL 8+ and Ubuntu 22.04).
 
     ```bash
     ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
@@ -145,17 +152,18 @@ Refer to the documentation linked below to see configuration details for selecte
 - [VM case configuration guide](docs/vm_config_guide.md)
 ## Prerequisites and Requirements
 
-> **_NOTE:_** Packages requirements might be installed in 3rd step.
+- Required packages on the target servers: **Python3**.
+- Required packages on the ansible host (where ansible playbooks are run): **Python3 and Pip3**.
+- Required python packages on the ansible host.  **See requirements.txt**.
 
-- Python present on the target servers depending on the target distribution. Python3 is required.
-- Ansible 3.4.0 and ansible-base 2.10.15 installed on the Ansible host machine (the one you run these playbooks from).
-- python-pip3 installed on the Ansible machine.
-- python-netaddr installed on the Ansible machine.
 - SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).
+- For VM case SSH keys copied to all VM hosts (`ssh-copy-id <user>@<host>` command can be used for that).
 - Internet access on all target servers is mandatory. Proxy is supported.
 - At least 8GB of RAM on the target servers/VMs for minimal number of functions (some Docker image builds are memory-hungry and may cause OOM kills of Docker registry - observed with 4GB of RAM), more if you plan to run heavy workloads such as NFV applications.
+
 - For the `RHEL`-like OSes `SELinux` must be configured prior to the CEK deployment and required `SELinux`-related packages should be installed.
   `CEK` itself is keeping initial `SELinux` state but `SELinux`-related packages might be installed during `k8s` cluster deployment as a dependency, for `Docker` engine e.g.,
   causing OS boot failure or other inconsistencies if `SELinux` is not configured properly.
   Preferable `SELinux` state is `permissive`.
+
   For more details, please, refer to the respective OS documentation.

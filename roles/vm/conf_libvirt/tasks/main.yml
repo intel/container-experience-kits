@@ -71,3 +71,60 @@
     fstype: resctrl
     state: mounted
   when: resctrl_available.stat.exists
+
+- name: Set vm_host index
+  set_fact:
+    vm_host_index: "{{ groups['vm_host'].index(inventory_hostname) | int }}"
+
+- name: Set third IP byte based on vm_host index
+  set_fact:
+    vm_ip_third_byte: "{{ 122 + vm_host_index | int + 1 }}"
+
+- name: Make sure vm directory exist
+  file:
+    path: "{{ vm_project_root_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Prepare config for vm-default network
+  template:
+    src: vm-default.xml.j2
+    dest: "{{ (vm_project_root_dir, 'vm-default.xml') | path_join }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Destroy vm-default network
+  virt_net:
+    command: destroy
+    name: "vm-default"
+  ignore_errors: true
+
+- name: Undefine vm-default network
+  virt_net:
+    command: undefine
+    name: "vm-default"
+  ignore_errors: true
+
+- name: Read vm-default.xml
+  command: cat {{ (vm_project_root_dir, 'vm-default.xml') | path_join }}
+  register: vm_default_xml
+  changed_when: false
+
+- name: Define vm-default network
+  virt_net:
+    command: define
+    name: "vm-default"
+    xml: "{{ vm_default_xml.stdout }}"
+
+- name: Start vm-default network
+  virt_net:
+    command: start
+    name: "vm-default"
+
+- name: Autostart vm-default network
+  virt_net:
+    autostart: yes
+    name: "vm-default"

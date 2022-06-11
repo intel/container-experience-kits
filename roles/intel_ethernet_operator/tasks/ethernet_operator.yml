@@ -1,0 +1,103 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone Intel Ethernet Operator repository
+  git:
+    repo: "{{ intel_ethernet_operator_git }}"
+    version: "{{ intel_ethernet_operator_git_ref }}"
+    dest: "{{ intel_ethernet_operator_dir }}"
+    force: yes
+
+- name: build Intel Ethernet Operator
+  make:
+    target: "{{ item }}"
+    chdir: "{{ intel_ethernet_operator_dir }}"
+    params:
+      VERSION: "{{ intel_ethernet_operator_img_ver }}"
+      IMAGE_REGISTRY: "{{ registry_local_address }}"
+      IMGTOOL: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
+      TLS_VERIFY: "{{ intel_ethernet_operator_make_tls }}"
+      TARGET_PLATFORM: "{{ intel_ethernet_operator_target_platform }}"
+  environment:
+    PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  loop:
+    - build_all
+    - push_all
+    - catalog-build
+    - catalog-push
+
+- name: create Intel Ethernet Operator directory to store yaml files
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0644'
+  loop:
+    - "{{ intel_ethernet_operator_files_dir }}"
+    - "{{ intel_ethernet_operator_fw_files_dir }}"
+    - "{{ intel_ethernet_operator_ddp_files_dir }}"
+    - "{{ intel_ethernet_operator_flow_config_files_dir }}"
+    - "{{ intel_ethernet_operator_node_flow_config_files_dir }}"
+
+- name: create Intel Ethernet Operator namespace
+  k8s:
+    name: "{{ intel_ethernet_operator_namespace }}"
+    kind: Namespace
+    state: present
+
+- name: copy PSP and ClusterRole
+  copy:
+    src: "{{ (role_path , 'files', item) | path_join }}"
+    dest: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
+    mode: 0644
+  loop:
+    - intel-ethernet-operator-psp.yml
+    - intel-ethernet-operator-cluster-role.yml
+
+- name: populate Intel Ethernet Operator yaml files and push to controller node
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ (intel_ethernet_operator_files_dir, item.dst) | path_join }}"
+    force: yes
+    mode: preserve
+  loop:
+    - { src: 'catalog.yml.j2', dst: 'catalog.yml' }
+    - { src: 'operator-group.yml.j2', dst: 'operator-group.yml' }
+    - { src: 'subscription.yml.j2', dst: 'subscription.yml' }
+    - { src: 'intel-ethernet-operator-role-binding.yml.j2', dst: 'intel-ethernet-operator-role-binding.yml' }
+
+- name: create PSP, RBAC and OperatorGroup
+  k8s:
+    state: present
+    src: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
+  loop:
+    - intel-ethernet-operator-psp.yml
+    - intel-ethernet-operator-cluster-role.yml
+    - intel-ethernet-operator-role-binding.yml
+    - catalog.yml
+    - operator-group.yml
+
+- name: wait for catalog pod
+  pause:
+    seconds: 30
+
+- name: create Subscription
+  k8s:
+    state: present
+    src: "{{ (intel_ethernet_operator_files_dir, 'subscription.yml') | path_join }}"
+
+- name: wait for Intel Ethernet Operator to become fully available
+  pause:
+    minutes: 1

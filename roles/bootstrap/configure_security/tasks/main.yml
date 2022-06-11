@@ -27,6 +27,7 @@
         firewall_svc:
           CentOS: firewalld
           RedHat: firewalld
+          Rocky: firewalld
           Ubuntu: ufw
       become: yes
 
@@ -50,8 +51,10 @@
     firewall_svc:
       CentOS: firewalld
       RedHat: firewalld
+      Rocky: firewalld
       Ubuntu: ufw
   become: yes
+  ignore_errors: true
   when: not firewall_enabled | default(false) | bool
 
 - name: configure SELinux

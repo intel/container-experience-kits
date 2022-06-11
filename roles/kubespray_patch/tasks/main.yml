@@ -15,10 +15,30 @@
 ##
 ---
 # Needs to be fixed in Kubespray Repo.
-- name: Skip RHEL subscription manager processing
+- name: skip RHEL subscription manager processing
   replace:
     path: "{{ playbook_dir }}/kubespray/roles/bootstrap-os/tasks/main.yml"
     regexp: "(.*)bootstrap-redhat.yml(.*)"
     replace: "\\1bootstrap-centos.yml\\2"
     mode: 0600
+  when: target_distribution == "RedHat"
 
+- name: check Host Vars for WA
+  stat:
+    path: "{{ inventory_dir }}/host_vars/{{ item }}.yml"
+  register: host_vars_details
+  with_items: "{{ groups['vm_host'] | default([]) }}"
+
+- name: read Host Vars for WA
+  include_vars: "{{ item.stat.path }}"
+  with_items: "{{ host_vars_details.results }}"
+  when: item.stat.exists
+
+- name: WA remove missing aufs-tools package from kubernetes/preinstall required_pkgs
+  lineinfile:
+    path: "{{ playbook_dir }}/kubespray/roles/kubernetes/preinstall/vars/ubuntu.yml"
+    regexp: '  - aufs-tools'
+    state: absent
+  when:
+    - (target_distribution == "Ubuntu" and target_distribution_version in  ['20.04', '22.04']) or
+      (vm_enabled and vm_image_distribution == "ubuntu" and vm_image_version_ubuntu in  ['20.04', '22.04'])

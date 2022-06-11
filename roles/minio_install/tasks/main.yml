@@ -18,6 +18,11 @@
   set_fact:
     minio_nodes: "{{ groups['kube_node'] | length }}"
 
+- name: collect the minio_vfs of nodes
+  set_fact:
+    minio_tenant_sriov_vfs: "{{ hostvars[item]['dataplane_interfaces'] | map(attribute='minio_vf') | list | length }}"
+  loop: "{{ groups['kube_node'] }}"
+
 - name: check the number of nodes for MinIO install
   fail:
     msg: |
@@ -25,6 +30,15 @@
       Make sure the number of nodes you are deploying is more than or equal to  {{ minio_tenant_servers }}
   when:
     - minio_nodes | int < minio_tenant_servers
+
+- name: install MinIO operator/console
+  import_tasks: build_minio_variables.yml
+  when:
+    - minio_nodes | int >= minio_tenant_servers
+
+- name: install dependencies
+  include_role:
+    name: whereabouts_install
 
 - name: install MinIO operator/console
   import_tasks: minio_operator.yml
@@ -48,19 +62,42 @@
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname in groups['kube_node']
 
-- name: pupulate MinIO local persisitent volumes
+- name: populate MinIO local persisitent volumes
   import_tasks: create_persistentvolumes.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
 
-- name: pupulate MinIO storage class
+- name: populate MinIO storage class
   import_tasks: create_storageclass.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: set minio_vfs to the controller
+  set_fact:
+    minio_vfs: "{{ minio_vfs | default([]) + hostvars[groups['kube_node'][0]]['minio_vfs'] }}"
+  when:
+    - minio_tenant_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: prepare MinIO storage network
+  import_tasks: prepare_minio_tenant_sriovnetwork.yml
+  when:
+    - minio_tenant_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - minio_vfs is defined and minio_vfs | length | int > 0
+
+- name: populate MinIO storage network
+  import_tasks: create_minio_tenant_sriovnetwork.yml
+  when:
+    - minio_tenant_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - minio_vfs is defined and minio_vfs | length | int > 0
 
 - name: install MinIO tenant
   import_tasks: minio_tenant.yml
@@ -68,3 +105,13 @@
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
+
+
+- name: install additional Endpoints for MinIO Sample Tenant pods
+  import_tasks: add_minio_tenant_endpoints.yml
+  when:
+    - minio_tenant_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - minio_tenant_sriov_resources is defined and minio_tenant_sriov_resources | length > 0
+    - minio_vfs is defined and minio_vfs | length | int > 0

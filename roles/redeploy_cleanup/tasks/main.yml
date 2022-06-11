@@ -20,6 +20,13 @@
 - name: remove Intel Container Experience Kit features artifacts
   import_tasks: intel_cleanup.yml
 
+- name: uninstall MinIO
+  include_role:
+    name: minio_install
+    tasks_from: cleanup_minio_main
+  tags:
+    - minio
+
 - name: reboot
   debug:
     msg: rebooting after pre-redeploy cleanup

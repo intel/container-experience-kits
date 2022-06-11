@@ -1,0 +1,80 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check MinIO Tenant Helm charts temp directory
+  stat:
+    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
+  register: tenant_temp_dir
+
+- name: create the temp folder for MinIO Tenant custom values
+  file:
+    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - not tenant_temp_dir.stat.exists
+
+- name: set iteration number
+  set_fact:
+    num: 1
+    req_num: "{{ hostvars[groups['kube_control_plane'][0]]['total_num_minio_vfs'][0] }}"
+
+- name: build MinIO Tenant SRIOV Network
+  include_tasks: build_minio_tenant_sriovnetwork.yml
+  loop: "{{ range(num, req_num|int + 1) | list }}"
+  loop_control:
+    extended: yes
+
+- name: create the initial patch file
+  copy:
+    dest: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-storage-networks.yml') | path_join }}"
+    content: |
+      minio_tenant_sriov_resources:
+    mode: '0644'
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: merge all section of addresses
+  shell: >-
+    cat "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-storage-networks' ~ ansible_loop.index ~ '.yml') | path_join }}"
+    >> "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-storage-networks.yml') | path_join }}"
+  loop: "{{ range(num, req_num|int + 1)|list }}"
+  loop_control:
+    extended: yes
+  changed_when: true
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: fetch MinIO Tenant SRIOV Network
+  fetch:
+    src: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-storage-networks.yml') | path_join }}"
+    dest: "{{ ('/tmp', 'tenant', 'sriov/') | path_join }}"
+    flat: yes
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: include variables for MinIO Tenant SRIOV Network
+  include_vars:
+    file: "{{ ('/tmp', 'tenant', 'sriov', 'minio-storage-networks.yml') | path_join }}"
+    name: minio_tenant_sriov_resources
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: load minio_tenant_sriov_resources for jinja template
+  set_fact:
+    minio_tenant_sriov_resources : "{{ minio_tenant_sriov_resources['minio_tenant_sriov_resources'] }}"
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]

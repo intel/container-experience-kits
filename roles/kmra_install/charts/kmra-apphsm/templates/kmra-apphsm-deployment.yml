@@ -7,6 +7,8 @@ metadata:
     app: {{ .Release.Name }}
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -14,9 +16,8 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
-      annotations:
-        sgx.intel.com/quote-provider: {{ .Release.Name }}
     spec:
+      hostNetwork: true
       serviceAccountName: {{ .Release.Name }}
       initContainers:
       - name: init-tmpfs
@@ -26,9 +27,11 @@ spec:
       - name: {{ .Release.Name }}
         image: "{{ .Values.apphsm.main.image.repo }}/{{ .Values.apphsm.main.image.name }}:{{ .Values.apphsm.main.image.tag }}"
         imagePullPolicy: {{ .Values.apphsm.main.image.pullPolicy }}
+        command:
+          - /workspace/apphsm_commands.sh
         envFrom:
         - configMapRef:
-            name: {{ .Release.Name }}-env-cm
+            name: {{ .Release.Name }}-env
         volumeMounts:
         - name: mtls
           mountPath: /opt/intel/ca
@@ -43,37 +46,24 @@ spec:
         - name: tmpfs
           mountPath: /var/lib/softhsm/tokens
           subPath: tokens
+        - name: appshm-conf
+          mountPath: /opt/intel/apphsm/apphsm.conf
+          subPath: apphsm.conf
+          readOnly: true
+        - name: appshm-cmd
+          mountPath: /workspace/apphsm_commands.sh
+          subPath: apphsm_commands.sh
+          readOnly: true
         resources:
           limits:
             cpu: 500m
             memory: 500Mi
-            sgx.intel.com/epc: "512Ki"
           requests:
             cpu: 200m
             memory: 200Mi
         securityContext:
-          runAsUser: 1000
-          runAsGroup: {{ .Values.apphsm.sgx_prv_gid }}
+          runAsUser: 65333
           readOnlyRootFilesystem: true
-      - name: apphsm-rproxy
-        image: "{{ .Values.apphsm.rproxy.image.repo }}/{{ .Values.apphsm.rproxy.image.name }}:{{ .Values.apphsm.rproxy.image.tag }}"
-        imagePullPolicy: {{ .Values.apphsm.rproxy.image.pullPolicy }}
-        ports:
-        - name: apphsm-rproxy
-          containerPort: {{ .Values.apphsm.rproxy.port }}
-        volumeMounts:
-          - name: nginx-conf
-            mountPath: /etc/nginx
-            readOnly: true
-        resources:
-          limits:
-            cpu: 20m
-            memory: 40Mi
-          requests:
-            cpu: 10m
-            memory: 20Mi
-        securityContext:
-          runAsUser: 65334
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -98,12 +88,13 @@ spec:
       - name: sgx-qcnl-conf
         configMap:
           name: {{ .Release.Name }}-qcnl-conf
-      - name: nginx-conf
+      - name: appshm-conf
         configMap:
-          name: {{ .Release.Name }}-rproxy-conf
-          items:
-            - key: nginx.conf
-              path: nginx.conf
+          name: {{ .Release.Name }}-config
+      - name: appshm-cmd
+        configMap:
+          name: {{ .Release.Name }}-entrypoint
+          defaultMode: 0777
       - name: tmpfs
         emptyDir:
           medium: Memory

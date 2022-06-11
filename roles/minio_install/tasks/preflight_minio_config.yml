@@ -1,0 +1,55 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check MinIO configuration
+  block:
+    - name: check MinIO minimum number of nodes
+      assert:
+        that: "{{ minio_tenant_servers | int }} <= {{ groups['kube_node'] | length | int }}"
+        msg: |
+          "Incorrect configuration."
+          "The number of MinIO tenant servers '{{ minio_tenant_servers |int }}' defined in group vars must be"
+          "less or equal to the number of nodes '{{ groups['kube_node']|length |int }}'"
+
+    - name: make sure the MinIO tenant volumes per server >= the MiniO PV list
+      assert:
+        that: "{{ minio_pv | length | int }} >= {{ minio_tenant_volumes_per_server | int }}"
+        msg:
+          - "Incorrect configuration."
+          - "The number of MinIO Persistent Volumes (PVs) '{{ minio_pv | length | int }}' defined in the host vars must be"
+          - "equal or more than MinIO Tenant Volumes per Server '{{ minio_tenant_volumes_per_server }}' defined in group vars."
+      when:
+        - inventory_hostname in groups['kube_node']
+
+    - name: Check minio_vf is defined and set and vf_driver uses 'iavf' (kernel driver)
+      assert:
+        that:
+          - ('vf_00' is not in item.sriov_vfs.keys() and item.default_vf_driver == 'iavf') or 
+            ('vf_00' is in item.sriov_vfs.keys() and item.sriov_vfs.get('vf_00') == 'iavf')
+        msg: >-
+          "MinIO uses vf_driver: 'iavf' (kernel driver) with the vf_00 by default.
+          Please correct the configuration.
+          bus_info : {{ item.bus_info }},
+          sriov_vfs: {{ item.sriov_vfs }},
+          default_vf_driver: {{ item.default_vf_driver }}"
+      loop: "{{ dataplane_interfaces | selectattr('minio_vf', '==', True) }}"
+      when:
+        - inventory_hostname in groups['kube_node']
+  when:
+    - kubernetes
+    - minio_enabled is defined and minio_enabled
+    - dataplane_interfaces is defined
+  any_errors_fatal: true

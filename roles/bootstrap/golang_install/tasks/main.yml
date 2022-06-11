@@ -14,16 +14,22 @@
 ##   limitations under the License.
 ##
 ---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
 - name: check current golang version
-  shell: /usr/local/go/bin/go version|sed -e 's/go version go//g'|cut -d' ' -f1
+  shell: "set -o pipefail && /usr/local/go/bin/go version|sed -e 's/go version go//g'|cut -d' ' -f1"
+  args:
+    executable: /bin/bash
   failed_when: false
   changed_when: false
   register: go_version
 
 - debug:
     msg: |
-         "installed golang version = {{ go_version.stdout if go_version.stdout else 'None' }}"
-         "required golang version = {{ golang_version }}"
+      "installed golang version = {{ go_version.stdout if go_version.stdout else 'None' }}"
+      "required golang version = {{ golang_version }}"
 
 - name: start procedure to install golang in required version
   block:

@@ -18,18 +18,23 @@
   include_role:
     name: install_dependencies
 
+- name: get current udev package version
+  shell: "set -o pipefail && apt list --installed 2>/dev/null |grep '^udev' | awk 'NR==1{ print $2 }'"
+  args:
+    executable: /bin/bash
+  register: udev_pkg_version
+  changed_when: false
+  failed_when: "udev_pkg_version.stdout | length==0"
+  when: ansible_distribution == "Ubuntu"
+
+- name: current udev package version
+  debug:
+    msg: "udev_pkg_version={{ udev_pkg_version.stdout }}"
+  when: ansible_distribution == "Ubuntu"
+
 - name: install libudev-dev package on Ubuntu
   apt:
-    name: >-
-      {%- if ansible_distribution_version == '21.04' -%}
-      {%- if on_vms is defined and on_vms -%}
-      ['libudev-dev={{ libudev_version }}*']
-      {%- else -%}
-      ['libudev-dev={{ libudev_version }}']
-      {%- endif -%}
-      {%- else -%}
-      libudev-dev
-      {%- endif -%}
+    name: 'libudev-dev={{ udev_pkg_version.stdout }}'
   when: ansible_distribution == "Ubuntu"
 
 - name: create directory {{ qat_drivers_dir }} for all QAT dependencies
@@ -107,8 +112,14 @@
   when:
     - on_vms is defined and on_vms
 
+- name: make sure old qat_service is stopped and disabled
+  service:
+    state: stopped
+    name: qat_service
+    enabled: no
+
 - name: make sure QAT service is started and enabled
   service:
     state: restarted
-    name: qat_service
+    name: qat
     enabled: yes

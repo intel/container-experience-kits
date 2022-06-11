@@ -1,0 +1,59 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: prepare NodeFlowConfig manifests if provided
+  block:
+    - name: check if local NodeFlowConfig manifests dir exists
+      stat:
+        path: "{{ hostvars[node_name]['intel_ethernet_operator']['node_flow_config_dir'] }}"
+      delegate_to: "localhost"
+      become: false
+      register: node_flow_config_directory
+
+    - name: find NodeFlowConfig manifests available
+      find:
+        paths: "{{ hostvars[node_name]['intel_ethernet_operator']['node_flow_config_dir'] }}"
+        recurse: yes
+      delegate_to: "localhost"
+      become: false
+      when:
+        - node_flow_config_directory.stat.exists | bool
+        - node_flow_config_directory.stat.isdir | bool
+      register: flow_config_manifests_found
+
+    - name: copy NodeFlowConfig manifests
+      copy:
+        src: "{{ file.path }}"
+        dest: "{{ (intel_ethernet_operator_node_flow_config_files_dir, hostvars[node_name]['inventory_hostname'] + '-' + file.path | basename) | path_join }}"
+        force: yes
+        owner: root
+        mode: preserve
+      loop: "{{ flow_config_manifests_found.files }}"
+      loop_control:
+        loop_var: file
+      when:
+        - not flow_config_manifests_found.skipped | default(false)
+        - flow_config_manifests_found.matched > 0
+
+    - name: create NodeFlowConfig with rules if provided
+      command: "kubectl apply -f ./"
+      args:
+        chdir: "{{ intel_ethernet_operator_node_flow_config_files_dir }}"
+      when:
+        - not flow_config_manifests_found.skipped | default(false)
+        - flow_config_manifests_found.matched > 0
+
+  when: hostvars[node_name]['intel_ethernet_operator']['node_flow_config_dir'] is defined

@@ -14,6 +14,7 @@
 ##   limitations under the License.
 ##
 ---
+minio_application_name: "minio"               # MinIO Main Application Name
 minio_operator_namespace: "minio-operator"    # MinIO Operator/Console namespace
 minio_tenant_namespace: "minio-tenant"        # MinIO Sample Tenant namespace
 
@@ -22,3 +23,6 @@ minio_tenant_release_name: "minio-tenant"     # MinIO Tenant Helm Charts release
 
 minio_storage_worker_key: storage             # MinIO worker key
 minio_storage_worker_value: minio             # MinIO worker value
+
+minio_sriov_network_name_prefix: minio-sriov  # MinIO Tenants SriovNetwork name prefix
+minio_sriov_network_deviceType: netdevice     # MinIO Tenants SriovNetwork device type

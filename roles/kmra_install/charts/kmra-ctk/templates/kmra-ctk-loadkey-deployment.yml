@@ -6,6 +6,8 @@ metadata:
     app: {{ .Release.Name }}
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -16,6 +18,7 @@ spec:
       annotations:
         sgx.intel.com/quote-provider: {{ .Release.Name }}
     spec:
+      hostNetwork: true
       serviceAccountName: {{ .Release.Name }}
       initContainers:
       - name: init-tmpfs
@@ -54,7 +57,7 @@ spec:
             cpu: 200m
             memory: 200Mi
         securityContext:
-          runAsUser: 1000
+          runAsUser: 65333
           runAsGroup: {{ .Values.ctk_loadkey.sgx_prv_gid }}
           readOnlyRootFilesystem: true
       affinity:
@@ -85,4 +88,3 @@ spec:
         emptyDir:
           medium: Memory
           sizeLimit: 64Mi
-

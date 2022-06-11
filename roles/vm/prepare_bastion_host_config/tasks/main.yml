@@ -1,0 +1,52 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Prepare bastion host configuration in ~/.ssh/config
+  blockinfile:
+    path: ~/.ssh/config
+    block: |
+      Host {{ item.key }}
+        ProxyCommand ssh root@{{ ansible_host }} -W %h:%p
+      Host {{ item.value }}
+        ProxyCommand ssh root@{{ ansible_host }} -W %h:%p
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }}"
+    create: yes
+    owner: "{{ ansible_user_id }}"
+    mode: '0644'
+  with_items: "{{ vm_ips | dict2items }}"
+  delegate_to: localhost
+
+- name: Remove old ECDSA key fingerprint on for bastion host
+  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ ansible_host }}"
+  delegate_to: localhost
+  changed_when: true
+
+- name: Store ECDSA key fingerprint for bastion host
+  command: ssh -o StrictHostKeyChecking=No {{ ansible_host }} hostname
+  delegate_to: localhost
+  changed_when: true
+
+- name: Remove old ECDSA key fingerprint on localhost
+  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.key }}"
+  with_items: "{{ vm_ips | dict2items }}"
+  delegate_to: localhost
+  changed_when: true
+
+- name: Store ECDSA key fingerprint on localhost
+  command: ssh -o StrictHostKeyChecking=No {{ item.key }} hostname
+  with_items: "{{ vm_ips | dict2items }}"
+  delegate_to: localhost
+  changed_when: true

@@ -1,0 +1,12 @@
+<network>
+  <name>vxlanbr{{ item.vxlan }}</name>
+  <bridge name="vxlanbr{{ item.vxlan }}" stp='on' delay='0'/>
+  <mtu size="{{ vxlan_mtu }}"/>
+  <dns enable="no"/>
+  <ip address='{{ vxlan_gw_ip | ansible.netcommon.ipaddr('address') }}' netmask='{{ vxlan_gw_ip | ansible.netcommon.ipaddr('netmask') }}'>
+    <dhcp>
+      <range start='{{ vxlan_gw_ip | ansible.netcommon.ipaddr('network') | ansible.netcommon.ipmath(vxlan_dhcp_start) }}' end='{{ vxlan_gw_ip | ansible.netcommon.ipaddr('network') | ansible.netcommon.ipmath(vxlan_dhcp_end) }}'/>
+        <lease expiry='0'/>
+    </dhcp>
+  </ip>
+</network>

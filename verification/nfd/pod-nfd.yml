@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-nfd-1
+spec:
+  nodeSelector:
+    feature.node.kubernetes.io/custom-intel.qat: "true"
+  containers:
+  - name: pod-nfd-1
+    image: ubuntu:focal
+    command:
+    - "/bin/bash"
+    - "-c"
+    args:
+    - "tail -f /dev/null"

@@ -36,10 +36,19 @@
             reservedSystemCPUs: "{{ native_cpu_manager_reserved_cpus }}"
           {%- endif -%}
         enable_admission_plugins_prepare: >-
-          [EventRateLimit, DefaultStorageClass,{% if always_pull_enabled %} AlwaysPullImages,{% endif %} NodeRestriction{% if psp_enabled %}, PodSecurityPolicy{% endif %}]
+          [EventRateLimit,
+          DefaultStorageClass,
+          {% if always_pull_enabled %}AlwaysPullImages,{% endif %}
+          NodeRestriction{% if psp_enabled %}, PodSecurityPolicy{% endif %}]
         cek_docker_version: >-
           {% if ansible_distribution_version >= '21.04' %}latest{% else %}19.03{%endif %}
         kube_config_dir: /etc/kubernetes
+    - name: prepare facts for Ubuntu >= 21.10
+      set_fact:
+        docker_containerd_version: latest
+      when:
+        - ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.10"
+        - container_runtime == "docker"
     - name: set kube_cert_dir
       set_fact:
         kube_cert_dir: "{{ kube_config_dir }}/ssl"
@@ -51,22 +60,23 @@
       when: kube_network_plugin == "flannel"
     - name: prepare calico CNI facts for vxlan backend
       set_fact:
-        calico_network_backend: vxlan
         calico_vxlan_mode: 'CrossSubnet'
         calico_ipip_mode: 'Never'
       when:
         - kube_network_plugin == "calico"
-        - calico_backend == "vxlan"
+        - calico_network_backend == "vxlan"
+        - not calico_advanced_options
     - name: prepare calico CNI facts for bird backend
       set_fact:
         calico_ipip_mode: 'Always'
         calico_endpoint_to_host_action: "ACCEPT"
         calico_wireguard_enabled: "{{ wireguard_enabled | default(true) | bool }}"
         epel_enabled: >-
-          {% if ansible_distribution == 'CentOS' %}true{% else %}false{% endif %}
+          {% if ansible_distribution == 'Rocky' %}true{% else %}false{% endif %}
       when:
         - kube_network_plugin == "calico"
-        - calico_backend == "bird"
+        - calico_network_backend == "bird"
+        - not calico_advanced_options
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -83,6 +93,7 @@
       set_fact:
         container_manager: containerd
         etcd_deployment_type: host
+        image_command_tool: crictl
         containerd_extra_args: |2
                   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{{ registry_local_address }}"]
                     endpoint = ["https://{{ registry_local_address }}"]
@@ -109,7 +120,7 @@
     kube_proxy_mode: iptables
     enable_nodelocaldns: false
     system_reserved: true
-    dashboard_enabled: true
+    dashboard_enabled: "{{ kube_dashboard_enabled | default(true) }}"
     system_cpu_reserved: "{{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
     kube_cpu_reserved: "{{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
     kubelet_custom_flags: "--cpu-cfs-quota=false"
@@ -139,7 +150,7 @@
     kubelet_config_extra_args:
       protectKernelDefaults: true
       cpuManagerPolicy: "{% if native_cpu_manager_enabled | default(true) %}static{% else %}none{% endif %}"
-      topologyManagerPolicy: "{{ topology_manager_policy | default('none') }}"
+      topologyManagerPolicy: "{% if topology_manager_enabled | default(true) %}{{ topology_manager_policy | default('none') }}{% else %}none{% endif %}"
       eventRecordQPS: 0
     kube_apiserver_request_timeout: 60s
     kube_apiserver_enable_admission_plugins: "{{ enable_admission_plugins_prepare | from_yaml }}"
@@ -216,7 +227,7 @@
           when: ansible_os_family == "RedHat"
       when:
         - wireguard_enabled | default(true) | bool
-        - kube_network_plugin == "calico" and calico_backend == "bird"
+        - kube_network_plugin == "calico" and calico_network_backend == "bird"
         - firewall_enabled | default(false) | bool
 
     - name: patch default calico controller configuration to not expose metrics port
@@ -226,6 +237,40 @@
         - kube_network_plugin == "calico"
         - not calico_metrics_enabled
       changed_when: true
+
+    - name: fix podman dependencies
+      apt:
+        name:
+          - golang-github-containers-common
+          - golang-github-containers-image
+        dpkg_options: 'force-overwrite'
+      when:
+        - '"crio" in container_runtime'
+        - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+
+    - name: install podman package
+      package:
+        name: "{{ 'podman-3.3.1' if ansible_os_family == 'RedHat' else 'podman' }}"
+        state: present
+      register: podman_package
+      retries: 10
+      until: podman_package is success
+      when: '"docker" not in container_runtime'
+
+    - name: registries.conf configuration on containerd
+      block:
+        - name: check if registries.conf exists
+          stat:
+            path: /etc/containers/registries.conf
+          register: registries_conf
+
+        - name: add "unqualified-search-registries" to registries.conf
+          lineinfile:
+            path: /etc/containers/registries.conf
+            regexp: '^#unqualified-search-registries'
+            line: unqualified-search-registries = ["docker.io"]
+          when: registries_conf.stat.exists
+      when: container_runtime == "containerd"
 
   any_errors_fatal: true
 
@@ -252,10 +297,17 @@
   roles:
     - role: cluster_defaults
       tags: defaults
+      when:
+        - cert_manager_enable | default(false) or
+          registry_enable | default(false)
     - role: cert_manager_install
       tags: cert-manager
+      when:
+        - cert_manager_enable | default(false)
     - role: container_registry
       tags: registry
+      when:
+        - registry_enable | default(false)
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 

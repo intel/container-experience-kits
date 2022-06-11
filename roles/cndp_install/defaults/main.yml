@@ -1,0 +1,29 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+intel_cndp_git_url: "https://github.com/CloudNativeDataPlane/cndp.git"
+intel_cndp_version: "v22.04.0"
+intel_cndp_dir: "{{ (project_root_dir, 'intel-cndp') | path_join }}"
+
+docker_bin_dir: "/usr/bin"
+
+# Drop-in docker service file what defines DOCKER_OPTS environment variable
+docker_options_conf_file: "/etc/systemd/system/docker.service.d/docker-options.conf"
+containerd_service_dir: "/etc/systemd/system/containerd.service.d"
+containerd_options_conf_file: "{{ (containerd_service_dir, 'limits.conf') | path_join }}"
+crio_service_dir: "/etc/systemd/system/crio.service.d"
+crio_options_conf_file: "{{ (crio_service_dir, 'limits.conf') | path_join }}"
+containerd_bin_dir: "/usr/bin"

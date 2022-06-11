@@ -50,11 +50,11 @@
 - name: install dpdk-devel to prepare OVS-DPDK build in RHEL / CentOS >= 8.2
   dnf:
     name: dpdk-devel
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
 
 - name: update the dynamic linker cache in RHEL / CentOS >= 8.2
   command: "ldconfig"
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
   changed_when: true
 
 - name: prepare OVS-DPDK build in RHEL / CentOS >= 8.2
@@ -64,7 +64,7 @@
   environment:
     PKG_CONFIG_PATH: "/usr/local/lib64/pkgconfig:/usr/share/pkgconfig:/usr/lib64/pkgconfig"
   when:
-    - ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.2'
+    - ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
     - not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
 
 - name: prepare OVS-DPDK build

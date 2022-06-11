@@ -4,6 +4,10 @@ kind: PodSecurityPolicy
 metadata:
   name: {{ .Release.Name }}
 spec:
+  hostNetwork: true
+  hostPorts:
+  - max: {{ .Values.ctk_loadkey.main.port }}
+    min: {{ .Values.ctk_loadkey.main.port }}
   allowPrivilegeEscalation: true
   allowedCapabilities:
   - '*'

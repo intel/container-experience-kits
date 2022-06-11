@@ -26,7 +26,17 @@
   changed_when: true
 
 - name: remove existing tcpip-bypass-ebpf resources
-  command: "kubectl delete -f {{ service_mesh_charts_dir }}/tcpip-bypass-ebpf.yaml"
+  command: "kubectl delete -f {{ (service_mesh_charts_dir, 'tcpip-bypass-ebpf.yaml') |  path_join }}"
+  changed_when: true
+  failed_when: false
+
+- name: remove existing intel-tls-splicing resources
+  command: "kubectl delete -f {{ (service_mesh_charts_dir, 'intel-tls-splicing.yaml') |  path_join }}"
+  changed_when: true
+  failed_when: false
+
+- name: remove existing intel-tls-splicing resources
+  command: "kubectl delete -f {{ (service_mesh_charts_dir, 'tcs-cluster-issuer.yaml') |  path_join }}"
   changed_when: true
   failed_when: false
 

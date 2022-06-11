@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-sriov-vfio-pci
+spec:
+  containers:
+  - name: pod-sriov-vfio-pci
+    image: ubuntu:focal
+    imagePullPolicy: IfNotPresent
+    command: [ "/bin/bash", "-c" ]
+    args: [ "sleep inf" ]
+    resources:
+      requests:
+        intel.com/ens785_intelnics_1: '1'
+      limits:
+        intel.com/ens785_intelnics_1: '1'

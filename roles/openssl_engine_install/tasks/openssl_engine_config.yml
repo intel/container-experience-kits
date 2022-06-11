@@ -24,7 +24,7 @@
     path: "{{ openssl_engine_dir }}/libarchive_install"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.3'
 
 - name: download and unarchive libarchive required version for CentOS / RHEL >= 8.3
   unarchive:
@@ -35,14 +35,14 @@
   register: libarchive_rhel_version
   until: libarchive_rhel_version is not failed
   retries: 5
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.3'
 
 - name: configure libarchive with PATH in CentOS / RHEL >= 8.3
   command: './configure --prefix=/usr --disable-static'
   args:
     chdir: "{{ openssl_engine_dir }}/libarchive_install/libarchive-3.5.1"
   changed_when: true
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.3'
 
 - name: detect number of cores on system
   command: nproc
@@ -55,7 +55,7 @@
     target: install
   environment:
     "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
-  when: ansible_distribution in ["RedHat", "CentOS"] and ansible_distribution_version >= '8.3'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.3'
 
 # Building Intel® Integrated Performance Primitives Cryptography
 - name: create directory for Intel IPPC dependencies
@@ -159,7 +159,7 @@
 
 - name: update the dynamic linker cache
   command: "ldconfig"
-  when: ansible_distribution in ["RedHat", "CentOS"]
+  when: ansible_os_family == "RedHat"
   changed_when: true
 
 - name: once OpenSSL*Engine in place ensure it loads successfully

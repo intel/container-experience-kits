@@ -1,0 +1,153 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone TCS repo
+  git:
+    repo: "{{ tcs_git_repo_url }}"
+    dest: "{{ tcs_git_path }}"
+    version: "{{ tcs_git_version }}"
+    force: true
+
+- name: build image locally - docker engine
+  block:
+    - name: build container image
+      make:
+        target:
+          docker-build
+        chdir:  "{{ tcs_git_path }}"
+      environment:
+        REGISTRY: "{{ registry_local_address }}"
+
+    - name: push container image
+      make:
+        target:
+          docker-push
+        chdir:  "{{ tcs_git_path }}"
+      environment:
+        REGISTRY: "{{ registry_local_address }}"
+  when:
+    - tcs.build_image_locally | default(false)
+    - container_runtime == "docker"
+
+- name: build image locally - non-docker engine
+  block:
+    - name: generate private key
+      make:
+        target:
+          enclave-config/privatekey.pem
+        chdir:  "{{ tcs_git_path }}"
+
+    - name: prepare vendor dir
+      make:
+        target:
+          vendor
+        chdir:  "{{ tcs_git_path }}"
+
+    - name: "collect required values: read project Makefile"
+      slurp:
+        src: "{{ (tcs_git_path, 'Makefile') | path_join }}"
+      register: tcs_makefile
+      no_log: true
+
+    - name: "collect required values: extract value"
+      set_fact:
+        ctk_tag: >-
+          {{ tcs_makefile["content"]
+          | b64decode
+          | regex_findall("CTK_TAG\s*\?=\s*(.+)$", multiline=True)
+          | first
+          | default("master") }}
+
+    - name: build container image
+      # noqa 305 - shell is used intentionally here
+      shell: >-
+        podman build
+        --build-arg CTK_TAG={{ ctk_tag }}
+        -t {{ registry_local_address }}/trusted-certificate-issuer:latest
+        -f Dockerfile .
+      args:
+        chdir:  "{{ tcs_git_path }}"
+        executable: "/bin/bash"
+      changed_when: false
+
+    - name: push container image
+      command: "podman push {{ registry_local_address }}/trusted-certificate-issuer:latest"
+      args:
+        chdir:  "{{ tcs_git_path }}"
+      changed_when: false
+  when:
+    - tcs.build_image_locally | default(false)
+    - '"docker" not in container_runtime'
+
+- name: pre-create psp
+  block:
+    - name: pre-create tcs namespace
+      shell: "set -o pipefail && kubectl create ns {{ tcs.namespace }} -o yaml --dry-run=client | kubectl apply -f -"
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: pre-create tcs ns rolebinding
+      shell: |-
+        set -o pipefail && \
+        kubectl create -n {{ tcs.namespace }} rolebinding wa-psp \
+        --clusterrole psp:privileged \
+        --group system:serviceaccounts:{{ tcs.namespace }} \
+        -o yaml --dry-run=client | kubectl apply -f -
+      args:
+        executable: /bin/bash
+      changed_when: true
+  when:
+    - psp_enabled | default(false)
+
+- name: update TCS config - kustomization file
+  lineinfile:
+    path: "{{ (tcs_git_path, 'config', 'default', 'kustomization.yaml') | path_join }}"
+    regexp: '^namespace:.*$'
+    line: "namespace: {{ tcs.namespace }}"
+    state: present
+    mode: 0644
+
+- name: find rolebinding manifests to fix subject namespaces
+  find:
+    paths: "{{ (tcs_git_path, 'config', 'rbac') | path_join }}"
+    patterns: "*role_binding.yaml"
+  register: rolebinding_manifests
+  changed_when: false
+
+- name: fix rolebindings subject namespaces due to kustomize bug.
+  lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^(\s+)namespace:.*$'
+    line: '\1namespace: {{ tcs.namespace }}'
+    backrefs: yes
+    state: present
+    mode: 0644
+  loop: "{{ rolebinding_manifests.files }}"
+
+- name: deploy TCS CRDs
+  make:
+    target:
+      install
+    chdir:  "{{ tcs_git_path }}"
+
+- name: deploy TCS
+  make:
+    target:
+      deploy
+    chdir:  "{{ tcs_git_path }}"
+  environment:
+    REGISTRY: "{{ (tcs.build_image_locally) | ternary(registry_local_address, 'intel') }}"

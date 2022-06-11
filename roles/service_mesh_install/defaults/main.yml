@@ -15,5 +15,5 @@
 ##
 ---
 service_mesh_download_url: "https://github.com/istio/istio/releases/download/{{ service_mesh.version }}/istio-{{ service_mesh.version }}-linux-amd64.tar.gz"
-service_mesh_release_dir: "{{ project_root_dir }}/istio"
-service_mesh_charts_dir: "{{ project_root_dir }}/charts/istio"
+service_mesh_release_dir: "{{ (project_root_dir, 'istio') | path_join }}"
+service_mesh_charts_dir: "{{ (project_root_dir, 'charts', 'istio') | path_join }}"

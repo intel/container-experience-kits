@@ -37,6 +37,9 @@ enable_intel_rdt_plugin: true
 # Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
 intel_rdt_plugin_monitored_cores: ""
 
+# pkgpower plugin collects platform power telemetry data
+enable_pkgpower_plugin: true
+
 # unixsock plugin host socket base dir
 unixsock_host_socket_dir: /var/run/collectd/
 
@@ -153,6 +156,28 @@ collectd_plugins:
     # - write_http
     # - smart
   full_nfv:
+    - logfile
+    - cpu
+    - cpufreq
+    - disk
+    - ipmi
+    - numa
+    - ethstat
+    - netlink
+    - intel_pmu
+    - rdt
+    - pkgpower
+    - dpdk_telemetry
+    - hugepages
+    - ovs_events
+    - ovs_pmd_stats
+    - ovs_stats
+    - unixsock
+    - network
+    - turbostat
+    # - write_http
+    # - smart
+  build_your_own:
     - logfile
     - cpu
     - cpufreq

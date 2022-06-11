@@ -1,0 +1,127 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: DDP update
+  block:
+    - name: populate Intel Ethernet Operator yaml files and push to controller node
+      template:
+        src: "ddp-update.yml.j2"
+        dest: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: apply DDP update on {{ node_name }}
+      k8s:
+        state: present
+        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+
+    - name: wait for DDP update
+      pause:
+        minutes: 1
+
+    - name: check status of DDP update
+      command: "kubectl get ethernetnodeconfig {{ node_name }} -n {{ intel_ethernet_operator_namespace }}"
+      register: ddp_update_info
+      until: "'InProgress' not in ddp_update_info.stdout"
+      retries: 30
+      delay: 10
+      failed_when: "'Failed' in ddp_update_info.stdout"
+
+    - name: check node after reboot
+      block:
+        - name: wait for node after reboot
+          wait_for:
+            host: "{{ hostvars[node_name]['ansible_host'] }}"
+            port: 22
+            connect_timeout: 5
+            timeout: 1200
+
+        - name: check if node is ready
+          command: "kubectl get nodes {{ node_name }}"
+          register: ddp_node_readiness
+          retries: 30
+          delay: 10
+          until: "'NotReady' not in ddp_node_readiness.stdout"
+
+        - name: wait for pods to be up and running
+          pause:
+            minutes: 1
+
+        - name: check status of DDP update
+          command: "kubectl get ethernetnodeconfig {{ node_name }} -n {{ intel_ethernet_operator_namespace }}"
+          register: after_ddp_update_info
+          until: "'PostUpdateReboot' not in after_ddp_update_info.stdout"
+          retries: 30
+          delay: 10
+          failed_when: "'Failed' in after_ddp_update_info.stdout"
+      when: "'PostUpdateReboot' in ddp_update_info.stdout"
+
+    - name: remove DDP CR after update
+      k8s:
+        state: absent
+        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+
+    - name: remove EthernetNodeConfig after update
+      command: kubectl delete enc {{ node_name }} -n {{ intel_ethernet_operator_namespace }}
+
+    - name: reload nic modules
+      block:
+        - name: register mgmt driver
+          shell: "set -o pipefail && ethtool -i {{ hostvars[node_name]['ansible_default_ipv4']['interface'] }} | grep driver | sed 's/^driver: //'"
+          args:
+            executable: /bin/bash
+          register: mgmt_interface_driver_ieo
+          delegate_to: "{{ node_name }}"
+          changed_when: false
+
+        - name: unload ICE module
+          modprobe:
+            name: ice
+            state: absent
+          delegate_to: "{{ node_name }}"
+          when:
+            - not hostvars[node_name]['enable_ice_systemd_service']
+            - mgmt_interface_driver_ieo.stdout != "ice"
+
+        - name: load ICE module
+          modprobe:
+            name: ice
+            state: present
+          delegate_to: "{{ node_name }}"
+          when:
+            - not hostvars[node_name]['enable_ice_systemd_service']
+            - mgmt_interface_driver_ieo.stdout != "ice"
+
+    - name: create ddp service
+      block:
+        - name: template the ddp-ice systemd service
+          template:
+            src: ddp-service.j2
+            dest: /lib/systemd/system/ddp.service
+            owner: root
+            group: root
+            mode: u=rw,g=r,o=r
+          delegate_to: "{{ node_name }}"
+
+        - name: run ddp-ice service on boot
+          systemd:
+            daemon_reload: yes
+            state: restarted
+            name: ddp
+            enabled: yes
+          delegate_to: "{{ node_name }}"
+      when: hostvars[node_name]['enable_ice_systemd_service']
+  when: hostvars[node_name]['intel_ethernet_operator']['ddp_update']

@@ -19,7 +19,7 @@
     name: install_dependencies
 
 - name: confirm QAT service is correctly installed on the system
-  include_tasks: check_qat_service.yml
+  include_tasks: check_qat_status.yml
 
 - name: create configuration directory if it does not exist
   file:
@@ -52,6 +52,17 @@
     mode: '0700'
   become: yes
   with_items: "{{ qat_devices }}"
+
+- name: create the first dummy record to warmup QAT device on Rocky
+  lineinfile:
+    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
+    insertbefore: "{{ qat_devices[0].qat_id }} {{ qat_devices[0].qat_sriov_numvfs | default(0) }}"
+    line: "{{ qat_devices[0].qat_id }} 2"
+  become: yes
+  when:
+    - ansible_distribution == "Rocky"
+    - qat_devices | length > 0
+    - qat_devices[0].qat_sriov_numvfs > 0
 
 - name: copy QAT SRIOV setup script to /usr/local/bin
   copy:

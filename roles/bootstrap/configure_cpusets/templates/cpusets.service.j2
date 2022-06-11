@@ -1,0 +1,10 @@
+[Unit]
+Description=cpusets configuration on boot
+AssertPathExists=/usr/bin/cset
+
+[Service]
+Type=simple
+ExecStart=cset shield --cpu={{ cpusets }}
+
+[Install]
+WantedBy=multi-user.target

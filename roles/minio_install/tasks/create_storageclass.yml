@@ -14,6 +14,19 @@
 ##   limitations under the License.
 ##
 ---
+- name: check MinIO Tenant Helm charts directory
+  stat:
+    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
+  register: tenant_dir
+
+- name: create MinIO Tenant Helm charts directory if needed
+  file:
+    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - tenant_dir.stat.exists is defined and not tenant_dir.stat.exists
+
 - name: create default MinIO Tenant local storage class
   template:
     src: "minio_tenant_storageclass.yml.j2"

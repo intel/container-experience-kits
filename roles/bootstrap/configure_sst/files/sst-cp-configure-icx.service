@@ -4,7 +4,7 @@ AssertPathExists=/usr/bin/intel-speed-select
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/sst_cp_config.sh
+ExecStart=/usr/bin/sst_cp_config_icx.sh
 
 [Install]
 WantedBy=multi-user.target

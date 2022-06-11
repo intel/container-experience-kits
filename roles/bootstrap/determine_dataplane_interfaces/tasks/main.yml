@@ -21,22 +21,9 @@
   include_role:
     name: install_dependencies
 
-- name: create temporary NIC configuration file
-  tempfile:
-    state: file
-    prefix: "dataplane_interfaces_{{ inventory_hostname }}_"
-    suffix: ".yml"
-  delegate_to: localhost
-  become: false
-  register: dataplane_interface_configuration_file
-
-- name: export dataplane_interfaces list of dicts to file
-  copy:
-    content: "---\n{{ { 'dataplane_interfaces': dataplane_interfaces } | to_nice_yaml(indent=2) }}"
-    dest: "{{ dataplane_interface_configuration_file.path }}"
-    mode: 0600
-  delegate_to: localhost
-  become: false
+- name: initializing new dataplane interfaces list
+  set_fact:
+    new_dataplane_interfaces: []
 
 - name: get dataplane interface names
   include: dataplane-interfaces.yml
@@ -44,16 +31,9 @@
   loop_control:
     loop_var: nic
 
-- name: include discovered NICs configuration file
-  include_vars:
-    file: "{{ dataplane_interface_configuration_file.path }}"
+- name: replace original dataplane_interfaces
+  set_fact:
+    dataplane_interfaces: "{{ new_dataplane_interfaces }}"
 
 - name: discovered dataplane_interface names
   debug: var=dataplane_interfaces
-
-- name: Remove temporary nic configuration files
-  delegate_to: localhost
-  become: false
-  file:
-    path: "{{ dataplane_interface_configuration_file.path }}"
-    state: absent

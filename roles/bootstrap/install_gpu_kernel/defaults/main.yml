@@ -15,6 +15,6 @@
 ##
 ---
 gpu_kernel_git_url: "https://github.com/intel-gpu/kernel"
-gpu_kernel_src_dst: "{{ project_root_dir }}/kernels/gpu_kernel/"
+gpu_kernel_src_dst: "{{ (project_root_dir, 'kernels', 'gpu_kernel') | path_join }}"
 gpu_kernel_flags: "i915.force_probe=* modprobe.blacklist=ast,snd_hda_intel i915.enable_guc=2"
 linux_dg1_firmware_url: "https://repositories.intel.com/graphics/firmware/linux-firmware-dg1_2020.43.tgz"

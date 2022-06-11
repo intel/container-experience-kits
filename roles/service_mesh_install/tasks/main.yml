@@ -20,6 +20,12 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
+- name: determine machine type
+  include_role:
+    name: check_machine_type
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+
 - name: remove existing istio service mesh resources
   include_tasks: cleanup.yml
   when:
@@ -31,7 +37,22 @@
     - inventory_hostname == groups['kube_control_plane'][0]
     - service_mesh.tcpip_bypass_ebpf.enabled | default(false) | bool
 
+- name: configure custom CA signer
+  include_tasks: configure-custom-ca-signer.yml
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - service_mesh.sgx_signer.enabled | default(false) | bool
+    - hostvars[groups['kube_node'][0]]['is_icx'] or
+      hostvars[groups['kube_node'][0]]['is_spr']
+
 - name: install istio service mesh
   include_tasks: install.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: deploy TLS splicing and bumping
+  include_tasks: tls-splicing-and-bumping.yml
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - service_mesh.tls_splicing.enabled | default(false) | bool
+    - service_mesh.profile != 'empty'

@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-container_registry_path: "{{ project_root_dir }}/container_registry"
+container_registry_path: "{{ (project_root_dir, 'container_registry') | path_join }}"
 
 install_dependencies:
   Debian:

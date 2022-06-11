@@ -1,0 +1,36 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: create SRIOV Network Node Policy
+  block:
+    - name: populate Flow Config yaml files and push to controller node
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ (intel_ethernet_operator_flow_config_files_dir, node_name + '-' + item.dst) | path_join }}"
+        force: yes
+        mode: preserve
+      loop:
+        - { src: 'flow-config-sriov-policy.yml.j2', dst: 'flow-config-sriov-policy.yml' }
+        - { src: 'flow-config-node-flow.yml.j2', dst: 'flow-config-node-flow.yml' }
+
+    - name: apply SRIOV Network Node Policy for Flow Config
+      k8s:
+        state: present
+        src: "{{ (intel_ethernet_operator_flow_config_files_dir, node_name + '-flow-config-sriov-policy.yml') | path_join }}"
+
+    - name: wait for SRIOV Network Node Policy
+      pause:
+        seconds: 40
+  when: hostvars[node_name]['dataplane_interfaces']|json_query('[?flow_configuration]')

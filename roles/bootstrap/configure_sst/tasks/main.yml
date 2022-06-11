@@ -35,4 +35,4 @@
   include_tasks: clx_setup_sst_bf.yml # for now only sst bf is supported on CLX
   when:
     - is_clx and sst_bf_configuration_enabled
-    - ansible_distribution == 'RedHat' and ansible_distribution_version >= '8.3'
+    - ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version >= '8.3'

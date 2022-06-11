@@ -16,7 +16,7 @@
 ---
 # variables in this file are not intended to be modified by the user directly
 # please use defaults/main.yml instead
-kube_prometheus_path: "{{ project_root_dir }}/kube-prometheus"
+kube_prometheus_path: "{{ (project_root_dir, 'kube-prometheus') | path_join }}"
 telemetry_namespace: monitoring # this is not templated everywhere yet.
 
 tas_demo_policy_dir: /opt/intel/tas-demo-policy

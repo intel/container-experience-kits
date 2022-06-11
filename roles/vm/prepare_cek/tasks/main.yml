@@ -26,40 +26,15 @@
   loop: "{{ vms }}"
   changed_when: true
 
-- name: Store IPs of running VMs
+- name: Store primary IPs of running VMs
   set_fact:
-    vm_ips: "{{ vm_ips|default({}) | combine( {item.item.name: item.stdout} ) }}"
+    vm_ips: "{{ vm_ips|default({}) | combine( {item.item.name: item.stdout.splitlines() | first} ) }}"
   when: item.changed and item.item.name is defined  # noqa 503
   loop: "{{ vm_out.results }}"
 
 - name: Print vm_ips
   debug:
     var: vm_ips
-
-- name: Prepare bastion host configuration in ~/.ssh/config
-  blockinfile:
-    path: ~/.ssh/config
-    block: |
-      Host {{ item.key }}
-        ProxyCommand ssh root@{{ ansible_host }} -W %h:%p
-      Host {{ item.value }}
-        ProxyCommand ssh root@{{ ansible_host }} -W %h:%p
-    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }}"
-    create: yes
-    owner: "{{ ansible_user_id }}"
-    mode: '0644'
-  with_items: "{{ vm_ips | dict2items }}"
-  delegate_to: localhost
-
-- name: Remove old ECDSA key fingerprint on for bastion host
-  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ ansible_host }}"
-  delegate_to: localhost
-  changed_when: true
-
-- name: Store ECDSA key fingerprint for bastion host
-  command: ssh -o StrictHostKeyChecking=No {{ ansible_host }} hostname
-  delegate_to: localhost
-  changed_when: true
 
 - name: Update /etc/hosts file on bastion host
   blockinfile:
@@ -82,67 +57,24 @@
   with_items: "{{ vm_ips | dict2items }}"
   changed_when: true
 
-- name: Remove old ECDSA key fingerprint on localhost
-  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.key }}"
-  with_items: "{{ vm_ips | dict2items }}"
-  delegate_to: localhost
-  changed_when: true
-
 - name: Store ECDSA key fingerprint
   command: ssh -o StrictHostKeyChecking=No {{ item.value }} hostname
   with_items: "{{ vm_ips | dict2items }}"
   changed_when: true
 
-- name: Store ECDSA key fingerprint on localhost
-  command: ssh -o StrictHostKeyChecking=No {{ item.key }} hostname
-  with_items: "{{ vm_ips | dict2items }}"
-  delegate_to: localhost
-  changed_when: true
-
 - name: Set VM host path
   set_fact:
     vm_host_path: "{{ lookup('env', 'PWD') }}"
+  run_once: true
+  delegate_to: localhost
 
-- name: Wait for cloud-init to finish on VMs
-  shell: set -o pipefail && cloud-init status | grep done
-  args:
-    executable: /bin/bash
-  register: init_status
-  retries: 12
-  delay: 10
-  until: init_status.stdout | length > 0
-  delegate_to: "{{ vm_ips[item.name] }}"
-  loop: "{{ vms }}"
-  changed_when: true
+- name: Set vm_image_distribution for vm_host in next play
+  set_fact:
+    vm_image_distribution: "{{ vm_image_distribution }}"
 
-- name: Delete VM IPs file from user directories
-  file:
-    path: "{{ ansible_user_dir }}/VM_IPs"
-    state: absent
-
-- name: Copy VM IPs to user directories
-  lineinfile:
-    path: "{{ ansible_user_dir }}/VM_IPs"
-    line: "Name: {{ item.name }}, IP: {{ vm_ips[item.name] }}"
-    create: yes
-    owner: "{{ ansible_user_id }}"
-    mode: '0400'
-  loop: "{{ vms }}"
-
-- name: Add hosts to inventory - all
-  add_host:
-    hostname: "{{ item.name }}"
-    ansible_host: "{{ vm_ips[item.name] }}"
-    ip: "{{ vm_ips[item.name] }}"
-    groups: all
-  loop: "{{ vms }}"
-
-- name: Add hosts to inventory - kube*
-  add_host:
-    hostname: "{{ item.name }}"
-    groups: "{% if item.type == 'ctrl' %} kube_control_plane,etcd {% elif item.type == 'work' %} kube_node {% endif %}"
-  loop: "{{ vms }}"
-
-- name: VMs are ready
-  debug:
-    msg: "VMs are ready to use"
+- name: Set vm_image_distribution for VMs in next play
+  set_fact:
+    vm_image_distribution: "{{ vm_image_distribution }}"
+  with_items: "{{ vm_ips | dict2items }}"
+  delegate_to: "{{ item.key }}"
+  delegate_facts: True

@@ -1,0 +1,157 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone TCA repo
+  git:
+    repo: "{{ tca_git_repo_url }}"
+    dest: "{{ tca_git_path }}"
+    version: "{{ tca_git_version }}"
+    force: true
+
+- name: "prepare to build_image_locally: clean deps"
+  command: "go mod tidy -go=1.17"
+  args:
+    chdir:  "{{ tca_git_path }}"
+  changed_when: true
+  when:
+    - tca.build_image_locally | default(false)
+
+- name: "prepare to build_image_locally: create vendor dir"
+  command: "go mod vendor"
+  args:
+    chdir:  "{{ tca_git_path }}"
+  changed_when: true
+  when:
+    - tca.build_image_locally | default(false)
+
+- name: build image locally - docker engine
+  block:
+    - name: build container image
+      make:
+        target:
+          docker-build
+        chdir:  "{{ tca_git_path }}"
+      environment:
+        REGISTRY: "{{ registry_local_address }}"
+
+    - name: push container image
+      make:
+        target:
+          docker-push
+        chdir:  "{{ tca_git_path }}"
+      environment:
+        REGISTRY: "{{ registry_local_address }}"
+  when:
+    - tca.build_image_locally | default(false)
+    - container_runtime == "docker"
+
+- name: build image locally - non-docker engine
+  block:
+    - name: build container image
+      command: "podman build -t {{ registry_local_address }}/sgx-attestation-controller:latest -f Dockerfile ."
+      args:
+        chdir:  "{{ tca_git_path }}"
+      changed_when: false
+
+    - name: push container image
+      command: "podman push {{ registry_local_address }}/sgx-attestation-controller:latest"
+      args:
+        chdir:  "{{ tca_git_path }}"
+      changed_when: false
+  when:
+    - tca.build_image_locally | default(false)
+    - '"docker" not in container_runtime'
+
+- name: read AppHSM client mTLS credentials
+  shell: |-
+    set -o pipefail && \
+    kubectl get secret {{ tca.client_mtls_secret_name }} \
+    -n {{ tca.client_mtls_secret_namespace }} \
+    -o json | jq '.data'
+  args:
+    executable: /bin/bash
+  register: mtls_data
+  changed_when: false
+  no_log: true
+
+- name: update client CA cert line
+  lineinfile:
+    path: "{{ (tca_git_path, 'config', 'manager', '.ca.secrets') | path_join }}"
+    regexp: '^ca.crt=.*$'
+    line: "ca.crt={{ (mtls_data.stdout | from_json)['ca.cert'] }}"
+    state: present
+    mode: 0644
+
+- name: update TCA config - client cert line
+  lineinfile:
+    path: "{{ (tca_git_path, 'config', 'manager', '.ca.secrets') | path_join }}"
+    regexp: '^client.crt=.*$'
+    line: "client.crt={{ (mtls_data.stdout | from_json)['tls.cert'] }}"
+    state: present
+    mode: 0644
+
+- name: update TCA config - client key line
+  lineinfile:
+    path: "{{ (tca_git_path, 'config', 'manager', '.ca.secrets') | path_join }}"
+    regexp: '^client.key=.*$'
+    line: "client.key={{ (mtls_data.stdout | from_json)['tls.key'] }}"
+    state: present
+    mode: 0644
+
+- name: update TCA config - AppHSM address
+  lineinfile:
+    path: "{{ (tca_git_path, 'config', 'manager', '.key-server.conf') | path_join }}"
+    regexp: '^KEY_SERVER=.*$'
+    line: "KEY_SERVER={{ tca.apphsm_hostmane }}:{{ tca.apphsm_port }}"
+    state: present
+    mode: 0644
+
+- name: update TCA config - kustomization file
+  lineinfile:
+    path: "{{ (tca_git_path, 'config', 'default', 'kustomization.yaml') | path_join }}"
+    regexp: '^namespace:.*$'
+    line: "namespace: {{ tca.namespace }}"
+    state: present
+    mode: 0644
+
+- name: pre-create psp
+  block:
+    - name: pre-create TCA namespace
+      shell: "set -o pipefail && kubectl create ns {{ tca.namespace }} -o yaml --dry-run=client | kubectl apply -f -"
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: pre-create TCA ns rolebinding
+      shell: |-
+        set -o pipefail && \
+        kubectl create -n {{ tca.namespace }} rolebinding wa-psp \
+        --clusterrole psp:privileged \
+        --group system:serviceaccounts:{{ tca.namespace }} \
+        -o yaml --dry-run=client | kubectl apply -f -
+      args:
+        executable: /bin/bash
+      changed_when: true
+  when:
+    - psp_enabled | default(false)
+
+- name: deploy TCA
+  make:
+    target:
+      deploy
+    chdir:  "{{ tca_git_path }}"
+  environment:
+    REGISTRY: "{{ (tca.build_image_locally) | ternary(registry_local_address, 'intel') }}"

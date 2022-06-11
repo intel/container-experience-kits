@@ -14,19 +14,26 @@
 ##   limitations under the License.
 ##
 ---
-# NOTE(pklimowx): these lists should be updated with complete set of machine SKUs
-supported_clx_skus:
+# NOTE(pklimowx): these lists should be updated with complete set of machine SKUs.  Please add alphabetically
+supported_clx_nskus:
+  - "5218N"
   - "6252N"
   - "6230N"
-  - "5218N"
+  
+supported_clx_skus:
+  - "6252"
 
 supported_icx_skus:
   - "$0000%@"
   - "0000%@"
-  - "6338N"
-  - "5318N"
   - "06/6c"
+  - "5318N"
+  - "6338"
+  - "6338N"
+  - "6346"
   - "6348"
+  - "8358"
+  - "8380"
 
 supported_spr_skus:
   - "0000%@"

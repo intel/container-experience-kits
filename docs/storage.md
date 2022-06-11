@@ -68,7 +68,7 @@ In an automation environment, this mode is useful and deployed on a special bloc
 In clustering environment, this mode provides object storage service to build high performance infrastructure for machine learning, analytics and application data workloads. This mode uses local storage devices like hard disk, m.2 ssd, etc.
 
 ### Sample Tenant Secret Key
-A MinIO user is an identity that includes at minimum credentials consiting of an Access Key and Secret Key. MinIO requires all incoming requests include credentials which match an existing user. You can find default credentials in 
+A MinIO user is an identity that includes at minimum credentials consisting of an Access Key and Secret Key. MinIO requires all incoming requests include credentials which match an existing user. You can find default credentials in 
 ```yaml
 secrets:
   # create a kubernetes secret object with the accessKey and secretKey as defined here.

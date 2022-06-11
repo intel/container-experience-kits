@@ -6,111 +6,254 @@
 # - off (not included, might as well drop it from the profile section)
 #
 # features:
-# - vm_mode
-# - on_vms
+# - vm_mode             - is 'optional(false)' on k8s and is 'on(true)' on vm_host and on VMs
+# - on_vms              - is 'optional(false)' on k8s and on vm_host and is 'on(true)' on VMs
 # - nfd
+# - kube_dashboard
 # - isolcpu
+# - cpusets
 # - native_cpu_manager
 # - bond_cni
 # - topology_manager
 # - sriov_operator
 # - sriov_network_dp
-# - network_userspace
+# - nic_drivers
 # - sgx
+# - sgx_dp
+# - kmra:
+#     pccs
+#     apphsm
+#     ctk_demo
+# - tcs
+# - tca
 # - qat
 # - gpu
+# - gpu_dp
 # - openssl
 # - tas
+# - gas
 # - ddp
+# - network_userspace
 # - dpdk
+# - ovs_dpdk
 # - pstate
+# - cstate
+# - ufs - uncore frequency scaling
 # - sst
-# - telemetry
-# - kmra
+# - power_manager
+# - telemetry:
+#     prometheus
+#     collectd
+#     telegraf
 # - wireguard
-# - power manager
+# - multus
+# - cndp
+# - cndp_dp
+# - psp
+# - minio
+# - cert_manager
+# - registry
+# - hugepages
+# - service_mesh
+#     enabled
+#     tcpip_bypass_ebpf
+#     tls_splicing
+#     sgx_signer
+# - intel_ethernet_operator
+#     enabled
+#     flow_config
+#     ddp
+#     fw_update
+# - intel_sriov_fec_operator
 
-# ovs_dpdk and network_userspace disabled temporary - waiting for new ovs version 2.17 compatible with dpdk 21.11
 ---
 access:
   name: access
   vm_mode: optional
   on_vms: optional
   nfd: on
+  kube_dashboard: on
   isolcpu: optional
+  cpusets: optional
   native_cpu_manager: on
   topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
-  qat: on
-  qat_dp: on
+  nic_drivers: on
+  bond_cni: off
+  qat: optional
+  qat_dp: optional
   openssl: on
+  dsa: on
+  dsa_dp: on
+  dlb: optional
+  dlb_dp: optional
+  gpu: off
+  gpu_dp: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tca: off
+  tas: off
+  gas: off
+  ddp: off
+  network_userspace: off
   dpdk: on
-  pstate: optional
-  telemetry: optional
-  service_mesh: on
+  ovs_dpdk: off
+  pstate: off
+  cstate: on
+  ufs: off
+  sst: off
+  power_manager: on
+  telemetry:
+    prometheus: on
+    collectd: optional
+    telegraf: on
+  service_mesh:
+    enabled: off
+    tcpip_bypass_ebpf: off
+    tls_splicing: off
+    sgx_signer: off
   wireguard: on
+  multus: on
   firewall: optional
+  cndp: off
+  cndp_dp: off
+  psp: on
+  minio: off
+  cert_manager: on
+  registry: on
+  hugepages: on
+  tadk: off
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    ddp: optional
+    fw_update: optional
+  intel_sriov_fec_operator: on
 
 basic:
   name: basic
   vm_mode: optional
   on_vms: optional
   nfd: on
+  kube_dashboard: on
   isolcpu: optional
+  cpusets: optional
   topology_manager: on
   sriov_operator: optional
   sriov_network_dp: optional
+  nic_drivers: on
   dpdk: optional
-  telemetry: optional
+  cstate: optional
+  ufs: optional
+  telemetry:
+    prometheus: on
+    collectd: optional
+    telegraf: on
   wireguard: on
+  multus: on
   firewall: optional
+  cndp: optional
+  cndp_dp: optional
+  psp: on
+  cert_manager: on
+  registry: on
+  hugepages: optional
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    fw_update: optional
 
 full_nfv:
   name: full_nfv
   vm_mode: optional
   on_vms: optional
   nfd: on
+  kube_dashboard: on
   isolcpu: optional
+  cpusets: optional
   native_cpu_manager: on
   topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
+  nic_drivers: on
   bond_cni: on
-  network_userspace: optional
-  ovs_dpdk: optional
   qat: on
   qat_dp: on
   openssl: on
   gpu: optional
+  gpu_dp: optional
   sgx: on
   sgx_dp: on
-  kmra: on
+  kmra:
+    pccs: on
+    apphsm: on
+    ctk_demo: on
+  tcs: on
+  tca: on
   tas: on
   gas: optional
   ddp: on
+  network_userspace: on
   dpdk: on
+  ovs_dpdk: on
   pstate: optional
+  cstate: optional
+  ufs: optional
   sst: optional
   power_manager: on
-  telemetry: on
-  service_mesh: on
+  telemetry:
+    prometheus: on
+    collectd: optional
+    telegraf: on
+  service_mesh:
+    enabled: on
+    tcpip_bypass_ebpf: on
+    tls_splicing: on
+    sgx_signer: on
   wireguard: on
+  multus: on
   firewall: optional
+  cndp: on
+  cndp_dp: on
+  psp: on
   minio: optional
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    ddp: optional
+    fw_update: optional
+  intel_sriov_fec_operator: optional
 
 on_prem:
   name: on_prem
   vm_mode: optional
   on_vms: optional
   nfd: on
+  kube_dashboard: on
   isolcpu: optional
+  cpusets: optional
   native_cpu_manager: on
   topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
+  nic_drivers: on
   sgx: on
   sgx_dp: on
+  kmra:
+    pccs: on
+    apphsm: on
+    ctk_demo: on
+  tcs: on
+  tca: on
   qat: on
   qat_dp: on
   openssl: on
@@ -118,73 +261,229 @@ on_prem:
   dpdk: on
   bond_cni: optional
   pstate: optional
+  cstate: optional
+  ufs: optional
   sst: optional
   power_manager: optional
-  telemetry: on
-  kmra: on
-  service_mesh: on
+  telemetry:
+    prometheus: on
+    collectd: optional
+    telegraf: on
+  service_mesh:
+    enabled: on
+    tcpip_bypass_ebpf: on
+    tls_splicing: on
+    sgx_signer: on
   wireguard: on
+  multus: on
   firewall: optional
+  cndp: optional
+  cndp_dp: optional
+  psp: on
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    fw_update: optional
 
 regional_dc:
   name: regional_dc
   vm_mode: optional
   on_vms: optional
   nfd: on
+  kube_dashboard: on
   isolcpu: optional
+  cpusets: optional
   topology_manager: on
   sriov_operator: optional
   sriov_network_dp: optional
+  nic_drivers: on
   native_cpu_manager: on
   gpu: on
+  gpu_dp: on
   tas: on
   gas: on
   dpdk: optional
-  telemetry: on
-  service_mesh: on
+  cstate: optional
+  ufs: optional
+  telemetry:
+    prometheus: on
+    collectd: optional
+    telegraf: on
+  service_mesh:
+    enabled: on
+    tcpip_bypass_ebpf: on
+    tls_splicing: on
   wireguard: on
+  multus: on
   firewall: optional
+  cndp: optional
+  cndp_dp: optional
+  psp: on
+  cert_manager: on
+  registry: on
+  hugepages: optional
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    fw_update: optional
 
 remote_fp:
   name: remote_fp
   vm_mode: optional
   on_vms: optional
   nfd: on
+  kube_dashboard: on
   isolcpu: optional
+  cpusets: optional
   native_cpu_manager: on
   topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
-  network_userspace: optional
+  nic_drivers: on
   sgx: on
   sgx_dp: on
+  kmra:
+    pccs: optional
+    apphsm: optional
+    ctk_demo: optional
+  tcs: optional
+  tca: optional
   qat: on
   qat_dp: optional
   openssl: on
   tas: on
   ddp: on
   bond_cni: optional
+  network_userspace: optional
   dpdk: on
   pstate: on
+  cstate: optional
+  ufs: optional
   sst: optional
   power_manager: optional
-  telemetry: on
-  kmra: on
-  service_mesh: on
+  telemetry:
+    prometheus: on
+    collectd: on
+    telegraf: optional
+  service_mesh:
+    enabled: optional
+    tcpip_bypass_ebpf: optional
+    tls_splicing: optional
+    sgx_signer: optional
   wireguard: on
+  multus: on
   firewall: optional
+  cndp: optional
+  cndp_dp: optional
+  psp: on
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    ddp: optional
+    fw_update: optional
 
 storage:
   name: storage
   vm_mode: optional
   on_vms: optional
   nfd: on
+  kube_dashboard: on
   native_cpu_manager: on
   topology_manager: on
+  sriov_operator: on
+  sriov_network_dp: optional
+  nic_drivers: on
   qat: optional
   qat_dp: optional
   tas: on
-  telemetry: on
+  ddp: optional
+  dpdk: on
+  cstate: optional
+  ufs: optional
+  telemetry:
+    prometheus: on
+    collectd: optional
+    telegraf: on
   wireguard: on
+  multus: on
   firewall: optional
+  psp: on
   minio: on
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    ddp: optional
+    fw_update: optional
+
+build_your_own:
+  name: build_your_own
+  vm_mode: optional
+  on_vms: optional
+  nfd: optional
+  kube_dashboard: optional
+  isolcpu: optional
+  cpusets: optional
+  native_cpu_manager: optional
+  topology_manager: optional
+  sriov_operator: optional
+  sriov_network_dp: optional
+  nic_drivers: optional
+  bond_cni: optional
+  qat: optional
+  qat_dp: optional
+  openssl: optional
+  gpu: optional
+  gpu_dp: optional
+  sgx: optional
+  sgx_dp: optional
+  kmra:
+    pccs: optional
+    apphsm: optional
+    ctk_demo: optional
+  tcs: optional
+  tca: optional
+  tas: optional
+  gas: optional
+  ddp: optional
+  network_userspace: optional
+  dpdk: optional
+  ovs_dpdk: optional
+  pstate: optional
+  cstate: optional
+  ufs: optional
+  sst: optional
+  power_manager: optional
+  telemetry:
+    prometheus: optional
+    collectd: optional
+    telegraf: optional
+  service_mesh:
+    enabled: optional
+    tcpip_bypass_ebpf: optional
+    tls_splicing: optional
+    sgx_signer: optional
+  wireguard: optional
+  multus: optional
+  firewall: optional
+  cndp: optional
+  cndp_dp: optional
+  psp: optional
+  minio: optional
+  cert_manager: optional
+  registry: optional
+  hugepages: optional
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    ddp: optional
+    fw_update: optional
+  intel_sriov_fec_operator: optional

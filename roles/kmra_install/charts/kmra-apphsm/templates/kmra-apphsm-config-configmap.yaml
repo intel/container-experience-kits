@@ -1,0 +1,38 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace }}
+data:
+  apphsm.conf: |
+    {
+      "port": {{ .Values.apphsm.main.port | int }},
+      "ip": {{ .Values.apphsm.main.hostname | quote }},
+      "clients": [
+        {{- if eq .Values.apphsm.ctk_loadkey_demo_enabled "true" -}}
+        {
+          "id": {{ .Values.apphsm.test_ctk_loadkey_cert_user_id | quote }},
+          "permission": "allow_all"
+        },
+        {{- end -}}
+        {
+          "id": {{ .Values.apphsm.generic_client_cert_id | quote }},
+          "permission": "allow_all"
+        }
+      ],
+      "keys": [
+        {{- $local := dict "first" true -}}
+        {{- range $key := .Values.apphsm.keys }}
+        {{- if not $local.first -}},{{- end -}}
+        {
+          "id": {{ $key.id | quote }},
+          "token_name": {{ $key.token_name | quote  }},
+          "pin": {{ $key.pin | quote }},
+          "key_name": {{ $key.key_name | quote }},
+          "certificate_file": "{{ $key.token_cert }}"
+        }
+        {{- $_ := set $local "first" false -}}
+        {{- end }}
+      ]
+    }

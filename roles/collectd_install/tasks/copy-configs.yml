@@ -24,6 +24,11 @@
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'rdt' ] }}"
   when: not enable_intel_rdt_plugin
 
+- name: disable pkgpower plugin
+  set_fact:
+    exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'pkgpower' ] }}"
+  when: not enable_pkgpower_plugin
+
 - name: prepare list of plugins to be deployed
   set_fact:
     plugins: "{{ collectd_plugins[collectd_profile|default('basic')] | difference(exclude_collectd_plugins) }}"
@@ -61,19 +66,43 @@
   until: pkgpower_download is not failed
   retries: 5
 
+# Segmentation core dump issues in Ubuntu were previously caused by lshw; blocks will be recommended such as,
+# hwinfo for RHEL / ROCKY & lshw for Ubuntu.
 # NOTE(skonefal): noqa due to ansible-lint linting bash oneliners.
 - name: get network interfaces for ethstat plugin
   shell: set -o pipefail && hwinfo --short --netcard |  awk -F '  ' '{if ($2!="") print $2}' # noqa 602
   args:
      executable: /bin/bash
+  register: ethstat_interfaces_in_ubuntu
+  changed_when: ethstat_interfaces_in_ubuntu is defined
+  when:
+    - "'ethstat' in plugins"
+    - ansible_distribution == "Ubuntu"
+
+# NOTE(skonefal): noqa due to ansible-lint linting bash oneliners.
+- name: get network interfaces for ethstat plugin
+  shell: set -o pipefail && lshw -c network -businfo | grep "pci@" |  awk -F '  ' '{if ($2!="") print $2}' # noqa 602
+  args:
+     executable: /bin/bash
   register: ethstat_interfaces
   changed_when: ethstat_interfaces is defined
-  when: "'ethstat' in plugins"
+  when:
+    - "'ethstat' in plugins"
+    - ansible_os_family == "RedHat"
+
+- name: parse network interfaces output for ethstat plugin
+  set_fact:
+    ethstat_interfaces={{ ethstat_interfaces_in_ubuntu.stdout.split('\n') }}
+  when:
+    - "'ethstat' in plugins"
+    - ansible_distribution == "Ubuntu"
 
 - name: parse network interfaces output for ethstat plugin
   set_fact:
     ethstat_interfaces={{ ethstat_interfaces.stdout.split('\n') }}
-  when: "'ethstat' in plugins"
+  when:
+    - "'ethstat' in plugins"
+    - ansible_os_family == "RedHat"
 
 - name: template config files
   template:

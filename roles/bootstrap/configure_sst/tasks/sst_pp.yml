@@ -43,7 +43,7 @@
 - name: install stress required for checking runs of busy workload in CentOS / RHEL
   dnf:
     name: stress
-  when: ansible_distribution in ["RedHat", "CentOS"]
+  when: ansible_distribution in ['RedHat', 'Rocky', 'CentOS']
 
 - name: get ISST settings before SST-PP configuration
   set_fact:

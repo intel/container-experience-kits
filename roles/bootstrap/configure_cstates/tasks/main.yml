@@ -1,0 +1,42 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: create CommsPowerManagement folder
+  file:
+    state: directory
+    dest: "{{ (project_root_dir, 'CommsPowerManagement') | path_join }}"
+    mode: 0755
+
+- name: download power.py script into machine
+  get_url:
+    url: https://raw.githubusercontent.com/intel/CommsPowerManagement/72e58b1939e9aa13d3ad0137e9d674968c45dfcb/power.py
+    dest: "{{ (project_root_dir, 'CommsPowerManagement', 'power.py') | path_join }}"
+    mode: "0744"
+
+- name: create cstates service
+  template:
+    src: cstates.service.j2
+    dest: /etc/systemd/system/cstates.service
+    mode: "0644"
+  register: cstates_service_file
+
+- name: enable cstates service
+# noqa 503 - intentionally implemented as not a handler
+  service:
+    name: cstates
+    enabled: yes
+    state: restarted
+    daemon_reload: yes
+  when: cstates_service_file.changed

@@ -158,12 +158,14 @@ telegraf_profiles:
     - *basic
   storage: &storage
     - *basic
+  build_your_own: &build_your_own
+    - *basic
 telegraf_release_name: telegraf
 telegraf_namespace: monitoring
 
 # telegraf_dpdk_socket_path: /var/run/dpdk/rte
 
-telegraf_chart_path: "{{ project_root_dir }}/charts/telegraf"
+telegraf_chart_path: "{{ (project_root_dir, 'charts', 'telegraf') | path_join }}"
 telegraf_helm_values_file: "{{ telegraf_chart_path }}/values.yaml"
 
 telegraf_scrap_interval: 30
@@ -171,7 +173,7 @@ telegraf_prometheus_metrics_endpoint_port: 9273
 telegraf_prometheus_service_monitor: yes
 
 telegraf_image_name: "docker.io/intel/observability-telegraf"
-telegraf_image_tag: "1.0"
+telegraf_image_tag: "1.1"
 telegraf_image_pullpolicy: IfNotPresent
 
 rbac_proxy_image_name: "quay.io/brancz/kube-rbac-proxy"

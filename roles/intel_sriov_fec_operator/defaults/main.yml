@@ -1,0 +1,52 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Reference: https://github.com/smart-edge-open/sriov-fec-operator/tree/sriov-fec-operator-22.03.14/spec
+# FEC = Forward Error Correction
+# CR = Custom Resource
+# ACC100 = Intel vRAN Dedicated H/W Accelerator Card 
+
+# Intel Smart Edge Open (SEO) FEC Operator
+intel_sriov_fec_operator_git: "https://github.com/smart-edge-open/sriov-fec-operator.git"
+intel_sriov_fec_operator_git_ref: "sriov-fec-operator-22.03.14"
+intel_sriov_fec_operator_dir: "{{ (project_root_dir, 'intel-sriov-fec-operator') | path_join }}"
+intel_sriov_fec_operator_img_ver: "2.2.0"
+intel_sriov_fec_operator_tool: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
+intel_sriov_fec_operator_make_tls: "false"
+# intel_sriov_fec_operator_target_platform: "K8S"
+intel_sriov_fec_operator_namespace: "vran-acceleration-operators"
+intel_sriov_fec_operator_files_dir: "{{ (project_root_dir, 'intel-sriov-fec-operator-files') | path_join }}"
+intel_sriov_fec_operator_catalog_image: "{{ registry_local_address }}/n3000-operators-index:{{ intel_sriov_fec_operator_img_ver }}"
+
+# Intel ACC100 FEC CR (Mount Bryce)
+intel_acc100_cr: "acc100-cr.yaml"
+fec_acc_node: "{{ groups['kube_node'][0] }}"
+fec_acc_dev: "0000:49:00.0"  # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
+
+# Operator SDK / Lifecycle Manager (OLM)
+operator_sdk_git: "https://github.com/operator-framework/operator-sdk.git"
+operator_sdk_git_ref: "v1.20.0"
+operator_sdk_dir: "{{ (project_root_dir, 'operator-sdk') | path_join }}"
+
+# Operator Package Manager (OPM)
+opm_url: "https://github.com/operator-framework/operator-registry/releases/download/{{ opm_ver }}/linux-amd64-opm"
+# in sriov-fec Makefile: REQUIRED_OPERATOR_SDK_VERSION ?= v1.14.0
+opm_ver: "v1.22.0"
+opm_chk: "e671f494f0944af228e9f2bc09042d04ec47b61d7094fa2129c8690ec6b6ed27"
+opm_dir: "/usr/local/bin/"
+opm_cmd: "opm"
+
+

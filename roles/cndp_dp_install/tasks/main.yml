@@ -1,0 +1,117 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: install libbpf on Ubuntu
+  include_tasks: "../../cndp_install/tasks/install_libbpf_{{ ansible_distribution | lower }}.yml"
+  when:
+    - ansible_distribution | lower == "ubuntu"
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: install libbpf for CNDP Device Plugin build on RadHat, Rocky
+  package:
+    name: libbpf-devel
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: put additional CNDP labels for nodes
+  include_tasks: add_cndp_labels.yml
+  loop: "{{ groups['kube_node'] }}"
+  loop_control:
+    loop_var: node_name
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: clone Intel CNDP Device Plugin repository
+  git:
+    repo: "{{ intel_cndp_dp_git_url }}"
+    dest: "{{ intel_cndp_dp_dir }}"
+    version: "{{ intel_cndp_dp_version }}"
+    update: yes
+
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: prepare CNDP containers images
+  block:
+    - name: clean up unused dependencies for golang
+      command: "go mod tidy"
+      args:
+        chdir: "{{ intel_cndp_dp_dir }}"
+      changed_when: true
+
+    - name: build Intel CNDP Device Plugin
+      make:
+        target: build
+        chdir: "{{ intel_cndp_dp_dir }}"
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Build CNDP Device Plugin image
+  block:
+    - name: build Intel CNDP Device Plugin image when docker is used as container runtime
+      make:
+        target: image
+        chdir: "{{ intel_cndp_dp_dir }}"
+
+    - name: tag Intel CNDP Device Plugin image when docker is used as container runtime
+      command: docker tag afxdp-device-plugin {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+
+    - name: push Intel CNDP Device Plugin image to local registry when docker is used as container runtime
+      command: docker push {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - container_runtime == "docker"
+
+- name: prepare CNDP containers images when containerd/cri-o is used as container runtime
+  block:
+    - name: build Intel CNDP Device Plugin image when containerd/cri-o is used as container runtime
+      command: podman build -t afxdp-device-plugin -f images/amd64.dockerfile .
+      args:
+        chdir: "{{ intel_cndp_dp_dir }}"
+
+    - name: tag Intel CNDP Device Plugin image when containerd/cri-o is used as container runtime
+      command: podman tag afxdp-device-plugin {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+
+    - name: push Intel CNDP Device Plugin image to local registry when containerd/cri-o is used as container runtime
+      command: podman push {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - '"docker" not in container_runtime'
+
+- name: prepare and deploy Intel CNDP Device Plugin
+  vars:
+    cndp_k8s_manifest_dir: "{{ (project_root_dir, 'cndp_k8s_manifest') |  path_join }}"
+  block:
+    - name: create directory for CNDP k8s manifest files
+      file:
+        path: "{{ cndp_k8s_manifest_dir }}"
+        state: directory
+        mode: "644"
+
+    - include_tasks: cndp_device_plugin_deploy.yml
+      loop:
+        - configmap
+        - serviceaccount
+        - daemonset
+      loop_control:
+        loop_var: cndp_k8s_object
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]

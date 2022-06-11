@@ -19,30 +19,6 @@ clx_sst_bf_commit_hash: "a3a1869fd88eff5b2b872f447ca69b866e3d318e"
 clx_sst_bf_dir: "{{ project_root_dir }}/CommsPowerManagement"
 clx_sst_bf_exec: "/usr/local/bin/sst_bf.py"
 
-sst_cp_priority_type: "1" # 0 - Proportional, 1 - Ordered
-sst_cp_clos_groups: # configure up to 4 CLOS groups
-  - id: 0
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-  - id: 1
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-  - id: 2
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-  - id: 3
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-sst_cp_cpu_clos: # assign required values to CLOS group after priority type setup
-  - clos: 0
-    cpus: 1,2,4..6,8-10
-  - clos: 1
-    cpus: 3,7
-
 isst_tool_git_url: https://github.com/torvalds/linux.git
-isst_tool_git_version: v5.16
+isst_tool_git_version: v5.17
 isst_tool_src_dir: "{{ (project_root_dir, 'speedselect') | path_join }}"

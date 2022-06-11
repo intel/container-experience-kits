@@ -55,7 +55,7 @@
         line: 'CONFIG_SECONDARY_TRUSTED_KEYRING=y'
         state: present
         mode: 0644
-  when: ansible_distribution in ["CentOS", "RedHat"]
+  when: ansible_distribution in ['CentOS', 'RedHat', 'Rocky']
 
 - name: modify kernel config while created from Ubuntu 21.04
   block:

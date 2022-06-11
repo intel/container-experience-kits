@@ -51,6 +51,11 @@ def add_arch_parameter(profiles: dict, args: argparse.Namespace) -> None:
     for p in profiles.values():
         p['arch'] = args.arch
 
+def add_nic_parameter(profiles: dict, args: argparse.Namespace) -> None:
+    """Add NIC information to profiles config"""
+    for p in profiles.values():
+        p['nic'] = args.nic
+
 def create_backups(src: str, dirs: list=[], files: list=[]) -> None:
     """Create backup for given dirs/files"""
     # create specific backup dir

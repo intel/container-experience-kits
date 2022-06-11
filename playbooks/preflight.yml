@@ -28,6 +28,10 @@
 # On All targets (k8s_cluster):
 # - Check Linux Distro
 # - Check Hostnames (match Inventory)
+# - Check if cpusets and isolcpus are enabled simultaneously
+# - Check cpusets Total (not more than actual)
+# - Check cpusets IDs (valid on system)
+# - Check cpusets OS Reserved (not 0,1,etc)
 # - Check isolcpus Total (not more than actual)
 # - Check isolcpus IDs (valid on system)
 # - Check isolcpus OS Reserved (not 0,1,etc)
@@ -42,14 +46,19 @@
 # - Check VPP Dependencies (for 2M Hugepages)
 # - Check CNI Dependencies (for OVS DPDK or VPP and Hugepages)
 # - Check SST (not on RHEL 8.2 or old OSs)
+# - Check Linux distro for cstates
 # - Warn BIOS VT-d (should be enabled)
 # - Warn BIOS Hyper-Threading (should be enabled)
 # - Warn collectd (kernel update needed on old OSs)
 # - Check OVS DPDK Version Compatibility (for OVS support)
+# - Check Intel Ethernet Operator configuration
+# - Check Intel SR-IOV FEC Operator configuration
+# On Role specific Only (k8s_cluster)
 # - Check MinIO requirements
 
+
 # additional vars required:
-#  cek_supported_ansible: # must be version
+#  cek_supported_ansible_base: # must be version
 #  cek_supported_python: # min version
 #  cek_supported_distros: [] # list
 #  cek_supported_distros_versions: [] # list
@@ -62,7 +71,7 @@
   any_errors_fatal: true
   connection: local
   vars:
-    cek_supported_ansible: 2.10.15
+    cek_supported_ansible_base: 2.11.8
     cek_supported_python: 3
 
   tasks:
@@ -70,8 +79,8 @@
     - debug: msg="Ansible version is {{ ansible_version.string }}"
     - name: Check Ansible Version
       assert:
-        that: (ansible_version.full is version_compare(cek_supported_ansible, '=='))
-        msg: "Ansible version must be {{ cek_supported_ansible }}. Please update"
+        that: (ansible_version.full is version_compare(cek_supported_ansible_base, '>='))
+        msg: "Ansible version must be {{ cek_supported_ansible_base }}. Please update"
 
     - debug: msg="Python version is {{ ansible_python_version }}"
     - name: Check Python Version
@@ -101,9 +110,58 @@
         msg: "File host_vars/{{ item.item }}.yml does NOT exist. Must be created per Guide"
       with_items: "{{ host_vars_details.results }}"
 
-    - name: show profile name
+    - name: read VM Host Vars
+      stat:
+        path: "{{ inventory_dir }}/host_vars/{{ item }}.yml"
+      register: vm_host_vars_details
+      with_items: "{{ groups['vm_host'] }}"
+
+    - name: check VM Host Vars
+      assert:
+        that: "item.stat.exists and item.stat.isreg"
+        msg: "File host_vars/{{ item.item }}.yml does NOT exist. Must be created per Guide"
+      with_items: "{{ vm_host_vars_details.results }}"
+
+    - name: set group_vars_profile variable
+      set_fact:
+        group_vars_profile: "{{ profile_name | default('not generated') }}"
+
+    - name: show profile_name from group_vars
       debug:
-        msg: "Profile name is: {{ profile_name | default('not generated') }}"
+        msg: "group_vars profile_name is: '{{ group_vars_profile }}'"
+
+    - name: set env_profile variable
+      set_fact:
+        env_profile: "{{ lookup('env','PROFILE') | default('not defined', True) }}"
+
+    - name: show environment PROFILE variable
+      debug:
+        msg: "environment variable PROFILE is: '{{ env_profile }}'"
+
+    - name: assert that environment variable PROFILE and group_vars profile_name matches
+      assert:
+        that: "env_profile == group_vars_profile"
+        fail_msg: >
+          "Content of environment variable 'PROFILE'='{{ env_profile }}' doesn't match
+          group_vars variable 'profile_name'='{{ group_vars_profile }}', please fix this discrepancy"
+      when:
+        - (env_profile != 'not defined') or
+          ( env_profile == 'not defined' and group_vars_profile != 'full_nfv' and vm_enabled | default(false) )
+
+    - name: handle the error for check password less access to VM hosts
+      block:
+        - name: check password less access to VM hosts
+          command: "ssh -o PasswordAuthentication=no {{ hostvars[item]['ip'] }} /bin/true"
+          with_items: "{{ groups['vm_host'] }}"
+      rescue:
+        - name: Print when password less authentication failed
+          debug:
+            msg: >
+              "Password less authentication have to be configured for all VM hosts. Use: 'ssh-copy-id <VM_host_ip>'
+              See above, which one failed"
+          failed_when: true
+      when:
+        - vm_enabled and (not on_vms | default(false))
 
 ##############################################
 # Prerequisites for Control and Worker Nodes #
@@ -111,8 +169,10 @@
 - hosts: k8s_cluster,vm_host
   any_errors_fatal: true
   vars:
-    cek_supported_distros: [RedHat, Ubuntu]
-    cek_supported_distros_versions: ['8.5', '20.04', '21.04', '21.10']
+    cek_supported_distros: [RedHat, Rocky, Ubuntu]
+    cek_supported_distros_versions: ['8.5', '20.04', '21.10', '22.04']
+    cpusets_ranges: []
+    cpusets_discretes: []
     isolcpus_ranges: []
     isolcpus_discretes: []
 
@@ -122,6 +182,56 @@
       when:
         - "'vm_host' in group_names"
         - on_vms is defined and on_vms
+
+    - name: read Host Vars for VMs
+      stat:
+        path: "{{ inventory_dir }}/host_vars/{{ item.name }}.yml"
+      register: vm_host_vars_details
+      with_items: "{{ vms }}"
+      delegate_to: localhost
+      when:
+        - vm_enabled and (not on_vms | default(false))
+        - item.type == 'work'
+
+    - name: check Host Vars for VMs
+      assert:
+        that: "item.stat.exists and item.stat.isreg"
+        msg: "File host_vars/{{ item.item.name }}.yml does NOT exist. Must be created per Guide"
+      with_items: "{{ vm_host_vars_details.results }}"
+      when:
+        - vm_enabled and (not on_vms | default(false))
+        - vm_host_vars_details
+        - not item.skipped | default(false)
+
+    - name: Check VM root password
+      block:
+        - name: check vm_hashed_passwd presence
+          assert:
+            that:
+              - vm_hashed_passwd is defined
+            fail_msg:
+              - "Variable vm_hashed_passwd is not defined"
+            success_msg: "vm_hashed_passwd is present"
+
+        - name: check vm_hashed_passwd is not a placeholder
+          assert:
+            that:
+              - vm_hashed_passwd is defined
+              - vm_hashed_passwd != "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            fail_msg:
+              - "vm_hashed_passwd was not set with hashed password. Create hashed password and run deployment again."
+            success_msg: "vm_hashed_passwd verified"
+      when:
+        - vm_enabled and (not on_vms | default(false))
+
+    - name: check for ip and ansible_host mismatch
+      assert:
+        that: "ansible_host == ip"
+        msg: "Configuration mismatch detected between ansible_host={{ ansible_host }} and ip={{ ip }} on target '{{ inventory_hostname }}'"
+      when:
+        - ansible_host is defined
+        - ip is defined
+        - ansible_host | ipaddr('bool')
 
     - debug: msg="Linux distribution on target is {{ ansible_distribution }} {{ ansible_distribution_version }} {{ ansible_distribution_release }}"
     - name: Check Linux Distro and Version
@@ -180,6 +290,12 @@
       when:
         - ansible_os_family == "RedHat"
 
+    - name: Check if CRI-O runtime is not used on Ubuntu 21.04
+      assert:
+        that: container_runtime != "crio"
+        msg: "CRI-O runtime is not supported on Ubuntu 21.04"
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_version == "21.04"
+
     - name: check kubernetes and container runtime variables
       assert:
         that:
@@ -191,6 +307,12 @@
       when:
         - not kubernetes or container_runtime_only_deployment
 
+    - name: check k8s version
+      assert:
+        that: "{{ kube_version is version('v1.21', '>=') }}"
+        msg: "Minimum supported k8s version is 1.21, please update kube_version variable with correct version"
+      when: kubernetes and not container_runtime_only_deployment
+
     - name: assert that Multus is enabled in the config
       assert:
         that:
@@ -200,6 +322,98 @@
             sriov_cni_enabled is defined and sriov_cni_enabled or
             userspace_cni_enabled is defined and userspace_cni_enabled
 
+    - name: assert that SRIOV Network Operator/SRIOV Network DP are mutually exclusive
+      assert:
+        that:
+          - "not sriov_net_dp_enabled"
+        fail_msg:
+          - "SRIOV Network Operator is enabled, SRIOV Network DP/SRIOV CNI should be disabled !!"
+      when: sriov_network_operator_enabled is defined and sriov_network_operator_enabled
+
+# check cpusets CPU core/threads shielding configuration
+    - block:
+      - debug:
+          msg:
+            - cpusets_enabled = {{ cpusets_enabled }} (host_vars)
+            - cpusets = {{ cpusets }} (host_vars)
+            - ansible_processor_count = {{ ansible_processor_count }}
+            - ansible_processor_cores = {{ ansible_processor_cores }}
+            - ansible_processor_threads_per_core = {{ ansible_processor_threads_per_core }}
+            - ansible_processor_vcpus = {{ ansible_processor_vcpus }}
+            - CPUs Reserved for OS = 0...{{ ansible_processor_count - 1 }}
+#            - CPUs Reserved for OS = {{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }} # [E207] Nested jinja pattern
+
+      - name: check OS for cpusets based on cgroups v1 only
+        assert:
+          that:
+            - (ansible_distribution == 'Ubuntu' and ansible_distribution_version == '20.04')
+          msg:
+            - Unsupported configuration.
+            - CPUs isolation ('cpusets') can be only enabled on Ubuntu 20.04.x.
+
+      - name: check CPUs isolation
+        assert:
+          that: ( "{{ cpusets }}" | length > 0 )
+          msg:
+            - Incorrect configuration. Conflicting or improper values detected
+            - CPUs isolation ('cpusets') must be set according to the example file for host_vars. Please correct the configuration
+
+      - name: split cpusets Groups
+        set_fact:
+          cpusets_groups: "{{ cpusets.split(',') }}"
+
+      - debug: msg="cpusets_groups = {{ cpusets_groups }}"
+
+      - name: filter cpusets Ranges
+        set_fact:
+          cpusets_ranges: "{{ cpusets_ranges + [item] }}"
+        with_items: "{{ cpusets_groups }}"
+        when: ("-" in item)
+
+      - debug: msg="cpusets_ranges = {{ cpusets_ranges }}"
+
+      - name: filter cpusets Discretes
+        set_fact:
+          cpusets_discretes: "{{ cpusets_discretes + [item] }}"
+        with_items: "{{ cpusets_groups }}"
+        when: ("-" not in item)
+
+      - debug: msg="cpusets_discretes = {{ cpusets_discretes }}"
+
+      - name: build cpusets List
+        set_fact:
+          cpusets_list: "{{ cpusets_list | default([]) | union(cpusets_discretes) | union([item]) }}"
+        with_sequence: "{{ cpusets_ranges }}"
+
+      - debug: msg="cpusets_list = {{ cpusets_list }}"
+
+      - name: check cpusets Total
+        assert:
+          that: "{{ cpusets_list | length }} <= ansible_processor_vcpus"
+          msg:
+            - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
+            - The number of cpusets {{ cpusets_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
+
+      - name: check cpusets IDs
+        assert:
+          that: "item | int <= ansible_processor_vcpus"
+          msg:
+            - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
+            - The CPU ID {{ item }} set for cpusets is NOT actually present on target. Please correct the configuration
+        with_items: "{{ cpusets_list }}"
+
+      - name: check cpusets OS Reserved
+        assert:
+          that: "item not in cpusets_list"
+          msg:
+            - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
+            - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for cpusets. Please correct the configuration
+        with_items: "{{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }}"
+
+      when:
+        - cpusets_enabled is defined and cpusets_enabled | bool
+
+# check isolcpus CPU core/threads configuration
     - block:
       - debug:
           msg:
@@ -280,7 +494,13 @@
 - hosts: kube_node,vm_host
   any_errors_fatal: true
   vars:
+    cstates_supported_distros: [Ubuntu]
+    cstates_supported_distros_versions: ['21.10', '22.04']
     phy_nics_pciids: []
+    gpu_pciids:
+      - name: DG1
+        pciids: ["4907"]
+
 
   tasks:
     - name: end play for VM host
@@ -294,11 +514,21 @@
         msg: "Dataplane (DP) interface(s) defined in host_vars = {{ dataplane_interfaces }}"
       when: dataplane_interfaces is defined
 
+    - name: assert that (SRIOV Network DP/SRIOV CNI) and (SRIOV Network Operator) are mutually exclusive
+      assert:
+        that:
+          - "not sriov_network_operator_enabled"
+        fail_msg:
+          - "SRIOV Network DP/SRIOV CNI is enabled, SRIOV Network Operator should be disabled !!"
+      when:
+        - sriov_cni_enabled or sriov_net_dp_enabled
+
     - name: check DP Interfaces
       assert:
         that: "dataplane_interfaces != []"
         msg: "Dataplane (DP) interface(s) on target '{{ ansible_hostname }}' must be set in host_vars. Please correct the configuration"
       when:
+        - profile_name != 'build_your_own'
         - dataplane_interfaces is defined
         - (update_nic_drivers is defined and update_nic_drivers) or
           (install_ddp_packages is defined and install_ddp_packages) or
@@ -319,17 +549,52 @@
     - name: check DP Interfaces Bus Info
       assert:
         that: ("{{ item.bus_info }}" in "{{ phy_nics_pciids }}")
-        msg: "Dataplane interface '{{ item.name }}' defined with PCI ID '{{ item.bus_info }}' does NOT exist on target. Please correct the configuration"
+        msg: "Dataplane interface defined with PCI ID '{{ item.bus_info }}' does NOT exist on target. Please correct the configuration"
       with_items: "{{ dataplane_interfaces }}"
       when: dataplane_interfaces is defined and dataplane_interfaces != []
 
-    - name: check first DP interface driver and DDP package
+    - name: check invalid driver for CNDP on DP Interfaces
+      assert:
+        that: ("{{ item.pf_driver }}" in "['i40e', 'ice', 'iavf']")
+        msg: >-
+          "Dataplane interface defined with PCI ID '{{ item.bus_info }}' have unssupported pf_driver '{{ item.pf_driver }}' for CNDP.
+          Please correct the configuration. Supported pf_drivers are ['i40e', 'ice', 'iavf']"
+      with_items: "{{ dataplane_interfaces }}"
+      when:
+        - dataplane_interfaces is defined and dataplane_interfaces != []
+        - cndp_dp_enabled | default(false) | bool
+
+    - name: load firmware specific variables
+      include_vars: "../roles/bootstrap/update_nic_firmware/defaults/main.yml"
+      when: nvmupdate is not defined
+
+    - name: check nic firmware version needed for loading of DDP profile
+      check_nic_firmware:
+        pci_id: "{{ item.bus_info }}"
+        min_fw_version: "{{ nvmupdate[item.pf_driver].min_ddp_loadable_fw_version }}"
+        ddp: true
+      with_items: "{{ dataplane_interfaces }}"
+      when:
+        - dataplane_interfaces is defined and dataplane_interfaces != []
+        - install_ddp_packages is defined and install_ddp_packages
+        - not update_nic_firmware | default(false)
+
+    - name: check nic firmware version needed for automatic firmware update
+      check_nic_firmware:
+        pci_id: "{{ item.bus_info }}"
+        min_fw_version: "{{ nvmupdate[item.pf_driver].min_updatable_fw_version }}"
+      with_items: "{{ dataplane_interfaces }}"
+      when:
+        - dataplane_interfaces is defined and dataplane_interfaces != []
+        - update_nic_firmware | default(false)
+
+    - name: Check first DP interface driver and DDP package
       block:
         - name: Check first DP interface driver
           assert:
             that: "dataplane_interfaces[0].pf_driver == ansible_facts[item]['module']"
             msg: >-
-              "Dataplane interface '{{ dataplane_interfaces[0].name }}' 'pf_driver' is set to '{{ dataplane_interfaces[0].pf_driver }}'.
+              "Dataplane interface '{{ dataplane_interfaces[0].bus_info }}' 'pf_driver' is set to '{{ dataplane_interfaces[0].pf_driver }}'.
               Please, set it to '{{ ansible_facts[item]['module'] }}'."
           loop: "{{ ansible_interfaces }}"
           when:
@@ -416,6 +681,64 @@
         - update_qat_drivers is defined and update_qat_drivers
         - qat_devices is defined and qat_devices != []
 
+# Check GPU availability and preparation, the pre-defined product PCIID can be found in i915_pciids.h of kernel source tree, only DG1 is available now.
+    - name: Create empty setting list for configure_gpu on the worker node
+      set_fact:
+        setting_list: []
+
+    - name: Create configure_gpu setting list for the worker node
+      set_fact:
+        setting_list: "{{ setting_list | default([]) + [hostvars[item].configure_gpu | default(false) | bool] }}"
+      with_items:
+        - "{{ groups['kube_node'] }}"
+
+    - name: Validate configure_gpu settings when gpu_dp_enabled is false
+      assert:
+        that: ((setting_list | unique | length == 1) and not setting_list[0])
+        msg: "Since gpu_dp_enabled is false, configure_gpu must set all false on the node with GPU"
+      when:
+        - gpu_dp_enabled is defined and not gpu_dp_enabled
+        - setting_list | length > 0
+
+    - name: Validate configure_gpu settings when gpu_dp_enabled is true
+      assert:
+        that: (setting_list | unique | length > 1) or ((setting_list | unique | length == 1) and setting_list[0])
+        msg: "When gpu_dp_enabled is true, configure_gpu must set true at least on one node with GPU.  Please correct the configuration."
+      when:
+        - gpu_dp_enabled is defined and gpu_dp_enabled
+        - setting_list | length > 0
+
+    - name: Check Intel discrete GPU devices on node and GPU features configuration.
+      block:
+        - name: Read GPU Device info from node for GPU check since configure_gpu set to true
+          command: "lshw -c display -businfo -numeric"
+          register: lshw_gpu_hardware
+
+        - name: Show GPU device information found from nodes
+          debug:
+            msg: |
+              - "Retrieved GPU device info from node {{ inventory_hostname }}"
+              - "{{ lshw_gpu_hardware.stdout }}"
+
+        - name: Check each node for Intel discrete GPU
+          assert:
+            that: "lshw_gpu_hardware.stdout | regex_search('8086:\\d{4}') != none"
+            msg: "Node {{ inventory_hostname }} doesn't have Intel discrete GPU, please set configure_gpu false for this node."
+
+        - name: Validate the PCIID from each node is supported
+          assert:
+            that: "'{{ (item[1] | regex_search('8086:\\d{4}')).split(':')[1] }}' in item[0].pciids"
+            msg:
+              - "{{ (item[1] | regex_search('8086:\\d{4}')).split(':')[1] }} from "
+              - "  {{ inventory_hostname }} is not in the pre-defined PCIID list of {{ item[0].name }}"
+          with_nested:
+            - "{{ gpu_pciids }}"
+            - "{{ lshw_gpu_hardware.stdout_lines }}"
+          when: " item[1] | regex_search('8086:\\d{4}') != none "
+      when:
+        - configure_gpu is defined and configure_gpu
+
+# At this point, we did dependencies and hardware checks, so we are preparing to deploy kernel update
 # GPU DP Fractional Resources must be passed in correct format
     - name: check if the GPU max memory is passed in correct format
       assert:
@@ -435,13 +758,13 @@
         success_msg: "OpenSSL & OpenSSL*Engine verification completed"
       when: openssl_install is defined and openssl_install
 
-    - name: check KMRA requirements
+    - name: check KMRA sgx_dp requirements
       assert:
         that:
           - sgx_dp_enabled
         fail_msg: "KMRA installation requires sgx_dp_enabled set to 'true'"
         success_msg: "KMRA requirements verified"
-      when: kmra_enabled is defined and kmra_enabled
+      when: kmra.ctk_loadkey_demo.enabled | default(false)
 
     - name: check Intel SGX DP configuration
       assert:
@@ -461,37 +784,44 @@
         success_msg: "NFD configuration verified"
       when: sgx_dp_enabled is defined and sgx_dp_enabled
 
-    - name: check kmra_pccs_api_key presence
+    - name: check kmra.pccs.api_key presence
       assert:
         that:
-          - kmra_pccs_api_key is defined
+          - kmra.pccs.api_key is defined
         fail_msg:
-          - "kmra_pccs_api_key is not defined"
-        success_msg: "kmra_pccs_api_key presence is verified"
+          - "Variable kmra.pccs.api_key is not defined"
+        success_msg: "kmra.pccs.api_key presence is verified"
       when:
-        - kmra_enabled is defined and kmra_enabled
+        - kmra.pccs.enabled | default(false)
 
     - name: check PCCS API key length
       assert:
         that:
-          - kmra_pccs_api_key | length == 32
+          - kmra.pccs.api_key | length == 32
         fail_msg: "PCCS API Key should be 32 bytes long"
         success_msg: "PCCS API key length verified"
       when:
-        - kmra_enabled is defined and kmra_enabled
+        - kmra.pccs.enabled | default(false)
 
     - name: check PCCS API key is not a placeholder
       assert:
         that:
-          - kmra_pccs_api_key is defined
-          - kmra_pccs_api_key != "ffffffffffffffffffffffffffffffff"
+          - kmra.pccs.api_key is defined
+          - kmra.pccs.api_key != "ffffffffffffffffffffffffffffffff"
         fail_msg:
           - "Please, visit https://api.portal.trustedservices.intel.com/provisioning-certification and click on 'Subscribe'"
           - "to generate PCCS API key."
-          - "PCCS API key is essential for KMRA deployment and usage."
+          - "PCCS API key is essential for KMRA PCCS deployment and usage."
         success_msg: "PCCS API key verified"
       when:
-        - kmra_enabled is defined and kmra_enabled
+        - kmra.pccs.enabled | default(false)
+
+    - name: aesmd-demo shouldn't be enabled if tcs is enabled
+      assert:
+        that: not sgx_aesmd_demo_enable | default(false)
+        fail_msg: "Please, set 'sgx_aesmd_demo_enable' to 'false' because it conflicts with on-host aesmd daemon required by TCS."
+      when:
+        - tcs.enabled | default(false)
 
 # Validate Hugepage settings
     - name: validate hugepage settings
@@ -593,13 +923,13 @@
       assert:
         that:
           - ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04' or
-            (ansible_distribution in ['RedHat', 'CentOS'] and ansible_distribution_version >= '8.3')
+            (ansible_distribution in ['RedHat', 'Rocky', 'CentOS'] and ansible_distribution_version >= '8.3')
           - turbo_boost_enabled
         fail_msg:
-           - "Playbook terminated cause of failure might to two reasons: Firstly, SST-PP is only supported in RedHat / CentOS >= 8.3 or Ubuntu >=20.04"
-           - "To proceed further make sure sst_bf_configuration_enabled, sst_cp_configuration_enabled,"
-           - "sst_tf_configuration_enable & sst_pp_configuration_enabled all should be disabled in host_vars"
-           - "Secondly, make sure turbo_boost_enabled in host_vars is set to 'true', as required for turbo-freq configuration"
+            - "Playbook terminated cause of failure might to two reasons: Firstly, SST-PP is only supported in RedHat / Rocky >= 8.3 or Ubuntu >=20.04"
+            - "To proceed further make sure sst_bf_configuration_enabled, sst_cp_configuration_enabled,"
+            - "sst_tf_configuration_enable & sst_pp_configuration_enabled all should be disabled in host_vars"
+            - "Secondly, make sure turbo_boost_enabled in host_vars is set to 'true', as required for turbo-freq configuration"
         success_msg: "Intel(R) SST-PP (feature perf-profile), verification completed"
       when:
         - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
@@ -613,6 +943,28 @@
       when:
         - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
         - "'skylake' in verify_platform_for_sst_pp.stdout"
+
+
+# Cstates are supported only with kernel version >= 5.13
+    - name: Check if distribution is supported by cstates
+      assert:
+        that: "ansible_distribution in cstates_supported_distros and ansible_distribution_version in cstates_supported_distros_versions"
+        msg:
+          - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}' does NOT support cstates
+          - Must be one of {{ cstates_supported_distros }} and version {{ cstates_supported_distros_versions }}
+      when: cstate_enabled is defined and cstate_enabled
+
+
+# Uncore frequency scaling is supported only with kernel version >= 5.13
+    - name: Check if distribution is supported by uncore frequency scaling
+      assert:
+        that: "ansible_distribution in cstates_supported_distros and ansible_distribution_version in cstates_supported_distros_versions"
+        msg:
+          - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}'
+          - does NOT support uncore frequency scaling
+          - Must be one of {{ cstates_supported_distros }} and version {{ cstates_supported_distros_versions }}
+      when: ufs_enabled is defined and ufs_enabled
+
 
 # STORY: Intel VT-d should be enabled in BIOS
     - name: check Intel VT-d on BMs
@@ -652,11 +1004,11 @@
         - collectd_enabled is defined
         - telegraf_enabled is defined
 
-# STORY: "istio 1.9 requires k8s version 1.20 at most"
+# STORY: "supported k8s versions require istio in >= 1.10"
     - name: fail if istio version is not compatible with current k8s version
       assert:
         that:
-          - "{{ kube_version is version('v1.21', '<') }}"
+          - "{{ service_mesh.version is version('1.10', '>=') }}"
         msg: |
           "Selected Istio service mesh version: '{{ service_mesh.version }}' is not compatible with selected k8s version: '{{ kube_version }}'"
           "Please, refer to the compatibility table at https://istio.io/latest/docs/releases/supported-releases/"
@@ -665,7 +1017,67 @@
         - not container_runtime_only_deployment
         - service_mesh is defined
         - service_mesh.version is defined
-        - service_mesh.version is version("1.10", "<")
+# STORY: "TCS depends on KMRA AppHSM and KMRA PCCS"
+    - name: check if KMRA Apps are enabled when TCS is enabled
+      assert:
+        that:
+          - "{{ kmra.apphsm.enabled | default(false) }}"
+          - "{{ kmra.pccs.enabled | default(false) }}"
+        msg: "KMRA AppHSM and PCCS applications should be enabled in order to have TCS functional."
+      when:
+        - tcs.enabled | default(false) or tca.enabled | default(false)
+        - configured_arch in ['icx', 'spr']
+
+# STORY: "TCA depends on TCS"
+    - name: check if TCS is enabled when TCA enabled
+      assert:
+        that:
+          - "{{ tcs.enabled | default(false ) }}"
+        msg: "TCS should be enabled in order to have TCA functional."
+      when:
+        - tca.enabled | default(false)
+        - configured_arch in ['icx', 'spr']
+
+# STORY: "service_mesh.sgx_signer' option is available only for icx and spr platforms"
+    - name: particular service mesh options are available only for specific platforms
+      assert:
+        that:
+          - "{{ not service_mesh.sgx_signer.enabled | default(false) }}"
+        msg: "'service_mesh.sgx_signer' option is not available for the configured platform architecture."
+      when:
+        - service_mesh.enabled | default(false)
+        - configured_arch not in ['icx', 'spr']
+
+# STORY: TCS is available only for icx and spr platforms"
+    - name: TCS is available only for specific platforms
+      assert:
+        that:
+          - "{{ not tcs.enabled | default(false) }}"
+        msg: "TCS is not available for the configured platform architecture."
+      when:
+        - configured_arch not in ['icx', 'spr']
+
+# STORY: TCA is available only for icx and spr platforms"
+    - name: TCA is available only for specific platforms
+      assert:
+        that:
+          - "{{ not tca.enabled | default(false) }}"
+        msg: "TCA is not available for the configured platform architecture."
+      when:
+        - configured_arch not in ['icx', 'spr']
+
+# STORY: "service_mesh.sgx_signer' option depends on KMRA AppHSM, KMRA PCCS, TCS, TCA"
+    - name: check if KMRA Apps, TCS and TCA are enabled when service mesh sgx_signer option is enabled
+      assert:
+        that:
+          - "{{ kmra.apphsm.enabled | default(false) }}"
+          - "{{ kmra.pccs.enabled | default(false) }}"
+          - "{{ tcs.enabled | default(false ) }}"
+          - "{{ tca.enabled | default(false ) }}"
+        msg: "In order to use service mesh sgx-signer option, please, enable KMRA AppHSM, KMRA PCCS, TCS, TCA."
+      when:
+        - service_mesh.sgx_signer.enabled | default(false)
+        - configured_arch in ['icx', 'spr']
 
 # STORY: TEMPORARY: "ovs dpdk version requirements"
     - debug:
@@ -683,7 +1095,7 @@
     - name: check OVS DPDK compatibility
       assert:
         that:
-          ovs_version == 'v2.16.2' and (dpdk_version < '21.11' and dpdk_version >= '21.08')
+          (ovs_version >= 'v2.17.0' and ovs_version <= 'v2.17.1') and (dpdk_version >= '21.11' and dpdk_version <= '22.03')
           or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
           or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
           or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
@@ -707,7 +1119,15 @@
         fail_msg: "Intel Power Operator is enabled, but either Power Profiles or Power Nodes are not specified in group vars."
       when: intel_power_manager is defined and intel_power_manager.enabled
 
-    - name: check if Intel Power Operator is only Intel SST feature enalbed
+    - name: check if power_nodes are available in inventory
+      assert:
+        that:
+          - item in groups['kube_node']
+        fail_msg: "Intel Power Operator power_nodes have to be present in inventory. '{{ item }}' is not there: {{ groups['kube_node'] }}"
+      loop: "{{ intel_power_manager.power_nodes }}"
+      when: intel_power_manager is defined and intel_power_manager.enabled
+
+    - name: check if Intel Power Operator is enabled, the ISST features should be disabled
       assert:
         that:
           - not (sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled or
@@ -715,34 +1135,138 @@
             sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled or
             sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled)
         fail_msg:
-          - "Currently Intel Power Operator and other Intel SST features are mutually exclusive."
-          - "Please disable the SST-TF, SST-CP and SST-PP in host vars."
+          - "Currently Intel Power Operator and Intel SST features are mutually exclusive."
+          - "Please disable ISST (SST-BF, SST-CP, SST-TF and SST-PP) in host vars."
       when: intel_power_manager is defined and intel_power_manager.enabled
+
+    - name: check if Intel Power Operator is build locally on containerd/cri-o runtime
+      assert:
+        that: intel_power_manager.build_image_locally
+        fail_msg:
+          - "Currently Intel Power Operator must be build locally on containerd and cri-o runtime"
+          - "Please set build_image_locally as true in Intel Power Operator settings"
+      when: intel_power_manager is defined and intel_power_manager.enabled and container_runtime in ["crio", "containerd"]
+
+    - name: check Intel Ethernet Operator configuration
+      block:
+        - name: check if ddp service is enabled
+          assert:
+            that: enable_ice_systemd_service
+            msg: "Please set enable_ice_systemd_service as true"
+          when:
+            - intel_ethernet_operator.ddp_update is defined and intel_ethernet_operator.ddp_update
+            - ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04"
+
+        - name: check if legacy DDP/FW update variables are false
+          assert:
+            that:
+              - not install_ddp_packages
+              - not update_nic_firmware
+            msg:
+              - "Intel Ethernet Operator is mutually exclusive with legacy DDP/FW update role."
+              - "Please set 'install_ddp_packages' and 'update_nic_firmware' as false"
+          when:
+            - (intel_ethernet_operator.ddp_update is defined and intel_ethernet_operator.ddp_update) or
+              (intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update)
+
+        - name: check if ice driver will be updated
+          assert:
+            that: update_nic_drivers
+            msg: "Firmware update requires update_nic_drivers set as true"
+          when: intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update
+
+        - name: check Hugepages settings for Flow Configuration
+          assert:
+            that: number_of_hugepages_2M >= 1024
+            msg: "Flow Configuration requires at least 2Gi of 2M Hugepages."
+          when: dataplane_interfaces | json_query('[?flow_configuration]')
+
+        - name: check if SRIOV Network Operator is enabled
+          assert:
+            that: sriov_network_operator_enabled
+            msg: "Flow Configuration requires SRIOV Network Operator to be enabled."
+          when: dataplane_interfaces | json_query('[?flow_configuration]')
+
+      when: intel_ethernet_operator_enabled
+
+    - name: make sure isolcpus and cpusets are not enabled simultaneously
+      assert:
+        that:
+          - (not isolcpus_enabled and cpusets_enabled) or
+            (isolcpus_enabled and not cpusets_enabled)
+        msg:
+         - "isolcpus_enabled and cpusets_enabled can't be enabled simultaneously."
+         - "Please correct the host_vars configuration for target '{{ ansible_hostname }}'"
+      when:
+        - (isolcpus_enabled is defined and isolcpus_enabled) or
+          (cpusets_enabled is defined and cpusets_enabled)
+
+# FEC Operator is only intended for the 'access'/'full_nfv'/'byo' profiles, on Ubuntu 22.04, and requires FEC Acc H/W on Host(s)
+    - name: Check Intel SR-IOV FEC Operator configuration
+      block:
+        - name: FEC Operator - check profile is access or bring_your_own
+          assert:
+            that: profile_name in ['access', 'full_nfv', 'bring_your_own']
+            msg: "Deploying the Intel SR-IOV FEC Operator is supported only in the 'access', 'full_nfv', or 'byo' profiles. Please correct the group_vars configuration"
+
+        - name: FEC Operator - check distro is Ubuntu 22.04 (generic or realtime)
+          assert:
+            that: ansible_distribution_version == "22.04"
+            msg: "Deploying the Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04. Please change the o/s or correct group_vars configuration"
+
+        - debug: msg="fec_acc is {{ fec_acc }}"
+
+        - name: FEC Operator - check h/w acc is configured
+          assert:
+            that: fec_acc is defined
+            msg: "Deploying the Intel SR-IOV FEC Operator requires defining the PCIID of the ACC H/W to use. Please correct the host configuration"
+
+        - name: FEC Operator - check runtime is docker
+          assert:
+            that: container_runtime == 'docker'
+            msg: "Deploying the Intel SR-IOV FEC Operator is supported only for docker runtime. Please correct the group_vars configuration"
+
+        - name: FEC Operator - check IEO coexistence
+          assert:
+            that: "{{ not intel_ethernet_operator_enabled | default(false) }}"
+            msg: "Deploying the Intel SR-IOV FEC Operator is not supported along with Intel Ethernet Operator (IEO). Please disable IEO in the group_vars configuration"
+
+# TODO
+#        - name: FEC Operator - check Cert Manager is enabled
+#          assert:
+#            that: cert_manager_enabled
+#            msg: "Deploying the Intel SR-IOV FEC Operator requires Cert Manager to be present. Please correct the group_vars configuration"
+#
+#        - debug: msg="iommu_cmdline is {{ iommu_cmdline }}"
+#
+#        - name: FEC Operator - check host IOMMU is set in passthrough mode
+#          assert:
+#            that: iommu_enabled and ("iommu=pt" in iommu_cmdline)
+#            msg: "Deploying the Intel SR-IOV FEC Operator requires Cert Manager to be present. Please correct the group_vars configuration"
+#
+#        - name: check acc h/w
+#          assert:
+#            that: fec_acc PCIID is present in the host and its DevID in supported list
+#            msg: "Deploying the Intel SR-IOV FEC Operator requires the ACC card to be present in the host. Please correct the host h/w configuration"
+
+      when: intel_sriov_fec_operator_enabled | default(false) | bool
+
+####################################
+# Prerequisites for Role specific  #
+####################################
+- hosts: k8s_cluster
+  tasks:
 
 # STORY: "MinIO requires number of nodes should be more than the minimum number of nodes defined in group_vars/all/minio_tenant_servers"
     - name: check MinIO configuration
-      block:
-        - name: check MinIO minimum number of nodes
-          assert:
-            that: "{{ minio_tenant_servers |int }} <= {{ groups['kube_node']|length |int }}"
-            msg: |
-              "Incorrect configuration."
-              "The number of MinIO tenant servers '{{ minio_tenant_servers |int }}' defined in group vars must be"
-               "less or equal to the number of nodes '{{ groups['kube_node']|length |int }}'"
-
-        - name: make sure the MinIO tenant volumes per server >= the MiniO PV list
-          assert:
-            that: "{{ minio_pv|length |int }} >= {{ minio_tenant_volumes_per_server |int }}"
-            msg:
-              - "Incorrect configuration."
-              - "The number of MinIO Persistent Volumes (PVs) '{{ minio_pv|length |int }}' defined in the host vars must be"
-              - "equal or more than MinIO Tenant Volumes per Server '{{ minio_tenant_volumes_per_server }}' defined in group vars."
+      include_role:
+        name: minio_install
+        tasks_from: preflight_minio_main
       when:
         - kubernetes
         - minio_enabled is defined and minio_enabled
 
     - meta: end_play
-
 #    - name: Print all variables/facts known for a host
 #      ansible.builtin.debug:
 #        var: hostvars[inventory_hostname]

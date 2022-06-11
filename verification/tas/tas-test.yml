@@ -1,0 +1,37 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tas-test
+  namespace: kube-system
+  labels:
+    app: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+        telemetry-policy: demo-policy
+    spec:
+      containers:
+      - name: pod-tas-test
+        image: ubuntu:focal
+        imagePullPolicy: IfNotPresent
+        command: [ "/bin/bash", "-c" ]
+        args: [ "sleep inf" ]
+        resources:
+          limits:
+            telemetry/scheduling: 1
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: demo-policy
+                    operator: NotIn
+                    values:
+                      - violating

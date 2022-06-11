@@ -1,0 +1,16 @@
+[Unit]
+Description=cstates configuration on boot
+
+[Service]
+Type=oneshot
+
+{% for cstate in cstates %}
+{% if cstates[cstate].enable == true %}
+ExecStart={{ (project_root_dir, 'CommsPowerManagement', 'power.py') | path_join }} -r {{ cstates[cstate].cpu_range }} -e {{ cstate }}
+{% else %}
+ExecStart={{ (project_root_dir, 'CommsPowerManagement', 'power.py') | path_join }} -r {{ cstates[cstate].cpu_range }} -d {{ cstate }}
+{% endif %}
+{% endfor %}
+
+[Install]
+WantedBy=multi-user.target

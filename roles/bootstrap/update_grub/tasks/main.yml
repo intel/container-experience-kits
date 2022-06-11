@@ -44,3 +44,30 @@
   when:
   - ansible_os_family == "RedHat"
   - grub_efi_cfg.stat.exists
+
+- name: create empty machine_id list from the worker nodes
+  set_fact:
+    machine_id_list: []
+
+- name: collect machine_id list for the worker nodes
+  set_fact:
+    machine_id_list: "{{ machine_id_list | default([]) + [hostvars[item]['ansible_machine_id'] | default([])] }}"
+  with_items:
+    - "{{ groups['kube_node'] }}"
+
+- block:
+  - name: detect that machine-id duplicates over multiple nodes
+    debug:
+      msg: "Detected there are /etc/machine-id duplicates {{ machine_id_list }}, will generate a new machine-id for groups['kube_node'] nodes"
+
+  - name: remove /etc/machine-id
+    file:
+      state: absent
+      path: /etc/machine-id
+      force: yes
+
+  - name: create new /etc/machine-id
+    command: dbus-uuidgen --ensure=/etc/machine-id
+    changed_when: true
+
+  when: ( machine_id_list | unique | length < groups['kube_node'] | length )

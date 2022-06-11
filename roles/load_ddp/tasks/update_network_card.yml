@@ -37,14 +37,14 @@
 
 - name: delete .pkg file for network card
   file:
-    path: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
+    path: "{{ (ddp_path, 'ice-' + card_id.stdout + '.pkg') | path_join }}"
     state: absent
 
 - name: copy standard .pkg file
   copy:
     remote_src: yes
     src: "{{ basic_profile_file.files[0].path }}"
-    dest: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
+    dest: "{{ (ddp_path, 'ice-' + card_id.stdout + '.pkg) | path_join }}"
     owner: root
     group: root
     mode: u+rwx,g-rwx,o-
@@ -57,7 +57,7 @@
       copy:
         remote_src: yes
         src: "{{ ddp_path }}{{ custom_path_to_profile|basename }}"
-        dest: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
+        dest: "{{ (ddp_path, 'ice-' + card_id.stdout + '.pkg') | path_join }}"
         owner: root
         group: root
         mode: u+rwx,g-rwx,o-
@@ -74,19 +74,19 @@
 
 - name: delete ice.pkg symlink
   file:
-    path: "{{ ddp_path }}ice.pkg"
+    path: "{{ (ddp_path, 'ice.pkg') | path_join }}"
     state: absent
 
 - name: create ice.pkg symlink
   file:
-    src: "{{ ddp_path }}ice-{{ card_id.stdout }}.pkg"
-    dest: "{{ ddp_path }}ice.pkg"
+    src: "{{ (ddp_path, 'ice-' + card_id.stdout + '.pkg') | path_join }}"
+    dest: "{{ (ddp_path, 'ice.pkg') | path_join }}"
     state: link
     force: yes
     mode: 0600
 
 - name: get updated symlink
-  shell: "set -o pipefail && ls -al {{ ddp_path }}ice.pkg"
+  shell: "set -o pipefail && ls -al {{ (ddp_path, 'ice.pkg') | path_join }}"
   args:
     executable: /bin/bash
   register: ls_result

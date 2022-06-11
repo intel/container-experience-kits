@@ -22,10 +22,40 @@
   gather_facts: false
   roles:
     - "vm/manage_imgs"
+    - "vm/manage_bridges"
     - "vm/manage_vms"
     - "vm/prepare_cek"
 
+- hosts: vm_host
+  gather_facts: false
+  serial: 1
+  roles:
+    - role: vm/prepare_bastion_host_config
+
+- hosts: vm_host
+  gather_facts: false
+  roles:
+    - "vm/prepare_cek_vxlan"
+
+- hosts: vm_host
+  gather_facts: false
+  serial: 1
+  roles:
+    - role: vm/prepare_bastion_host_config_vxlan
+    - role: vm/prepare_vm_inventory
+
 - hosts: k8s_cluster
+  handlers:
+    - name: reboot VMs
+      reboot: { reboot_timeout: 300 }
   tasks:
     - name: Test updated inventory
       ping:
+    - name: Check if reboot is needed
+      command: needs-restarting -r
+      register: needs_reboot
+      failed_when: false
+      notify:
+        - reboot VMs
+      changed_when: needs_reboot.rc == 1
+      when: vm_image_distribution == "rocky"

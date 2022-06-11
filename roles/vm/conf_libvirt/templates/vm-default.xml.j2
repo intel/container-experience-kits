@@ -1,0 +1,10 @@
+<network>
+  <name>vm-default</name>
+  <forward mode='nat'/>
+  <bridge name='vm-virbr0' stp='on' delay='0'/>
+  <ip address='192.168.{{ vm_ip_third_byte }}.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.{{ vm_ip_third_byte }}.2' end='192.168.{{ vm_ip_third_byte }}.254'/>
+    </dhcp>
+  </ip>
+</network>

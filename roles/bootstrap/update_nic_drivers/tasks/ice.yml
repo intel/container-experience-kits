@@ -30,6 +30,8 @@
   when:
     - ice_installed_version.stdout != ice_driver_version
     - mgmt_interface_driver.stdout != ice_driver_name
+    - ansible_os_family == "RedHat" or
+      (ansible_distribution == "Ubuntu" and ansible_distribution_version < "22.04")
 
 - name: update ice driver
   block:
@@ -56,7 +58,7 @@
 
     - name: build and install ice driver
       make:
-        chdir: "{{ ice_untar.dest }}/{{ ice_untar.files[0] }}/src"
+        chdir: "{{ (ice_untar.dest, ice_untar.files[0], 'src') | path_join }}"
         target: "{{ item }}"
       become: yes
       loop:
@@ -64,16 +66,15 @@
         - install
   when: ice_installed_version.stdout != ice_driver_version
 
-- name: reboot if driver is used by management interface
+- name: reboot node after driver update
   become: yes
   reboot:
     reboot_timeout: 1200
   when:
-    - ice_installed_version.stdout != ice_driver_version
-    - mgmt_interface_driver.stdout == ice_driver_name
+    - (ice_installed_version.stdout != ice_driver_version and mgmt_interface_driver.stdout == ice_driver_name) or
+      (ice_installed_version.stdout != ice_driver_version and ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04")
 
 - name: ensure that ice module is loaded
   modprobe:
     name: ice
     state: present
-

@@ -24,6 +24,11 @@
       paths:
         - ../vars
 
+- name: set containerd version on Ubuntu >= 21.10
+  set_fact:
+    containerd_version: "{{ '1.4.13' if ansible_distribution_version == '21.10' else '1.5.11' }}"
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.10"
+
 - include_tasks: containerd_repo.yml
 
 - name: create containerd service systemd directory if it doesn't exist

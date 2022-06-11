@@ -1,0 +1,115 @@
+#! /bin/bash
+
+interface="{{ vxlan_device }}"
+vxlans="{{ vxlan_list | join(' ') }}"
+mtu_size="{{ vxlan_mtu }}"
+
+function ip_link_show {
+  # Input:
+  #   $1: Name of interface
+  # Returns:
+  #   0: Interface exists
+  #   1: Interface does not exist
+  ip link show $1 &> /dev/null
+  if [ $? == 0 ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function ip_addr_show {
+  # Input:
+  #   $1: Name of interface
+  # Returns:
+  #   0: Interface has IPv4 address
+  #   1: Interface does not have IPv4 address
+  ip addr show $1 | grep "inet " &> /dev/null
+  if [ $? == 0 ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function ip_link {
+  # Input:
+  #  $1: Function [add,del,attach]
+  #  $2: VXLAN ID
+  # Returns:
+  #  0: Command executed
+  #  1: Incorrect function
+  if [ "$1" == "add" ]; then
+    ip link add vxlan${2} type vxlan id $2 dstport 4789 dev $interface group 239.0.0.1 ttl 5 &> /dev/null
+    ip link set dev vxlan${2} mtu $mtu_size
+    return 0
+  elif [ "$1" == "del" ]; then
+    ip link set vxlan${2} down &> /dev/null
+    ip link del vxlan${2} &> /dev/null
+    return 0
+  elif [ "$1" == "attach" ]; then
+    ip link set vxlan${2} master vxlanbr${2} &> /dev/null
+    ip link set vxlan${2} up &> /dev/null
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Check interface exists
+ip_link_show $interface
+if [ $? == 1 ]; then
+  echo "ERROR: Interface $interface does not exist!"
+  exit 1
+fi
+
+# Check interface IP address
+ip_addr_show $interface
+if [ $? == 1 ]; then
+  echo "WARNING: Interface $interface does not have IP address!"
+{% if ansible_distribution == 'Rocky' %}
+  file_location=/etc/sysconfig/network-scripts/ifcfg-$interface
+  if [ -e $file_location ]; then
+    echo "File $file_location] already exists!"
+  else
+    echo "Create config file $file_location"
+    cat > $file_location <<EOF
+DEVICE="$interface"
+ONBOOT="yes"
+BOOTPROTO="dhcp"
+STARTMODE="auto"
+PERSISTENT_DHCLIENT="yes"
+EOF
+  fi
+  echo "Put interface $interface down and up again"
+  ifdown $interface
+  ifup $interface
+  echo "Check IP address on Interface $interface again"
+  ip_addr_show $interface
+  if [ $? == 1 ]; then
+    echo "WARNING: DHCP does not work for Interface $interface!"
+  fi
+{% endif %}
+fi
+
+# Check if bridges exist
+for vxlan in $vxlans; do
+  ip_link_show "vxlanbr${vxlan}"
+  if [ $? == 1 ]; then
+    echo "ERROR: Bridge vxlanbr${vxlan} does not exist!"
+    exit 1
+  fi
+done
+
+# Create or reconfigure interface
+for vxlan in $vxlans; do
+  ip_link_show vxlan${vxlan}
+  if [ $? == 0 ]; then
+    ip_link del $vxlan
+  fi
+  ip_link add $vxlan
+  ip_link attach $vxlan
+done
+
+echo "Configuration finished"
+exit 0

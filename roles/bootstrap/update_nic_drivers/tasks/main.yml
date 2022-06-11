@@ -42,7 +42,7 @@
 
 - name: determine custom kernel source dir
   find:
-    path: "{{ project_root_dir }}/kernels"
+    path: "{{ (project_root_dir, 'kernels') | path_join }}"
     file_type: directory
     patterns: 'gpu_kernel'
     recurse: yes

@@ -16,7 +16,11 @@
 {%- set tmp_ns.flip = True %}
 {%- endif %}
 {%- if tmp_ns.flip %}
+{%- if iface.flow_configuration | d(false) %}
+{{ ext_ns.vfs_ranges.__setitem__("{}-{}".format(tmp_ns.start | int + 1, tmp_ns.end | int + 1), tmp_ns.curr_driver) }}
+{%- else %}
 {{ ext_ns.vfs_ranges.__setitem__("{}-{}".format(tmp_ns.start, tmp_ns.end), tmp_ns.curr_driver) }}
+{%- endif %}
 {%- set tmp_ns.start = loop.index0 %}
 {%- set tmp_ns.end = loop.index0 %}
 {%- set tmp_ns.flip = False %}
@@ -26,9 +30,9 @@
 {%- set tmp_ns.end = loop.index0 %}
 {%- endif %}
 {%- endfor %}
-{{ ext_ns.vfs_ranges.__setitem__("{}-{}".format(tmp_ns.start, tmp_ns.end), tmp_ns.curr_driver) }}
+{{ ext_ns.vfs_ranges.__setitem__("{}-{}".format(tmp_ns.start | int + 1 if iface.flow_configuration | d(false) else tmp_ns.start, tmp_ns.end | int + 1 if iface.flow_configuration | d(false) else tmp_ns.end), tmp_ns.curr_driver) }}
 {%- else %}
-{{ ext_ns.vfs_ranges.__setitem__("{}-{}".format(0, iface.sriov_numvfs - 1), iface.default_vf_driver) }}
+{{ ext_ns.vfs_ranges.__setitem__("{}-{}".format(1 if iface.flow_configuration | d(false) else 0, iface.sriov_numvfs if iface.flow_configuration | d(false) else iface.sriov_numvfs - 1), iface.default_vf_driver) }}
 {%- endif %}
 {%- for vf_range, driver in ext_ns.vfs_ranges | dictsort %}
 ---
@@ -38,12 +42,12 @@ metadata:
   name: "{{ hostvars[item]['ansible_hostname'] }}-{{ iface.name }}-sriov-policy-{{ loop.index }}"
   namespace: "{{ sriov_network_operator_namespace }}"
 spec:
-  resourceName: {{ hostvars[item]['ansible_hostname'] | replace('-', '_') }}_{{ iface.name }}_{{ sriov_resource_name }}_{{ loop.index }}
+  resourceName: {{ iface.name }}_{{ sriov_resource_name }}_{{ loop.index }}
   nodeSelector:
     feature.node.kubernetes.io/network-sriov.capable: "true"
     kubernetes.io/hostname: {{ hostvars[item]['ansible_hostname'] }}
   priority: {{ sriov_vf_default_priority }}
-  numVfs: {{ iface.sriov_numvfs }}
+  numVfs: {{ iface.sriov_numvfs | int +1 if iface.flow_configuration | d(false) else iface.sriov_numvfs}}
   mtu: {{ sriov_vf_default_mtu }}
   deviceType: "{% if driver == 'vfio-pci' %}vfio-pci{% else %}netdevice{% endif %}{{''}}"
   isRdma: {{ sriov_vf_is_rdma }}

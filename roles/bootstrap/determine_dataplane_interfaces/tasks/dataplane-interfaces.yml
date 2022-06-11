@@ -14,22 +14,48 @@
 ##   limitations under the License.
 ##
 ---
-- name: get interface of dataplane device
-  shell: "set -o pipefail && hwinfo --network | grep -A 5 {{ nic.bus_info }}"
-  args:
-    executable: /bin/bash
-  register: dataplane_interface_list
-  changed_when: false
+# Segmentation core dump issues in Ubuntu were previously caused by lshw; blocks will be recommended such as,
+# hwinfo for RHEL / ROCKY & lshw for Ubuntu.
+- name: block for dataplane interface list in Ubuntu
+  block:
+    - name: get interface of dataplane device
+      shell: "set -o pipefail && hwinfo --network | grep -A 5 {{ nic.bus_info }}"
+      args:
+        executable: /bin/bash
+      register: dataplane_interface_list_ubuntu
+      changed_when: false
 
-- name: set dataplane_interface variable
-  set_fact:
-    dataplane_interface: "{{ dataplane_interface_list.stdout_lines[5] | regex_replace('\\s+Device File: ', '') }}"
+    - name: set dataplane_interface variable
+      set_fact:
+        dataplane_interface: "{{ dataplane_interface_list_ubuntu.stdout_lines[5] | regex_replace('\\s+Device File: ', '') }}"
 
-- name: update dataplane_interface name in configuration file
-  lineinfile:
-    dest: "{{ dataplane_interface_configuration_file.path }}"
-    regexp: '  name: {{ nic.name }}'
-    line: '  name: {{ dataplane_interface }}'
-    mode: 0600
-  delegate_to: localhost
-  become: false
+    - name: creaing new_nic variable with name attached
+      set_fact:
+        new_nic: "{{ nic | combine ({ 'name' : dataplane_interface }) }}"
+
+    - name: adding nic with name added to new_dataplane_interfaces
+      set_fact:
+         new_dataplane_interfaces: "{{ new_dataplane_interfaces + [ new_nic ] }}"
+  when: ansible_distribution == "Ubuntu"
+
+- name: block for dataplane interface list in RHEL / Rocky
+  block:
+    - name: get interface of dataplane device
+      shell: "set -o pipefail && lshw -class network | grep -A 1 {{ nic.bus_info }}"
+      args:
+        executable: /bin/bash
+      register: dataplane_interface_list
+      changed_when: false
+
+    - name: set dataplane_interface variable
+      set_fact:
+        dataplane_interface: "{{ dataplane_interface_list.stdout_lines[1] | regex_replace('\\s+logical name: ', '') }}"
+
+    - name: creaing new_nic variable with name attached
+      set_fact:
+        new_nic: "{{ nic | combine ({ 'name' : dataplane_interface }) }}"
+
+    - name: adding nic with name added to new_dataplane_interfaces
+      set_fact:
+        new_dataplane_interfaces: "{{ new_dataplane_interfaces + [ new_nic ] }}"
+  when: ansible_os_family == "RedHat"

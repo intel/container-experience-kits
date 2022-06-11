@@ -15,11 +15,11 @@
 ##
 ---
 nfd_git_url: "https://github.com/kubernetes-sigs/node-feature-discovery.git"
-nfd_git_ref: "v0.10.0"
+nfd_git_ref: "v0.11.0"
 nfd_dir: "{{ (project_root_dir, 'nfd') | path_join }}"
 
 nfd_external_image_name: "k8s.gcr.io/nfd/node-feature-discovery"
-nfd_external_image_tag: "v0.10.0"
+nfd_external_image_tag: "v0.11.0"
 
 nfd_build_image_locally: false
 nfd_namespace: "kube-system"

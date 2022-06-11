@@ -1,0 +1,10 @@
+
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetwork
+metadata:
+  name: {{ flow_config_sriov_network_name }}
+  namespace: {{ sriov_network_operator_namespace }}
+spec:
+  trust: 'on'
+  networkNamespace: {{ intel_ethernet_operator_namespace }}
+  resourceName: {{ flow_config_resource_name }}

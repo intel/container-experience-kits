@@ -30,6 +30,8 @@
   when:
     - i40e_installed_version.stdout != i40e_driver_version
     - mgmt_interface_driver.stdout != i40e_driver_name
+    - ansible_os_family == "RedHat" or
+      (ansible_distribution == "Ubuntu" and ansible_distribution_version < "22.04")
 
 - name: update i40e driver
   block:
@@ -38,6 +40,7 @@
         url: "{{ i40e_driver_url }}"
         dest: "{{ project_root_dir }}"
         checksum: "{{ i40e_driver_checksum }}"
+        mode: '0644'
         timeout: 60
       register: i40e_download
       until: i40e_download is not failed
@@ -49,7 +52,7 @@
         dest: "{{ project_root_dir }}"
         list_files: yes
         remote_src: yes
-        mode: 0774
+        mode: '0774'
       become: yes
       register: i40e_untar
 
@@ -63,13 +66,13 @@
         - install
   when: i40e_installed_version.stdout != i40e_driver_version
 
-- name: reboot if driver is used by management interface
+- name: reboot node after driver update
   become: yes
   reboot:
-    reboot_timeout: 1200 # wait up to 20 minutes
+    reboot_timeout: 1200
   when:
-    - mgmt_interface_driver.stdout == i40e_driver_name
-    - i40e_installed_version.stdout != i40e_driver_version
+    - (i40e_installed_version.stdout != i40e_driver_version and mgmt_interface_driver.stdout == i40e_driver_name) or
+      (i40e_installed_version.stdout != i40e_driver_version and ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04")
 
 - name: ensure that i40e module is loaded
   modprobe:

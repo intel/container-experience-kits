@@ -97,7 +97,7 @@
   when:
     - '"get-config-levels:0" in sst_pp_verify.stderr'
     - ansible_distribution == 'Ubuntu' or
-      (ansible_distribution in ['RedHat', 'CentOS'] and ansible_distribution_version >= '8.3')
+      (ansible_distribution in ['RedHat', 'Rocky', 'CentOS'] and ansible_distribution_version >= '8.3')
 
 # Intel(R) SST-PP (feature perf-profile) configuration
 - name: check if SST-PP dir exists
@@ -112,7 +112,7 @@
     - not check_sst_pp_dir.stat.exists
     - '"Intel(R) SST-PP (feature perf-profile) is supported" in isst_verify.stderr_lines'
     - ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04' or
-      (ansible_distribution in ['RedHat', 'CentOS'] and ansible_distribution_version >= '8.3')
+      (ansible_distribution in ['RedHat', 'Rocky', 'CentOS'] and ansible_distribution_version >= '8.3')
 
 - debug:
     msg: "Intel(R) SST-PP (perf-profile) is not supported on platform, SST-PP deployment skipped"

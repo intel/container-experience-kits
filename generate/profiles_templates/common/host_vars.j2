@@ -1,72 +1,99 @@
 ---
 # Kubernetes node configuration
-# Do not change profile_name and configured_arch here !!!
+# Do not change profile_name, configured_nic and configured_arch here !!!
 # To generate vars for different profile/architecture use make command
 # generated for profile and arch:
 profile_name: {{ name }}
 configured_arch: {{ arch }}
+configured_nic: {{ nic }}
 
-{% if sriov_network_dp in ['on', 'optional'] or qat in ['on', 'optional'] -%}
+{% if sriov_operator in ['on', 'optional'] or sriov_network_dp in ['on', 'optional'] or qat in ['on', 'optional'] -%}
 # Enable IOMMU (required for SR-IOV networking and QAT)
-iommu_enabled: {% if (sriov_network_dp == 'on' or qat == 'on') and on_vms != 'on' %}true{% else %}false{% endif %}
+iommu_enabled: {% if (sriov_operator == 'on' or sriov_network_dp == 'on' or qat == 'on') and on_vms != 'on' %}true{% else %}false{% endif %}
 {% endif %}
 
-{%- if sriov_network_dp in ['on', 'optional'] or minio in ['on', 'optional'] %}
+{%- if nic_drivers in ['on', 'optional'] %}
+# Set to 'true' to update i40e, ice and iavf kernel modules
+update_nic_drivers: {% if nic_drivers == 'on' %}true{% else %}false{% endif %}
+# Set 'true' to update NIC firmware
+update_nic_firmware: false # FW update will be executed on all NICs listed in "dataplane_interfaces[*].name"
+
 # dataplane interface configuration list
 dataplane_interfaces: []
 {%- if on_vms == 'on' %}
-#  - name: enp4s0                 # PF interface name
-#    bus_info: "04:00.0"             # pci bus info
+#  - bus_info: "06:00.0"             # pci bus info
 #    pf_driver: iavf              # driver inside VM
 #    sriov_numvfs: 0
 #    default_vf_driver: "igb_uio"
-#  - name: enp5s0                 # PF interface name
-#    bus_info: "05:00.0"             # pci bus info
+#  - bus_info: "07:00.0"             # pci bus info
+#    pf_driver: iavf              # driver inside VM
+#    sriov_numvfs: 0
+#    default_vf_driver: "iavf"
+#  - bus_info: "08:00.0"             # pci bus info
+#    pf_driver: iavf              # driver inside VM
+#    sriov_numvfs: 0
+#    default_vf_driver: "iavf"
+#  - bus_info: "09:00.0"             # pci bus info
 #    pf_driver: iavf              # driver inside VM
 #    sriov_numvfs: 0
 #    default_vf_driver: "igb_uio"
-#  - name: enp6s0                 # PF interface name
-#    bus_info: "06:00.0"             # pci bus info
-#    pf_driver: iavf              # driver inside VM
-#    sriov_numvfs: 0
-#    default_vf_driver: "iavf"
-#  - name: enp7s0                 # PF interface name
-#    bus_info: "07:00.0"             # pci bus info
-#    pf_driver: iavf              # driver inside VM
-#    sriov_numvfs: 0
-#    default_vf_driver: "iavf"
 {%- else %}
-#  - name: enp24s0f0                        # PF interface name
-#    bus_info: "18:00.0"                    # pci bus info
-#    pf_driver: ice                         # PF driver, "i40e", "ice"
+#  - bus_info: "18:00.0"                    # pci bus info
+#    pf_driver: {% if nic == 'cvl' %}ice{% else %}i40e{% endif %}                         # PF driver, "i40e", "ice"
 {%- if ddp in ['on', 'optional'] %}
-#    ddp_profile: "ice_comms-1.3.31.0.pkg"  # DDP package name to be loaded into the NIC
+#    ddp_profile: {% if nic == 'cvl' %}"ice_comms-1.3.35.0.pkg"{% else %}gtp.pkgo{% endif %}  # DDP package name to be loaded into the NIC
                                             # For i40e(XV710-*) allowable ddp values are: "ecpri.pkg", "esp-ah.pkg", "ppp-oe-ol2tpv2.pkgo", "mplsogreudp.pkg" and "gtp.pkgo", replace as required
-                                            # For ice(E810-*) allowable ddp values are: ice_comms-1.3.[17,20,22,24,28,30,31].0.pkg  such as "ice_comms-1.3.31.0.pkg", replace as required
+                                            # For ice(E810-*) allowable ddp values are: ice_comms-1.3.[17,20,22,24,28,30,31,35].0.pkg  such as "ice_comms-1.3.35.0.pkg", replace as required
                                             # ddp_profile must be defined for first port of each network device. bifurcated cards will appear as unique devices.
+{% endif %}
+{%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
+#    flow_configuration: {% if intel_ethernet_operator.flow_config == 'on' and nic == "cvl" %}true{% else %}false{% endif %}              # Flow Configuration # NOTE: this option is for Intel E810 Series NICs and requires Intel Ethernet Operator and Flow Config to be enabled in group vars.
+                                            # with Flow Configuration enabled the first VF (VF0) will be reserved for Flow Configuration and the rest of VFs will be indexed starting from 1.
 {% endif %}
 #    default_vf_driver: "iavf"              # default driver to be used with VFs if specific driver is not defined in the "sriov_vfs" section
 #    sriov_numvfs: 6                        # total number of VFs to create including VFs listed in the "sriov_vfs" section.
                                             # If total number of VFs listed in the "sriov_vfs" section is greater than "sriov_numvfs" then excessive entities will be ignored.
                                             # VF's name should follow scheme: <arbitrary_vf_name>_<zero_started_index_of_vf>
                                             # If index in the VF's name is greater than "sriov_numfs - 1" such VF will be ignored.
+{%- if minio in ['on', 'optional'] %}
+#    minio_vf: true
+{% endif %}
 #    sriov_vfs:                             # list of VFs to create on this PF with specific driver
 #      vf_00: "vfio-pci"                    # VF driver to be attached to this VF under this PF. Options: "iavf", "vfio-pci", "igb_uio"
 #      vf_05: "vfio-pci"
 
-#  - name: enp24s0f1
-#    bus_info: "18:00.1"
-#    pf_driver: ice
+#  - bus_info: "18:00.1"
+#    pf_driver: {% if nic == 'cvl' %}ice{% else %}i40e{% endif %}
 {%- if ddp in ['on', 'optional'] %}
-#    ddp_profile: "ice_comms-1.3.31.0.pkg"
+#    ddp_profile: {% if nic == 'cvl' %}"ice_comms-1.3.35.0.pkg"{% else %}gtp.pkgo{% endif %}
 {%- endif %}
 #    default_vf_driver: "vfio-pci"
+{%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
+#    flow_configuration: {% if intel_ethernet_operator.flow_config == 'on' and nic == "cvl" %}true{% else %}false{% endif %}
+{% endif %}
 #    sriov_numvfs: 4
+{%- if minio in ['on', 'optional'] %}
+#    minio_vf: true
+{% endif %}
 #    sriov_vfs: {}                   # no VFs with specific driver on this PF or "sriov_vfs" can be omitted for convenience
-{%- endif %}
+{% endif %}
 
+{%- if ddp in ['on', 'optional'] %}
+# install Intel x700 & x800 series NICs DDP packages
+install_ddp_packages: {% if ddp == "on"%}true{% else %}false{% endif %}
+# If following error appears: "Flashing failed: Operation not permitted"
+# run deployment with update_nic_firmware: true
+# or
+# Disable ddp installation via install_ddp_packages: false
+
+# set 'true' to enable custom ddp package to be loaded after reboot
+enable_ice_systemd_service: {% if ddp == "on" %}true{% else %}false{% endif %}
+{% endif %}
+
+{%- if sriov_network_dp in ['on', 'optional'] %}
 sriov_cni_enabled: {% if sriov_network_dp == 'on' %}true{% else %}false{% endif %}
 {% endif %}
+{%- endif %}
 
 {%- if sriov_operator in ['on', 'optional'] %}
 # Custom SriovNetworkNodePolicy manifests local path
@@ -82,7 +109,7 @@ bond_cni_enabled: {% if bond_cni == 'on' %}true{% else %}false{% endif %}
 # Install DPDK (required for SR-IOV networking)
 install_dpdk: {% if dpdk == 'on' %}true{% else %}false{% endif %}
 # DPDK version (will be in action if install_dpdk: true)
-dpdk_version: "21.11"
+dpdk_version: "22.03"
 # Custom DPDK patches local path
 #dpdk_local_patches_dir: "/tmp/patches/dpdk"
 # It might be necessary to adjust the patch strip parameter, update as required.
@@ -92,7 +119,7 @@ dpdk_version: "21.11"
 # Userspace networking
 userspace_cni_enabled: {% if network_userspace == 'on' %}true{% else %}false{% endif %}
 ovs_dpdk_enabled: {% if ovs_dpdk == 'on' %}true{% else %}false{% endif %} # Should be enabled with Userspace CNI, when VPP is set to "false"; 1G hugepages required
-ovs_version: "v2.16.2"
+ovs_version: "v2.17.1"
 # CPU mask for OVS-DPDK PMD threads
 ovs_dpdk_lcore_mask: 0x1
 # Huge memory pages allocated by OVS-DPDK per NUMA node in megabytes
@@ -101,31 +128,33 @@ ovs_dpdk_lcore_mask: 0x1
 ovs_dpdk_socket_mem: "256,0"
 vpp_enabled: {% if vpp == 'on'%}true{% else %}false{% endif %} # Should be enabled with Userspace CNI, when ovs_dpdk is set to "false"; 2M hugepages required
 {% endif %}
-# Set to 'true' to update i40e, ice and iavf kernel modules
-update_nic_drivers: {% if sriov_network_dp != 'on' and on_vms == 'on' %}false{% else %}true{% endif %}
-# Set 'true' to update NIC firmware
-update_nic_firmware: false # FW update will be executed on all NICs listed in "dataplane_interfaces[*].name"
 
-{% if sriov_network_dp in ['on', 'optional'] or qat in ['on', 'optional'] or network_userspace in ['on', 'optional'] -%}
+{%- if hugepages in ['on', 'optional'] %}
 # Enables hugepages support
-hugepages_enabled: {% if sriov_network_dp == 'on' or qat == 'on' or network_userspace == 'on' %}true{% else %}false{% endif %}
+hugepages_enabled: {% if hugepages == 'on' %}true{% else %}false{% endif %}
 # Hugepage sizes available: 2M, 1G
 default_hugepage_size: {% if vpp == 'on' %}2M{% else %}1G{% endif %}
 # Sets how many hugepages should be created
 number_of_hugepages_1G: 4
-number_of_hugepages_2M: 128
+number_of_hugepages_2M: 1024
 {% endif %}
 
-{%- if ddp in ['on', 'optional'] %}
-# install Intel x700 & x800 series NICs DDP packages
-install_ddp_packages: {% if ddp == "on" %}true{% else %}false{% endif %}
-# If following error appears: "Flashing failed: Operation not permitted"
-# run deployment with update_nic_firmware: true
-# or
-# Disable ddp installation via install_ddp_packages: false
+{%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
+# Intel Ethernet Operator for Intel E810 Series network interface cards
+intel_ethernet_operator:
+{%- if intel_ethernet_operator.ddp in ['on', 'optional'] %}
+  ddp_update: {% if intel_ethernet_operator.ddp == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                   # perform DDP update on PFs listed in dataplane_interfaces using selected DDP profile
+{%- endif %}
+  fw_update: {% if intel_ethernet_operator.fw_update == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                     # perform firmware update on PFs listed in dataplane_interfaces
+  # NodeFlowConfig manifests local path
+  # For more information refer to:
+  # https://github.com/smart-edge-open/intel-ethernet-operator/blob/main/docs/flowconfig-daemon/creating-rules.md
+  # node_flow_config_dir: /tmp/node_flow_config
+{% endif %}
 
-# set 'true' to enable custom ddp package to be loaded after reboot
-enable_ice_systemd_service: {% if ddp == "on" %}true{% else %}false{% endif %}
+{%- if intel_sriov_fec_operator in ['on', 'optional'] %}
+# Wireless FEC H/W Accelerator Device (e.g. ACC100) PCI ID
+fec_acc: {{ fec_acc_dev }}  # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
 {% endif %}
 
 {%- if qat in ['on', 'optional'] %}
@@ -135,10 +164,10 @@ update_qat_drivers: {% if qat == "on" %}true{% else %}false{% endif %}
 # qat interface configuration list
 qat_devices: []
 {%- if on_vms == 'on' %}
-#  - qat_id: "0000:08:00.0"
+#  - qat_id: "0000:0a:00.0"
 #    qat_sriov_numvfs: 0              # Have to be set to 0 here to not create any VFs inside VM.
 
-#  - qat_id: "0000:09:00.0"
+#  - qat_id: "0000:0b:00.0"
 #    qat_sriov_numvfs: 0              # Have to be set to 0 here to not create any VFs inside VM.
 {%- else %}
 #  - qat_id: "0000:ab:00.0"           # QAT device id one using DPDK compatible driver for VF devices to be used by vfio-pci kernel driver, replace as required
@@ -167,6 +196,17 @@ isolcpus: "4-11"
 {%- endif %}
 {% endif %}
 
+{%- if cpusets in ["on", "optional"] %}
+# CPU shielding
+cpusets_enabled: {% if cpusets == 'on' %}true{% else %}false{% endif %}
+{%- if on_vms == 'on' %}
+cpusets: "4-15"
+{%- else %}
+cpusets: "4-11"
+{%- endif %}
+{% endif %}
+
+
 {%- if native_cpu_manager in ["on", "optional"] %}
 # Native CPU Manager (Kubernetes built-in)
 # These settings are relevant only if in group_vars native_cpu_manager_enabled: true
@@ -185,6 +225,27 @@ intel_pstate_enabled: {% if pstate == "on" or sst == "on" %}true{% else %}false{
 intel_pstate: {% if pstate == "on" or sst == "on" %}hwp_only{% else %}disable{% endif %}
 # Enable/Disable Intel Turbo Boost PState attribute
 turbo_boost_enabled: {% if on_vms != 'on' %}true{% else %}false{% endif %}
+{% endif -%}
+
+{% if cstate in ['on', 'optional'] %}
+cstate_enabled: {% if cstate == "on" %}true{% else %}false{% endif %}
+cstates:
+{%- if name == 'access' %}
+  C6: # default values: C6 for access, C1 for other profiles
+    cpu_range: '0-9' # change as needed, cpus to modify cstates on
+    enable: true # true - enable given cstate, false - disable given cstate
+{%- else %}
+  C1: # default values: C6 for access, C1 for other profiles
+    cpu_range: '0-9' # change as needed, cpus to modify cstates on
+    enable: true # true - enable given cstate, false - disable given cstate
+{% endif -%}
+{% endif -%}
+
+{% if ufs in ['on', 'optional'] %}
+ufs_enabled: {% if ufs == "on" %}true{% else %}false{% endif %}
+ufs: # uncore frequency scaling
+  min: 1000 # minimal uncore frequency
+  max: 2000 # maximal uncore frequency
 {% endif -%}
 
 {% if sst in ['on', 'optional'] %}
@@ -245,10 +306,10 @@ sst_cp_clos_groups: # configure up to 4 CLOS groups
     min_MHz: 0
     max_MHz: 25500
 sst_cp_cpu_clos: # assign required values to CLOS group after priority type setup
-  - clos: 0
-    cpus: 1,2,4..6,8-10
+  - clos: 0      # associating CPUs with a CLOS group such as "clos: 3", update as required.
+    cpus: 2,3,5  # define specific CPUs per CLOS group such as "cpus: 2,6,9", update as required.  
   - clos: 1
-    cpus: 3,7
+    cpus: 12     
 
 # Intel(R) SST-TF (feature turbo-freq) configuration for Ice Lake (ICX) Platforms.
 # [true] Enable Intel Speed Select Turbo Frequency (SST-TF)
@@ -262,10 +323,22 @@ sst_tf_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
 configure_sgx: {% if sgx == 'on' %}true{% else %}false{% endif %}
 {% endif %}
 
-{%- if telemetry in ['on', 'optional'] %}
+{%- if gpu in ['on', 'optional'] %}
+# Intel custom GPU kernel - this is required to be true in order to
+# deploy Intel GPU Device Plugin on that node
+configure_gpu: {% if gpu == 'on' %}true{% else %}false{% endif %}
+{% endif %}
+
+{%- if telemetry.collectd in ['on', 'optional'] %}
 # Telemetry configuration
 # intel_pmu plugin collects information provided by Linux perf interface.
 enable_intel_pmu_plugin: false
+
+{%- if on_vms == 'on' %}
+
+# Temporary Fix for collectd startup issue on VMs
+enable_pkgpower_plugin: false
+{%- endif %}
 
 # CPU Threads to be monitored by Intel PMU Plugin.
 # If the field is empty, all available cores will be monitored.
@@ -281,25 +354,114 @@ intel_rdt_plugin_monitored_cores: ""
 exclude_collectd_plugins: []
 {% endif %}
 
+{%- if cndp in ['on', 'optional'] %}
+# Intel Cloud Native Data Plane.
+cndp_enabled: {% if cndp == 'on' %}true{% else %}false{% endif %}
+{%- if cndp_dp in ['on', 'optional'] %}
+cndp_dp_pools:
+  - name: "e2e"
+    drivers: {% raw %}"{{ dataplane_interfaces | map(attribute='pf_driver') | list | unique }}"{% endraw %}   # List of NIC driver to be included in CNDP device plugin ConfigMap.
+{% endif %}
+{% endif %}
+
 {%- if vm_mode in ['on'] and on_vms != 'on' %}
-# VM image version for Ubuntu 20.04 - focal
-vm_image_version: "20.04"
+# The only common VM image for all VMs inside deployment is supported at the moment
+#
+{%- if secondary_host == 'true' %}
+# Do not set VM image info here - do it just on the first vm_host
+# secondary vm_host - do not change dhcp settings here
+dhcp: []
+{% else %}
+# Default VM image version is Ubuntu 20.04 - focal
+# Supported VM image disributions ['ubuntu', 'rocky']
+#vm_image_distribution: "ubuntu"
+# Supported VM image ubuntu versions ['20.04', '21.04', '21.10', '22.04']
+#vm_image_version_ubuntu: "22.04"
+# Supported VM image rocky versions ['8.5']
+#vm_image_version_rocky: "8.5"
+# dhcp for vxlan have to be enabled just on the first vm_host
+dhcp:
+  - 120
+#vxlan_gw_ip: "40.0.0.1/24"
+{% endif -%}
+# Set hashed password for root user inside VMs. Current value is just placeholder.
+# To create hashed password use e.g.: openssl passwd -6 -salt SaltSalt <your_password>
+vm_hashed_passwd: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+vxlan_device: eno2
+#cpu_host_os will change number of CPUs reserved for host OS. Default value is 16
+#cpu_host_os: 8
 vms:
+{%- if secondary_host == 'true' %}
+#  - type: "ctrl"
+#    name: "vm-ctrl-1"
+#    cpu_total: 8
+#    memory: 20480
+#    vxlan: 120
+{% else %}
   - type: "ctrl"
     name: "vm-ctrl-1"
-    cpus: "8-11,64-67"
-    emu_cpus: "8,64"
-    numa: 0
+    # Parameter cpus and numa can be uncommented and specified manually, but by default
+    # are CPUs and NUMA node allocated automatically.
+    # cpus: "8-11,64-67"
+    # numa: 0
+    # Parameter emu_cpus is DEPRECATED, uncommenting line below would not have
+    # any impact, as emulators CPUs are picked-up automatically.
+    # emu_cpus: "8,64"
+    # if you set cpu_total: to 0 then rest of unallocated CPUs from selected numa will be used
     cpu_total: 8
+    # if 'alloc_all: true' is used then 'cpu_total' have to be set to '0'
+    # It will take all unallocated CPUs from all NUMA nodes on the vm_host.
+    # alloc_all: true
     memory: 20480
+    vxlan: 120
+{% endif -%}
+#  - type: "ctrl"
+#    name: "vm-ctrl-2"
+#    cpu_total: 8
+#    memory: 20480
+#    vxlan: 120
+#  - type: "ctrl"
+#    name: "vm-ctrl-3"
+#    cpu_total: 8
+#    memory: 20480
+#    vxlan: 120
+{%- if secondary_host == 'true' %}
+#  - type: "work"
+#    name: "vm-work-1"
+#    cpu_total: 16
+#    memory: 61440
+#    vxlan: 120
+{%- if name not in ['build_your_own'] %}
+#    pci:
+#      - "18:02.2"
+#      - "18:02.3"
+#      - "18:02.4"
+#      - "18:02.5"
+{%- if qat == "on" %}
+##      - "3d:01.1"
+##      - "3f:01.1"
+{%- endif %}
+{%- else %}
+#    pci: []
+{%- endif %}
+{% else %}
   - type: "work"
     name: "vm-work-1"
-    cpus: "12-19,68-75"
-    emu_cpus: "12,68"
-    numa: 0
+    # Parameter cpus and numa can be uncommented and specified manually, but by default
+    # are CPUs and NUMA node allocated automatically.
+    # cpus: "28-35,84-91"
+    # numa: 1
+    # Parameter emu_cpus is DEPRECATED, uncommenting line below would not have
+    # any impact, as emulators CPUs are picked-up automatically.
+    # emu_cpus: "28,84"
+    # if you set cpu_total: to 0 then rest of unallocated CPUs from selected numa will be used
     cpu_total: 16
+    # if 'alloc_all: true' is used then 'cpu_total' have to be set to '0'
+    # It will take all unallocated CPUs from all NUMA nodes on the vm_host.
+    # alloc_all: true
     memory: 61440
-{%- if name in ['access', 'full_nfv', 'on_prem', 'remote_fp'] %}
+    vxlan: 120
+{%- if name not in ['build_your_own'] %}
     pci:
       - "18:02.2"
       - "18:02.3"
@@ -313,7 +475,26 @@ vms:
     pci: []
 {%- endif %}
 {% endif -%}
-{%- if power_manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] %}
+#  - type: "work"
+#    name: "vm-work-2"
+#    cpu_total: 16
+#    memory: 61440
+#    vxlan: 120
+{%- if name not in ['build_your_own'] %}
+#    pci:
+#      - "18:02.6"
+#      - "18:02.6"
+#      - "18:02.0"
+#      - "18:02.6"
+{%- if qat == "on" %}
+##      - "3d:01.2"
+##      - "3f:01.2"
+{%- endif %}
+{%- else %}
+#    pci: []
+{%- endif %}
+{% endif -%}
+{%- if power_manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] -%}
 # Power Operator Shared Profile/Workload settings.
 # It is possible to create node-specific Power Profile
 local_shared_profile:
@@ -324,22 +505,22 @@ local_shared_profile:
 # Shared Workload is required to make use of Shared Power Profile
 shared_workload:
   enabled: false
-  reserved_cpus: []  # The CPUs in reserved_cpus should match the value of the reserved system CPUs in your Kubelet config file, if none please
-                     # set here a dummy core - the last one to avoid AppQos bug
+  reserved_cpus: []   # The CPUs in reserved_cpus should match the value of the reserved system CPUs in your Kubelet config file, if none please
+                      # set here a dummy core - the last one to avoid AppQos bug
   shared_workload_type: "global"  # set to node name to make use of node-specific Power Profile, 'global' means use cluster-specific custom Power Profile
 {% endif %}
 {%- if minio in ['on', 'optional'] %}
 # MinIO storage configuration
 minio_pv: []
-#  - name: "mnt-data-1"                        # PV identifier will be used for PVs names followed by node name(e.g., mnt-data-1-hostname)
-#    storageClassName: "local-storage"         # Storage class name to match with PVC
-#    accessMode: "ReadWriteOnce"               # Access mode when mounting a volume, e.g., ReadWriteOnce/ReadOnlyMany/ReadWriteMany/ReadWriteOncePod
-#    persistentVolumeReclaimPolicy: "Retain"   # Recalim policy when a volume is released once it's bound, e.g., Retain/Recycle/Delete
-#    capacity: 1GiB                            # Size of the PV. support only GiB/TiB
-#    mountPath: /mnt/data0                     # Mount path of a volume
-#    device: /dev/nvme0n1                      # Target storage device name when creating a volume.
-                                               # When group_vars: minio_deploy_test_mode == true, use a file as a loop device for storage
-                                               # otherwise, an actual NVME or SSD device for storage on the device name.
+#  - name: "mnt-data-1"                         # PV identifier will be used for PVs names followed by node name(e.g., mnt-data-1-hostname)
+#    storageClassName: "local-storage"          # Storage class name to match with PVC
+#    accessMode: "ReadWriteOnce"                # Access mode when mounting a volume, e.g., ReadWriteOnce/ReadOnlyMany/ReadWriteMany/ReadWriteOncePod
+#    persistentVolumeReclaimPolicy: "Retain"    # Reclaim policy when a volume is released once it's bound, e.g., Retain/Recycle/Delete
+#    capacity: 1GiB                             # Size of the PV. support only GiB/TiB
+#    mountPath: /mnt/data0                      # Mount path of a volume
+#    device: /dev/nvme0n1                       # Target storage device name when creating a volume.
+                                                # When group_vars: minio_deploy_test_mode == true, use a file as a loop device for storage
+                                                # otherwise, an actual NVME or SSD device for storage on the device name.
 
 #  - name: "mnt-data-2"
 #    storageClassName: "local-storage"

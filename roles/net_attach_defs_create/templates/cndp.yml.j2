@@ -1,0 +1,30 @@
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: {{ cndp_net_attach_def_conf.name | default("cndp-cni-e2e") }}
+  namespace: default
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: cndp/e2e
+spec:
+  config: '{
+      "cniVersion": "{{ cndp_cni_version }}",
+      "type": "afxdp",
+      "mode": "cndp",
+      "logFile": "/var/log/afxdp-k8s-plugins/cndp-cni.log",
+      "logLevel": "debug",
+{% if not (on_vms | default(false) | bool) %}
+      "queues": "4",
+{% endif %}
+      "ipam": {
+        "type": "host-local",
+        "subnet": "{{ cndp_net_attach_def_conf.ipam.subnet | default('192.168.1.0/24') }}",
+        "rangeStart": "{{ cndp_net_attach_def_conf.ipam.rangeStart | default('192.168.1.200') }}",
+        "rangeEnd": "{{ cndp_net_attach_def_conf.ipam.rangeEnd | default('192.168.1.220') }}",
+        "routes": [
+          { "dst": "0.0.0.0/0" }
+        ],
+        "gateway": "{{ cndp_net_attach_def_conf.ipam.gateway | default('192.168.1.1') }}"
+      }
+    }'
+

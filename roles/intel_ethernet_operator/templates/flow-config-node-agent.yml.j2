@@ -1,0 +1,10 @@
+apiVersion: flowconfig.intel.com/v1
+kind: FlowConfigNodeAgentDeployment
+metadata:
+  labels:
+    control-plane: flowconfig-daemon
+  name: flowconfig-daemon-deployment
+  namespace: {{ intel_ethernet_operator_namespace }}
+spec:
+  DCFVfPoolName: intel.com/{{ flow_config_resource_name }}
+  NADAnnotation: {{ flow_config_sriov_network_name }}

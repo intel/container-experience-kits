@@ -1,0 +1,20 @@
+{%- for iface in hostvars[node_name]['dataplane_interfaces'] %}
+{%- if iface.ddp_profile is defined and iface.bus_info.endswith(':00.0') and iface.pf_driver == "ice" %}
+{%- set intel_ethernet_operator_ddp_package = intel_ethernet_operator_ddp_urls[iface.ddp_profile]%}
+{%- set intel_ethernet_operator_ddp_package_sum = intel_ethernet_operator_ddp_sums[iface.ddp_profile]%}
+---
+apiVersion: ethernet.intel.com/v1
+kind: EthernetClusterConfig
+metadata:
+  name: {{ hostvars[node_name]['ansible_hostname'] }}-{{ iface.name }}-ddp-config
+  namespace: "{{ intel_ethernet_operator_namespace }}"
+spec:
+  nodeSelectors:
+    kubernetes.io/hostname: {{ hostvars[node_name]['ansible_hostname'] }}
+  deviceSelector:
+    pciAddress: "0000:{{ iface.bus_info }}"
+  deviceConfig:
+    ddpURL: "{{ intel_ethernet_operator_ddp_package }}"
+    ddpChecksum: "{{ intel_ethernet_operator_ddp_package_sum }}"
+{% endif %}
+{% endfor %}

@@ -44,6 +44,26 @@
     mode: preserve
   changed_when: true
 
+- name: label configured nodes with node-role.kubernetes.io/worker= label
+  shell: "set -o pipefail &&  kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} node-role.kubernetes.io/worker= --overwrite"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - hostvars[item]['dataplane_interfaces'] | default({}) | length > 0
+  loop: "{{ groups['kube_node'] }}"
+
+# NOTE(kmlynekx): this is workaround for
+# https://github.com/kubernetes-sigs/node-feature-discovery/issues/812
+- name: label configured nodes with feature.node.kubernetes.io/network-sriov.capable=true label
+  shell: "set -o pipefail &&  kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} feature.node.kubernetes.io/network-sriov.capable=true --overwrite"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - hostvars[item]['iommu_enabled']
+  loop: "{{ groups['kube_node'] }}"
+
 - name: deploy sriov-network-operator
   command: |
     helm upgrade \
@@ -54,12 +74,3 @@
   args:
     chdir: "{{ sriov_network_charts_dir }}"
   changed_when: true
-
-- name: label configured nodes with node-role.kubernetes.io/worker= label
-  shell: "set -o pipefail &&  kubectl label nodes {{ item }} node-role.kubernetes.io/worker= --overwrite"
-  args:
-    executable: /bin/bash
-  changed_when: true
-  when:
-    - hostvars[item]['dataplane_interfaces'] | default({}) | length > 0
-  loop: "{{ groups['kube_node'] }}"

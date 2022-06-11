@@ -8,8 +8,8 @@ data:
   default.json: |
     {
       "HTTPS_PORT" : {{ .Values.pccs.main.port | quote }},
-      "hosts" : "127.0.0.1",
-      "uri": "https://api.trustedservices.intel.com/sgx/certification/v3/",
+      "hosts" : {{ .Values.pccs.hostname | quote }},
+      "uri": {{ .Values.pccs.main.sgx_provisioning_api_url | quote }},
       "ApiKey": {{ .Values.pccs.main.api_key | quote }},
       "proxy" : {{ .Values.https_proxy | default "" | quote }},
       "RefreshSchedule": "0 0 1 * * *",
@@ -19,9 +19,9 @@ data:
       "LogLevel" : {{ .Values.pccs.main.log_level | quote }},
       "DB_CONFIG" : "sqlite",
       "sqlite" : {
-        "database" : "database",
-        "username" : "username",
-        "password" : "password",
+        "database" : {{ .Values.pccs.db_name | quote }},
+        "username" : {{ .Values.pccs.db_user | quote }},
+        "password" : {{ .Values.pccs.db_password | quote }},
         "options" : {
           "host": "localhost",
           "dialect": "sqlite",
@@ -35,13 +35,13 @@ data:
             "freezeTableName": true
           },
           "logging" : false,
-          "storage": "/tmp/pckcache.db"
+          "storage": {{ printf "/tmp/%s.db" .Values.pccs.db_name | quote }}
         }
       },
       "myql" : {
-        "database" : "pckcache",
-        "username" : "root",
-        "password" : "mypass",
+        "database" : {{ .Values.pccs.db_name | quote }},
+        "username" : {{ .Values.pccs.db_user | quote }},
+        "password" : {{ .Values.pccs.db_password | quote }},
         "options" : {
           "host": "localhost",
           "dialect": "mysql",

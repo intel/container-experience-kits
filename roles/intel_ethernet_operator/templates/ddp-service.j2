@@ -1,0 +1,12 @@
+[Unit]
+Description=ddp-ice configuration on boot
+AssertPathExists=/sbin/modprobe
+Before=kubelet.service
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/modprobe -r {% if (hostvars[node_name]['ansible_distribution'] == "Ubuntu" and hostvars[node_name]['ansible_distribution_version'] >= "22.04") %}irdma {% endif %}ice
+ExecStart=/sbin/modprobe ice {% if (hostvars[node_name]['ansible_distribution'] == "Ubuntu" and hostvars[node_name]['ansible_distribution_version'] >= "22.04") %}irdma{% endif %}
+
+[Install]
+WantedBy=multi-user.target

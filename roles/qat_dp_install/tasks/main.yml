@@ -70,7 +70,7 @@
 - name: prepare containers images
   block:
     - name: build and tag Intel QAT Device Plugin image
-      command: buildah bud -f build/docker/intel-qat-plugin.Dockerfile -t {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
+      command: podman build -f build/docker/intel-qat-plugin.Dockerfile -t {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }} .
       args:
         chdir: "{{ intel_qat_dp_dir }}"
       changed_when: true
@@ -78,7 +78,7 @@
         - { file: intel-qat-plugin.Dockerfile, name: intel-qat-plugin }
 
     - name: push Intel QAT Device Plugin image to local registry
-      command: buildah push {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
+      command: podman push {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
       changed_when: true
   when:
     - inventory_hostname == groups['kube_node'][0]
@@ -97,7 +97,7 @@
     - name: populate Intel QAT Device Plugin yaml file and push to controller node
       template:
         src: "intel-qat-plugin.yml.j2"
-        dest: "{{ project_root_dir }}/intel-qat-plugin.yml"
+        dest: "{{ (project_root_dir, 'intel-qat-plugin.yml') | path_join }}"
         force: yes
         mode: preserve
       when:
@@ -106,6 +106,6 @@
     - name: deploy Intel QAT Device Plugin with the Intel Device Plugin Operator
       k8s:
         state: present
-        src: "{{ project_root_dir }}/intel-qat-plugin.yml"
+        src: "{{ (project_root_dir, 'intel-qat-plugin.yml') | path_join }}"
       when:
         - inventory_hostname == groups['kube_control_plane'][0]

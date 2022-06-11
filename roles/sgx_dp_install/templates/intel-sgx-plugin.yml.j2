@@ -10,3 +10,4 @@ spec:
   logLevel: {{ sgx_dp_verbosity | default(4) }}
   nodeSelector:
     feature.node.kubernetes.io/intel.sgx: 'true'
+    sgx.configured: 'true'

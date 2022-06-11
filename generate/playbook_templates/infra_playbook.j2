@@ -7,7 +7,7 @@
       meta: end_host
       when:
         - "'vm_host' in group_names"
-        - on_vms is defined and on_vms
+        - on_vms | default(false) | bool
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
@@ -24,8 +24,9 @@
     - role: bootstrap/configure_dns
       when:
         - ansible_distribution == "Ubuntu" and dns_disable_stub_listener | default(true) | bool
-        - not vm_enabled or (on_vms is defined and on_vms)
+        - not vm_enabled or on_vms | default(false) | bool
     - role: bootstrap/golang_install
+      tags: golang-install
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
@@ -37,7 +38,7 @@
       meta: end_host
       when:
         - "'vm_host' in group_names"
-        - on_vms is defined and on_vms
+        - on_vms | default(false) | bool
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
@@ -48,37 +49,44 @@
       when: hugepages_enabled | default(true) | bool
     - role: bootstrap/configure_cpu_isolation
       when: isolcpus_enabled | default(false) | bool
+    - role: bootstrap/configure_cpusets
+      when: cpusets_enabled | default(false) | bool
     - role: bootstrap/configure_intel_pstate
-      when: intel_pstate_enabled is defined and intel_pstate_enabled | default(true) | bool
+      when: intel_pstate_enabled | default(true) | bool
+    - role: bootstrap/configure_cstates
+      when: cstate_enabled | default(false) | bool
+    - role: bootstrap/configure_ufs
+      when: ufs_enabled | default(false) | bool
     - role: bootstrap/set_sriov_kernel_flags
       tags: setup-sriov
-      when: iommu_enabled | default(true) | bool or (on_vms is defined and on_vms)
+      when: iommu_enabled | default(true) | bool or on_vms | default(false) | bool
     - role: bootstrap/set_rdt_kernel_flags
       when: telegraf_enabled | default(true) | bool
-{%- if playbook_name in ['full_nfv', 'remote_fp', 'on_prem'] %}
+{%- if playbook_name in ['full_nfv', 'remote_fp', 'on_prem', 'build_your_own'] %}
     - role: bootstrap/configure_sst
       tags: sst
       when:
         - (ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04') or
           (ansible_distribution == "CentOS" and ansible_distribution_version >= '8.3') or
-          (ansible_distribution == "RedHat" and ansible_distribution_version >= '8.3')
-        - (sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled | default(false)) or
-          (sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled | default(false)) or
-          (sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled | default(false)) or
-          (sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled | default(false))
-        - not vm_enabled or (on_vms is defined and on_vms)
-{% endif %}
-{%- if playbook_name in ['full_nfv', 'regional_dc'] %}
+          (ansible_distribution == "RedHat" and ansible_distribution_version >= '8.3') or
+          (ansible_distribution == "Rocky" and ansible_distribution_version >= '8.3')
+        - sst_bf_configuration_enabled | default(false) | bool or
+          sst_cp_configuration_enabled | default(false) | bool or
+          sst_tf_configuration_enabled | default(false) | bool or
+          sst_pp_configuration_enabled | default(false) | bool
+        - not vm_enabled or on_vms | default(false) | bool
+{%- endif %}
+{%- if playbook_name in ['full_nfv', 'regional_dc', 'build_your_own'] %}
     - role: bootstrap/install_gpu_kernel
       when:
-        - gpu_dp_enabled is defined and gpu_dp_enabled | default(false)
-        - not vm_enabled or (on_vms is defined and on_vms)
-{% endif %}
+        - configure_gpu | default(false) | bool
+        - not vm_enabled or on_vms | default(false) | bool
+{%- endif %}
     - role: bootstrap/update_grub
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
-{%- if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'storage'] %}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'storage', 'build_your_own'] -%}
 # install worker node qat software
 - hosts: kube_node,vm_host
   tasks: []
@@ -87,20 +95,22 @@
       meta: end_host
       when:
         - "'vm_host' in group_names"
-        - on_vms is defined and on_vms
+        - on_vms | default(false) | bool
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
   roles:
     - role: cluster_defaults
+    - role: bootstrap/apply_intel_pstate
+      when: intel_pstate_enabled | default(true) | bool
     - role: bootstrap/install_qat_drivers_services
       tags: setup-qat
       when:
         - update_qat_drivers | default(false) | bool
-        - qat_devices is defined and (qat_devices|length>0)
+        - qat_devices | default([]) | length > 0
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
-{% endif %}
+{%- endif %}
 
 # install worker node network software
 - hosts: kube_node,vm_host
@@ -110,20 +120,21 @@
       meta: end_host
       when:
         - "'vm_host' in group_names"
-        - on_vms is defined and on_vms
+        - on_vms | default(false) | bool
   roles:
     - role: cluster_defaults
-    - role: bootstrap/update_nic_drivers
-      when: update_nic_drivers | default(false) | bool
-    - role: bootstrap/update_nic_firmware
-      tags: firmware
-      when:
-        - dataplane_interfaces is defined and (dataplane_interfaces|length>0)
-        - update_nic_firmware | default(false) | bool
-        - update_nic_drivers | default(false) | bool
     - role: bootstrap/determine_dataplane_interfaces
       when:
-        - not vm_enabled or (on_vms is defined and on_vms)
+        - dataplane_interfaces | default([]) | length > 0
+    - role: bootstrap/update_nic_drivers
+      tags: update-nic-drivers
+      when: update_nic_drivers | default(false) | bool
+    - role: bootstrap/update_nic_firmware
+      tags: update-nic-firmware
+      when:
+        - dataplane_interfaces | default([]) | length > 0
+        - update_nic_firmware | default(false) | bool
+        - update_nic_drivers | default(false) | bool
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
@@ -134,7 +145,7 @@
       meta: end_host
       when:
         - "'vm_host' in group_names"
-        - on_vms is defined and on_vms
+        - on_vms | default(false) | bool
   roles:
     - role: cluster_defaults
 {%- if playbook_name not in ['storage'] %}
@@ -142,45 +153,44 @@
       when:
         - ovs_dpdk_enabled | default(false) | bool or install_dpdk | default(true) | bool
       tags: dpdk
-{% endif %}
-{%- if playbook_name in ['full_nfv', 'remote_fp'] %}
+{%- endif %}
+{%- if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own'] %}
     - role: install_ddp_pkgs
       when: install_ddp_packages | default(true) | bool
-{% endif %}
+{%- endif %}
 {%- if playbook_name not in ['storage'] %}
     - role: sriov_nic_init
       tags: setup-sriov-nic
       when:
-        - install_dpdk is defined
-        - iommu_enabled | default(true) | bool
         - install_dpdk | default(true) | bool
+        - iommu_enabled | default(true) | bool
         - (kubernetes | default(true) | bool
           and not container_runtime_only_deployment | default(false) | bool
           and not sriov_network_operator_enabled | default(true) | bool
           or (not kubernetes | default(true) | bool
           and container_runtime_only_deployment | default(false) | bool))
-{% endif %}
-{%- if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp'] %}
+{%- endif %}
+{%- if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'build_your_own'] %}
     - role: bootstrap/configure_qat
       tags: setup-sriov-qat
       when:
-        - qat_devices is defined and (qat_devices|length>0)
+        - qat_devices | default([]) | length > 0
         - iommu_enabled | default(true) | bool
-          or (on_vms is defined and on_vms)
+          or on_vms | default(false) | bool
         - update_qat_drivers | default(false) | bool
     - role: bootstrap/configure_openssl
       when:
-        - qat_devices is defined and (qat_devices|length>0)
+        - qat_devices | default([]) | length > 0
         - iommu_enabled | default(true) | bool
-          or (on_vms is defined and on_vms)
+          or on_vms | default(false) | bool
         - update_qat_drivers | default(false) | bool
         - openssl_install | default(false) | bool
-{% endif %}
-{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp'] %}
+{%- endif %}
+{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'build_your_own'] %}
     - role: bootstrap/configure_sgx
       tags: sgx
       when:
-        - configure_sgx is defined and configure_sgx | default(true) | bool
-{% endif %}
+        - configure_sgx | default(false) | bool
+{%- endif %}
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true

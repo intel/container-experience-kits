@@ -1,0 +1,6 @@
+<network>
+  <name>vxlanbr{{ item.vxlan }}</name>
+  <bridge name="vxlanbr{{ item.vxlan }}" stp='on' delay='0'/>
+  <mtu size="{{ vxlan_mtu }}"/>
+  <dns enable="no"/>
+</network>

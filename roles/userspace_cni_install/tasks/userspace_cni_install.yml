@@ -32,6 +32,14 @@
     dest: "{{ userspace_cni_path }}"
     force: true
 
+- name: replace CentOS with Rocky in Makefile
+  replace:
+     path: "{{ userspace_cni_path }}/Makefile"
+     regexp: 'centos'
+     replace: 'rocky'
+     mode: 0600
+  when: ansible_distribution == "Rocky"
+
 - name: build Userspace CNI plugin
   shell: >
     source /etc/profile.d/golang.sh &&

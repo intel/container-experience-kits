@@ -20,7 +20,8 @@ docker_versioned_pkg:
   '18.09': docker-ce=5:18.09.9~3-0~ubuntu-{{ ansible_distribution_release|lower }}
   '19.03': docker-ce=5:19.03.15~3-0~ubuntu-{{ ansible_distribution_release|lower }}
   '20.10': docker-ce=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
-  'stable': docker-ce=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  '20.10.14': docker-ce=5:20.10.14~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  'stable': docker-ce=5:20.10.11~3-0~ubuntu-{{ ansible_distribution_release|lower }}
   'edge': docker-ce=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
 
 docker_cli_versioned_pkg:
@@ -28,12 +29,14 @@ docker_cli_versioned_pkg:
   '18.09': docker-ce-cli=5:18.09.9~3-0~ubuntu-{{ ansible_distribution_release|lower }}
   '19.03': docker-ce-cli=5:19.03.15~3-0~ubuntu-{{ ansible_distribution_release|lower }}
   '20.10': docker-ce-cli=5:20.10.8~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  '20.10.14': docker-ce=5:20.10.14~3-0~ubuntu-{{ ansible_distribution_release|lower }}
+  'stable': docker-ce-cli=5:20.10.11~3-0~ubuntu-{{ ansible_distribution_release|lower }}
 
 docker_package_info:
   pkgs:
-    - "{{ containerd_versioned_pkg[containerd_version | string] }}"
-    - "{{ docker_cli_versioned_pkg[docker_cli_version | string] }}"
-    - "{{ docker_versioned_pkg[docker_version | string] }}"
+    - "{{ containerd_versioned_pkg[containerd_docker_version if ansible_distribution_version != '22.04' else '1.5.11' | string] }}"
+    - "{{ docker_cli_versioned_pkg[docker_cli_version if ansible_distribution_version != '22.04' else '20.10.14' | string] }}"
+    - "{{ docker_versioned_pkg[docker_version if ansible_distribution_version != '22.04' else '20.10.14'| string] }}"
 
 docker_repo_key_info:
   url: '{{ docker_ubuntu_repo_gpgkey }}'

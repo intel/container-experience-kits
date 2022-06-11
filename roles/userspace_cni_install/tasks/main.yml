@@ -22,8 +22,18 @@
   set_fact:
     vpp_supported: false
   when:
-  - ((ansible_os_family == 'RedHat') and (ansible_distribution_version >= '8')) or
-    ((ansible_distribution == 'Ubuntu') and (ansible_distribution_version >= '20.04'))
+    - ((ansible_os_family == 'RedHat') and (ansible_distribution_version >= '8')) or
+      ((ansible_distribution == 'Ubuntu') and (ansible_distribution_version >= '21.04'))
+
+- name: install OVS-DPDK
+  include: ovs_install.yml
+  when: ovs_dpdk_enabled | default(false)
+
+- name: install userspace cni if supported
+  include: userspace_cni_install.yml
+  when:
+    - userspace_cni_enabled
+    - ovs_dpdk_enabled or vpp_supported
 
 - name: warn if VPP is enabled but isn't supported
   debug:
@@ -38,12 +48,3 @@
     - vpp_enabled | default(false)
     - vpp_supported | default(false)
 
-- name: install OVS-DPDK
-  include: ovs_install.yml
-  when: ovs_dpdk_enabled | default(false)
-
-- name: install userspace cni if supported
-  include: userspace_cni_install.yml
-  when:
-    - userspace_cni_enabled
-    - ovs_dpdk_enabled or vpp_supported

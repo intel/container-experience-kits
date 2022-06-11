@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 apiVersion: v1
-description: Intel® Software Guard Extensions (SGX) device plugin for Kubernetes
-name: intel-sgx-plugin
+description: Intel® Software Guard Extensions (SGX) AESMD Demo Application
+name: intel-sgx-aesmd-demo
 version: 0.23.0
 sources:
  - https://github.com/intel/intel-device-plugins-for-kubernetes.git

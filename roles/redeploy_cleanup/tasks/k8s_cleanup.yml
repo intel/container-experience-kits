@@ -155,6 +155,7 @@
     firewall_svc:
       CentOS: firewalld
       RedHat: firewalld
+      Rocky: firewalld
       Ubuntu: ufw
   changed_when: false
   failed_when: false

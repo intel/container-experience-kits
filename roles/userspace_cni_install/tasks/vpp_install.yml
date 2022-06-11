@@ -14,6 +14,13 @@
 ##   limitations under the License.
 ##
 ---
+- name: create VPP configuration dir if it does not exist
+  file:
+    path: "{{ vpp_dir }}"
+    state: directory
+    mode: '0700'
+  become: yes
+
 - name: install dependencies on Red Hat
   package:
     name:
@@ -27,14 +34,6 @@
     url: "https://packagecloud.io/fdio/{{ vpp_version }}/gpgkey"
     state: present
   when: ansible_os_family == "Debian"
-
-- name: setup vpp repo for Ubuntu
-  template:
-    src: 99fd.io.list
-    dest: /etc/apt/sources.list.d/99fd.io.list
-    mode: preserve
-  when: ansible_os_family == "Debian"
-  register: vpp_sh_deb
 
 - name: setup vpp repo on RedHat
   template:
@@ -62,7 +61,19 @@
     vpp_shmmax: "{{ [vpp_calc_shmmax|int, vpp_orig_shmmax|int] | max }}"
     vpp_max_map_count: "{{ [vpp_orig_max_map_count|int, vpp_calc_max_map_count|int] | max }}"
 
-- name: install vpp packages on Red Hat
+- name: download packagecloud.io to install VPP packages
+  get_url:
+    url: "https://packagecloud.io/install/repositories/fdio/{{ vpp_version }}/script.deb.sh"
+    dest: "{{ vpp_dir }}"
+    mode: 0755
+
+- name: execute VPP bash script
+  command: "./script.deb.sh"
+  args:
+   chdir: "{{ vpp_dir }}"
+  changed_when: true
+
+- name: install vpp packages in Red Hat
   package:
     name:
       - vpp
@@ -73,17 +84,15 @@
     state: present
   when: ansible_os_family == "RedHat"
 
-- name: install vpp packages on Debian
+- name: install vpp packages in Debian
   apt:
     update_cache: yes
     name:
-      - vpp
-      - vpp-dev
-      - libvppinfra
       - vpp-plugin-core
-      - vpp-dbg
-      - vpp-api-python
-      - vpp-api-java
+      - vpp-plugin-dpdk
+      - libvppinfra
+      - libvppinfra-dev
+      - python3-vpp-api
     state: present
   when: ansible_os_family == "Debian"
 
@@ -101,4 +110,4 @@
   systemd:
     name: vpp
     state: restarted
-    daemon_reload: yes
+    enabled: yes

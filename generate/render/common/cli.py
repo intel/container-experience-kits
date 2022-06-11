@@ -32,9 +32,10 @@ def parse_cli() -> argparse.Namespace:
     parser.add_argument('--host', type=str, default="host_vars.j2",
         help='host_vars template filepath')
     parser.add_argument('--profile', '-p', type=str, default='',
-        choices={'all_examples', 'access', 'basic', 'full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'storage'}, # add new profiles here
+        choices={'all_examples', 'access', 'basic', 'full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'storage', 'build_your_own'}, # add new profiles here
         help='''profile name which files, required in deployment, will be copied to the project root directory''')
     parser.add_argument('--arch', '-a', type=str, default='icx', choices={"icx", "clx", "skl", "spr"})  # please add acronyms for new architectures here
+    parser.add_argument('--nic', '-n', type=str, default='cvl', choices={"cvl", "fvl"})  # please add new NICs here
     parser.add_argument('--mode', type=str, default='k8s', choices={"k8s", "vm"}, help='generate configuration files for selected mode')  # please add new modes' name here
 
     # vm mode specific args

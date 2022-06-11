@@ -14,12 +14,12 @@
 ##   limitations under the License.
 ##
 ---
-- name: delete kmra secrets
-  command: "kubectl delete secret {{ item }}-tls -n {{ kmra_namespace }}"
+- name: delete kmra applications
+  command: "helm delete {{ item }} -n {{ kmra.namespace }}"
   loop:
-    - "{{ kmra_pccs_release_name }}"
-    - "{{ kmra_apphsm_release_name }}"
-    - "{{ kmra_ctk_release_name }}"
+    - "{{ kmra.pccs.release_name }}"
+    - "{{ kmra.apphsm.release_name }}"
+    - "{{ kmra.ctk_loadkey_demo.release_name }}"
   changed_when: true
   failed_when: false
 
@@ -28,9 +28,9 @@
     path: "{{ item }}"
     state: absent
   loop:
-    - "{{ kmra_pccs_chart_path }}"
-    - "{{ kmra_apphsm_chart_path }}"
-    - "{{ kmra_ctk_chart_path }}"
+    - "{{ kmra.pccs.chart_path }}"
+    - "{{ kmra.apphsm.chart_path }}"
+    - "{{ kmra.ctk_loadkey_demo.chart_path }}"
   failed_when: false
 
 - name: delete charts values files
@@ -38,9 +38,9 @@
     path: "{{ item }}"
     state: absent
   loop:
-    - "{{ kmra_pccs_helm_values_file }}"
-    - "{{ kmra_apphsm_helm_values_file }}"
-    - "{{ kmra_ctk_helm_values_file }}"
+    - "{{ kmra.pccs.helm_values_file }}"
+    - "{{ kmra.apphsm.helm_values_file }}"
+    - "{{ kmra.ctk_loadkey_demo.helm_values_file }}"
   failed_when: false
 
 

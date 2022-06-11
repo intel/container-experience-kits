@@ -60,13 +60,13 @@
 - name: "build {{ item.image }} extender image locally"
   block:
     - name: "build and tag {{ item.image }} extender image"
-      command: "buildah bud -t {{ item.image }}:{{ item.tag }} -f {{ dockerfile.files[0].path }} {{ item.context }}"
+      command: "podman build -t {{ item.image }}:{{ item.tag }} -f {{ dockerfile.files[0].path }} {{ item.context }}"
       args:
         chdir: "{{ (pas_dir, item.dir) | path_join }}"
       changed_when: true
 
     - name: "push {{ item.image }} extender image extender image to local registry"
-      command: buildah push {{ item.image }}:{{ item.tag }}
+      command: podman push {{ item.image }}:{{ item.tag }}
       changed_when: true
   when:
     - '"docker" not in container_runtime'

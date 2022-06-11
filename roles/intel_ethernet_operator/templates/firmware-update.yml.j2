@@ -1,0 +1,18 @@
+{%- for iface in hostvars[node_name]['dataplane_interfaces'] %}
+{%- if iface.bus_info.endswith(':00.0') and iface.pf_driver == "ice" %}
+---
+apiVersion: ethernet.intel.com/v1
+kind: EthernetClusterConfig
+metadata:
+  name: {{ hostvars[node_name]['ansible_hostname'] }}-{{ iface.name }}-fw-config
+  namespace: "{{ intel_ethernet_operator_namespace }}"
+spec:
+  nodeSelectors:
+    kubernetes.io/hostname: {{ hostvars[node_name]['ansible_hostname'] }}
+  deviceSelector:
+    pciAddress: "0000:{{ iface.bus_info }}"
+  deviceConfig:
+    fwURL: "{{ intel_ethernet_operator_fw_url }}"
+    fwChecksum: "{{ intel_ethernet_operator_fw_sum }}"
+{% endif %}
+{% endfor %}

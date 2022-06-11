@@ -19,3 +19,4 @@ spec:
   logLevel: {{ qat_dp_verbosity | default(4) }}
   nodeSelector:
     feature.node.kubernetes.io/intel.qat: 'true'
+    qat.configured: 'true'

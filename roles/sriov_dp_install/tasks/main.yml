@@ -75,7 +75,7 @@
 
 - name: build and tag SRIOV Network Device Plugin image behind proxy
   shell: >-
-    buildah bud -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_tag }}
+    podman build -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_tag }}
     --build-arg=http_proxy=${http_proxy}
     --build-arg=https_proxy=${https_proxy}
     -f {{ item.file }} .
@@ -95,7 +95,7 @@
     - https_proxy is defined
 
 - name: build and tag SRIOV Network Device Plugin image
-  command: buildah bud -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_tag }} -f {{ item.file }} .
+  command: podman build -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_tag }} -f {{ item.file }} .
   args:
     chdir: "{{ sriov_net_dp_dir }}"
   changed_when: true
@@ -112,7 +112,7 @@
     - https_proxy is not defined
 
 - name: push SRIOV Network Device Plugin image to local registry
-  command: buildah push {{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_tag }}
+  command: podman push {{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_tag }}
   changed_when: true
   when:
     - inventory_hostname == groups['kube_node'][0]

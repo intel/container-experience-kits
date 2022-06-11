@@ -14,12 +14,80 @@
 ##   limitations under the License.
 ##
 ---
+- hosts: 127.0.0.1
+  any_errors_fatal: true
+  connection: local
+  vars:
+    cek_supported_ansible_base: 2.11.8
+    cek_supported_python: 3
+
+  tasks:
+
+    - debug: msg="Ansible version is {{ ansible_version.string }}"
+    - name: Check Ansible Version
+      assert:
+        that: (ansible_version.full is version_compare(cek_supported_ansible_base, '>='))
+        msg: "Ansible version must be {{ cek_supported_ansible_base }}. Please update"
+
+    - debug: msg="Python version is {{ ansible_python_version }}"
+    - name: Check Python Version
+      assert:
+        that: (ansible_python_version is version_compare(cek_supported_python, '>='))
+        msg: "Python version must be at least {{ cek_supported_python }}. Please update"
+
+    - name: read Group Vars
+      stat:
+        path: "{{ inventory_dir }}/group_vars/"
+      register: group_vars_details
+
+    - name: Check Group Vars
+      assert:
+        that: "group_vars_details.stat.exists and group_vars_details.stat.isdir"
+        msg: "File group_vars/all.yml does NOT exist. Must be created per Guide"
+
+    - name: read Host Vars
+      stat:
+        path: "{{ inventory_dir }}/host_vars/{{ item }}.yml"
+      register: host_vars_details
+      with_items: "{{ groups['kube_node'] }}"
+
+    - name: check Host Vars
+      assert:
+        that: "item.stat.exists and item.stat.isreg"
+        msg: "File host_vars/{{ item.item }}.yml does NOT exist. Must be created per Guide"
+      with_items: "{{ host_vars_details.results }}"
+
+    - name: set group_vars_profile variable
+      set_fact:
+        group_vars_profile: "{{ profile_name | default('not generated') }}"
+
+    - name: show profile_name from group_vars
+      debug:
+        msg: "group_vars profile_name is: '{{ group_vars_profile }}'"
+
+    - name: set env_profile variable
+      set_fact:
+        env_profile: "{{ lookup('env','PROFILE') | default('not defined', True) }}"
+
+    - name: show environment PROFILE variable
+      debug:
+        msg: "environment variable PROFILE is: '{{ env_profile }}'"
+
+    - name: assert that environment variable PROFILE and group_vars profile_name matches
+      assert:
+        that: "env_profile == group_vars_profile"
+        fail_msg: >
+          "Content of environment variable 'PROFILE'='{{ env_profile }}' doesn't match
+          group_vars variable 'profile_name'='{{ group_vars_profile }}', please fix this discrepancy"
+      when:
+        - env_profile != 'not defined'
+
 - hosts: k8s_cluster
-  handlers:
-    - name: reboot server
-      reboot: { reboot_timeout: 1200 }
   roles:
     - role: redeploy_cleanup
       tag: cleanup
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: false

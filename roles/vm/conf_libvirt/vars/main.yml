@@ -23,15 +23,19 @@ install_dependencies:
     - virt-manager
     - bridge-utils
     - python3-libvirt
+    - python3-lxml
     - perl
     - numactl
   RedHat:
     - qemu-kvm
-    - libvirt-daemon-system
-    - libvirt-clients
     - genisoimage
     - virt-manager
     - bridge-utils
     - python3-libvirt
+    - python3-lxml
     - perl
     - numactl
+    - "@virt"
+    - virt-top
+    - libguestfs-tools
+    - virt-install

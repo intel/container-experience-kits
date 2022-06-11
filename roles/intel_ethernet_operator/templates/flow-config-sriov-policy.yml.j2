@@ -1,0 +1,22 @@
+{% for iface in hostvars[node_name]['dataplane_interfaces'] %}
+{% if iface.flow_configuration %}
+---
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetworkNodePolicy
+metadata:
+  name: uft-admin-policy-{{ iface.name }}-{{ hostvars[node_name]['ansible_hostname'] }}
+  namespace: {{ sriov_network_operator_namespace }}
+spec:
+  deviceType: vfio-pci
+  nicSelector:
+    pfNames:
+    - "{{ iface.name }}#0-0"
+    vendor: "8086"
+  nodeSelector:
+    feature.node.kubernetes.io/network-sriov.capable: 'true'
+    kubernetes.io/hostname: {{ hostvars[node_name]['ansible_hostname'] }}
+  numVfs: {{ iface.sriov_numvfs | int + 1 }}
+  priority: 99
+  resourceName: {{ flow_config_resource_name }}
+{% endif %}
+{% endfor %}

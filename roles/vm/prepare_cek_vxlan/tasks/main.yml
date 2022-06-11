@@ -1,0 +1,133 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Wait up to 300 seconds until the file /usr/bin/python3 is present before continuing
+  shell: set -o pipefail && ssh {{ vm_ips[item.name] }} 'ls /usr/bin/python3'
+  args:
+    executable: /bin/bash
+  register: python3_ready
+  retries: 30
+  delay: 10
+  until: python3_ready.stdout | length > 0
+  loop: "{{ vms }}"
+  changed_when: true
+  when: vm_image_distribution == "rocky"
+
+- name: Wait for cloud-init to finish on VMs
+  shell: set -o pipefail && cloud-init status | grep done
+  args:
+    executable: /bin/bash
+  register: init_status
+  retries: 60
+  delay: 10
+  until: init_status.stdout | length > 0
+  delegate_to: "{{ vm_ips[item.name] }}"
+  loop: "{{ vms }}"
+  changed_when: true
+
+- name: Get VXLAN MACs of running VMs
+  shell: set -o pipefail && virsh domiflist {{ item.name }} | grep -e "vxlanbr{{ item.vxlan }}" | awk '{print $5}'
+  args:
+    executable: /bin/bash
+  register: vm_vxlan_mac_out
+  retries: 12
+  delay: 10
+  until: vm_vxlan_mac_out.stdout | length > 0
+  loop: "{{ vms }}"
+  changed_when: true
+
+- name: Store VXLAN MACs of running VMs
+  set_fact:
+    vm_vxlan_macs: "{{ vm_vxlan_macs|default({}) | combine( {item.item.name: item.stdout} ) }}"
+  when: item.changed and item.item.name is defined  # noqa 503
+  loop: "{{ vm_vxlan_mac_out.results }}"
+
+- name: Print vm_vxlan_macs
+  debug:
+    var: vm_vxlan_macs
+
+- name: Get VXLAN IPs of running VMs
+  shell: set -o pipefail && ip a | grep -n1 {{ vm_vxlan_macs[item.name] }} | grep 'inet ' | awk '{print $3}' | awk -F'/' '{print $1}'
+  args:
+    executable: /bin/bash
+  register: vm_vxlan_ip_out
+  retries: 12
+  delay: 10
+  until: vm_vxlan_ip_out.stdout | length > 0
+  delegate_to: "{{ vm_ips[item.name] }}"
+  loop: "{{ vms }}"
+  changed_when: true
+
+- name: Store VXLAN IPs of running VMs
+  set_fact:
+    vm_vxlan_ips: "{{ vm_vxlan_ips|default({}) | combine( {item.item.name: item.stdout} ) }}"
+  when: item.changed and item.item.name is defined  # noqa 503
+  loop: "{{ vm_vxlan_ip_out.results }}"
+
+- name: Print vm_vxlan_ips
+  debug:
+    var: vm_vxlan_ips
+
+- name: Update /etc/hosts file on bastion host for VXLAN
+  blockinfile:
+    path: /etc/hosts
+    block: |
+      {{ item.value }} {{ item.key }}
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }} VXLAN"
+  with_items: "{{ vm_vxlan_ips | dict2items }}"
+
+- name: Remove old ECDSA key fingerprint for VXLAN
+  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.value }}"
+  with_items: "{{ vm_vxlan_ips | dict2items }}"
+  changed_when: true
+
+- name: Wait up to 300 seconds for port 22 to become available for VXLAN interface
+  wait_for:
+    port: 22
+    host: '{{ item.value }}'
+    search_regex: OpenSSH
+    delay: 1
+  with_items: "{{ vm_vxlan_ips | dict2items }}"
+  delegate_to: "{{ groups['vm_host'][0] }}"
+
+- name: Delete VM IPs file from user directories
+  file:
+    path: "{{ ansible_user_dir }}/VM_IPs"
+    state: absent
+
+- name: Copy VM IPs to user directories
+  lineinfile:
+    path: "{{ ansible_user_dir }}/VM_IPs"
+    line: "Name: {{ item.name }}, IP: {{ vm_vxlan_ips[item.name] }}"
+    create: yes
+    owner: "{{ ansible_user_id }}"
+    mode: '0400'
+  loop: "{{ vms }}"
+
+- name: Prepare vm invetory file name
+  set_fact:
+    vm_inventory_name: "{{ inventory_file | splitext | first + '_vm' + inventory_file | splitext | last }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: Copy invetory file {{ inventory_file }} to new file {{ vm_inventory_name }}
+  copy:
+    src: "{{ inventory_file }}"
+    dest: "{{ vm_inventory_name }}"
+    mode: '0644'
+    force: yes
+  run_once: true
+  delegate_to: localhost

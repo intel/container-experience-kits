@@ -1,7 +1,8 @@
 [Unit]
 Description=Intel Container Experience Kits SR-IOV configuration for QAT devices
 AssertPathExists=/usr/local/bin/cek_sriov_qat_init
-Before=qat.service
+After=qat.service
+Requires=qat.service
 
 [Service]
 Environment=SRIOV_NUMVFS_MAPPINGS={{ sriov_config_path }}/cek_sriov_qat_numvfs

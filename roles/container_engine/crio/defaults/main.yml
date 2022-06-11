@@ -29,9 +29,18 @@ cri_crio_socket: "/var/run/crio/crio.sock"
 
 crun_enabled: false
 
-# Trusted registries to pull unqualified images (e.g. alpine:latest) from
-# By default unqualified images are not allowed for security reasons
+# Define registiries
 crio_registries: []
+#  - prefix: docker.io
+#    insecure: false
+#    blocked: false
+#    location: registry-1.docker.io
+#    unqualified: true
+#    mirrors:
+#      - location: 172.20.100.52:5000
+#        insecure: true
+#      - location: mirror.gcr.io
+#        insecure: false
 
 # Configure insecure registries.
 crio_insecure_registries: []
@@ -42,18 +51,6 @@ crio_registry_auth: []
 #    username: user
 #    password: pass
 
-# Define registiries mirror
-crio_registries_mirrors: []
-#  - prefix: docker.io
-#    insecure: false
-#    blocked: false
-#    location: registry-1.docker.io
-#    mirrors:
-#      - location: 172.20.100.52:5000
-#        insecure: true
-#      - location: mirror.gcr.io
-#        insecure: false
-
 crio_seccomp_profile: ""
 crio_selinux: false
 
@@ -62,7 +59,7 @@ crio_selinux: false
 
 crio_stream_port: "10010"
 
-crio_version: "1.21"
+crio_version: "1.22"
 
 # The crio_runtimes variable defines a list of OCI compatible runtimes.
 crio_runtimes:

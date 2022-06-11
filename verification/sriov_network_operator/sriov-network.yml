@@ -1,0 +1,20 @@
+---
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetwork
+metadata:
+  name: sriov-netdev-ipam
+  namespace: sriov-network-operator
+spec:
+  ipam: |
+    {
+      "type": "host-local",
+      "subnet": "10.11.12.0/24",
+      "rangeStart": "10.11.12.171",
+      "rangeEnd": "10.11.12.181",
+      "routes": [{
+        "dst": "0.0.0.0/0"
+      }],
+      "gateway": "10.11.12.1"
+    }
+  networkNamespace: default
+  resourceName: ens786_intelnics_1

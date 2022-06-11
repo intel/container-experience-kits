@@ -1,0 +1,29 @@
+{%- for sriov_res in minio_tenant_sriov_resources %}
+{% set ip_third_digit = 217 + loop.index0 %}
+---
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetwork
+metadata:
+  name: {{ sriov_res['sriov_network'] }}
+  namespace: {{ sriov_network_operator_namespace }}
+spec:
+  ipam: |
+    {
+      "type": "whereabouts",
+      "log_file": "/tmp/whereabouts.log",
+      "log_level": "debug",
+      "range": "10.56.{{ ip_third_digit }}.0/16",
+      "range_start": "10.56.{{ ip_third_digit }}.100",
+      "range_end": "10.56.{{ ip_third_digit }}.200",
+      "routes": [{
+        "dst": "0.0.0.0/0"
+      }],
+      "gateway": "10.56.{{ ip_third_digit }}.1"
+    }
+  vlan: 0
+  resourceName: {{ sriov_res['name'] }}
+  networkNamespace: {{ minio_tenant_namespace }}
+  spoofChk: 'on'
+  trust: 'off'
+  capabilities: '{ "ips": true }'
+{% endfor %}

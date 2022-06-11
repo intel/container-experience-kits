@@ -22,6 +22,15 @@
     force: yes
   when: inventory_hostname in groups['kube_node']
 
+# NOTE(pklimowx): w/a for error "ModuleNotFoundError: No module named 'pqos'"
+- name: copy pqos module to appqos working dir
+  copy:
+    remote_src: yes
+    src: "{{ (intel_appqos_dir, 'lib', 'python', 'pqos') | path_join }}"
+    dest: "{{ (intel_appqos_dir, 'appqos') | path_join }}"
+    mode: 0755
+  when: inventory_hostname in groups['kube_node']
+
 # NOTE(pklimowx): since AppQoS image is not available on docker hub
 # and public images of the Power Operator use `appqos:latest` image,
 # we have to build AppQoS image on each node, and push it to localregistry
@@ -30,14 +39,6 @@
 # docker runtime is in use
 - name: prepare image for Application Quality of Service
   block:
-    # NOTE(pklimowx): w/a for error "ModuleNotFoundError: No module named 'pqos'"
-    - name: copy pqos module to appqos working dir
-      copy:
-        remote_src: yes
-        src: "{{ (intel_appqos_dir, 'lib', 'python', 'pqos') | path_join }}"
-        dest: "{{ (intel_appqos_dir, 'appqos') | path_join }}"
-        mode: 0755
-
     - name: build image of App QoS
       command: docker build --no-cache -t appqos -f Dockerfile ../../
       args:
@@ -58,12 +59,12 @@
 - name: prepare image for Application Quality of Service
   block:
     - name: build and tag App QoS image
-      command: buildah bud -f Dockerfile -t {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      command: podman build -f Dockerfile -t {{ registry_local_address }}/appqos:{{ intel_appqos_version }} ../../
       args:
         chdir: "{{ (intel_appqos_dir, 'appqos', 'docker') | path_join }}"
 
     - name: push App QoS image to local registry
-      command: buildah push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      command: podman push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
       changed_when: true
       when: inventory_hostname == groups['kube_node'][0]
   when:
@@ -76,8 +77,8 @@
       file:
         state: directory
         path: "{{ intel_appqos_cert_dir }}"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ ansible_user | default(ansible_user_id) }}"
+        group: "{{ ansible_user | default(ansible_user_id) }}"
         mode: 0755
         recurse: yes
 
@@ -94,8 +95,8 @@
       copy:
         src: appqos.conf
         dest: "{{ intel_appqos_cert_dir }}"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ ansible_user | default(ansible_user_id) }}"
+        group: "{{ ansible_user | default(ansible_user_id) }}"
         mode: 0644
 
 - name: set facts for Intel App QoS templates

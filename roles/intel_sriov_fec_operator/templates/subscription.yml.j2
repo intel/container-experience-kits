@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: intel-sriov-fec-subscription
+  namespace: "{{ intel_sriov_fec_operator_namespace }}"
+spec:
+  channel: stable
+  name: sriov-fec
+  source: intel-operators
+  sourceNamespace: olm

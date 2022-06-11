@@ -1,0 +1,10 @@
+{% set minio_sriov_numvfs = ansible_loop.index %}
+{% if hostvars[groups['kube_node'][0]]['dataplane_interfaces'][ansible_loop.index0]['minio_vf'] == True %}
+  - name: {{ sriov_vf_name }}
+    resource:
+      requests:
+        "{{ sriov_resource_name_prefix | default('intel.com') ~ '/' ~ sriov_vf_name }}: '1'"
+      limits:
+        "{{ sriov_resource_name_prefix | default('intel.com') ~ '/' ~ sriov_vf_name }}: '1'"
+    sriov_network: {{ minio_sriov_network_name_prefix }}-{{ minio_sriov_numvfs }}
+{% endif %}

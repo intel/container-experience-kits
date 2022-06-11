@@ -64,7 +64,7 @@
 
 - name: build and tag NFD image
   command: >-
-    buildah bud -f Dockerfile
+    podman build -f Dockerfile
     --build-arg=VERSION={{ nfd_img_version.stdout }}
     --build-arg=HOSTMOUNT_PREFIX=/host-
     --build-arg=BASE_IMAGE_FULL=debian:buster-slim
@@ -79,7 +79,7 @@
     - '"docker" not in container_runtime'
 
 - name: push NFD image to local registry
-  command: buildah push {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
+  command: podman push {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
   changed_when: true
   when:
     - inventory_hostname == groups['kube_node'][0]

@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: check MinIO Operator Helm charts directory.
+- name: check MinIO Operator Helm charts directory
   stat:
     path: "{{ (project_root_dir, 'charts', 'operator') | path_join }}"
   register: operator_dir
@@ -62,7 +62,7 @@
 
 - name: label minio on nodes
   command: >-
-    kubectl label --overwrite nodes {{ item }}
+    kubectl label --overwrite nodes {{ hostvars[item]['ansible_hostname'] }}
     {{ minio_storage_worker_key }}={{ minio_storage_worker_value }}
   loop: "{{ groups['kube_node'] }}"
   changed_when: true

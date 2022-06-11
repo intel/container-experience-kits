@@ -30,6 +30,16 @@
   when: item in cpu_model.stdout
   loop: "{{ supported_clx_skus }}"
 
+- name: set is_clx_nsku to false
+  set_fact:
+    is_clx_nsku: False
+
+- name: check if clx_nsku mode
+  set_fact:
+    is_clx_nsku: True
+  when: item in cpu_model.stdout
+  loop: "{{ supported_clx_nskus }}"
+
 - name: set is_icx to false
   set_fact:
     is_icx: False

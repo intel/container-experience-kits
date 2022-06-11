@@ -14,6 +14,11 @@
 ##   limitations under the License.
 ##
 ---
+- name: combine defaults and user provided vars
+  set_fact:
+    kmra: "{{ kmra_defaults | combine(kmra | default({}), recursive=True) }}"
+  no_log: true
+
 - name: determine machine type
   include_role:
     name: check_machine_type
@@ -27,7 +32,7 @@
         name: sgx_prv
         state: present
       when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
           or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
 
     - name: add user to sgx_prv group
@@ -36,7 +41,7 @@
         groups: sgx_prv
         append: yes
       when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
           or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
 
     - name: create udev rules
@@ -52,14 +57,14 @@
           SUBSYSTEM=="misc",KERNEL=="sgx_enclave",MODE="0666",SYMLINK+="sgx/enclave"
           SUBSYSTEM=="misc",KERNEL=="sgx_provision",GROUP="sgx_prv",MODE="0660",SYMLINK+="sgx/provision"
       when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
           or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
 
     - name: load udev rules
       # noqa 305 - shell is used intentionally here
       shell: udevadm trigger
       when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04')
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
           or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
 
     - name: determine sgx_prv GID
@@ -67,7 +72,54 @@
         database: group
         key: sgx_prv
   when:
+    - kmra.ctk_loadkey_demo.enabled | bool
     - inventory_hostname == groups['kube_node'][0]
+    - is_icx | default(false) | bool or
+      is_spr | default(false) | bool
+
+- name: update aesmd/qcnl host settings
+  block:
+    - name: update qcnl configuration pccs url
+      lineinfile:
+        path: /etc/sgx_default_qcnl.conf
+        regexp: '^(\s+)"pccs_url":.*$'
+        line: '\1"pccs_url": "https://{{ kmra.pccs.hostname }}:{{ kmra.pccs.upstream_port }}/sgx/certification/v3/",'
+        state: present
+        mode: 0644
+        backrefs: yes
+
+    - name: update qcnl configuration unsecure cert usage
+      lineinfile:
+        path: /etc/sgx_default_qcnl.conf
+        regexp: '^(\s+)"use_secure_cert":.*$'
+        line: '\1"use_secure_cert": false,'
+        state: present
+        mode: 0644
+        backrefs: yes
+
+    - name: update aesmd service configuration
+      lineinfile:
+        path: /etc/aesmd.conf
+        regexp: '^#default quoting type = ecdsa_256$'
+        line: 'default quoting type = ecdsa_256'
+        state: present
+        mode: 0644
+
+    - name: restart aesmd service to apply config changes
+      service:
+        state: restarted
+        name: aesmd
+
+    - name: get aesmd service facts
+      service_facts:
+      register: service_info
+
+    - debug:
+        var: service_info.ansible_facts.services['aesmd.service'].state
+      failed_when: "'running' not in service_info.ansible_facts.services['aesmd.service'].state"
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+    - kmra.pccs.enabled
     - is_icx | default(false) | bool or
       is_spr | default(false) | bool
 
@@ -81,10 +133,10 @@
       include: cleanup.yml
 
     - name: label worker node with KMRA label
-      command: kubectl label nodes {{ groups['kube_node'][0] }} app=kmra --overwrite
+      command: kubectl label nodes {{ hostvars[groups['kube_node'][0]]['ansible_hostname'] }} app=kmra --overwrite
 
     - name: create kmra ns if not existing
-      shell: "set -o pipefail && kubectl create ns {{ kmra_namespace }} -o yaml --dry-run=client | kubectl apply -f -"
+      shell: "set -o pipefail && kubectl create ns {{ kmra.namespace }} -o yaml --dry-run=client | kubectl apply -f -"
       args:
         executable: /bin/bash
       changed_when: true
@@ -93,25 +145,42 @@
       include: create_tls_secrets.yml
       vars:
         kmra_apps:
-          - { name: "{{ kmra_pccs_release_name }}", subj: "{{ kmra_pccs_crt_subj }}", deploy: true }
-          - { name: "{{ kmra_apphsm_release_name }}", subj: "{{ kmra_apphsm_crt_subj }}", deploy: true }
-          - { name: "{{ kmra_ctk_release_name }}", subj: "{{ kmra_ctk_crt_subj }}", deploy: "{{ kmra_deploy_demo_workload | default(false) }}" }
+          - {
+              name: "{{ kmra.pccs.release_name }}",
+              subj: "{{ kmra.pccs.crt_subj }}",
+              deploy: "{{ kmra.pccs.enabled | default(false) }}"
+            }
+          - {
+              name: "{{ kmra.apphsm.release_name }}",
+              subj: "{{ kmra.apphsm.crt_subj }}",
+              deploy: "{{ kmra.apphsm.enabled | default(false) }}"
+            }
+          - {
+              name: "generic-apphsm-client",
+              subj: { O: "AppHSM",  OU: "{{ kmra.apphsm.generic_client_cert_id }}" },
+              deploy: "{{ kmra.apphsm.enabled | default(false) }}"
+            }
+          - {
+              name: "{{ kmra.ctk_loadkey_demo.release_name }}",
+              subj: "{{ kmra.ctk_loadkey_demo.crt_subj }}",
+              deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"
+            }
 
     - name: create Helm charts directory if needed
       file:
-        path: "{{ project_root_dir }}/charts"
+        path: "{{ (project_root_dir, 'charts') | path_join }}"
         state: directory
         mode: 0755
 
     - name: copy KMRA Helm chart to the controller node
       copy:
-        src: "{{ role_path }}/charts/{{ item.chart }}"
-        dest: "{{ project_root_dir }}/charts"
+        src: "{{ (role_path, 'charts', item.chart) | path_join }}"
+        dest: "{{ (project_root_dir, 'charts')  | path_join }}"
         mode: 0755
       loop:
-        - { chart: 'kmra-pccs', deploy: true }
-        - { chart: 'kmra-apphsm', deploy: true }
-        - { chart: 'kmra-ctk', deploy: "{{ kmra_deploy_demo_workload | default(false) }}" }
+        - { chart: 'kmra-pccs', deploy: "{{ kmra.pccs.enabled | default(false) }}" }
+        - { chart: 'kmra-apphsm', deploy: "{{ kmra.apphsm.enabled | default(false) }}" }
+        - { chart: 'kmra-ctk', deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}" }
       when:
         - item.deploy
 
@@ -123,60 +192,64 @@
         mode: preserve
       loop:
         - {
-            src: 'kmra-pccs-values.yaml.j2',
-            dest: '{{ project_root_dir }}/charts/kmra-pccs-values.yml',
-            deploy: true
+            src: "kmra-pccs-values.yaml.j2",
+            dest: "{{ (project_root_dir, 'charts', 'kmra-pccs-values.yml') | path_join }}",
+            deploy: "{{ kmra.pccs.enabled | default(false) }}"
           }
         - {
-            src: 'kmra-pccs-rbac-cluster-role.yml.j2',
-            dest: "{{ kmra_pccs_chart_path }}/templates/kmra-pccs-rbac-cluster-role.yml",
-            deploy: true
+            src: "kmra-pccs-rbac-cluster-role.yml.j2",
+            dest: "{{ (kmra.pccs.chart_path, 'templates','kmra-pccs-rbac-cluster-role.yml') | path_join }}",
+            deploy: "{{ kmra.pccs.enabled | default(false) }}"
           }
         - {
-            src: 'kmra-apphsm-values.yaml.j2',
-            dest: '{{ project_root_dir }}/charts/kmra-apphsm-values.yml',
-            deploy: true
+            src: "kmra-apphsm-values.yaml.j2",
+            dest: "{{ (project_root_dir, 'charts', 'kmra-apphsm-values.yml') | path_join }}",
+            deploy: "{{ kmra.apphsm.enabled | default(false) }}"
           }
         - {
-            src: 'kmra-apphsm-rbac-cluster-role.yml.j2',
-            dest: "{{ kmra_apphsm_chart_path }}/templates/kmra-apphsm-rbac-cluster-role.yml",
-            deploy: true
+            src: "kmra-apphsm-rbac-cluster-role.yml.j2",
+            dest: "{{ (kmra.apphsm.chart_path, 'templates', 'kmra-apphsm-rbac-cluster-role.yml') | path_join }}",
+            deploy: "{{ kmra.apphsm.enabled | default(false) }}"
           }
         - {
-            src: 'kmra-ctk-values.yaml.j2',
-            dest: '{{ project_root_dir }}/charts/kmra-ctk-values.yml',
-            deploy: "{{ kmra_deploy_demo_workload | default(false) }}"
+            src: "kmra-ctk-values.yaml.j2",
+            dest: "{{ (project_root_dir, 'charts', 'kmra-ctk-values.yml') | path_join }}",
+            deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"
           }
         - {
-            src: 'kmra-ctk-loadkey-rbac-cluster-role.yml.j2',
-            dest: "{{ kmra_ctk_chart_path }}/templates/kmra-ctk-loadkey-rbac-cluster-role.yml",
-            deploy: "{{ kmra_deploy_demo_workload | default(false) }}"
+            src: "kmra-ctk-loadkey-rbac-cluster-role.yml.j2",
+            dest: "{{ (kmra.ctk_loadkey_demo.chart_path, 'templates', 'kmra-ctk-loadkey-rbac-cluster-role.yml') | path_join }}",
+            deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"
           }
       when:
         - item.deploy
 
     - name: install KMRA pccs helm chart
       command: >-
-        helm upgrade -i {{ kmra_pccs_release_name }}
-        --namespace {{ kmra_namespace }}
-        -f {{ kmra_pccs_helm_values_file }}
-        {{ kmra_pccs_chart_path }}
+        helm upgrade -i {{ kmra.pccs.release_name }}
+        --namespace {{ kmra.namespace }}
+        -f {{ kmra.pccs.helm_values_file }}
+        {{ kmra.pccs.chart_path }}
+      when:
+        - kmra.pccs.enabled | default(false)
 
     - name: install KMRA AppHSM helm chart
       command: >-
-        helm upgrade -i {{ kmra_apphsm_release_name }}
-        --namespace {{ kmra_namespace }}
-        -f {{ kmra_apphsm_helm_values_file }}
-        {{ kmra_apphsm_chart_path }}
+        helm upgrade -i {{ kmra.apphsm.release_name }}
+        --namespace {{ kmra.namespace }}
+        -f {{ kmra.apphsm.helm_values_file }}
+        {{ kmra.apphsm.chart_path }}
+      when:
+        - kmra.apphsm.enabled | default(false)
 
     - name: install KMRA Ctk loadkey helm chart
       command: >-
-        helm upgrade -i {{ kmra_ctk_release_name }}
-        --namespace {{ kmra_namespace }}
-        -f {{ kmra_ctk_helm_values_file }}
-        {{ kmra_ctk_chart_path }}
+        helm upgrade -i {{ kmra.ctk_loadkey_demo.release_name }}
+        --namespace {{ kmra.namespace }}
+        -f {{ kmra.ctk_loadkey_demo.helm_values_file }}
+        {{ kmra.ctk_loadkey_demo.chart_path }}
       when:
-        - kmra_deploy_demo_workload | default(false)
+        - kmra.ctk_loadkey_demo.enabled | default(false)
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
     - hostvars[groups['kube_node'][0]]['is_icx'] or

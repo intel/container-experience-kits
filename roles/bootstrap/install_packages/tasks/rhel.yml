@@ -14,18 +14,18 @@
 ##   limitations under the License.
 ##
 ---
-- name: enable powertools repository on CentOS >= 8.3
+- name: enable powertools repository on Rocky >= 8.3
 # noqa 303 - yum is called intenionallly here
   command: yum config-manager --set-enabled powertools
   when:
-    - ansible_distribution == "CentOS"
+    - ansible_distribution in ['CentOS', 'Rocky']
     - ansible_distribution_version >= '8.3'
 
 - name: enable CodeReady Linux Builder repository on RHEL 8
   rhsm_repository:
     name: codeready-builder-for-rhel-8-x86_64-rpms
   when:
-    - ansible_distribution == "RedHat"
+    - ansible_distribution in ['RedHat']
     - ansible_distribution_version >= '8'
 
 - name: install epel-release on CentOS
@@ -39,14 +39,14 @@
     state: present
     key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8
   when:
-    - ansible_distribution == "RedHat"
+    - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '8'
 
 - name: install epel-release on RHEL8
   package:
     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
   when:
-    - ansible_distribution == "RedHat"
+    - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '8'
 
 - name: get full distribution versions
@@ -110,20 +110,37 @@
     - name: removing unrequired dependencies in CentOS 8.4
       package:
         name:
-         - glibc-lib32
-         - ltp-ddt
+          - glibc-lib32
+          - ltp-ddt
         state: absent
 
     - name: install required dependencies before update all packages in CentOS 8.4
+    # noqa 403 - intentionally request latest
       package:
         name:
-         - python3-libstoragemgmt
-         - kmod-kvdo
+          - python3-libstoragemgmt
+          - kmod-kvdo
         state: latest
       when: update_all_packages
   when:
     - ansible_distribution == "CentOS"
     - ansible_distribution_version == '8.4'
+
+- name: pull matching kernel headers on Rocky 8.5
+  package:
+    name: "{{ item }}"
+    state: present
+  retries: 5
+  delay: 10
+  register: source_status
+  until: source_status is not failed
+  with_items:
+    - "https://dl.rockylinux.org/pub/rocky/8.5/BaseOS/x86_64/kickstart/Packages/k/kernel-headers-4.18.0-348.el8.0.2.x86_64.rpm"
+    - "https://dl.rockylinux.org/pub/rocky/8.5/BaseOS/x86_64/kickstart/Packages/k/kernel-devel-4.18.0-348.el8.0.2.x86_64.rpm"
+  when:
+    - ansible_distribution == "Rocky"
+    - ansible_distribution_version == '8.5'
+    - not update_kernel
 
 # pull the matching kernel headers if kernel is not updated
 - name: pull matching kernel headers from configured repos
@@ -137,7 +154,7 @@
   until: kernel_source is success
   when:
     - not source_status.changed
-    - (ansible_distribution == "RedHat") or
+    - (ansible_distribution in ['RedHat', 'Rocky']) or
       (ansible_distribution == "CentOS" and ansible_distribution_version != '8.4')
     - not update_kernel
 
@@ -151,7 +168,7 @@
   package:
     name: python3-pip
   when:
-    - ansible_distribution in ["RedHat", "CentOS"]
+    - ansible_os_family == "RedHat"
     - ansible_distribution_version >= '8'
 
 - name: update all packages
@@ -181,53 +198,16 @@
     path: /usr/bin/python3
     link: /usr/bin/python
   when:
-    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+    - ansible_os_family == "RedHat"
     - ansible_distribution_version >= '8'
 
 - name: install command line tools to collect hardware details
   package:
     name:
-     - hwinfo
      - inxi
      - jq
     state: present
-  when: ansible_distribution in ["RedHat", "CentOS"]
-
-- name: add kubic yum repo and install updated version of buildah
-  block:
-    - name: disable container-tools module
-      # noqa 305 - shell is used intentionally here
-      shell: dnf -y module disable container-tools
-
-    - name: enable rhcontainerbot/container-selinux repository
-      # noqa 305 - shell is used intentionally here
-      shell: dnf -y copr enable rhcontainerbot/container-selinux
-
-    - name: add kubic yum repo
-      yum_repository:
-        name: devel_kubic_libcontainers_stable
-        description: Stable Releases of Upstream github.com/containers packages (CentOS_$releasever)
-        baseurl: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_$releasever/
-        gpgcheck: yes
-        gpgkey: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_$releasever/repodata/repomd.xml.key
-        keepcache: '0'
-
-    - name: install crun
-      dnf:
-        name: crun
-        state: present
-
-    - name: install buildah package
-      package:
-        name: buildah
-        state: present
-
-    - name: enable container-tools module
-      # noqa 305 - shell is used intentionally here
-      shell: dnf -y module enable container-tools
-  when:
-    - ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
-    - '"docker" not in container_runtime'
+  when: ansible_os_family == "RedHat"
 
 # SELINUX will be disabled later stage so, these packages are required when container_runtime is docker
 - name: install packages in RHEL >= 8.4 when container_runtime is docker
@@ -242,5 +222,5 @@
       - chrony
       - iputils
   when:
-    - ansible_distribution == "RedHat" and ansible_distribution_version >= '8.4'
+    - ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version >= '8.4'
     - container_runtime == "docker"

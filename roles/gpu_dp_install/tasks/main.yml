@@ -59,7 +59,7 @@
 - name: prepare image for Intel GPU Device Plugin
   block:
     - name: build and tag Intel GPU Device Plugin image
-      command: buildah bud -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      command: podman build -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
       args:
         chdir: "{{ intel_gpu_dp_dir }}"
       changed_when: true
@@ -68,7 +68,7 @@
         - { file: intel-gpu-plugin.Dockerfile, name: intel-gpu-plugin }
 
     - name: push Intel GPU Device Plugin image to local registry
-      command: buildah push {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      command: podman push {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
       changed_when: true
       with_items:
         - { name: intel-gpu-initcontainer }
@@ -91,18 +91,18 @@
     - name: create directory for GPU DP files
       file:
         state: directory
-        path: "{{ project_root_dir }}/gpu_dp/"
+        path: "{{ (project_root_dir, 'gpu_dp') | path_join }}"
         mode: 0644
 
     - name: populate Intel GPU Device Plugin yaml file and push to controller node
       template:
         src: "intel-gpu-plugin.yml.j2"
-        dest: "{{ project_root_dir }}/gpu_dp/intel-gpu-plugin.yml"
+        dest: "{{ (project_root_dir, 'gpu_dp', 'intel-gpu-plugin.yml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: deploy Intel GPU Device Plugin with the Intel Device Plugin Operator
       k8s:
         state: present
-        src: "{{ project_root_dir }}/gpu_dp/intel-gpu-plugin.yml"
+        src: "{{ (project_root_dir, 'gpu_dp', 'intel-gpu-plugin.yml') | path_join }}"
   when: inventory_hostname == groups['kube_control_plane'][0]

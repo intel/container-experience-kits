@@ -1,8 +1,8 @@
 ---
 ## Container Experience Kits (CEK) primary playbook variables ##
-# Do not change profile_name and configured_arch here !!!
+# Do not change profile_name and configured_arch here!
 # To generate vars for different profile/architecture use make command
-# generated for profile and arch:
+# At present, the profile and arch generated are as follows
 profile_name: {{ name }}
 configured_arch: {{ arch }}
 
@@ -11,20 +11,21 @@ project_root_dir: /opt/cek/
 
 vm_enabled: {% if vm_mode == 'on' %}true{% else %}false{% endif %}
 {%- if vm_mode in ['optional'] %}
-# vm_mode can't be enabled manualy here
-# to enable it, vm specific configuration from examples/vm need to be taken
+# vm_mode can't be enabled manually here
+# To enable it, vm specific configuration from examples/vm need to be taken
 {%- endif %}
 
 # Kubernetes version
 kubernetes: true
-kube_version: v1.22.3
+kube_version: v1.23.4
+#kube_version: v1.22.3
 #kube_version: v1.21.5
-#kube_version: v1.20.6
 # To deploy only container runtime set this variable as "true", and kubernetes as "false"
-# set both variables as "false" to perform only host configuration
+# Set both variables as "false" to perform only host configuration
 container_runtime_only_deployment: false
 
 # Kubernetes container runtime: docker, containerd, crio
+# When "crio" is set, please enable "crio_registries" section
 container_runtime: docker
 
 # Preflight will check vars configuration
@@ -49,6 +50,11 @@ nfd_enabled: {% if nfd == 'on' %}true{% else %}false{% endif %}
 nfd_build_image_locally: false
 nfd_namespace: kube-system
 nfd_sleep_interval: 60s
+{% endif %}
+
+{%- if kube_dashboard in ['on', 'optional'] %}
+# Kubernetes Dashboard
+kube_dashboard_enabled: {% if kube_dashboard == 'on' %}true{% else %}false{% endif %}
 {% endif %}
 
 {%- if native_cpu_manager in ['on', 'optional'] %}
@@ -107,7 +113,7 @@ sriovdp_config_data: |
                     "devices": ["1889"],
                     "drivers": ["vfio-pci"]
                 }
-            {% if name in ['full_nfv', 'access', 'regional_dc'] -%}
+            {% if name in ['full_nfv', 'access', 'regional_dc', 'build_your_own'] -%}
             },
             {
                 "resourceName": "intel_fpga",
@@ -127,24 +133,37 @@ sriovdp_config_data: |
 {%- if power_manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] %}
 # Intel Kubernetes Power Manager
 intel_power_manager:
-    enabled: {% if power_manager == 'on' %}true{% else %}false{% endif %}
-    # The performance profile is available for nodes that has CPU max MHz > 3500.0000 - use 'lscpu' command to see your node details
-    power_profiles: [performance, balance-performance, balance-power]       # the list of PowerProfiles that will be available on the nodes
-                                                                            # possible PowerProfiles are: performance, balance_performance, balance_power
-    power_nodes: []                                                         # list of nodes that should be considered during Operator work and profiles deployment
-    build_image_locally: false
-    deploy_example_pods: false                                      # deploy example Pods that will utilize special resources
-    global_shared_profile_enabled: false                            # deploy custom Power Profile with user defined frequencies that can be applied to all power nodes
-                                                                    # to make use of Shared Profile fill Shared Workload settings in host vars
-    max_shared_frequency: 1500                                      # max frequency that will be applied for cores by Shared Workload
-    min_shared_frequency: 1000                                      # min frequency that will be applied for cores by Shared Workload
+  enabled: {% if power_manager == 'on' %}true{% else %}false{% endif %}   # enable intel_power_manager
+  # The performance profile is available for nodes that has CPU max MHz > 3500.0000 - use 'lscpu' command to see your node details
+  power_profiles: [performance, balance-performance, balance-power]       # the list of PowerProfiles that will be available on the nodes
+                                                                          # possible PowerProfiles are: performance, balance_performance, balance_power
+  power_nodes: []                                                         # list of nodes that should be considered during Operator work and profiles deployment
+    # - node1
+    # - node2
+  build_image_locally: false
+  deploy_example_pods: false                                      # deploy example Pods that will utilize special resources
+  global_shared_profile_enabled: false                            # deploy custom Power Profile with user defined frequencies that can be applied to all power nodes
+                                                                  # to make use of Shared Profile fill Shared Workload settings in host vars
+  max_shared_frequency: 1500                                      # max frequency that will be applied for cores by Shared Workload
+  min_shared_frequency: 1000                                      # min frequency that will be applied for cores by Shared Workload
 {% endif %}
 
 {%- if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr'] or
-    gpu in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] or
+    gpu_dp in ['on', 'optional'] or
     qat_dp in ['on', 'optional'] %}
 # Intel Device Plugin Operator
 intel_dp_namespace: kube-system # namespace will be applied for SGX DP, GPU DP and QAT DP
+{% endif %}
+
+{%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
+# Intel Ethernet Operator for Intel E810 Series network interface cards
+intel_ethernet_operator_enabled: {% if intel_ethernet_operator.enabled == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}
+intel_ethernet_operator_flow_config_enabled: {% if intel_ethernet_operator.flow_config == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}
+{% endif %}
+
+{%- if intel_sriov_fec_operator in ['on', 'optional'] %}
+# Intel Operator for SR-IOV Wireless Forward Error Correction (FEC) Accelerators
+intel_sriov_fec_operator_enabled: {% if intel_sriov_fec_operator == 'on' %}true{% else %}false{% endif %} # if true, deploy FEC Operator
 {% endif %}
 
 {%- if qat_dp in ['on', 'optional'] %}
@@ -166,6 +185,7 @@ qat_supported_pf_dev_ids:
   - "6f54"
   - "18a0"
   - "4940"
+  - "4942"
 
 qat_supported_vf_dev_ids:
   - "443"
@@ -175,22 +195,23 @@ qat_supported_vf_dev_ids:
   - "6f55"
   - "18a1"
   - "4941"
+  - "4943"
 {% endif %}
 
 {%- if openssl in ['on', 'optional'] %}
 # This feature will enable OpenSSL*Engine
-openssl_engine_enabled: {% if openssl == 'on' and qat == 'on' %}true{% else %}false{% endif %} # To activate OpenSSL*Engine set both install_openssl and update_qat_drivers to 'true' in host_vars
+openssl_engine_enabled: {% if openssl == 'on' and qat == 'on' %}true{% else %}false{% endif %} # to activate OpenSSL*Engine set both install_openssl and update_qat_drivers to 'true' in host_vars
 {% endif %}
 
-{%- if gpu in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] %}
+{%- if gpu_dp in ['on', 'optional'] %}
 # Intel GPU Device Plugin for Kubernetes
 gpu_dp_enabled: {% if gpu == 'on' %}true{% else %}false{% endif %}
 gpu_dp_kernel_version: "5.4.48+"
 gpu_dp_verbosity: 4
 gpu_dp_build_image_locally: false
 
-# Please refer to: https://github.com/intel/intel-device-plugins-for-kubernetes/tree/v0.23.0/cmd/gpu_plugin#configuration-options
-# to fully discover the below settings usage
+# Configuration-options
+# To fully discover the below settings usage, please refer to: https://github.com/intel/intel-device-plugins-for-kubernetes/tree/v0.23.0/cmd/gpu_plugin
 gpu_dp_shared_devices: 10  # number of containers (min. 1) that can share the same GPU device
 gpu_dp_monitor_resources: false  # enable monitoring all GPU resources on the node
 gpu_dp_fractional_manager: false  # enable handling of fractional resources for multi-GPU nodes
@@ -208,40 +229,83 @@ gpu_dp_max_memory: "8 GB" # max memory per card - for Intel SG1 single card has 
 sgx_dp_enabled: {% if sgx_dp == 'on' %}true{% else %}false{% endif %}
 sgx_dp_verbosity: 4
 sgx_dp_build_image_locally: false
-sgx_aesmd_namespace: kube-system
-# ProvisionLimit is a number of containers that can share
-# the same SGX provision device.
+sgx_aesmd_namespace: intel-sgx-aesmd
+# Deploy SGX AESMD demo app workload
+sgx_aesmd_demo_enable: false
+# ProvisionLimit is a number of containers that can share the same SGX provision device.
 sgx_dp_provision_limit: 20
-# EnclaveLimit is a number of containers that can share the
-# same SGX enclave device.
+# EnclaveLimit is a number of containers that can share the same SGX enclave device.
 sgx_dp_enclave_limit: 20
 {% endif %}
 
-{%- if kmra in ['on', 'optional'] and arch in ['icx', 'spr'] %}
+{%- if (kmra and (kmra.pccs in ['on', 'optional'] or
+    kmra.apphsm in ['on', 'optional'] or
+    kmra.ctk_demo in ['on', 'optional'])) and
+    arch in ['icx', 'spr'] %}
 # KMRA (Key Management Reference Application)
-kmra_enabled: {% if kmra == 'on' %}true{% else %}false{% endif %}
-# The PCCS uses this API key to request collaterals from Intel's Provisioning Certificate Service.
-# User needs to subscribe first to obtain an API key.
-# For how to subscribe to Intel Provisioning Certificate Service and receive an API key,
-# goto https://api.portal.trustedservices.intel.com/provisioning-certification and click on 'Subscribe'.
-kmra_pccs_api_key: "ffffffffffffffffffffffffffffffff"
-# deploy KMRA demo workload (NGINX server)
-kmra_deploy_demo_workload: true
+kmra:
+  {%- if kmra.pccs in ['on', 'optional'] %}
+  pccs:
+    enabled: {% if kmra.pccs == 'on' %}true{% else %}false{% endif %}   # enable PCCS application
+    # The PCCS uses this API key to request collaterals from Intel's Provisioning Certificate Service. User needs to subscribe first to obtain an API key.
+    # For how to subscribe to Intel Provisioning Certificate Service and receive an API key, go to https://api.portal.trustedservices.intel.com/provisioning-certification,
+    # and get an API key by clicking 'Subscribe'.
+    api_key: "ffffffffffffffffffffffffffffffff"
+  {%- endif %}
+  {%- if kmra.apphsm in ['on', 'optional'] %}
+  apphsm:
+    enabled: {% if kmra.apphsm == 'on' %}true{% else %}false{% endif %}   # enable AppHSM application
+  {%- endif %}
+  {%- if kmra.ctk_demo in ['on', 'optional'] %}
+  ctk_loadkey_demo:
+    enabled: {% if kmra.ctk_demo == 'on' %}true{% else %}false{% endif %}   # enable CTK demo application
+  {%- endif %}
 {% endif %}
 
-{%- if service_mesh in ['on', 'optional'] %}
+{%- if service_mesh and service_mesh.enabled in ['on', 'optional'] %}
 # Service mesh deployment
 # https://istio.io/latest/docs/setup/install/istioctl/
 
 # for all available options, please, refer to the 'roles/service_mesh_install/vars/main.yml;
 service_mesh:
-  enabled: {% if service_mesh == 'on' %}true{% else %}false{% endif %}
+  enabled: {% if service_mesh.enabled == 'on' %}true{% else %}false{% endif %}   # enable Service Mesh
   # available profiles are: 'default', 'demo', 'minimal', 'external', 'empty', 'preview'
   # if custom profile needs to be deployed, please, place the file named '<profile_name>.yaml'
   # into the directory 'roles/service_mesh_install/files/profiles/'
-  profile: default
+  # 'custom-ca' profile name is reserved for usage by sgx_signer if sgx_signer option is enabled
+  # any name provided will be overwritten in this case
+  profile: {% if service_mesh.sgx_signer == 'on' and arch in ['icx', 'spr'] %}custom-ca{% else %}default{% endif %}
+  {%- if service_mesh.tcpip_bypass_ebpf in ['on', 'optional'] %}
   tcpip_bypass_ebpf:
-    enabled: true
+    enabled: {% if service_mesh.tcpip_bypass_ebpf == 'on' %}true{% else %}false{% endif %}  # enable tcp/ip ebpf bypass demo
+  {%- endif %}
+  {%- if service_mesh.tls_splicing in ['on', 'optional'] %}
+  tls_splicing:
+    enabled: {% if service_mesh.tls_splicing == 'on' %}true{% else %}false{% endif %}   # enable TLS splicing demo
+  {%- endif %}
+  {%- if service_mesh.sgx_signer in ['on', 'optional'] and arch in ['icx', 'spr'] %}
+  sgx_signer:
+    enabled: {% if service_mesh.sgx_signer == 'on' %}true{% else %}false{% endif %}   # enable automated key management integration
+    name: sgx-signer
+  {%- endif %}
+{% endif %}
+
+{%- if tcs in ['on', 'optional'] and
+    arch in ['icx', 'spr'] %}
+# Trusted Certificate Service deployment
+# https://github.com/intel/trusted-certificate-issuer
+tcs:
+  enabled: {% if tcs == 'on' %}true{% else %}false{% endif %}   # enable Trusted Certificate Issuer
+  build_image_locally: false
+{% endif %}
+
+{%- if tca in ['on', 'optional'] and
+    arch in ['icx', 'spr'] %}
+# Trusted Certificate Attestation controller deployment
+# https://github.com/intel/trusted-certificate-attestation
+tca:
+  enabled: {% if tca == 'on' %}true{% else %}false{% endif %}   # enable Trusted Certificate Attestation Controller
+  build_image_locally: false
 {% endif %}
 
 {%- if tas in ['on', 'optional'] or gas in ['on', 'optional'] %}
@@ -264,19 +328,27 @@ gas_build_image_locally: false
 {%- endif %}
 
 # Telemetry configuration. Collectd and Telegraf variables are mutually exclusive.
-collectd_enabled: false
-telegraf_enabled: true
+{%- if telemetry.prometheus in  ['on', 'optional'] %}
+prometheus_operator: {% if telemetry.prometheus == 'on'%}true{% else %}false{% endif %}
+{%- endif %}
+{%- if telemetry.collectd in ['on', 'optional'] %}
+collectd_enabled: {% if telemetry.collectd == 'on'%}true{% else %}false{% endif %}
+{%- endif %}
+{%- if telemetry.telegraf in ['on', 'optional'] %}
+telegraf_enabled: {% if telemetry.telegraf == 'on'%}true{% else %}false{% endif %}
+{%- endif %}
 collectd_scrap_interval: 30
 telegraf_scrap_interval: 30
-{% if sriov_network_dp in ["on", "optional"] or network_userspace in ["on", "optional"] %}
+
+{% if sriov_network_dp in ["on", "optional"] or network_userspace in ["on", "optional"] -%}
 # Create reference net-attach-def objects
 example_net_attach_defs:
 {%- if sriov_network_dp in ["on", "optional"] %}
-  sriov_net_dp: {% if sriov_network_dp == "on" %}true{% else %}false{% endif %} # Update to match host_vars CNI configuration
+  sriov_net_dp: {% if sriov_network_dp == "on" %}true{% else %}false{% endif %} # update to match host_vars CNI configuration
 {%- endif -%}
 {%- if network_userspace in ["on", "optional"] %}
-  userspace_ovs_dpdk: {% if network_userspace == "on" %}true{% else %}false{% endif %} # Update to match host_vars CNI configuration
-  userspace_vpp: false # Update to match host_vars CNI configuration
+  userspace_ovs_dpdk: {% if network_userspace == "on" %}true{% else %}false{% endif %} # update to match host_vars CNI configuration
+  userspace_vpp: false # update to match host_vars CNI configuration
 {%- endif %}
 {%- endif %}
 {% if firewall in ['on', 'optional'] %}
@@ -286,7 +358,7 @@ firewall_enabled: {% if firewall == "on" %}true{% else %}false{% endif %}
 ## Proxy configuration ##
 #http_proxy: "http://proxy.example.com:1080"
 #https_proxy: "http://proxy.example.com:1080"
-#additional_no_proxy: ".example.com,mirror_ip"
+#additional_no_proxy: ".example.com,mirror_ip"  #no need to include the following (will be added automatically): localhost, 127.0.0.1, controllerIP, nodesIPs
 
 # (Ubuntu only) disables DNS stub listener which may cause issues on Ubuntu
 dns_disable_stub_listener: true
@@ -296,21 +368,26 @@ cluster_name: cluster.local
 
 ## Kubespray variables ##
 
+# Supported network plugins(calico, flannel) and kube-proxy configuration
 kube_controller_manager_bind_address: 127.0.0.1
 kube_proxy_metrics_bind_address: 127.0.0.1
 # supported network plugins(calico, flannel) and kube-proxy configuration
 kube_network_plugin: calico
-# supported calico backend: [vxlan, bird]
+# Supported calico backend: [vxlan, bird]
 {%- if vm_mode in ['on'] %}
-calico_backend: vxlan
+calico_network_backend: vxlan
 # For VM mode calico_backend has to be vxlan, otherwise deployment will fail
 {%- else %}
-calico_backend: bird
+calico_network_backend: bird
 {%- endif %}
+# Advanced calico options
+# https://github.com/kubernetes-sigs/kubespray/blob/master/docs/calico.md
+# if set to 'true', variables defined by user will be used and default CEK configuration will be ignored
+calico_advanced_options: false
 wireguard_enabled: {% if wireguard == 'on' %}true{% else %}false{% endif %}
-kube_network_plugin_multus: true
+kube_network_plugin_multus: {% if multus == 'on' %}true{% else %}false{% endif %}
 kube_pods_subnet: 10.244.0.0/16
-{%- if name in ['regional_dc', 'full_nfv', 'access', 'storage'] -%}
+{%- if name in ['regional_dc', 'full_nfv', 'access', 'storage', 'build_your_own'] -%}
 {% set mask = 18 %}
 {%- elif name == 'remote_fp' -%}
 {% set mask = 19 %}
@@ -322,17 +399,16 @@ kube_pods_subnet: 10.244.0.0/16
 kube_service_addresses: 10.233.0.0/{{ mask }}
 kube_proxy_mode: iptables
 
-#set both below on true if you want to enable the eBPF dataplane support
+# Set on true if you want to enable the eBPF dataplane support
 calico_bpf_enabled: false
-kube_proxy_remove: false
 
 # Set this var to true if you want to expose calico metrics endpoint
 calico_metrics_enabled: false
 
-# comment this line out if you want to expose k8s services of type nodePort externally.
+# Comment this line out if you want to expose k8s services of type nodePort externally.
 kube_proxy_nodeport_addresses_cidr: 127.0.0.0/8
 
-# local Docker Hub mirror, if it exists
+# Local Docker Hub mirror, if it exists
 #docker_registry_mirrors:
 #  - http://mirror_ip:mirror_port
 #docker_insecure_registries:
@@ -341,37 +417,65 @@ kube_proxy_nodeport_addresses_cidr: 127.0.0.0/8
 #  "docker.io":
 #    - "https://registry-1.docker.io"
 #    - "http://mirror_ip:mirror_port"
-#crio_registries_mirrors:
+#crio_registries:
 #  - prefix: docker.io
 #    insecure: false
 #    blocked: false
 #    location: registry-1.docker.io
+#    unqualified: true
 #    mirrors:
 #      - location: mirror_ip:mirror_port
 #        insecure: false
 #crio_insecure_registries:
 #  - http://crio_insecure_registry_ip
 
-# Docker registry running on the cluster allows us to store images not avaialble on Docker Hub
+{%- if registry in ['on', 'optional'] %}
+
+# Docker registry running on the cluster allows us to store images not available on Docker Hub
 # The range of valid ports is 30000-32767
+registry_enable: {% if registry == 'on' %}true{% else %}false{% endif %}
 registry_nodeport: 30500
 registry_local_address: "localhost:{{ '{{' }} registry_nodeport {{ '}}' }}"
+{%- endif %}
+
+{%- if cert_manager in ['on', 'optional'] %}
+cert_manager_enable: {% if cert_manager == 'on' %}true{% else %}false{% endif %}
+{%- endif %}
 
 # Enable Pod Security Policy. This option enables PSP admission controller and creates minimal set of rules.
-psp_enabled: true
+psp_enabled: {% if psp == 'on' %}true{% else %}false{% endif %}
 
-# Set image pull policy to Always. Pulls images prior to starting containers. Valid credentials must be configured.
+# Set image pull policy to Always. Pull images prior to starting containers. Valid credentials must be configured.
 always_pull_enabled: false
 
 {%- if minio in ['on', 'optional'] %}
+
 ## MinIO variables ##
 # Enable Minio Storage service.
 minio_enabled: {% if minio == 'on' %}true{% else %}false{% endif %}
+minio_tenant_enabled: true                            # Specifies whether to install MinIO Sample Tenant
+minio_tenant_servers: 4                               # The number of MinIO Tenant nodes
+minio_tenant_volumes_per_server: 4                    # The number of volumes per servers
+minio_deploy_test_mode: true                          # true (Test Mode) - use a file as loop device when creating storage
+                                                      # called "virtual block device" which is useful for test or automation purpose
+                                                      # false (Performance Mode) - use an actual NVME or SSD device when creating storage
+{%- endif %}
+{%- if cndp in ['on', 'optional'] or cndp_dp in ['on', 'optional'] %}
 
-minio_tenant_enabled: true                    # Specifies whether to install MinIO Sample Tenant
-minio_tenant_servers: 4                       # The number of MinIO Tenant nodes
-minio_tenant_volumes_per_server: 4            # The number of volumes per servers
-minio_deploy_test_mode: true                  # true (Test Mode) - use a file as loop device when creating storage
-                                              # called "virtual block device" which is useful for test or automation purpose
-                                              # false (Performance Mode) - use an actual NVME or SSD device when creating storage
+# Intel Cloud Native Data Plane.
+{%- if cndp_dp in ['on', 'optional'] %}
+cndp_dp_enabled: {% if cndp_dp == 'on' %}true{% else %}false{% endif %}
+{% if cndp_dp == 'on' %}
+cndp_net_attach_def_enabled: true         # Whether or not to create NetworkAttachmentDefinition resource.
+cndp_net_attach_def_conf:
+  name: cndp-cni-afxdp0              # (Optional) Name of NetworkAttachmentDefinition resource.
+  ipam:                              # (Optional) ipam configuration section NetworkAttachmentDefinition resource.
+    subnet: "192.168.1.0/24"         # (Optional) Default is "192.168.1.0/24".
+    rangeStart: "192.168.1.200"      # (Optional) Default is "192.168.1.200".
+    rangeEnd: "192.168.1.220"        # (Optional) Default is "192.168.1.220".
+    gateway: "192.168.1.1"           # (Optional) Default is "192.168.1.1".
+{% else %}
+cndp_net_attach_def_enabled: false
+{%- endif %}
+{%- endif %}
 {%- endif %}

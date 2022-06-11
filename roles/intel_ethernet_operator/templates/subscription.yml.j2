@@ -1,0 +1,20 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: intel-ethernet-subscription
+  namespace: {{ intel_ethernet_operator_namespace }}
+spec:
+{% if http_proxy or https_proxy is defined %}
+  config:
+    env:
+    - name: HTTP_PROXY
+      value: {{ http_proxy }}
+    - name: HTTPS_PROXY
+      value: {{ https_proxy }}
+    - name: NO_PROXY
+      value: {{ kube_service_addresses }},{{ kube_pods_subnet }}
+{% endif %}
+  channel: alpha
+  name: intel-ethernet-operator
+  source: intel-ethernet-operators
+  sourceNamespace: {{ intel_ethernet_operator_namespace }}

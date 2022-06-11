@@ -16,18 +16,18 @@
 ---
 # i40e
 i40e_driver_name: i40e
-i40e_driver_version: 2.17.15
+i40e_driver_version: 2.19.3
 i40e_driver_url: https://sourceforge.net/projects/e1000/files/i40e%20stable/{{ i40e_driver_version }}/i40e-{{ i40e_driver_version }}.tar.gz
-i40e_driver_checksum: sha1:e329cbb71f08c2902f8da1a54cba29c761199f61
+i40e_driver_checksum: sha1:f05a8f5206ab01246638826620dc42126e57a854
 
 # ice
 ice_driver_name: ice
-ice_driver_version: 1.7.16
+ice_driver_version: 1.8.8
 ice_driver_url: https://sourceforge.net/projects/e1000/files/ice%20stable/{{ ice_driver_version }}/ice-{{ ice_driver_version }}.tar.gz
-ice_driver_checksum: sha1:8e7333c33fba3dd47048b8236875ca66d40e97b5
+ice_driver_checksum: sha1:0b239447ce2316f540b83707229e98a164517cd2
 
 # iavf
 iavf_driver_name: iavf
-iavf_driver_version: 4.3.19
+iavf_driver_version: 4.4.2.1
 iavf_driver_url: https://sourceforge.net/projects/e1000/files/iavf%20stable/{{ iavf_driver_version }}/iavf-{{ iavf_driver_version }}.tar.gz
-iavf_driver_checksum: sha1:085ba1f0a1d99161e685bf66664a36dc335f91fa
+iavf_driver_checksum: sha1:d1e2f9d5cc278bf824bbbc484e17e56c06d9a97f

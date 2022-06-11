@@ -29,20 +29,31 @@ pas_namespace: kube-system
 
 # Descheduler
 descheduler_git_url: https://github.com/kubernetes-sigs/descheduler.git
-descheduler_git_version: "v0.22.1"
+descheduler_git_version: "v0.23.1"
 descheduler_dir: "{{ (project_root_dir, 'sigs.k8s.io/descheduler') | path_join }}"
 sigs_k8s_io_dir: "{{ (project_root_dir, 'sigs.k8s.io') | path_join }}"
 
 # TAS deployment
 tas_enabled: false
 tas_build_image_locally: false
-tas_git_version: "tas_v0.1"
-tas_extender_image_tag_default: "0.1"
-tas_version: "{{ ('tas' in tas_git_version) | ternary(tas_git_version[5:], tas_git_version[1:]) }}"
+tas_git_version: "telemetry-aware-scheduling/v0.2.0"
+tas_extender_image_tag_default: "0.2.0"
+tas_version: |-
+  {{ ('telemetry-aware-scheduling' in tas_git_version)
+      | ternary(tas_git_version[28:], tas_git_version[1:]) }}
 tas_extender_dir: "telemetry-aware-scheduling"
-tas_extender_image: "{{ (tas_build_image_locally | bool) | ternary(registry_local_address + '/telemetry-aware-scheduling', 'docker.io/intel/telemetry-aware-scheduling') }}"
-tas_extender_image_tag: "{{ (tas_build_image_locally | bool or 'tas' in tas_git_version) | ternary(tas_version, tas_extender_image_tag_default) }}"
-tas_image_build_context: "{{ ('tas' in tas_git_version or not 'tas' in tas_git_version and tas_version is version('0.6', '>')) | ternary('../', './bin') }}"
+tas_extender_image: |-
+  {{ (tas_build_image_locally | bool)
+      | ternary(registry_local_address + '/telemetry-aware-scheduling', 'docker.io/intel/telemetry-aware-scheduling') }}
+tas_extender_image_tag: |-
+  {{ (tas_build_image_locally | bool
+      or 'telemetry-aware-scheduling' in tas_git_version)
+      | ternary(tas_version, tas_extender_image_tag_default) }}
+tas_image_build_context: |-
+  {{ ('telemetry-aware-scheduling' in tas_git_version
+        or not 'telemetry-aware-scheduling' in tas_git_version
+        and tas_version is version('0.6', '>'))
+        | ternary('../', './bin') }}
 tas_build_bin: true
 tas_name: "tas"
 tas_extender_secret_name: "tas-extender-secret"
@@ -58,12 +69,19 @@ tas_verbosity: 4
 # GAS deployment
 gas_enabled: false
 gas_build_image_locally: false
-gas_git_version: "gas_v0.1"
-gas_extender_image_tag_default: "0.1"
-gas_version: "{{ ('gas' in gas_git_version) | ternary(gas_git_version[5:], gas_git_version[1:]) }}"
+gas_git_version: "gpu-aware-scheduling/v0.3.0"
+gas_extender_image_tag_default: "0.3.0"
+gas_version: |-
+  {{ ('gpu-aware-scheduling' in gas_git_version)
+      | ternary(gas_git_version[22:], gas_git_version[1:]) }}
 gas_extender_dir: "gpu-aware-scheduling"
-gas_extender_image: "{{ (gas_build_image_locally | bool) | ternary(registry_local_address + '/gpu-extender', 'docker.io/intel/gpu-extender') }}"
-gas_extender_image_tag: "{{ (gas_build_image_locally | bool or 'gas' in gas_git_version) | ternary(gas_version, gas_extender_image_tag_default) }}"
+gas_extender_image: |-
+  {{ (gas_build_image_locally | bool)
+      | ternary(registry_local_address + '/gpu-extender', 'docker.io/intel/gpu-extender') }}
+gas_extender_image_tag: |-
+  {{ (gas_build_image_locally | bool
+      or 'gpu-aware-scheduling' in gas_git_version)
+      | ternary(gas_version, gas_extender_image_tag_default) }}
 gas_image_build_context: "../"
 gas_build_bin: false
 gas_name: "gas"

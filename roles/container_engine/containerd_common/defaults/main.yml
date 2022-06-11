@@ -16,6 +16,7 @@
 ---
 containerd_package: 'containerd.io'
 containerd_version: 1.4.6
+containerd_docker_version: stable
 
 # CentOS/RedHat docker-ce repo
 docker_rh_repo_base_url: 'https://download.docker.com/linux/centos/{{ ansible_distribution_major_version }}/$basearch/stable'

@@ -1,0 +1,9 @@
+---
+apiVersion: "descheduler/v1alpha1"
+kind: "DeschedulerPolicy"
+strategies:
+  "RemovePodsViolatingNodeAffinity":
+    enabled: true
+    params:
+      nodeAffinityType:
+        - "requiredDuringSchedulingIgnoredDuringExecution"

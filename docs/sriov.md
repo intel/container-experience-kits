@@ -27,15 +27,19 @@ example_net_attach_defs:
 
 There's also a set of configuration options that are applied in per-node manner.
 
-First set of variables enables SRIOV for selected network adapters, by setting `iommu_enabled` as `true` and passing names of the physical function interfaces. There's also an option to define how many virtual functions should be created for each physical function. In below example `dataplane_interfaces` configuration will create 4 VFs for enp175s0f0 PF interface and attach them to vfio-pci driver and 2 VFs for enp175s0f1 PF interface and attach them to kernel mode iavf driver. It will also add IOMMU kernel flags, and as a result will reboot the target worker node during deployment.
+First set of variables enables SRIOV for selected network adapters, by setting `iommu_enabled` as `true` and passing names of the physical function interfaces. There's also an option to define how many virtual functions should be created for each physical function. In below example dataplane_interfaces configuration will create 6 VFs for 18:00.0 PF interface (PF0) and 4 VFs for 18:00.1 PF interface (PF1). VFs will be attached to default driver defined via 'default_vf_driver'. In our case to 'iavf' driver for PF0 and to 'vfio_pci' driver for PF1. If you need to assign different driver to specific VFs then 'sriov_vfs' section is used. It contains list of pairs vf_name and required driver. In our case VFs vf_00 and vf_05 are attached to 'vfio_pci' driver for PF0. PF1 does not require any specific driver, so 'sriov_vfs' section contains empty list. Name of the first VF is 'vf_00', the second VF has name 'vf_01' and so on. Name of the last VF is derived from 'sriov_numvfs - 1'. In our case 'vf_05'. So, for PF0 VFs devices names are vf_00-vf_05, 6 devices in total. This configuration will also add IOMMU kernel flags, and as a result will reboot the target worker node during deployment.
 ```
 dataplane_interfaces:
-  - name: enp175s0f0
+  - bus_info: "18:00.0"
+    sriov_numvfs: 6
+    default_vf_driver: "iavf"
+    sriov_vfs:
+      vf_00: "vfio-pci"
+      vf_05: "vfio-pci"
+  - bus_info: "18:00.1"
     sriov_numvfs: 4
-    vf_driver: vfio-pci
-  - name: enp175s0f1
-    sriov_numvfs: 2
-    vf_driver: iavf
+    default_vf_driver: "vfio-pci"
+    sriov_vfs: []
 ```
 
 Next option defines whether the SRIOV CNI plugin will be installed on the target worker node. Setting it to `true` will cause the Ansible scripts to build and install SRIOV CNI plugin in the `/opt/cni/bin` directory on the target server.
@@ -43,14 +47,4 @@ Next option defines whether the SRIOV CNI plugin will be installed on the target
 sriov_cni_enabled: true`
 ```
 
-If `sriov_net_dp_enabled` is set to `true` in all.yml (group vars), please adjust and uncomment below configuration in the node host vars file. Below dictionary will be used to prepare and apply SRIOV Network Device Plugin configuration.
-In the example below we use PF names of the interfaces that we enabled SRIOV for in the above example. Then we define driver bindings for each of them. VFs created on `enp175s0f1` and `enp175s0f2` will be attached to the userspace vfio-pci and igb_uio drivers respectively, which will make them available for use with the userspace dataplane applications. This configuration will also cause assignment of VFs to appropriate resource pools in the SRIOV Network Device Plugin: `intel_sriov_netdevice` for the `enp175s0f0` VFs and `intel_sriov_dpdk` for the `enp175s0f1` VFs.
-```
-sriov_net_dp_config:
-- pfnames: ["enp175s0f1"]     # PF interface names - their VFs will be attached to specific driver
-  driver: "vfio-pci"          # available options:  "iavf", vfio-pci", "igb_uio"
-- pfnames: ["enp175s0f2"]     # PF interface names - their VFs will be attached to specific driver
-  driver: "igb_uio"           # available options:  "iavf", "vfio-pci", "igb_uio"
-```
-
-Please refer to the [SRIOV Network Device Plugin](https://github.com/intel/sriov-network-device-plugin) and [SRIOV CNI documentation](https://github.com/intel/sriov-cni) to get more details and usage examples.
+Please refer to the [SRIOV Network Device Plugin](https://github.com/intel/sriov-network-device-plugin) and [SRIOV CNI documentation](https://github.com/intel/sriov-cni) to get more details about sriov resources and usage examples.

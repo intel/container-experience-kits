@@ -1,0 +1,49 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies for Intel SRIOV FEC Operator
+  include_role:
+    name: install_dependencies
+
+- name: deploy Operator SDK
+  include_tasks: operator_sdk.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: deploy Lifecycle Manager (OLM)
+  include_tasks: olm.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: deploy Operator Package Manager (OPM)
+  include_tasks: opm.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: deploy Intel SRIOV FEC Operator
+  include_tasks: sriov_fec_operator.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: apply FEC Accelerator Device CR(s)
+  include_tasks: fec_acc.yml
+  loop: "{{ groups['kube_node'] }}"
+  loop_control:
+    loop_var: node_name
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+#    - fec_acc is defined
+# TODO: multi-host multi-acc
+
+- name: check Intel SRIOV FEC Operator
+  include_tasks: check_sriov_fec_operator.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]

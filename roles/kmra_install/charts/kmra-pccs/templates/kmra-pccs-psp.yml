@@ -4,6 +4,10 @@ kind: PodSecurityPolicy
 metadata:
   name: {{ .Release.Name }}
 spec:
+  hostNetwork: true
+  hostPorts:
+  - max: {{ .Values.pccs.main.port }}
+    min: {{ .Values.pccs.main.port }}
   allowPrivilegeEscalation: false
   allowedCapabilities:
   - '*'

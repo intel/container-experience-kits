@@ -32,7 +32,7 @@
   command: grubby --set-default /boot/vmlinuz-{{ gpu_dp_kernel_version }}
   changed_when: true
   become: yes
-  when: ansible_distribution in ["CentOS", "RedHat"]
+  when: ansible_distribution in ['CentOS', 'RedHat', 'Rocky']
 
 - name: set gpu kernel as default on Ubuntu < 21.04
   lineinfile:

@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: intel-operators
+  namespace: olm
+spec:
+  sourceType: grpc
+  image: "{{ intel_sriov_fec_operator_catalog_image }}"
+  publisher: Intel
+  displayName: SRIOV FEC Operators (Local)

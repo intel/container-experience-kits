@@ -1,0 +1,36 @@
+apiVersion: sriovfec.intel.com/v2
+kind: SriovFecClusterConfig
+metadata:
+  name: config
+spec:
+  priority: 1
+  nodeSelector:
+    kubernetes.io/hostname: node1
+  acceleratorSelector:
+    pciAddress: 0000:af:00.0
+  physicalFunction:  
+    pfDriver: "pci-pf-stub"
+    vfDriver: "vfio-pci"
+    vfAmount: 16
+    bbDevConfig:
+      acc100:
+        # Programming mode: 0 = VF Programming, 1 = PF Programming
+        pfMode: false
+        numVfBundles: 16
+        maxQueueSize: 1024
+        uplink4G:
+          numQueueGroups: 0
+          numAqsPerGroups: 16
+          aqDepthLog2: 4
+        downlink4G:
+          numQueueGroups: 0
+          numAqsPerGroups: 16
+          aqDepthLog2: 4
+        uplink5G:
+          numQueueGroups: 4
+          numAqsPerGroups: 16
+          aqDepthLog2: 4
+        downlink5G:
+          numQueueGroups: 4
+          numAqsPerGroups: 16
+          aqDepthLog2: 4

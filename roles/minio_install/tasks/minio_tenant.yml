@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: check MinIO Tenant Helm charts directory.
+- name: check MinIO Tenant Helm charts directory
   stat:
     path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
   register: tenant_dir
@@ -33,7 +33,7 @@
     dest: "{{ (project_root_dir, 'charts') | path_join }}"
     mode: 0755
 
-- name: check MinIO Tenant Helm charts temp directory.
+- name: check MinIO Tenant Helm charts temp directory
   stat:
     path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
   register: tenant_temp_dir

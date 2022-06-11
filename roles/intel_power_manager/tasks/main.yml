@@ -19,7 +19,7 @@
     name: install_dependencies
 
 - name: add labels for Power Nodes
-  command: kubectl label nodes {{ item }} intel.power.node=true --overwrite
+  command: kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} intel.power.node=true --overwrite
   loop: "{{ intel_power_manager.power_nodes }}"
   when: inventory_hostname == groups['kube_control_plane'][0]
 

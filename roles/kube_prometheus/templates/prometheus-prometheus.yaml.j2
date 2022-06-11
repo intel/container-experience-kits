@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/component: prometheus
     app.kubernetes.io/name: prometheus
     app.kubernetes.io/part-of: kube-prometheus
-    app.kubernetes.io/version: 2.29.1
+    app.kubernetes.io/version: 2.35.0
   name: k8s
   namespace: monitoring
 spec:
@@ -72,7 +72,7 @@ spec:
         scheme: HTTPS
       timeoutSeconds: 3
   - name: grafana
-    image: grafana/grafana:8.3.4
+    image: grafana/grafana:8.5.3
     env:
     - name: GF_SERVER_PROTOCOL
       value: https
@@ -232,7 +232,7 @@ spec:
 {% endif %}
   alerting:
     alertmanagers: []
-  image: quay.io/prometheus/prometheus:v2.29.2
+  image: quay.io/prometheus/prometheus:v2.35.0
   nodeSelector:
     kubernetes.io/os: linux
   podMonitorNamespaceSelector: {}
@@ -252,7 +252,7 @@ spec:
   serviceAccountName: prometheus-k8s
   serviceMonitorNamespaceSelector: {}
   serviceMonitorSelector: {}
-  version: v2.29.2
+  version: v2.35.0
   volumes:
     - name: persistent-volume-grafana
       persistentVolumeClaim:

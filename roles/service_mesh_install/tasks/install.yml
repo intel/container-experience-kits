@@ -45,7 +45,7 @@
   block:
     - name: copy manifest
       copy:
-        src: "profiles/{{ service_mesh.profile }}.yaml"
+        src: "{{ ('profiles', service_mesh.profile) | path_join }}.yaml"
         dest: "{{ service_mesh_charts_dir }}"
         owner: root
         mode: preserve
@@ -59,14 +59,14 @@
 - name: evaluate parameters to be used for istio service mesh installation
   template:
     src: "istioctl-options.yml.j2"
-    dest: "{{ role_path }}/tasks/istioctl-options.yml"
+    dest: "{{ (role_path, 'tasks', 'istioctl-options.yml') | path_join }}"
     force: yes
     mode: preserve
   delegate_to: localhost
   become: false
 
 - name: include temporary file contained options provided
-  include_vars: "{{ role_path }}/tasks/istioctl-options.yml"
+  include_vars: "{{ (role_path, 'tasks', 'istioctl-options.yml') | path_join }}"
 
 - name: print out arguments to be used for istio service mesh installation
   debug:
@@ -76,26 +76,25 @@
   delegate_to: localhost
   become: false
 
-- name: check if istio system namespace exists
-  command: kubectl get namespace {{ service_mesh.istio_namespace }}
-  register: ns_exists
-  failed_when: false
-  changed_when: false
-
 - name: create istio system namespace for istio resources
-  command: kubectl create namespace "{{ service_mesh.istio_namespace }}"
-  when: ns_exists.stderr is defined and "NotFound" in ns_exists.stderr
+  shell: "set -o pipefail && kubectl create ns {{ service_mesh.istio_namespace }} -o yaml --dry-run=client | kubectl apply -f -"
+  args:
+    executable: /bin/bash
+  changed_when: true
 
 - name: install istio service mesh
   # noqa 305 - shell is used intentionally here
-  shell: "{{ service_mesh_release_dir }}/bin/istioctl install {{ argv | join(' ') }}"
+  shell: "{{ (service_mesh_release_dir, 'bin', 'istioctl')  | path_join }} install {{ argv | join(' ') }}"
   args:
     executable: "/bin/bash"
   changed_when: true
 
-- name: remove temporary options file
+- name: remove temporary files
   file:
-    path: "{{ role_path }}/tasks/istioctl-options.yml"
+    path: "{{ item }}"
     state: absent
   delegate_to: localhost
   become: false
+  loop:
+    - "{{ (role_path, 'tasks', 'istioctl-options.yml') | path_join }}"
+    - "{{ (role_path, 'files', 'profiles', 'custom-ca.yaml') | path_join }}"

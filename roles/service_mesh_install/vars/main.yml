@@ -15,7 +15,7 @@
 ##
 service_mesh_defaults:
   enabled: false
-  version: 1.13.0
+  version: 1.13.1
   context: ''
   filename: []
   namespace: ''
@@ -27,7 +27,7 @@ service_mesh_defaults:
   dry_run: false
   profile: default
   force: false
-  readiness_timeout: ''
+  readiness_timeout: '10m0s'
   set: []
   verify: true
   tcpip_bypass_ebpf:
@@ -35,3 +35,11 @@ service_mesh_defaults:
     name: bypass-tcpip
     namespace: kube-system
     image: docker.io/intel/istio-tcpip-bypass@sha256:9f3944e8591d3eda51e547be039a9d5202f1403e024847273cfb98aafe31919f
+  tls_splicing:
+    enabled: false
+    hostname: www.example.com
+  sgx_signer:
+    enabled: false
+    name: sgx-signer
+    tcs_namespace: "{{ tcs.namespace | default('tcs') }}"
+

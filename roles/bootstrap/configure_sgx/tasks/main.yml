@@ -44,19 +44,13 @@
 - name: configure SGX on Ubuntu distribution
   include_tasks: ubuntu.yml
   when:
-    - ansible_distribution == 'Ubuntu' and ansible_distribution_version < '21.04'
-    - is_icx or is_spr
-
-- name: configure SGX on CentOS distribution
-  include_tasks: centos.yml
-  when:
-    - ansible_distribution == "CentOS" and ansible_distribution_version < '8.4'
+    - ansible_distribution == 'Ubuntu'
     - is_icx or is_spr
 
 - name: configure SGX on RHEL distribution
   include_tasks: rhel.yml
   when:
-    - ansible_distribution == 'RedHat' and ansible_distribution_version < '8.4'
+    - ansible_os_family == "RedHat"
     - is_icx or is_spr
 
 - name: SGX configuration is successful

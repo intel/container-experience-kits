@@ -18,48 +18,45 @@
   include_role:
     name: install_dependencies
 
-- name: download DCAP drivers
-  get_url:
-    url: "{{ dcap_driver_url_rhel }}"
-    dest: "{{ project_root_dir }}"
-    mode: u=rwx,g=rx,o=rx
-    checksum: "{{ dcap_driver_checksum_rhel }}"
+- name: create configuration directory if it does not exist
+  file:
+    path: "{{ sgx_config_dir }}"
+    state: directory
+    mode: '0700'
+  become: yes
 
-- name: check if sgx-{{ dcap_driver_series_rhel }} folder is present
-  stat:
-    path: "{{ sgx_folder_check_rhel }}"
-  register: folder_check
-  changed_when: true
-
-- debug:
-    msg: "sgx-{{ dcap_driver_series_rhel }} is already installed because folder exists, re-installation skipped as it can cause kernel module load issues"
-  when:
-    - ansible_distribution == "RedHat"
-    - folder_check.stat.exists
-  changed_when: true
-
-- name: install DCAP driver
-# noqa 305 - shell is used intentionally here
-  shell: "./{{ dcap_driver_version_rhel }}"
-  args:
-    chdir: "{{ project_root_dir }}"
-    executable: /bin/bash
-  register: dcap_output_rhel
-  failed_when: '"Installation is successful!" not in dcap_output_rhel.stdout'
-  changed_when: '"Installation is successful!" in dcap_output_rhel.stdout'
-  when: not folder_check.stat.exists
-
-- name: confirm DCAP driver module is installed
-  shell: "set -o pipefail && lsmod | grep sgx"
-  args:
-    chdir: "{{ project_root_dir }}"
-    executable: /bin/bash
+- name: confirm DCAP driver module installed
+  command: "lsmod"
   register: lsmod_output
-  failed_when: '"intel_sgx" not in lsmod_output.stdout'
   changed_when: false
 
-- debug:
-   var: lsmod_output.stdout_lines
+- name: if intel_sgx module is not available, the block is executed
+  block:
+    - name: download DCAP drivers
+      get_url:
+        url: "{{ dcap_driver_url_rhel }}"
+        dest: "{{ project_root_dir }}"
+        mode: u=rwx,g=rx,o=rx
+        checksum: "{{ dcap_driver_checksum_rhel }}"
+
+    - name: install DCAP driver
+    # noqa 305 - shell is used intentionally here
+      shell: "./{{ dcap_driver_version_rhel }}"
+      args:
+        chdir: "{{ project_root_dir }}"
+        executable: /bin/bash
+      register: dcap_output_rhel
+      failed_when: '"Installation is successful!" not in dcap_output_rhel.stdout'
+      changed_when: '"Installation is successful!" in dcap_output_rhel.stdout'
+
+    - name: Load SGX module (DCAP)
+      modprobe:
+        name: intel_sgx
+        state: present
+  when:
+    - not update_kernel
+    - ansible_os_family == "RedHat" and ansible_distribution_version < '8.4'
+    - '"intel_sgx" not in lsmod_output.stdout'
 
 - name: download SGX RPM local repository
   get_url:
@@ -98,7 +95,6 @@
     disable_gpg_check: yes
     name:
       - libsgx-launch
-      - libsgx-urts
       - libsgx-epid
       - libsgx-urts
       - libsgx-quote-ex
@@ -106,6 +102,18 @@
       - libsgx-uae-service
       - sgx-aesm-service
       - libsgx-dcap-ql
+      - libsgx-ae-qe3
+      - libsgx-ae-qve
+      - libsgx-qe3-logic
+      - libsgx-pce-logic
+      - libsgx-dcap-ql-devel
+      - libsgx-dcap-default-qpl
+      - libsgx-dcap-default-qpl-devel
+      - libsgx-dcap-quote-verify
+      - libsgx-dcap-quote-verify-devel
+      - libsgx-ra-network
+      - libsgx-ra-uefi
+      - sgx-ra-service
     state: present
 
 - name: start aesmd service, if not started

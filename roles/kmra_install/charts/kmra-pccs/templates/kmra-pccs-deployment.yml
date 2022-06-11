@@ -6,6 +6,9 @@ metadata:
     app: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
 spec:
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -14,6 +17,7 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      hostNetwork: true
       serviceAccountName: {{ .Release.Name }}
       containers:
       - name: {{ .Release.Name }}
@@ -42,25 +46,6 @@ spec:
         securityContext:
           runAsUser: 65333
           readOnlyRootFilesystem: true
-      - name: pccs-rproxy
-        image: "{{ .Values.pccs.rproxy.image.repo }}/{{ .Values.pccs.rproxy.image.name }}:{{ .Values.pccs.rproxy.image.tag }}"
-        imagePullPolicy: {{ .Values.pccs.rproxy.image.pullPolicy }}
-        ports:
-        - name: pccs-rproxy
-          containerPort: {{ .Values.pccs.rproxy.port }}
-        volumeMounts:
-          - name: nginx-conf
-            mountPath: /etc/nginx
-            readOnly: true
-        resources:
-          limits:
-            cpu: 20m
-            memory: 40Mi
-          requests:
-            cpu: 10m
-            memory: 20Mi
-        securityContext:
-          runAsUser: 65334
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -72,12 +57,6 @@ spec:
                   values:
                   - kmra
       volumes:
-      - name: nginx-conf
-        configMap:
-          name: {{ .Release.Name }}-rproxy-conf
-          items:
-            - key: nginx.conf
-              path: nginx.conf
       - name: pccs-config
         configMap:
           name: {{ .Release.Name }}-env-cm
