@@ -11,8 +11,8 @@ vm_image_checksums: "https://cloud-images.ubuntu.com/releases/{{ vm_image_versio
 {% endif %}
 vm_image_destination_file: "{{ vm_project_root_dir }}/{{ vm_image }}"
 {% elif vm_image_distribution == "rocky" %}
-vm_image_url: "https://dl.rockylinux.org/pub/rocky/{{ vm_image_version_rocky }}/images/{{ vm_image }}"
+vm_image_url: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/{{ vm_image }}"
 
-vm_image_checksums: "https://dl.rockylinux.org/pub/rocky/{{ vm_image_version_rocky }}/images/CHECKSUM"
+vm_image_checksums: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/CHECKSUM"
 vm_image_destination_file: "{{ vm_project_root_dir }}/{{ vm_image }}"
 {% endif %}
