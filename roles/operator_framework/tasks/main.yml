@@ -1,0 +1,57 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+    - name: uninstall Operator Lifecycle Manager (OLM)
+      command: operator-sdk olm uninstall
+      environment:
+        PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ operator_sdk_dir }}"
+      changed_when: false
+      failed_when: false
+
+    - name: clone Operator-SDK repository
+      git:
+        repo: "{{ operator_sdk_git }}"
+        version: "{{ operator_sdk_git_ref }}"
+        dest: "{{ operator_sdk_dir }}"
+        force: yes
+
+    - name: install Operator-SDK
+      make:
+        target: "install"
+        chdir: "{{ operator_sdk_dir }}"
+
+    - name: install Operator Lifecycle Manager (OLM)
+      command: operator-sdk olm install --version v0.20.0
+      environment:
+        PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ operator_sdk_dir }}"
+      changed_when: true
+
+    - name: check if OLM pods are running
+      shell: set -o pipefail && kubectl get pods -n olm | awk 'NR != 1 { print $3 }'
+      args:
+        executable: /bin/bash
+      register: olm_pods_status
+      retries: 30
+      delay: 10
+      until:
+        - "'Error' not in olm_pods_status.stdout"
+        - "'CrashLoopBackOff' not in olm_pods_status.stdout"
+        - "'Terminating' not in olm_pods_status.stdout"
+        - "'ContainerCreating' not in olm_pods_status.stdout"
+        - "'Pending' not in olm_pods_status.stdout"
+      changed_when: false
+  when: inventory_hostname == groups['kube_control_plane'][0]

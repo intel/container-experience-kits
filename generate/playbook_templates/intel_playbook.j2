@@ -4,9 +4,22 @@
   roles:
     - role: cluster_defaults
       tags: defaults
+    - role: remove_kubespray_host_dns_settings
+      tags: remove-kubespray-host-dns-settings
+      when:
+        - remove_kubespray_host_dns_settings | default(false) | bool
     - role: nfd_install
       tags: nfd
       when: nfd_enabled | default(true) | bool
+    - role: operator_framework
+      tags: operator-framework
+      when:
+        - intel_ethernet_operator_enabled | default(false) | bool or
+          intel_sriov_fec_operator_enabled | default(false) | bool
+    - role: intel_ethernet_operator
+      tags: intel-ethernet-operator
+      when:
+        - intel_ethernet_operator_enabled | default(false) | bool
     - role: sriov_dp_install
       tags: sriov-net-dp
       when:
@@ -18,10 +31,6 @@
         - sriov_network_operator_enabled | default(true) | bool
         - not sriov_net_dp_enabled | default(false) | bool
         - not sriov_cni_enabled | default(false) | bool
-    - role: intel_ethernet_operator
-      tags: intel-ethernet-operator
-      when:
-        - intel_ethernet_operator_enabled | default(false) | bool
 {%- if playbook_name in ['access', 'full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'storage', 'build_your_own'] %}
     - role: intel_dp_operator
       tags: dp-operator
@@ -95,6 +104,12 @@
       tags: intel-sriov-fec-operator
       when:
         - intel_sriov_fec_operator_enabled | default(false) | bool
+{%- endif %}
+{%- if playbook_name in ['access', 'full_nfv', 'build_your_own'] %}
+    - role: intel_flexran
+      tags: intel-flexran
+      when:
+        - intel_flexran_enabled | default(false) | bool
 {%- endif %}
 {%- if playbook_name in ['access', 'full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'build_your_own'] %}
     - role: service_mesh_install

@@ -18,13 +18,10 @@
   include_role:
     name: install_dependencies
 
-- name: deploy Operator SDK
-  include_tasks: operator_sdk.yml
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: deploy Lifecycle Manager (OLM)
-  include_tasks: olm.yml
-  when: inventory_hostname == groups['kube_control_plane'][0]
+- name: set FEC Acc for Intel SRIOV FEC Operator
+  delegate_to: localhost
+  include_vars:
+    file: "{{ (inventory_dir, 'host_vars',  groups['kube_node'][0] + '.yml') | path_join }}"
 
 - name: deploy Operator Package Manager (OPM)
   include_tasks: opm.yml

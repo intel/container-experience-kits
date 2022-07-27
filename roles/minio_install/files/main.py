@@ -23,11 +23,8 @@ def nostr(d):
 
 def generate_k8s_service_patch():
     # define text file to open
-    my_file = open('parsed-ips-result.txt', 'r')
-
-    # read text file into list
-    # data = [word.split(',') for word in open('parsed-ips-result.txt', 'r').readlines()]
-    data = my_file.read()
+    with open('parsed-ips-result.txt', 'r') as my_file:
+        data = my_file.read()
 
     # display content of text file
     ips = []

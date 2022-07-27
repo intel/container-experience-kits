@@ -15,7 +15,12 @@
 ##
 service_mesh_defaults:
   enabled: false
-  version: 1.13.1
+  image: istio/istioctl
+  version: 1.14.1
+  intel_preview:
+    enabled: false
+    image: intel/istioctl
+    version: 1.14-intel.1
   context: ''
   filename: []
   namespace: ''
@@ -27,14 +32,16 @@ service_mesh_defaults:
   dry_run: false
   profile: default
   force: false
-  readiness_timeout: '10m0s'
-  set: []
+  readiness_timeout: '20m0s'
+  set:
+    - values.global.defaultPodDisruptionBudget.enabled=false
   verify: true
   tcpip_bypass_ebpf:
     enabled: false
     name: bypass-tcpip
     namespace: kube-system
-    image: docker.io/intel/istio-tcpip-bypass@sha256:9f3944e8591d3eda51e547be039a9d5202f1403e024847273cfb98aafe31919f
+    image: intel/istio-tcpip-bypass
+    version: latest
   tls_splicing:
     enabled: false
     hostname: www.example.com

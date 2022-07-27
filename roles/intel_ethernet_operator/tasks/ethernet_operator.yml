@@ -98,6 +98,31 @@
     state: present
     src: "{{ (intel_ethernet_operator_files_dir, 'subscription.yml') | path_join }}"
 
-- name: wait for Intel Ethernet Operator to become fully available
+- name: wait for Ethernet Operator deployment
   pause:
-    minutes: 1
+    seconds: 100
+
+- name: check if all pods are running
+  shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
+  args:
+    executable: /bin/bash
+  register: ieo_pods_status
+  retries: 30
+  delay: 10
+  until:
+    - "'Error' not in ieo_pods_status.stdout"
+    - "'CrashLoopBackOff' not in ieo_pods_status.stdout"
+    - "'Terminating' not in ieo_pods_status.stdout"
+    - "'ContainerCreating' not in ieo_pods_status.stdout"
+    - "'Pending' not in ieo_pods_status.stdout"
+  changed_when: false
+
+- name: check if all containers are running
+  shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
+  args:
+    executable: /bin/bash
+  register: ieo_containers_readiness
+  retries: 30
+  delay: 10
+  until: "'0' not in ieo_containers_readiness.stdout"
+  changed_when: false

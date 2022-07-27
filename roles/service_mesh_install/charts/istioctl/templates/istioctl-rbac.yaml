@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "istioctl.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "istioctl.fullname" . }}
+rules:
+  {{- toYaml .Values.clusterRoleRules | nindent 2 }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "istioctl.fullname" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "istioctl.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "istioctl.fullname" . }}
+    namespace: {{ .Release.Namespace }}

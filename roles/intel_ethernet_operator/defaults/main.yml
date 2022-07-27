@@ -18,10 +18,6 @@ intel_ethernet_operator_git: "https://github.com/intel/intel-ethernet-operator.g
 intel_ethernet_operator_git_ref: "v22.04"
 intel_ethernet_operator_dir: "{{ (project_root_dir, 'intel-ethernet-operator') | path_join }}"
 
-operator_sdk_git: "https://github.com/operator-framework/operator-sdk.git"
-operator_sdk_git_ref: "v1.18.1"
-operator_sdk_dir: "{{ (project_root_dir, 'operator-sdk') | path_join }}"
-
 uft_git: "https://github.com/intel/UFT.git"
 uft_git_ref: "v22.03"
 uft_dir: "{{ (project_root_dir, 'uft') | path_join }}"

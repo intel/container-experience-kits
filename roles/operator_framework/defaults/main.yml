@@ -13,15 +13,6 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
----
-- name: clone Operator SDK repository
-  git:
-    repo: "{{ operator_sdk_git }}"
-    version: "{{ operator_sdk_git_ref }}"
-    dest: "{{ operator_sdk_dir }}"
-    force: yes
-
-- name: build and install Operator SDK
-  make:
-    target: "install"
-    chdir: "{{ operator_sdk_dir }}"
+operator_sdk_git: "https://github.com/operator-framework/operator-sdk.git"
+operator_sdk_git_ref: "v1.20.0"
+operator_sdk_dir: "{{ (project_root_dir, 'operator-sdk') | path_join }}"

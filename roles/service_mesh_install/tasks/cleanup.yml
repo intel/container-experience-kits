@@ -14,16 +14,30 @@
 ##   limitations under the License.
 ##
 ---
-- name: remove existing istio resources
-  command:
-    argv:
-      - "{{ service_mesh_release_dir }}/bin/istioctl"
-      - "x"
-      - "uninstall"
-      - "--purge"
-      - "-y"
+- name: find existing istioctl pod
+  command: |
+    kubectl get pods \
+    --namespace {{ service_mesh.istio_namespace }} \
+    -l "app.kubernetes.io/name=istioctl,app.kubernetes.io/instance=istioctl" \
+    -o jsonpath="{.items[0].metadata.name}"
+  register: istioctl_pod
   failed_when: false
   changed_when: true
+
+- name: remove existing istio resources
+  command: |
+    kubectl exec \
+    --namespace {{ service_mesh.istio_namespace }} \
+    {{ istioctl_pod.stdout }} -- istioctl x uninstall --purge -y
+  failed_when: false
+  changed_when: true
+  when:
+    - istioctl_pod.stderr | length == 0
+
+- name: remove existing istioctl deployment
+  command: "helm delete istioctl --namespace {{ service_mesh.istio_namespace }}"
+  changed_when: true
+  failed_when: false
 
 - name: remove existing tcpip-bypass-ebpf resources
   command: "kubectl delete -f {{ (service_mesh_charts_dir, 'tcpip-bypass-ebpf.yaml') |  path_join }}"
@@ -35,7 +49,7 @@
   changed_when: true
   failed_when: false
 
-- name: remove existing intel-tls-splicing resources
+- name: remove existing tcs cluster issuer
   command: "kubectl delete -f {{ (service_mesh_charts_dir, 'tcs-cluster-issuer.yaml') |  path_join }}"
   changed_when: true
   failed_when: false

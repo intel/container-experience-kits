@@ -28,6 +28,19 @@
     force: yes
     mode: preserve
 
+- name: wait for the istio service mesh pods are in running state
+  shell: |-
+    set -o pipefail && \
+    [ $(kubectl get pod -n {{ service_mesh.istio_namespace }} -l 'app in (istio-ingressgateway, istiod)' \
+    | grep Running | wc -l) -eq 2 ]
+  args:
+    executable: /bin/bash
+  register: ready
+  retries: 120
+  delay: 10
+  until: ready.rc == 0
+  changed_when: true
+
 - name: deploy intel-tls-splicing
   shell: |-
     set -o pipefail && \

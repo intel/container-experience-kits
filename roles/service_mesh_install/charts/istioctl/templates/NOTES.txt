@@ -1,0 +1,7 @@
+1. Execute istioctl by running these commands:
+export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "istioctl.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+kubectl --namespace {{ .Release.Namespace }} exec $POD_NAME -- istioctl version
+or interactively:
+kubectl --namespace {{ .Release.Namespace }} exec -it $POD_NAME -- bash
+
+$ istioctl version

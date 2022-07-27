@@ -80,7 +80,7 @@ dataplane_interfaces: []
 
 {%- if ddp in ['on', 'optional'] %}
 # install Intel x700 & x800 series NICs DDP packages
-install_ddp_packages: {% if ddp == "on"%}true{% else %}false{% endif %}
+install_ddp_packages: {% if ddp == 'on' and nic == 'fvl'%}true{% else %}false{% endif %}
 # If following error appears: "Flashing failed: Operation not permitted"
 # run deployment with update_nic_firmware: true
 # or
@@ -148,13 +148,18 @@ intel_ethernet_operator:
   fw_update: {% if intel_ethernet_operator.fw_update == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                     # perform firmware update on PFs listed in dataplane_interfaces
   # NodeFlowConfig manifests local path
   # For more information refer to:
-  # https://github.com/smart-edge-open/intel-ethernet-operator/blob/main/docs/flowconfig-daemon/creating-rules.md
+  # https://github.com/intel/intel-ethernet-operator/blob/main/docs/flowconfig-daemon/creating-rules.md
   # node_flow_config_dir: /tmp/node_flow_config
 {% endif %}
 
 {%- if intel_sriov_fec_operator in ['on', 'optional'] %}
 # Wireless FEC H/W Accelerator Device (e.g. ACC100) PCI ID
-fec_acc: {{ fec_acc_dev }}  # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
+fec_acc: "0000:27:00.0"  # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
+{% endif %}
+
+{%- if intel_flexran in ['on', 'optional'] %}
+# Intel FlexRAN
+intel_flexran_enabled: {% if intel_flexran == 'on' %}true{% else %}false{% endif %} # if true, deploy FlexRAN
 {% endif %}
 
 {%- if qat in ['on', 'optional'] %}
@@ -369,13 +374,13 @@ cndp_dp_pools:
 #
 {%- if secondary_host == 'true' %}
 # Do not set VM image info here - do it just on the first vm_host
-# secondary vm_host - do not change dhcp settings here
+# Secondary vm_host - do not change dhcp settings here
 dhcp: []
 {% else %}
 # Default VM image version is Ubuntu 20.04 - focal
-# Supported VM image disributions ['ubuntu', 'rocky']
+# Supported VM image distributions ['ubuntu', 'rocky']
 #vm_image_distribution: "ubuntu"
-# Supported VM image ubuntu versions ['20.04', '21.04', '21.10', '22.04']
+# Supported VM image ubuntu versions ['20.04', '22.04']
 #vm_image_version_ubuntu: "22.04"
 # Supported VM image rocky versions ['8.5']
 #vm_image_version_rocky: "8.5"

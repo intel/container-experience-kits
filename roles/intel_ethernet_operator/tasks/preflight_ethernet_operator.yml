@@ -1,0 +1,81 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: check Intel Ethernet Operator configuration
+  block:
+    - name: check CVL NICs
+      shell: "set -o pipefail && lshw -businfo -numeric -C network | grep -i {{ item.bus_info }} | awk -F ':' '{ print $NF}' | sed 's/.$//' "
+      args:
+        executable: /bin/bash
+      register: cvl_nics
+      changed_when: false
+      loop: "{{ dataplane_interfaces }}"
+
+    - name: fail if unsupported CVL NIC is in use
+      fail:
+        msg: "Detected E822 or E823 device with Device ID {{ present_cvl_nics | intersect(cvl_822_823_nics_ids) }}.
+              Intel Ethernet Operator supports only E810 Series Devices"
+      when: "present_cvl_nics | intersect(cvl_822_823_nics_ids)"
+      vars:
+        present_cvl_nics: "{{ cvl_nics.results | json_query('[*].stdout') }}"
+        cvl_822_823_nics_ids:
+          - "124C" # Intel(R) Ethernet Connection E823-L for backplane
+          - "124D" # Intel(R) Ethernet Connection E823-L for SFP
+          - "124E" # Intel(R) Ethernet Connection E823-L/X557-AT 10GBASE-T
+          - "124F" # Intel(R) Ethernet Connection E823-L 1GbE
+          - "151D" # Intel(R) Ethernet Connection E823-L for QSFP
+          - "188A" # Intel(R) Ethernet Connection E823-C for backplane
+          - "188B" # Intel(R) Ethernet Connection E823-C for QSFP
+          - "188C" # Intel(R) Ethernet Connection E823-C for SFP
+          - "188D" # Intel(R) Ethernet Connection E823-C/X557-AT 10GBASE-T
+          - "188E" # Intel(R) Ethernet Connection E823-C 1GbE
+          - "1890" # Intel(R) Ethernet Connection E822-C for backplane
+          - "1891" # Intel(R) Ethernet Connection E822-C for QSFP
+          - "1892" # Intel(R) Ethernet Connection E822-C for SFP
+          - "1893" # Intel(R) Ethernet Connection E822-C/X557-AT 10GBASE-T
+          - "1894" # Intel(R) Ethernet Connection E822-C 1GbE
+          - "1897" # Intel(R) Ethernet Connection E822-L for backplane
+          - "1898" # Intel(R) Ethernet Connection E822-L for SFP
+          - "1899" # Intel(R) Ethernet Connection E822-L/X557-AT 10GBASE-T
+          - "189A" # Intel(R) Ethernet Connection E822-L 1GbE
+    - name: check if legacy DDP/FW update variables are false
+      assert:
+        that:
+          - not install_ddp_packages
+          - not update_nic_firmware
+        msg:
+          - "Intel Ethernet Operator is mutually exclusive with legacy DDP/FW update role."
+          - "Please set 'install_ddp_packages' and 'update_nic_firmware' as false"
+      when:
+        - (intel_ethernet_operator.ddp_update is defined and intel_ethernet_operator.ddp_update) or
+          (intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update)
+
+    - name: check if ice driver will be updated
+      assert:
+        that: update_nic_drivers
+        msg: "Firmware update requires update_nic_drivers set as true"
+      when: intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update
+
+    - name: check Hugepages settings for Flow Configuration
+      assert:
+        that: number_of_hugepages_2M >= 1024
+        msg: "Flow Configuration requires at least 2Gi of 2M Hugepages."
+      when: dataplane_interfaces | json_query('[?flow_configuration]')
+
+    - name: check if SRIOV Network Operator is enabled
+      assert:
+        that: sriov_network_operator_enabled
+        msg: "Flow Configuration requires SRIOV Network Operator to be enabled."
+      when: dataplane_interfaces | json_query('[?flow_configuration]')

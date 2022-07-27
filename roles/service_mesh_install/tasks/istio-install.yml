@@ -14,26 +14,19 @@
 ##   limitations under the License.
 ##
 ---
-- name: download and unarchive istio release
-  unarchive:
-    src: "{{ service_mesh_download_url }}"
-    dest: "{{ project_root_dir }}"
-    remote_src: yes
-    list_files: yes
-    mode: 0755
-    extra_opts:
-      - "--transform"
-      - "s/^istio-{{ service_mesh.version }}/istio/"
-  register: istio_download
-  until: istio_download is not failed
-  retries: 5
+- name: set facts for upstream istio release
+  set_fact:
+    istio_image: "{{ service_mesh.image }}"
+    istio_tag: "{{ service_mesh.version }}"
+  when:
+    - not service_mesh.intel_preview.enabled
 
-- name: add istio binaries to the $PATH
-  copy:
-    content: |
-      export PATH={{ service_mesh_release_dir }}/bin:$PATH
-    dest: /etc/profile.d/istioctl.sh
-    mode: 0755
+- name: set facts for intel preview istio release
+  set_fact:
+    istio_image: "{{ service_mesh.intel_preview.image }}"
+    istio_tag: "{{ service_mesh.intel_preview.version }}"
+  when:
+    - service_mesh.intel_preview.enabled
 
 - name: create istio custom manifests directory
   file:
@@ -43,10 +36,15 @@
 
 - name: copy custom istio profile manifest if exists
   block:
+    - name: create custom istio profiles directory
+      file:
+        path: "{{ service_mesh_profiles_dir }}"
+        state: directory
+        mode: 0755
     - name: copy manifest
       copy:
         src: "{{ ('profiles', service_mesh.profile) | path_join }}.yaml"
-        dest: "{{ service_mesh_charts_dir }}"
+        dest: "{{ service_mesh_profiles_dir }}"
         owner: root
         mode: preserve
   rescue:
@@ -76,17 +74,26 @@
   delegate_to: localhost
   become: false
 
-- name: create istio system namespace for istio resources
-  shell: "set -o pipefail && kubectl create ns {{ service_mesh.istio_namespace }} -o yaml --dry-run=client | kubectl apply -f -"
-  args:
-    executable: /bin/bash
-  changed_when: true
+- name: copy istio helm chart to the controller node
+  copy:
+    src: "{{ (role_path, 'charts', 'istioctl') | path_join }}"
+    dest: "{{ service_mesh_charts_dir }}"
+    mode: 0755
 
-- name: install istio service mesh
-  # noqa 305 - shell is used intentionally here
-  shell: "{{ (service_mesh_release_dir, 'bin', 'istioctl')  | path_join }} install {{ argv | join(' ') }}"
-  args:
-    executable: "/bin/bash"
+- name: populate istio charts values templates and push to controller node
+  template:
+    src: "istioctl-values.yaml.j2"
+    dest: "{{ (project_root_dir, 'charts', 'istioctl-values.yaml')  | path_join }}"
+    force: yes
+    mode: preserve
+
+- name: install intel istio helm chart
+  command: >-
+    helm upgrade -i istioctl
+    --namespace {{ service_mesh.istio_namespace }}
+    --create-namespace
+    -f {{ (project_root_dir, 'charts', 'istioctl-values.yaml')  | path_join }}
+    {{ (service_mesh_charts_dir, 'istioctl') | path_join }}
   changed_when: true
 
 - name: remove temporary files

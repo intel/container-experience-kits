@@ -1,0 +1,105 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+#  - name: load FlexRAN vars
+#    include_vars: "../roles/intel_flexran/defaults/main.yml"
+
+  # check CPU for FlexRAN
+  - debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa 204 line-length
+  - name: check CPU for FlexRAN
+    assert:
+      that: "ansible_processor_count == 1 and ansible_processor_cores == 32"
+      msg: "Intel FlexRAN proper configuration requires worker with single 32-cores SPR CPU. Deployment may proceed but is unsupported"
+    failed_when: false
+
+  # check o/s for FlexRAN
+  - debug: msg="Linux distribution on target is {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }}) with {{ ansible_kernel }} kernel" # noqa 204 line-length
+  - name: check linux distro version and kernel for FlexRAN
+    assert:
+      that: "ansible_distribution == 'Ubuntu' and ansible_distribution_version == '22.04' and 'realtime' in ansible_kernel"
+      msg:
+        - Deploying Intel FlexRAN is supported only on Ubuntu 22.04 with realtime kernel.
+        - Please prepare accordingly the o/s image on target or disable FlexRAN. See docs/flexran_guide.md
+
+  # check package for FlexRAN
+  - debug: msg="Expecting subfolders inside '{{ intel_flexran_dir }}' on worker node"
+
+  - name: probe for FlexRAN extraction
+    stat:
+      path: "{{ item }}"
+    register: flexran_dir_stats
+    with_items:
+      - "{{ (intel_flexran_dir, 'bin') | path_join }}"
+      - "{{ (intel_flexran_dir, 'framework') | path_join }}"
+      - "{{ (intel_flexran_dir, 'sdk') | path_join }}"
+      - "{{ (intel_flexran_dir, 'source') | path_join }}"
+      - "{{ (intel_flexran_dir, 'tests') | path_join }}"
+      - "{{ (intel_flexran_dir, 'xran') | path_join }}"
+
+  - name: check FlexRAN folders
+    assert:
+      that: "item.stat.exists and item.stat.isdir"
+      msg:
+        - Directory '{{ item.item }}' is missing on target '{{ inventory_hostname }}'
+        - Deploying Intel FlexRAN requires the tarball package to be pre-extracted on the worker node. See docs/flexran_guide.md
+    with_items: "{{ flexran_dir_stats.results }}"
+
+  # check DPDK patch for FlexRAN
+  - debug: msg="Expecting file {{ (dpdk_local_patches_dir, 'dpdk-' + dpdk_version, intel_flexran_dpdk_patch) | path_join }} on local ansible host"
+
+  - name: probe for FlexRAN DPDK patch
+    delegate_to: localhost
+    stat:
+      path: "{{ (dpdk_local_patches_dir, 'dpdk-' + dpdk_version, intel_flexran_dpdk_patch) | path_join }}"
+      checksum_algorithm: sha256
+    register: provided_flexran_dpdk_patch
+
+  - debug: msg="{{ intel_flexran_dpdk_patch }} exists is {{ provided_flexran_dpdk_patch.stat.exists }}"
+
+  - name: check the FlexRAN DPDK patch name
+    assert:
+      that: "provided_flexran_dpdk_patch.stat.exists"
+      msg:
+        - Mandatory file {{ (dpdk_local_patches_dir, 'dpdk-' + dpdk_version, intel_flexran_dpdk_patch) | path_join }} does NOT exist on localhost.
+        - Please acquire the DPDK patch.zip and unzip it in the location indicated above in order to deploy FlexRAN. See docs/flexran_guide.md
+
+  - debug: msg="{{ intel_flexran_dpdk_patch }} checksum is {{ provided_flexran_dpdk_patch.stat.checksum }}"
+
+  - name: check the FlexRAN DPDK patch integrity
+    assert:
+      that: "provided_flexran_dpdk_patch.stat.checksum == '{{ intel_flexran_dpdk_patch_chk }}'"
+      msg:
+        - File {{ (dpdk_local_patches_dir, 'dpdk-' + dpdk_version, intel_flexran_dpdk_patch) | path_join }} on localhost is NOT the expected one.
+        - Please provide the correct file. See docs/flexran_guide.md
+
+  # check DPDK for FlexRAN
+  - name: check DPDK is enabled for FlexRAN
+    assert:
+      that: install_dpdk
+      msg: "DPDK installation is required for FlexRAN. Please make sure install_dpdk is true in the worker node host_vars file"
+
+  - debug: msg="DPDK version is set to '{{ dpdk_version }}'"
+
+  - name: check DPDK version for FlexRAN
+    assert:
+      that: dpdk_version == intel_flexran_dpdk_ver
+      msg:
+        - DPDK version '{{ dpdk_version }}' set in the worker node host_vars file does NOT match the DPDK version required for FlexRAN.
+        - Must be '{{ intel_flexran_dpdk_ver }}'
+
+  when:
+    - intel_flexran_enabled | default(false) | bool

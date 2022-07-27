@@ -250,7 +250,7 @@
 
     - name: install podman package
       package:
-        name: "{{ 'podman-3.3.1' if ansible_os_family == 'RedHat' else 'podman' }}"
+        name: podman
         state: present
       register: podman_package
       retries: 10

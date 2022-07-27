@@ -37,7 +37,7 @@
     - name: Check minio_vf is defined and set and vf_driver uses 'iavf' (kernel driver)
       assert:
         that:
-          - ('vf_00' is not in item.sriov_vfs.keys() and item.default_vf_driver == 'iavf') or 
+          - ('vf_00' is not in item.sriov_vfs.keys() and item.default_vf_driver == 'iavf') or
             ('vf_00' is in item.sriov_vfs.keys() and item.sriov_vfs.get('vf_00') == 'iavf')
         msg: >-
           "MinIO uses vf_driver: 'iavf' (kernel driver) with the vf_00 by default.

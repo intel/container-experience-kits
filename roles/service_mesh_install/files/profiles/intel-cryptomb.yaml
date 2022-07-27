@@ -1,0 +1,58 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  profile: default
+  tag: 1.14-intel.1
+  hub: intel
+  meshConfig:
+  # Enable for envoy debugging
+  # accessLogFile: /dev/stdout
+    defaultConfig:
+      proxyStatsMatcher:
+        inclusionPrefixes:
+          - "listener"
+      # Allows cryptomb bucket statistics via EnvoyFilter
+      proxyMetadata:
+        BOOTSTRAP_XDS_AGENT: "true"
+
+  components:
+    ingressGateways:
+      - enabled: true
+        name: istio-ingressgateway
+        k8s:
+          overlays:
+            - kind: Deployment
+              name: istio-ingressgateway
+              patches:
+                - path: spec.template.spec.containers.[name:istio-proxy].args.[-1]
+                  value: "--concurrency=2"
+          # Limit CPU/MEM usage to 2 vCPUs/4 GB for QoS reasons.
+          # Enable CPU manager static policy in kubelet to even more deterministic results.
+          resources:
+            requests:
+              cpu: 2000m
+              memory: 4096Mi
+            limits:
+              cpu: 2000m
+              memory: 4096Mi
+          hpaSpec:
+            maxReplicas: 1
+            minReplicas: 1
+          podAnnotations: # this controls the SDS service which configures ingress gateway
+            proxy.istio.io/config: |
+              privateKeyProvider:
+                cryptomb:
+                  pollDelay: 10ms
+  values:
+    # Annotate pods with
+    #     inject.istio.io/templates: sidecar,cryptomb
+    #
+    # Note: CryptoMB doesn't have any method for guiding the workload to
+    # an AVX-512 enabled node, so when you annotate the pod with the
+    # cryptomb annotation, also set the taints correctly.
+    sidecarInjectorWebhook:
+      templates:
+        cryptomb: |
+          spec:
+            containers:
+              - name: istio-proxy

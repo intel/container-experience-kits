@@ -14,9 +14,22 @@
 ##   limitations under the License.
 ##
 ---
-- name: install Operator Lifecycle Manager (OLM)
-  command: operator-sdk olm install # noqa 301
-  environment:
-    PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ operator_sdk_dir }}"
-#  ignore_errors: true
-#  install re-run fails unless uninstalled first
+install_dependencies:
+  Debian:
+    - git
+    - linux-headers-{{ ansible_kernel }}
+    - xdg-utils
+    - libnotify4
+    - libgbm1
+    - libnuma-dev
+    - libhugetlbfs-dev
+    - build-essential
+    - cmake
+    - meson
+    - pkgconf
+    - python3-pyelftools
+    - flex
+    - bison
+  RedHat:
+    - git
+    - make

@@ -265,16 +265,22 @@ kmra:
 {%- if service_mesh and service_mesh.enabled in ['on', 'optional'] %}
 # Service mesh deployment
 # https://istio.io/latest/docs/setup/install/istioctl/
+# Intel Istio
+# https://github.com/intel/istio
 
 # for all available options, please, refer to the 'roles/service_mesh_install/vars/main.yml;
+# for the options dependencies and compatibility, please, refer to the official CEK documentation;
 service_mesh:
   enabled: {% if service_mesh.enabled == 'on' %}true{% else %}false{% endif %}   # enable Service Mesh
-  # available profiles are: 'default', 'demo', 'minimal', 'external', 'empty', 'preview'
+  # available profiles are: 'default', 'demo', 'minimal', 'external', 'empty', 'preview',
+  # 'sgx-mtls', 'intel-qat-hw', 'intel-qat-sw', 'intel-cryptomb'
   # if custom profile needs to be deployed, please, place the file named '<profile_name>.yaml'
   # into the directory 'roles/service_mesh_install/files/profiles/'
   # 'custom-ca' profile name is reserved for usage by sgx_signer if sgx_signer option is enabled
-  # any name provided will be overwritten in this case
+  # any profile name provided will be overwritten in this case
   profile: {% if service_mesh.sgx_signer == 'on' and arch in ['icx', 'spr'] %}custom-ca{% else %}default{% endif %}
+  intel_preview:
+    enabled: {% if service_mesh.intel_preview == 'on' %}true{% else %}false{% endif %}  # enable intel istio preview
   {%- if service_mesh.tcpip_bypass_ebpf in ['on', 'optional'] %}
   tcpip_bypass_ebpf:
     enabled: {% if service_mesh.tcpip_bypass_ebpf == 'on' %}true{% else %}false{% endif %}  # enable tcp/ip ebpf bypass demo
@@ -287,6 +293,14 @@ service_mesh:
   sgx_signer:
     enabled: {% if service_mesh.sgx_signer == 'on' %}true{% else %}false{% endif %}   # enable automated key management integration
     name: sgx-signer
+  {%- endif %}
+  {%- if service_mesh.intel_preview in ['on', 'optional'] %}
+  # uncomment following section and enable intel_preview if sgx-mtls profile is selected
+  {% if service_mesh.intel_preview == 'optional' %}#{% endif %}set:
+  {% if service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.global.proxy.sgx.enabled=true
+  {% if service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.global.proxy.sgx.certExtensionValidationEnabled=true
+  {% if service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.gateways.sgx.enabled=true
+  {% if service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.gateways.sgx.certExtensionValidationEnabled=true
   {%- endif %}
 {% endif %}
 
@@ -358,10 +372,13 @@ firewall_enabled: {% if firewall == "on" %}true{% else %}false{% endif %}
 ## Proxy configuration ##
 #http_proxy: "http://proxy.example.com:1080"
 #https_proxy: "http://proxy.example.com:1080"
-#additional_no_proxy: ".example.com,mirror_ip"  #no need to include the following (will be added automatically): localhost, 127.0.0.1, controllerIP, nodesIPs
+#additional_no_proxy: ".example.com,mirror_ip"  # no need to include the following (will be added automatically): localhost, 127.0.0.1, controllerIPs, nodesIPs
 
 # (Ubuntu only) disables DNS stub listener which may cause issues on Ubuntu
 dns_disable_stub_listener: true
+
+# Remove the block between ansible markers set by kubespray in dhclient & hosts files to avoid DNS & LDAP issues (connection loss) after K8s setup after reboot
+remove_kubespray_host_dns_settings: true
 
 # Kubernetes cluster name, also will be used as DNS domain
 cluster_name: cluster.local
@@ -434,10 +451,9 @@ kube_proxy_nodeport_addresses_cidr: 127.0.0.0/8
 # Docker registry running on the cluster allows us to store images not available on Docker Hub
 # The range of valid ports is 30000-32767
 registry_enable: {% if registry == 'on' %}true{% else %}false{% endif %}
-registry_nodeport: 30500
+registry_nodeport: "30500"
 registry_local_address: "localhost:{{ '{{' }} registry_nodeport {{ '}}' }}"
 {%- endif %}
-
 {%- if cert_manager in ['on', 'optional'] %}
 cert_manager_enable: {% if cert_manager == 'on' %}true{% else %}false{% endif %}
 {%- endif %}
@@ -465,7 +481,7 @@ minio_deploy_test_mode: true                          # true (Test Mode) - use a
 # Intel Cloud Native Data Plane.
 {%- if cndp_dp in ['on', 'optional'] %}
 cndp_dp_enabled: {% if cndp_dp == 'on' %}true{% else %}false{% endif %}
-{% if cndp_dp == 'on' %}
+{%- if cndp_dp == 'on' %}
 cndp_net_attach_def_enabled: true         # Whether or not to create NetworkAttachmentDefinition resource.
 cndp_net_attach_def_conf:
   name: cndp-cni-afxdp0              # (Optional) Name of NetworkAttachmentDefinition resource.

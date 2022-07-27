@@ -30,6 +30,7 @@
   when:
     - ice_installed_version.stdout != ice_driver_version
     - mgmt_interface_driver.stdout != ice_driver_name
+    - not update_kernel
     - ansible_os_family == "RedHat" or
       (ansible_distribution == "Ubuntu" and ansible_distribution_version < "22.04")
 
@@ -72,7 +73,7 @@
     reboot_timeout: 1200
   when:
     - (ice_installed_version.stdout != ice_driver_version and mgmt_interface_driver.stdout == ice_driver_name) or
-      (ice_installed_version.stdout != ice_driver_version and ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04")
+      (ice_installed_version.stdout != ice_driver_version and (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04" or update_kernel))
 
 - name: ensure that ice module is loaded
   modprobe:

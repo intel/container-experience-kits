@@ -33,12 +33,13 @@
         minutes: 1
 
     - name: check status of DDP update
-      command: "kubectl get ethernetnodeconfig {{ node_name }} -n {{ intel_ethernet_operator_namespace }}"
+      command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
       register: ddp_update_info
       until: "'InProgress' not in ddp_update_info.stdout"
-      retries: 30
+      retries: 60
       delay: 10
-      failed_when: "'Failed' in ddp_update_info.stdout"
+      failed_when: "'Failed' in ddp_update_info.stdout or 'InProgress' in ddp_update_info.stdout or 'NotRequested' in ddp_update_info.stdout"
+      changed_when: false
 
     - name: check node after reboot
       block:
@@ -50,23 +51,52 @@
             timeout: 1200
 
         - name: check if node is ready
-          command: "kubectl get nodes {{ node_name }}"
+          command: "kubectl get nodes {{ hostvars[node_name]['ansible_hostname'] }}"
           register: ddp_node_readiness
-          retries: 30
+          retries: 60
           delay: 10
-          until: "'NotReady' not in ddp_node_readiness.stdout"
+          until:
+            - "'NotReady' not in ddp_node_readiness.stdout"
+            - "'SchedulingDisabled' not in ddp_node_readiness.stdout"
+          changed_when: false
 
         - name: wait for pods to be up and running
           pause:
             minutes: 1
 
+        - name: check if all pods are running
+          shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
+          args:
+            executable: /bin/bash
+          register: ddp_pods_status
+          retries: 30
+          delay: 10
+          until:
+            - "'Error' not in ddp_pods_status.stdout"
+            - "'CrashLoopBackOff' not in ddp_pods_status.stdout"
+            - "'Terminating' not in ddp_pods_status.stdout"
+            - "'ContainerCreating' not in ddp_pods_status.stdout"
+            - "'Pending' not in ddp_pods_status.stdout"
+          changed_when: false
+
+        - name: check if all containers are running
+          shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
+          args:
+            executable: /bin/bash
+          register: ddp_containers_readiness
+          retries: 30
+          delay: 10
+          until: "'0' not in ddp_containers_readiness.stdout"
+          changed_when: false
+
         - name: check status of DDP update
-          command: "kubectl get ethernetnodeconfig {{ node_name }} -n {{ intel_ethernet_operator_namespace }}"
+          command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
           register: after_ddp_update_info
           until: "'PostUpdateReboot' not in after_ddp_update_info.stdout"
           retries: 30
           delay: 10
-          failed_when: "'Failed' in after_ddp_update_info.stdout"
+          failed_when: "'Failed' in after_ddp_update_info.stdout or 'PostUpdateReboot' in after_ddp_update_info.stdout or 'InProgress' in after_ddp_update_info.stdout" # noqa 204 line-length
+          changed_when: false
       when: "'PostUpdateReboot' in ddp_update_info.stdout"
 
     - name: remove DDP CR after update
@@ -75,7 +105,8 @@
         src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
 
     - name: remove EthernetNodeConfig after update
-      command: kubectl delete enc {{ node_name }} -n {{ intel_ethernet_operator_namespace }}
+      command: kubectl delete enc {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}
+      changed_when: true
 
     - name: reload nic modules
       block:
@@ -87,6 +118,12 @@
           delegate_to: "{{ node_name }}"
           changed_when: false
 
+        - name: check if IRDMA module is loaded
+          command: "lsmod"
+          register: ieo_lsmod
+          delegate_to: "{{ node_name }}"
+          changed_when: false
+
         - name: unload ICE module
           modprobe:
             name: ice
@@ -95,6 +132,7 @@
           when:
             - not hostvars[node_name]['enable_ice_systemd_service']
             - mgmt_interface_driver_ieo.stdout != "ice"
+            - "'irdma' not in ieo_lsmod.stdout"
 
         - name: load ICE module
           modprobe:
@@ -104,6 +142,7 @@
           when:
             - not hostvars[node_name]['enable_ice_systemd_service']
             - mgmt_interface_driver_ieo.stdout != "ice"
+            - "'irdma' not in ieo_lsmod.stdout"
 
     - name: create ddp service
       block:

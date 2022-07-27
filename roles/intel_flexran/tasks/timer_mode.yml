@@ -1,0 +1,90 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: enable h/w FEC mode
+  lineinfile:
+    path: "{{ (intel_flexran_dir, 'bin/nr5g/gnb/l1/phycfg_timer.xml') | path_join }}"
+    search_string: 'dpdkBasebandFecMode'
+    line: "        <dpdkBasebandFecMode>1</dpdkBasebandFecMode>"
+
+- name: set h/w FEC device
+  lineinfile:
+    path: "{{ (intel_flexran_dir, 'bin/nr5g/gnb/l1/phycfg_timer.xml') | path_join }}"
+    search_string: 'dpdkBasebandDevice'
+    line: "{{ '        <dpdkBasebandDevice>' + fec_acc + '</dpdkBasebandDevice>' }}"
+
+- name: check dpdkBaseband config
+  shell: "grep dpdkBaseband phycfg_timer.xml" # noqa 305
+  args:
+    chdir: "{{ (intel_flexran_dir, 'bin/nr5g/gnb/l1') | path_join }}"
+  register: phycfg_timer_mode
+  changed_when: false
+
+- debug: msg="{{ phycfg_timer_mode.stdout }}"
+
+- name: check FEC Acc devices
+  shell: "set -o pipefail && lspci | grep -i acc"
+  args:
+    executable: /bin/bash
+  register: fec_acc_devs
+  changed_when: false
+
+- debug: msg={{ fec_acc_devs.stdout }}
+
+- debug:
+    msg:
+      - "Intel FlexRAN deployment is complete and Timer Mode configuration is done."
+      - "The worker node is ready for L1/L2 Tests to be executed and verified according to the Guide"
+
+# - name: run L1
+#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/l1') | path_join }} && ./l1.sh -e" # noqa 305
+#   args:
+#     executable: /bin/bash
+#     chdir: "{{ intel_flexran_dir }}"
+#   async: 150
+#   poll: 0
+#   register: l1
+
+# - name: wait l1 ready
+#   pause:
+#     seconds: 30
+
+# - name: run L2
+#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/testmac') | path_join }} && ./l2.sh --testfile=icelake-sp/icxsp_mu0_10mhz_4x4_hton.cfg" # noqa 204 line-length
+#   args:
+#     executable: /bin/bash
+#     chdir: "{{ intel_flexran_dir }}"
+#   async: 120
+#   poll: 0
+#   register: l2
+
+# - name: wait l2 finish
+#   pause:
+#     seconds: 150
+
+# - name: dump l1 result
+#   async_status: jid="{{ l1.ansible_job_id }}"
+#   register: l1_result
+
+# - debug: msg="{{ l1_result.stdout }}"
+#   failed_when: false
+
+# - name: dump l2 result
+#   async_status: jid="{{ l2.ansible_job_id }}"
+#   register: l2_result
+
+# - debug: msg="{{ l2_result.stdout }}"
+#   failed_when: false

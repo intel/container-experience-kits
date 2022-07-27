@@ -53,7 +53,7 @@ Next section provides VM related configuration options.
 The first option defines VM image distribution of cloud image, which will be used inside VMs.
   Currently supported distributions are: "ubuntu" and "rocky". Default is "ubuntu"
 Following two options define VM image version for Ubuntu and for Rocky.
-  Currently supported ubuntu versions are: "20.04", "21.10" and "22.04". Default is "20.04"
+  Currently supported ubuntu versions are: "20.04" and "22.04". Default is "20.04"
   Currently supported rocky version is: "8.5". Default is "8.5"
 Default VM image distribution is "ubuntu" and default version is "20.04"
 Setting for VM image can be done just on the first VM host. It is common for all VMs across all VM hosts.

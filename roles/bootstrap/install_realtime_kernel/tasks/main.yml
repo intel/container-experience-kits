@@ -1,0 +1,33 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Installing the RT kernel is intended only for FlexRAN support
+
+- debug: msg="NOP. Until Ubuntu 22.04 RT patch is made public by Canonical, realtime image is expected to be pre-built by user"
+
+# - name: Install realtime headers from the local DEB packages
+#   shell: "apt install -y /opt/rt-kits/*.deb"
+#   ignore_errors: True
+
+# - name: Find existing local DEB files
+#   find:
+#     paths: /opt/rt-kits/
+#     patterns: "*.deb"
+#   register: found_debs
+# - name: Install the local DEB packages
+#   apt:
+#     deb: "{{ item.path }}"
+#   with_items: "{{ found_debs.files }}"

@@ -1,0 +1,17 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  profile: default
+  hub: intel
+  tag: 1.14-intel.1
+  # Enable for envoy debugging
+  #  meshConfig:
+  #    accessLogFile: /dev/stdout
+  components:
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: true
+        k8s:
+          env:
+            - name: OPENSSL_CONF
+              value: "/etc/ssl/openssl-avx512.cnf"

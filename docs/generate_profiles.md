@@ -69,7 +69,7 @@ At the moment, Container Experience Kits supports the following profiles:
 * build_your_own
 
 Profile's name will be passed to the make command via the required `PROFILE` parameter. Each profile includes some specific sort of functionalities. Choose the profile that suits you the most via inspecting the examples generated [here](#creating-sample-profiles).
-If you would like to know more about CEK profiles read section 2.2 in [here](https://networkbuilders.intel.com/solutionslibrary/container-bare-metal-for-2nd-3rd-generation-intel-xeon-scalable-processor).
+If you would like to know more about CEK profiles read section 2.2 in [here](https://networkbuilders.intel.com/solutionslibrary/network-and-cloud-edge-container-bare-metal-reference-system-architecture-user-guide).
 
 
 ## Example Commands
