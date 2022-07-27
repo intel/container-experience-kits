@@ -56,5 +56,5 @@ argv:
 {% if service_mesh.profile in ['default', 'demo', 'minimal', 'external', 'empty', 'preview'] %}
   - --set profile={{ service_mesh.profile }}
 {% else %}
-  - --filename={{ service_mesh_charts_dir }}/{{ service_mesh.profile }}.yaml
+  - --filename={{ service_mesh_profiles_dir }}/{{ service_mesh.profile }}.yaml
 {% endif -%}

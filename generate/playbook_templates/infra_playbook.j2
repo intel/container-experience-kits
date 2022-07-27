@@ -62,6 +62,8 @@
       when: iommu_enabled | default(true) | bool or on_vms | default(false) | bool
     - role: bootstrap/set_rdt_kernel_flags
       when: telegraf_enabled | default(true) | bool
+    - role: bootstrap/set_intel_flexran_kernel_flags
+      when: intel_flexran_enabled | default(false) | bool
 {%- if playbook_name in ['full_nfv', 'remote_fp', 'on_prem', 'build_your_own'] %}
     - role: bootstrap/configure_sst
       tags: sst

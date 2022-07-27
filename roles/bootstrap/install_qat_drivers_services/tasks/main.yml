@@ -18,6 +18,12 @@
   include_role:
     name: install_dependencies
 
+- name: WA for libudev-dev version issue on Ubuntu 22.04
+  apt:
+    name: 'udev'
+    state: latest # noqa 403 package-latest
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+
 - name: get current udev package version
   shell: "set -o pipefail && apt list --installed 2>/dev/null |grep '^udev' | awk 'NR==1{ print $2 }'"
   args:

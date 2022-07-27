@@ -21,7 +21,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: {{ service_mesh.tcpip_bypass_ebpf.name }}
-        image: {{ service_mesh.tcpip_bypass_ebpf.image }}
+        image: {{ service_mesh.tcpip_bypass_ebpf.image }}:{{ service_mesh.tcpip_bypass_ebpf.version }}
         imagePullPolicy: IfNotPresent
         securityContext:
             privileged: true

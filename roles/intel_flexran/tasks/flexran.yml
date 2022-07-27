@@ -1,0 +1,64 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# - name: create Intel FlexRAN directory on worker node
+#   file:
+#     path: "{{ intel_flexran_dir }}"
+#     state: directory
+#     mode: '0755'
+
+# - name: unpack Intel FlexRAN tarball on worker node
+#   unarchive:
+#     src: "{{ (intel_flexran_staging_location, intel_flexran_tarball) | path_join }}"
+#     dest: "{{ intel_flexran_dir }}"
+#     mode: '0755'
+
+# - name: extract Intel FlexRAN
+#   shell: "echo | ./extract.sh" # noqa 301
+#   args:
+#     chdir: "{{ intel_flexran_dir }}"
+
+- name: set DPDK path for Intel FlexRAN
+  copy:
+    dest: "{{ (intel_flexran_dir, '.flexran_dpdk.path') | path_join }}"
+    content: "{{ intel_flexran_dpdk_dir }}"
+    mode: '0755'
+
+- name: set oneAPI path for Intel FlexRAN
+  copy:
+    dest: "{{ (intel_flexran_dir, '.flexran_icx.path') | path_join }}"
+    content: "{{ intel_oneapi_dir }}"
+    mode: '0755'
+
+- name: build Intel FlexRAN SDK
+  shell: "source set_env_var.sh -d && ./flexran_build.sh -e -r 5gnr -m sdk" # noqa 305
+  args:
+    executable: /bin/bash
+    chdir: "{{ intel_flexran_dir }}"
+  changed_when: false
+
+# - name: build DPDK # all this presumably already done by DPDK role. need to re-run after building sdk above?!
+#   shell: "source set_env_var.sh -d && cd $RTE_SDK && meson build && cd build && meson configure && ninja && ninja install" # noqa 305
+#   args:
+#     executable: /bin/bash
+#     chdir: "{{ intel_flexran_dir }}"
+
+- name: build FlexRAN ALL for 5GNR
+  shell: "source set_env_var.sh -d && ./flexran_build.sh -e -r 5gnr" # noqa 305
+  args:
+    executable: /bin/bash
+    chdir: "{{ intel_flexran_dir }}"
+  changed_when: false

@@ -14,8 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-- get_url:                                                           
-    url: "{{ opm_url }}"                       
+- name: get OPM from URL
+  get_url:
+    url: "{{ opm_url }}"
     dest: "{{ (opm_dir, opm_cmd) | path_join }}"
     checksum: "sha256:{{ opm_chk }}"
     mode: '0755'

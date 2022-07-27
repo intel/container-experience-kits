@@ -26,3 +26,6 @@
   register: pkg_mgr_results
   retries: 3
   until: pkg_mgr_results is success
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"

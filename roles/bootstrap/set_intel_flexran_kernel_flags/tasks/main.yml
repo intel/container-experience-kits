@@ -1,0 +1,102 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# probe CPU
+- debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa 204 line-length
+
+- name: include Intel FlexRAN role vars
+  include_vars: ../../intel_flexran/defaults/main.yml
+
+- name: create Intel FlexRAN files directory on controller
+  file:
+    path: "{{ intel_flexran_files_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: transfer Intel FlexRAN kernel-cmdline generator to worker
+  copy:
+    src: '../../intel_flexran/files/kernel_cmdline_gen.sh'
+    dest: "{{ intel_flexran_files_dir }}"
+    mode: '0755'
+
+- name: generate Intel FlexRAN kernel-cmdline
+  shell: "./kernel_cmdline_gen.sh" # noqa 305
+  args:
+    chdir: "{{ intel_flexran_files_dir }}"
+  register: generated_cmdline
+  changed_when: false
+
+- debug: msg="{{ generated_cmdline.stdout }}"
+
+- name: set generic Intel FlexRAN kernel flags
+  set_fact:
+#    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} intel_iommu=on iommu=pt" {{ intel_flexran_marker }}'
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="{{ generated_cmdline.stdout }}" {{ intel_flexran_marker }}'
+
+- name: override Intel FlexRAN kernel flags specific for 1x32 cores CPU
+  set_fact:
+    # Sam: BM: Quanta MCC SPR single socket (1x32 cores) for L2 testfile=icelake-sp:
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="crashkernel=auto intel_iommu=on iommu=pt usbcore.autosuspend=-1 selinux=0 enforcing=0 nmi_watchdog=0 softlockup_panic=0 audit=0 cgroup_disable=memory mce=off hugepagesz=1G hugepages=40 hugepagesz=2M hugepages=0 default_hugepagesz=1G kthread_cpus=0,30-32,62-63 irqaffinity=0,30-32,62-63 nosoftlockup skew_tick=1 skew_tick=1 isolcpus=1-29,33-61 nohz_full=1-29,33-61 rcu_nocbs=1-29,33-61" {{ intel_flexran_marker }}' # noqa 204 line-length
+    intel_flexran_isol_cores: "1-29,33-61"
+    intel_flexran_cpu_supported: true
+  when:
+    - ansible_processor_count == 1
+    - ansible_processor_cores == 32
+
+- name: override Intel FlexRAN kernel flags specific for 2x40 cores CPUs
+  set_fact:
+    # Baoqian script: BM: FCP (2x40 cores):
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="intel_iommu=on iommu=pt usbcore.autosuspend=-1 selinux=0 enforcing=0 nmi_watchdog=0 crashkernel=auto softlockup_panic=0 audit=0 cgroup_disable=memory tsc=nowatchdog intel_pstate=disable mce=off hugepagesz=1G hugepages=40 hugepagesz=2M hugepages=0 default_hugepagesz=1G kthread_cpus=0,80,40-79,120-159 irqaffinity=0,80,40-79,120-159 nohz=on nosoftlockup nohz_full=1-39,81-119 rcu_nocbs=1-39,81-119 rcu_nocb_poll skew_tick=1 isolcpus=1-39,81-119" {{ intel_flexran_marker }}' # noqa 204 line-length
+    intel_flexran_cpu_supported: true
+  when:
+    - ansible_processor_count == 2
+    - ansible_processor_cores == 40
+
+- name: override Intel FlexRAN kernel flags specific for 2x52 cores CPUs
+  set_fact:
+    # Sam: BM: Quanta XCC dual socket (2x52 cores) for L2 testfile=icelake-sp:
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=60 irqaffinity=0,50-52,103-104,154-156,206-207 mce=off nmi_watchdog=0 softlockup_panic=0 selinux=0 enforcing=0 audit=0 kthread_cpus=0,50-52,103-104,154-156,206-207 clock=pit no_timer_check clocksource=tsc tsc=perfect usbcore.autosuspend=-1 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 isolcpus=managed_irq,domain,1-49,53-101,105-153,157-205 intel_pstate=disable nosoftlockup tsc=nowatchdog nohz=on nohz_full=1-49,53-101,105-153,157-205 rcu_nocbs=1-49,53-101,105-153,157-205" {{ intel_flexran_marker }}' # noqa 204 line-length
+    intel_flexran_isol_cores: "1-49,53-101,105-153,157-205"
+    intel_flexran_cpu_supported: true
+    # Jing: XCC dual socket (2x52 cores):
+#    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="intel_iommu=on iommu=pt default_hugepagesz=1G hugepagesz=1G hugepages=60 irqaffinity=0-3,100-103,104-107,204-207 mce=off nmi_watchdog=0 softlockup_panic=0 selinux=0 enforcing=0 audit=0 kthread_cpus=0-3,100-103,104-107,204-207 clock=pit no_timer_check clocksource=tsc tsc=perfect usbcore.autosuspend=-1 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 isolcpus=managed_irq,domain,4-99,108-203 intel_pstate=disable nosoftlockup tsc=nowatchdog nohz=on nohz_full=4-99,108-203 rcu_nocbs=4-99,108-203" {{ intel_flexran_marker }}' # noqa 204 line-length
+  when:
+    - ansible_processor_count == 2
+    - ansible_processor_cores == 52
+
+- debug: msg="{{ intel_flexran_cmdline }}"
+
+- name: set Intel FlexRAN kernel flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)" {{ intel_flexran_marker }}$'
+    line: '{{ intel_flexran_cmdline }}'
+    state: present
+    mode: '0664'
+  notify:
+    - reboot server
+
+- name: set Intel FlexRAN cores isolation for RHEL
+  lineinfile:
+    dest: /etc/tuned/realtime-variables.conf # or /etc/tuned/realtime-virtual-host.conf
+    line: 'isolated_cores={{ intel_flexran_isol_cores }}'
+    state: present
+    create: yes
+    mode: '0664'
+  when:
+    - ansible_os_family == "RedHat"
+  notify:
+    - reboot server

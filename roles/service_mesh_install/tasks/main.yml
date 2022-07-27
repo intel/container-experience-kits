@@ -46,9 +46,24 @@
       hostvars[groups['kube_node'][0]]['is_spr']
 
 - name: install istio service mesh
-  include_tasks: install.yml
+  include_tasks: istio-install.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: fix the iptable-restore error by https://github.com/istio/istio/issues/23009
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "br_netfilter"
+    - "nf_nat"
+    - "xt_REDIRECT"
+    - "xt_owner"
+    - "iptable_nat"
+    - "iptable_mangle"
+    - "iptable_filter"
+  when:
+    - ansible_distribution in ['RedHat', 'Rocky'] and inventory_hostname != groups['kube_control_plane'][0]
 
 - name: deploy TLS splicing and bumping
   include_tasks: tls-splicing-and-bumping.yml

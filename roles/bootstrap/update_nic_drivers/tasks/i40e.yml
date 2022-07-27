@@ -30,6 +30,7 @@
   when:
     - i40e_installed_version.stdout != i40e_driver_version
     - mgmt_interface_driver.stdout != i40e_driver_name
+    - not update_kernel
     - ansible_os_family == "RedHat" or
       (ansible_distribution == "Ubuntu" and ansible_distribution_version < "22.04")
 
@@ -72,7 +73,7 @@
     reboot_timeout: 1200
   when:
     - (i40e_installed_version.stdout != i40e_driver_version and mgmt_interface_driver.stdout == i40e_driver_name) or
-      (i40e_installed_version.stdout != i40e_driver_version and ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04")
+      (i40e_installed_version.stdout != i40e_driver_version and (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04" or update_kernel))
 
 - name: ensure that i40e module is loaded
   modprobe:

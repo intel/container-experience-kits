@@ -170,7 +170,7 @@
   any_errors_fatal: true
   vars:
     cek_supported_distros: [RedHat, Rocky, Ubuntu]
-    cek_supported_distros_versions: ['8.5', '20.04', '21.10', '22.04']
+    cek_supported_distros_versions: ['8.5', '20.04', '22.04']
     cpusets_ranges: []
     cpusets_discretes: []
     isolcpus_ranges: []
@@ -495,7 +495,7 @@
   any_errors_fatal: true
   vars:
     cstates_supported_distros: [Ubuntu]
-    cstates_supported_distros_versions: ['21.10', '22.04']
+    cstates_supported_distros_versions: ['22.04']
     phy_nics_pciids: []
     gpu_pciids:
       - name: DG1
@@ -780,9 +780,12 @@
       assert:
         that:
           - nfd_enabled
-        fail_msg: "SGX DP requires nfd_enabled set to 'true'"
+        fail_msg: "Deployment of Intel Device Plugins requires nfd_enabled set to 'true' in group_vars"
         success_msg: "NFD configuration verified"
-      when: sgx_dp_enabled is defined and sgx_dp_enabled
+      when: 
+        - (qat_dp_enabled | default(false)) or
+          (sgx_dp_enabled | default(false)) or
+          (gpu_dp_enabled | default(false))
 
     - name: check kmra.pccs.api_key presence
       assert:
@@ -1148,45 +1151,9 @@
       when: intel_power_manager is defined and intel_power_manager.enabled and container_runtime in ["crio", "containerd"]
 
     - name: check Intel Ethernet Operator configuration
-      block:
-        - name: check if ddp service is enabled
-          assert:
-            that: enable_ice_systemd_service
-            msg: "Please set enable_ice_systemd_service as true"
-          when:
-            - intel_ethernet_operator.ddp_update is defined and intel_ethernet_operator.ddp_update
-            - ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04"
-
-        - name: check if legacy DDP/FW update variables are false
-          assert:
-            that:
-              - not install_ddp_packages
-              - not update_nic_firmware
-            msg:
-              - "Intel Ethernet Operator is mutually exclusive with legacy DDP/FW update role."
-              - "Please set 'install_ddp_packages' and 'update_nic_firmware' as false"
-          when:
-            - (intel_ethernet_operator.ddp_update is defined and intel_ethernet_operator.ddp_update) or
-              (intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update)
-
-        - name: check if ice driver will be updated
-          assert:
-            that: update_nic_drivers
-            msg: "Firmware update requires update_nic_drivers set as true"
-          when: intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update
-
-        - name: check Hugepages settings for Flow Configuration
-          assert:
-            that: number_of_hugepages_2M >= 1024
-            msg: "Flow Configuration requires at least 2Gi of 2M Hugepages."
-          when: dataplane_interfaces | json_query('[?flow_configuration]')
-
-        - name: check if SRIOV Network Operator is enabled
-          assert:
-            that: sriov_network_operator_enabled
-            msg: "Flow Configuration requires SRIOV Network Operator to be enabled."
-          when: dataplane_interfaces | json_query('[?flow_configuration]')
-
+      include_role:
+        name: intel_ethernet_operator
+        tasks_from: preflight_ethernet_operator
       when: intel_ethernet_operator_enabled
 
     - name: make sure isolcpus and cpusets are not enabled simultaneously
@@ -1207,7 +1174,9 @@
         - name: FEC Operator - check profile is access or bring_your_own
           assert:
             that: profile_name in ['access', 'full_nfv', 'bring_your_own']
-            msg: "Deploying the Intel SR-IOV FEC Operator is supported only in the 'access', 'full_nfv', or 'byo' profiles. Please correct the group_vars configuration"
+            msg: >
+              "Deploying the Intel SR-IOV FEC Operator is supported only in the 'access', 'full_nfv', or 'byo' profiles.
+              Please correct the group_vars configuration"
 
         - name: FEC Operator - check distro is Ubuntu 22.04 (generic or realtime)
           assert:
@@ -1225,11 +1194,6 @@
           assert:
             that: container_runtime == 'docker'
             msg: "Deploying the Intel SR-IOV FEC Operator is supported only for docker runtime. Please correct the group_vars configuration"
-
-        - name: FEC Operator - check IEO coexistence
-          assert:
-            that: "{{ not intel_ethernet_operator_enabled | default(false) }}"
-            msg: "Deploying the Intel SR-IOV FEC Operator is not supported along with Intel Ethernet Operator (IEO). Please disable IEO in the group_vars configuration"
 
 # TODO
 #        - name: FEC Operator - check Cert Manager is enabled
@@ -1250,6 +1214,12 @@
 #            msg: "Deploying the Intel SR-IOV FEC Operator requires the ACC card to be present in the host. Please correct the host h/w configuration"
 
       when: intel_sriov_fec_operator_enabled | default(false) | bool
+
+    - name: check Intel FlexRAN requirements
+      include_role:
+        name: intel_flexran
+        tasks_from: flexran_preflight
+      when: intel_flexran_enabled | default(false)
 
 ####################################
 # Prerequisites for Role specific  #

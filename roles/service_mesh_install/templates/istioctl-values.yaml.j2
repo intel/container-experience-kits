@@ -1,0 +1,15 @@
+image:
+  repository: "{{ istio_image }}"
+  pullPolicy: IfNotPresent
+  tag: "{{ istio_tag }}"
+
+command:
+  - "sh"
+  - "-c"
+  - |
+    istioctl \
+    install \
+{% for arg in argv %}
+    {{ arg }} \
+{% endfor %}
+    && sleep infinity

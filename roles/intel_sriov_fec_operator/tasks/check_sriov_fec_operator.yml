@@ -25,7 +25,7 @@
   register: fec_operator_pods
 
 - debug: msg={{ fec_operator_pods.stdout }}
- 
+
 - name: check csv in OLM namespace (expected 1 Succeeded)
   command: kubectl get csv -n olm # noqa 301
   register: olm_csv
@@ -43,3 +43,14 @@
   register: fec_operator_node
 
 - debug: msg={{ fec_operator_node.stdout }}
+
+- name: check FEC Acc devices on worker node (expected 1 PF + 16 VFs)
+  delegate_to: "{{ groups['kube_node'][0] }}"
+  shell: "set -o pipefail && lspci | grep -i acc"
+  args:
+    executable: /bin/bash
+  register: fec_operator_devs
+  changed_when: false
+  failed_when: false
+
+- debug: msg={{ fec_operator_devs.stdout }}

@@ -1,0 +1,51 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: qat
+  namespace: istio-system
+spec:
+  profile: default
+  tag: 1.14-intel.1
+  hub: intel
+  components:
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: true
+        k8s:
+          # Ingress gateway needs to have IPC_LOCK capability and the
+          # QAT resources manually added, because the template
+          # injection isn't supported for gateways.
+          overlays:
+            - kind: Deployment
+              name: istio-ingressgateway
+              patches:
+                - path: spec.template.spec.containers.[name:istio-proxy].securityContext.capabilities.add
+                  value: ["IPC_LOCK"]
+          resources:
+            requests:
+              qat.intel.com/generic: '1'
+            limits:
+              qat.intel.com/generic: '1'
+          podAnnotations: # this controls the SDS service which configures ingress gateway
+            proxy.istio.io/config: |
+              privateKeyProvider:
+                qat:
+                  pollDelay: 20ms
+  values:
+    # Annotate pods with either
+    #     inject.istio.io/templates: sidecar,qathw
+    sidecarInjectorWebhook:
+      templates:
+        qathw: |
+          spec:
+            containers:
+              - name: istio-proxy
+                securityContext:
+                  capabilities:
+                    add:
+                    - IPC_LOCK
+                resources:
+                  requests:
+                    qat.intel.com/generic: '1'
+                  limits:
+                    qat.intel.com/generic: '1'

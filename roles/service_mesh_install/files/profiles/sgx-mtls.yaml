@@ -1,0 +1,32 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  profile: minimal
+  hub: intel
+  tag: 1.14-intel.1
+  meshConfig:
+    accessLogFile: /dev/stdout
+    enableTracing: true
+    defaultConfig:
+      proxyMetadata:
+        # Enable basic DNS proxying
+        ISTIO_META_DNS_CAPTURE: "true"
+        # Enable automatic address allocation, optional
+        ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        # RSA or ECDSA
+        # ECC_SIGNATURE_ALGORITHM: ECDSA
+
+  components:
+    pilot:
+      k8s:
+        imagePullPolicy: IfNotPresent
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: true
+        k8s:
+          imagePullPolicy: IfNotPresent
+    egressGateways:
+      - name: istio-egressgateway
+        enabled: true
+        k8s:
+          imagePullPolicy: IfNotPresent
