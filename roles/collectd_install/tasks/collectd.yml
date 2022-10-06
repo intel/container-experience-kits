@@ -45,7 +45,7 @@
 - name: fill in k8s deployment files
   template:
     src: "{{ item }}"
-    dest: "{{ collectd_deployment_dir }}/{{ item }}"
+    dest: "{{ (collectd_deployment_dir, item) | path_join }}"
     owner: root
     group: root
     force: yes
@@ -56,17 +56,6 @@
     - "collectd-rbac-cluster-role.yml"
     - "collectd-rbac-cluster-role-binding.yml"
     - "collectd-rbac-service-account.yml"
-
-- name: copy psp file
-  template:
-    src: "psp.yml.j2"
-    dest: "{{ collectd_deployment_dir }}/psp.yml"
-    force: yes
-    mode: preserve
-    owner: root
-    group: root
-  when:
-    - psp_enabled | default(true)
 
 - name: install collectd from k8s deployment files
   command: kubectl apply -f {{ collectd_deployment_dir }} --namespace {{ collectd_namespace }}

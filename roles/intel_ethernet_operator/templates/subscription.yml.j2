@@ -4,13 +4,13 @@ metadata:
   name: intel-ethernet-subscription
   namespace: {{ intel_ethernet_operator_namespace }}
 spec:
-{% if http_proxy or https_proxy is defined %}
+{% if http_proxy is defined or https_proxy is defined %}
   config:
     env:
     - name: HTTP_PROXY
-      value: {{ http_proxy }}
+      value: {{ http_proxy | d('') }}
     - name: HTTPS_PROXY
-      value: {{ https_proxy }}
+      value: {{ https_proxy | d('') }}
     - name: NO_PROXY
       value: {{ kube_service_addresses }},{{ kube_pods_subnet }}
 {% endif %}

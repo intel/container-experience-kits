@@ -5,8 +5,14 @@ AssertPathExists=/sbin/modprobe
 [Service]
 Type=oneshot
 ExecStartPre=/bin/sleep 5
-ExecStart=/sbin/modprobe -r {% if (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04") %}irdma{% endif %} ice
-ExecStart=/sbin/modprobe ice {% if (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04") %}irdma{% endif %}
-
+{% if (not update_nic_drivers and
+((ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04") or
+(ansible_os_family == "RedHat" and ansible_distribution_version >= "8.6"))) %}
+ExecStart=/sbin/modprobe -r irdma ice
+ExecStart=/sbin/modprobe -a ice irdma
+{% else %}
+ExecStart=/sbin/modprobe -r ice
+ExecStart=/sbin/modprobe -a ice
+{% endif %}
 [Install]
 WantedBy=multi-user.target

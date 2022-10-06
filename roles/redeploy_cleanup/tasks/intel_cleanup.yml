@@ -53,19 +53,20 @@
       with_items:
         - "{{ intel_services_to_stop + (ddp_i40e_service.stdout | ternary([ddp_i40e_service.stdout], [])) }}"
 
-- name: remove custom kernel
-  block:
-    - name: remove custom kernel build files
-      make:
-        dest: "{{ project_root_dir }}/kernels/gpu_kernel/"
-        target: "{{ item }}"
-      with_items:
-        - clean
-        - mrproper
-        - distclean
-      changed_when: false
-      failed_when: false
+- name: remove custom kernel build files
+  make:
+    dest: "{{ project_root_dir }}/kernels/gpu_kernel/"
+    target: "{{ item }}"
+  with_items:
+    - clean"
+    - mrproper
+    - distclean
+  changed_when: false
+  failed_when: false
+  when: configure_gpu | default(false)
 
+- name: block required only in case when update_kernel is true in group_vars
+  block:
     - name: find files in /boot to remove
       find:
         paths: /boot
@@ -89,13 +90,21 @@
         state: absent
         mode: 0644
 
+    - name: show current Kernel version
+      debug:
+        msg: "{{ ansible_kernel }}"
+
     - name: find generic kernel files in /boot
       find:
         paths: /boot
-        patterns: "vmlinuz-*-*"
+        patterns: "vmlinuz-{{ ansible_kernel }}*"
       register: kernel_path
       changed_when: false
       failed_when: false
+
+    - name: check Kernel version selection before setting it to default in grub
+      debug:
+        msg: "{{ kernel_path.files[0].path }}"
 
     - name: use generic kernel on Ubuntu
       lineinfile:
@@ -107,17 +116,53 @@
       changed_when: false
       failed_when: false
       become: yes
-      when: ansible_distribution == "Ubuntu"
 
-    - name: use generic kernel on CentOS/RHEL
-      command: grubby --set-default "{{ kernel_path.files[0].path }}"
+    - name: use generic kernel on RHEL / Rocky
+      command: "grubby --set-default {{ kernel_path.files[0].path }}"
       changed_when: true
       failed_when: false
       become: yes
-      when: ansible_os_family == "RedHat"
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "20.04" and update_kernel) or
+      (ansible_os_family == "RedHat" and ansible_distribution_version < "9.0" and update_kernel) or
+      configure_gpu | default(false)
 
-    - include_role:
-        name: bootstrap/update_grub
+- include_role:
+    name: bootstrap/update_grub
+
+# All QAT settings need to be uninstalled / reverted if re-configuration is required
+- name: revert QAT setup
+  block:
+    - name: make sure qat_service is stopped and disabled
+      service:
+        state: stopped
+        name: qat_service
+        enabled: no
+      failed_when: false
+
+    - name: uninstall QAT drivers
+      make:
+        chdir: "{{ qat_drivers_dir }}"
+        target: uninstall
+      become: yes
+      failed_when: false
+
+    - name: make clean QAT drivers
+      make:
+        chdir: "{{ qat_drivers_dir }}"
+        target: clean
+      become: yes
+      failed_when: false
+
+    - name: make distclean QAT drivers
+      make:
+        chdir: "{{ qat_drivers_dir }}"
+        target: distclean
+      become: yes
+      failed_when: false
+  when:
+    - update_qat_drivers is defined and update_qat_drivers
+    - qat_devices is defined and qat_devices != []
 
 - name: cleanup /usr/local/*
   # ansible find module too slow
@@ -153,6 +198,30 @@
   command: "ldconfig"
   changed_when: true
   failed_when: false
+
+- name: block for remove sgx software on Rocky / RHEL >= 9.0
+  block:
+    - name: remove sgx software on Rocky / RHEL >= 9.0
+      shell: "set -o pipefail && rpm -e {{ item }}"
+      args:
+        executable: /bin/bash
+      loop:
+        - "libsgx-launch"
+        - "libsgx-epid"
+        - "libsgx-quote-ex"
+        - "sgx-aesm-service"
+      failed_when: false
+      changed_when: true
+
+    - name: remove libproto for sgx on Rocky / RHEL >= 9.0
+      file:
+        path: /usr/lib64/libprotobuf.so.15
+        state: absent
+      changed_when: true
+      failed_when: false
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_version >= "9.0"
 
 - debug:
     msg: "Intel Container Experience Kit features have been removed ..."

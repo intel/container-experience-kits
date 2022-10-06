@@ -23,10 +23,30 @@
   with_items:
     - /etc/dhclient.conf
     - /etc/dhcp/dhclient.conf
+    - /etc/resolv.conf
 
 - name: reset entries in /etc/hosts
   blockinfile:
     path: "/etc/hosts"
     state: absent
     marker: "# Ansible inventory hosts {mark}"
+  failed_when: false
+
+- name: run dhclient to get IP after restarting network in case of failure
+  command: "dhclient"
+  changed_when: true
+  failed_when: false
+
+- name: restart network.service on RHEL / Rocky
+  systemd:
+    name: network.service
+    state: restarted
+  when: ansible_os_family == "RedHat"
+  failed_when: false
+
+- name: restart systemd-resolved on Ubuntu
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  when: ansible_os_family == "Debian"
   failed_when: false

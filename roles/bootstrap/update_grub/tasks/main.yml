@@ -19,31 +19,69 @@
   when:
     - ansible_os_family == "Debian"
 
-- name: check if grub2.cfg config file exists (MBR variant)
-  stat:
-    path: /etc/grub2.cfg
-  register: grub_mbr_cfg
+- name: block for Rocky / RHEL < 9.0
+  block:
+    - name: check if grub2.cfg config file exists (MBR variant)
+      stat:
+        path: /etc/grub2.cfg
+      register: grub_mbr_cfg
+
+    - name: update MBR grub2.cfg
+      command: grub2-mkconfig -o /etc/grub2.cfg
+      when: grub_mbr_cfg.stat.exists
+
+    - name: check if grub2-efi.cfg config file exists (EFI variant)
+      stat:
+        path: /etc/grub2-efi.cfg
+      register: grub_efi_cfg
+
+    - name: update MBR grub2-efi.cfg on Rocky / RHEL < 9.0
+      command: "grub2-mkconfig -o /etc/grub2-efi.cfg"
+      when: grub_efi_cfg.stat.exists
+      changed_when: true
   when:
     - ansible_os_family == "RedHat"
+    - ansible_distribution_version < "9.0"
 
-- name: update MBR grub2.cfg
-  command: grub2-mkconfig -o /etc/grub2.cfg
+- name: disable blscfg to enable grub configuration changes (Rocky >= 9.0)
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_ENABLE_BLSCFG=(.*?)$'
+    line: 'GRUB_ENABLE_BLSCFG=false'
   when:
-  - ansible_os_family == "RedHat"
-  - grub_mbr_cfg.stat.exists
+    - ansible_distribution == "Rocky"
+    - ansible_distribution_version >= "9.0"
 
-- name: check if grub2-efi.cfg config file exists (EFI variant)
-  stat:
-    path: /etc/grub2-efi.cfg
-  register: grub_efi_cfg
+- name: block for Rocky/RHEL 9.0 or greater
+  block:
+    - name: check if grub.cfg config file exists (Rocky / RHEL >= 9.0)
+      stat:
+        path: "/boot/efi/EFI/{{ ansible_distribution | lower }}/grub.cfg"
+      register: grub_rhel_rocky_cfg
+
+    - name: update MBR grub.cfg on (Rocky / RHEL >= 9.0)
+      command: "grub2-mkconfig -o /boot/efi/EFI/{{ ansible_distribution | lower }}/grub.cfg"
+      when: grub_rhel_rocky_cfg.stat.exists
+      changed_when: true
   when:
     - ansible_os_family == "RedHat"
+    - ansible_distribution_version >= "9.0"
 
-- name: update MBR grub2-efi.cfg
-  command: grub2-mkconfig -o /etc/grub2-efi.cfg
-  when:
-  - ansible_os_family == "RedHat"
-  - grub_efi_cfg.stat.exists
+- block:
+    - name: template the dhclient systemd service
+      template:
+        src: dhclient.service.j2
+        dest: /lib/systemd/system/cek_dhclient.service
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: run cek dhclient systemd service on boot
+      systemd:
+        daemon_reload: yes
+        state: restarted
+        name: cek_dhclient
+        enabled: yes
 
 - name: create empty machine_id list from the worker nodes
   set_fact:
@@ -56,18 +94,26 @@
     - "{{ groups['kube_node'] }}"
 
 - block:
-  - name: detect that machine-id duplicates over multiple nodes
-    debug:
-      msg: "Detected there are /etc/machine-id duplicates {{ machine_id_list }}, will generate a new machine-id for groups['kube_node'] nodes"
+    - name: detect that machine-id duplicates over multiple nodes
+      debug:
+        msg: "Detected there are /etc/machine-id duplicates {{ machine_id_list }}, will generate a new machine-id for groups['kube_node'] nodes"
 
-  - name: remove /etc/machine-id
-    file:
-      state: absent
-      path: /etc/machine-id
-      force: yes
+    - name: remove /etc/machine-id
+      file:
+        state: absent
+        path: /etc/machine-id
+        force: yes
 
-  - name: create new /etc/machine-id
-    command: dbus-uuidgen --ensure=/etc/machine-id
-    changed_when: true
+    - name: create new /etc/machine-id (debian)
+      command: dbus-uuidgen --ensure=/etc/machine-id
+      changed_when: true
+      when:
+        - ansible_os_family == "Debian"
+
+    - name: create new /etc/machine-id (redhat)
+      command: systemd-machine-id-setup
+      changed_when: true
+      when:
+        - ansible_os_family == "RedHat"
 
   when: ( machine_id_list | unique | length < groups['kube_node'] | length )

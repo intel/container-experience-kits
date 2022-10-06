@@ -22,6 +22,7 @@ rules:
       - ""
     resources:
       - namespaces
+      - nodes
     verbs:
       - get
       - watch
@@ -36,12 +37,12 @@ rules:
     verbs:
       - get
       - watch
-      - patch
       - create
       - list
       - delete
       - deletecollection
       - update
+      - patch
   - apiGroups:
       - ""
     resources:
@@ -59,6 +60,7 @@ rules:
     resources:
       - statefulsets
       - deployments
+      - deployments/finalizers
     verbs:
       - get
       - create
@@ -90,12 +92,14 @@ rules:
       - create
       - get
       - delete
+      - list
   - apiGroups:
       - certificates.k8s.io
     resourceNames:
       - kubernetes.io/legacy-unknown
       - kubernetes.io/kube-apiserver-client
       - kubernetes.io/kubelet-serving
+      - beta.eks.amazonaws.com/app-serving
     resources:
       - signers
     verbs:
@@ -116,11 +120,9 @@ rules:
   - apiGroups:
       - monitoring.coreos.com
     resources:
-      - servicemonitors
+      - prometheuses
     verbs:
-      - get
-      - create
-      - list
+      - '*'
   - apiGroups:
       - "coordination.k8s.io"
     resources:

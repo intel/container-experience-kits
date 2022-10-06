@@ -43,3 +43,17 @@
   args:
     chdir: "{{ sriov_network_policies_dir }}"
   changed_when: true
+
+- name: wait for SriovNetworkNodeState CR after sriov network node policy
+  shell: >-
+    set -o pipefail && kubectl get SriovNetworkNodeState {{ item }}
+    -n {{ sriov_network_operator_namespace }} -o yaml | grep 'syncStatus'
+  args:
+    executable: /bin/bash
+  register: sriov_wait_policy
+  until: "'InProgress' not in sriov_wait_policy.stdout"
+  failed_when: "'Failed' in sriov_wait_policy.stdout or 'InProgress' in sriov_wait_policy.stdout or sriov_wait_policy.rc != 0"
+  retries: 50
+  delay: 10
+  changed_when: false
+  loop: "{{ groups['kube_node'] }}"

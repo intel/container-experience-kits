@@ -31,14 +31,44 @@
         dest: "{{ intel_cndp_dir }}"
         force: yes
 
-    - name: build cndp
-      make:
-        chdir: "{{ intel_cndp_dir }}"
+    - name: Set fact with correct dir
+      set_fact:
+        cndp_lib_dest_dir: "{{ project_root_dir | regex_replace('\\/$', '') }}"
 
-    - name: install cndp
-      make:
-        target: install
+    - name: Replace /tmp dir with {{ cndp_lib_dest_dir }}
+      replace:
+        path: "{{ item }}"
+        regexp: '^(.*)\/tmp(.*)$'
+        replace: '\1{{ cndp_lib_dest_dir }}\2'
+      with_items:
+        - "{{ (intel_cndp_dir, 'tools', 'mklib') | path_join }}.sh"
+        - "{{ (intel_cndp_dir, 'meson') | path_join }}.build"
+
+    # Suggested from CNDP product for a SPR feature on RHEL / ROCKY >= 9.0
+    # `uintr` flag from the compiler, the compiler is reporting the `uintr` flag when `uintr` is not supported
+    # CNDP team advised to remove this flag for Rocky / RHEL
+    # make install not working on RHEL / ROCKY >= 9.0 need to build it with meson (ninja install)
+    # Ansible builtin module replace / lineinfile not responding as expected so replacing sed command as an alternative
+    - name: delete lines from meson.build on RHEL / ROCKY
+      command: "sed -i '201d;202d;203d;204d;205d' meson.build" # noqa command-instead-of-module 305
+      args:
         chdir: "{{ intel_cndp_dir }}"
+      changed_when: true
+      register: test
+      when:
+        - ansible_os_family == "RedHat"
+        - ansible_distribution_version >= "9.0"
+
+    - name: block for install CNDP
+      block:
+        - name: build cndp
+          make:
+            chdir: "{{ intel_cndp_dir }}"
+
+        - name: install cndp
+          make:
+            target: install
+            chdir: "{{ intel_cndp_dir }}"
   when:
     - cndp_enabled | default(false)
 

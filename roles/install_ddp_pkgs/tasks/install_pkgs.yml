@@ -23,7 +23,7 @@
     owner: root
     group: root
 
-- name : install ddp package from a URL
+- name: install ddp package from a URL
   include: install_a_pkg.yml
   loop: "{{ pkgurls }}"
   loop_control:

@@ -23,16 +23,17 @@
 - debug:
     msg: "Currently installed ice version: {{ ice_installed_version.stdout }}"
 
-- name: unload ice module
-  modprobe:
-    name: ice
-    state: absent
-  when:
-    - ice_installed_version.stdout != ice_driver_version
-    - mgmt_interface_driver.stdout != ice_driver_name
-    - not update_kernel
-    - ansible_os_family == "RedHat" or
-      (ansible_distribution == "Ubuntu" and ansible_distribution_version < "22.04")
+# unloading before update is probably not necessay and does not work anyway when irdma is using ice
+# - name: unload ice module
+#   modprobe:
+#     name: ice
+#     state: absent
+#   when:
+#     - ice_installed_version.stdout != ice_driver_version
+#     - mgmt_interface_driver.stdout != ice_driver_name
+#     - not update_kernel
+#     - (ansible_os_family == "RedHat" and ansible_distribution_version < "9.0") or
+#       (ansible_distribution == "Ubuntu" and ansible_distribution_version < "22.04")
 
 - name: update ice driver
   block:
@@ -43,6 +44,7 @@
         dest: "{{ project_root_dir }}"
         checksum: "{{ ice_driver_checksum }}"
         timeout: 60
+        mode: 0644
       register: ice_download
       until: ice_download is not failed
       retries: 5
@@ -65,6 +67,19 @@
       loop:
         - clean
         - install
+      when: not adq_dp.enabled |d(false) | bool
+
+    - name: build and install ice driver
+      make:
+        chdir: "{{ (ice_untar.dest, ice_untar.files[0], 'src') | path_join }}"
+        target: "{{ item }}"
+        params:
+          CFLAGS_EXTRA: '-DADQ_PERF_COUNTERS'
+      become: yes
+      loop:
+        - clean
+        - install
+      when: adq_dp.enabled |d(false) | bool
   when: ice_installed_version.stdout != ice_driver_version
 
 - name: reboot node after driver update
@@ -73,7 +88,8 @@
     reboot_timeout: 1200
   when:
     - (ice_installed_version.stdout != ice_driver_version and mgmt_interface_driver.stdout == ice_driver_name) or
-      (ice_installed_version.stdout != ice_driver_version and (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04" or update_kernel))
+      (ice_installed_version.stdout != ice_driver_version and ((ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0") or
+      (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04") or update_kernel))
 
 - name: ensure that ice module is loaded
   modprobe:

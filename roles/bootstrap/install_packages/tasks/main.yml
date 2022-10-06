@@ -22,7 +22,7 @@
   include_tasks: debian.yml
   when: ansible_os_family == "Debian"
 
-#net_attach_def, docker registry
+# net_attach_def, docker registry reqs
 - name: upgrade Python wheel and setuptools
   pip:
     name:
@@ -30,7 +30,7 @@
       - setuptools<=44
     extra_args: --upgrade
 
-#pinned python packages versions
+# pinned python packages versions
 - name: install Python packages
   pip:
     name:

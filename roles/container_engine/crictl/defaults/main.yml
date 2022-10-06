@@ -17,7 +17,8 @@ crictl_version: "v1.21.0"
 
 image_arch: "amd64"
 
-crictl_download_url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-{{ ansible_system | lower }}-{{ image_arch }}.tar.gz"
+crictl_download_url: "{{ crictl_repo_url }}{{ crictl_version }}/crictl-{{ crictl_version }}-{{ ansible_system | lower }}-{{ image_arch }}.tar.gz"
+crictl_repo_url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/"
 
 crictl_checksums:
   amd64:

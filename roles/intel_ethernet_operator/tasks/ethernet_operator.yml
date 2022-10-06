@@ -57,15 +57,6 @@
     kind: Namespace
     state: present
 
-- name: copy PSP and ClusterRole
-  copy:
-    src: "{{ (role_path , 'files', item) | path_join }}"
-    dest: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
-    mode: 0644
-  loop:
-    - intel-ethernet-operator-psp.yml
-    - intel-ethernet-operator-cluster-role.yml
-
 - name: populate Intel Ethernet Operator yaml files and push to controller node
   template:
     src: "{{ item.src }}"
@@ -73,19 +64,15 @@
     force: yes
     mode: preserve
   loop:
-    - { src: 'catalog.yml.j2', dst: 'catalog.yml' }
-    - { src: 'operator-group.yml.j2', dst: 'operator-group.yml' }
-    - { src: 'subscription.yml.j2', dst: 'subscription.yml' }
-    - { src: 'intel-ethernet-operator-role-binding.yml.j2', dst: 'intel-ethernet-operator-role-binding.yml' }
+    - {src: 'catalog.yml.j2', dst: 'catalog.yml'}
+    - {src: 'operator-group.yml.j2', dst: 'operator-group.yml'}
+    - {src: 'subscription.yml.j2', dst: 'subscription.yml'}
 
-- name: create PSP, RBAC and OperatorGroup
+- name: Catalog and OperatorGroup
   k8s:
     state: present
     src: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
   loop:
-    - intel-ethernet-operator-psp.yml
-    - intel-ethernet-operator-cluster-role.yml
-    - intel-ethernet-operator-role-binding.yml
     - catalog.yml
     - operator-group.yml
 

@@ -21,9 +21,7 @@
 - name: determine whether VPP can be installed on the target
   set_fact:
     vpp_supported: false
-  when:
-    - ((ansible_os_family == 'RedHat') and (ansible_distribution_version >= '8')) or
-      ((ansible_distribution == 'Ubuntu') and (ansible_distribution_version >= '21.04'))
+  when: ansible_os_family == 'RedHat' and ansible_distribution_version >= '8'
 
 - name: install OVS-DPDK
   include: ovs_install.yml
@@ -47,4 +45,3 @@
   when:
     - vpp_enabled | default(false)
     - vpp_supported | default(false)
-

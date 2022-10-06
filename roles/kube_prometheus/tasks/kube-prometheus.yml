@@ -84,15 +84,6 @@
     - ../templates/prometheus_srv/*.j2
   when: prometheus_srv_expose | default(false)
 
-- name: copy PSP manifest
-  template:
-    src: "0psp-node-exporter.yaml"
-    dest: "{{ kube_prometheus_path }}/0psp-node-exporter.yaml"
-    owner: root
-    group: root
-    mode: u+rwx,g-rwx,o-
-  when: psp_enabled
-
 - name: install kube-prometheus CRD manifests
   command: "kubectl apply -f {{ kube_prometheus_path }}/setup"
   changed_when: true

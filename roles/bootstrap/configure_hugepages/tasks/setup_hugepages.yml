@@ -16,13 +16,13 @@
 ---
 - name: calculate total number of requested hugepages
   set_fact:
-    mem_huge_2M: "{{ 2 * number_of_hugepages_2M }}"
-    mem_huge_1G: "{{ 1024 * number_of_hugepages_1G }}"
+    mem_huge_2M: "{{ 2 * number_of_hugepages_2M }}" # noqa var-naming
+    mem_huge_1G: "{{ 1024 * number_of_hugepages_1G }}" # noqa var-naming
 
 - name: check if there is enough memory on the target system for the requested hugepages
   assert:
-    that: (mem_huge_2M|int + mem_huge_1G|int) < (ansible_memtotal_mb|int - mem_reserved|int)
-    msg: "Requested {{ mem_huge_2M|int + mem_huge_1G|int }}MB of hugepages, while {{ ansible_memtotal_mb|int - mem_reserved|int }}MB is available."
+    that: (mem_huge_2M | int + mem_huge_1G | int) < (ansible_memtotal_mb | int - mem_reserved | int)
+    msg: "Requested {{ mem_huge_2M | int + mem_huge_1G | int }}MB of hugepages, while {{ ansible_memtotal_mb | int - mem_reserved | int }}MB is available."
 
 - name: prepare kernel boot flags
   set_fact:

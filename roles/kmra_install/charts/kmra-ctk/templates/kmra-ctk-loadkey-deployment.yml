@@ -30,7 +30,7 @@ spec:
         imagePullPolicy: {{ .Values.ctk_loadkey.main.image.pullPolicy }}
         ports:
         - name: ctk-loadkey
-          containerPort: {{ .Values.ctk_loadkey.main.port }}
+          containerPort: {{ .Values.ctk_loadkey.pkcs11_daemon_socket_port }}
         envFrom:
         - configMapRef:
             name: {{ .Release.Name }}-env-cm
@@ -48,6 +48,10 @@ spec:
         - name: tmpfs
           mountPath: /opt/intel/cryptoapitoolkit/tokens
           subPath: tokens
+        - name: p11-proxy-tls-psk
+          mountPath: /etc/p11_proxy_tls.psk
+          subPath: p11_proxy_tls.psk
+          readOnly: true
         resources:
           limits:
             cpu: 500m
@@ -59,6 +63,34 @@ spec:
         securityContext:
           runAsUser: 65333
           runAsGroup: {{ .Values.ctk_loadkey.sgx_prv_gid }}
+          readOnlyRootFilesystem: true
+      - name: {{ .Release.Name }}-nginx
+        image: "{{ .Values.ctk_loadkey.nginx.image.repo }}/{{ .Values.ctk_loadkey.nginx.image.name }}:{{ .Values.ctk_loadkey.nginx.image.tag }}"
+        imagePullPolicy: {{ .Values.ctk_loadkey.nginx.image.pullPolicy }}
+        ports:
+        - name: ctk-nginx
+          containerPort: {{ .Values.ctk_loadkey.nginx.port }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-nginx-env
+        volumeMounts:
+        - name: p11-proxy-tls-psk
+          mountPath: /etc/p11_proxy_tls.psk
+          subPath: p11_proxy_tls.psk
+          readOnly: true
+        - name: tmpfs
+          mountPath: /tmp
+          subPath: tmp
+        resources:
+          limits:
+            cpu: 200m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 65333
+          runAsGroup: 65333
           readOnlyRootFilesystem: true
       affinity:
         nodeAffinity:
@@ -88,3 +120,10 @@ spec:
         emptyDir:
           medium: Memory
           sizeLimit: 64Mi
+      - name: p11-proxy-tls-psk
+        configMap:
+          name: {{ .Release.Name }}-p11-proxy-tls-psk-conf
+      - name: nginx-env
+        configMap:
+          name: {{ .Release.Name }}-nginx-env
+

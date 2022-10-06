@@ -1,0 +1,143 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check MinIO Tenant Helm charts temp directory
+  stat:
+    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
+  register: tenant_temp_dir
+
+- name: create the temp folder for MinIO Tenant custom values
+  file:
+    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - not tenant_temp_dir.stat.exists
+
+- name: generator random
+  shell: >-
+    set -o pipefail &&
+    head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8
+    | kubectl create secret generic postgres --dry-run=client --from-file=password=/dev/stdin -o json
+    | jq '.data.password'
+  args:
+    executable: /bin/bash
+  changed_when: true
+  register: minio_log_postgres_password
+
+- name: set password variable
+  set_fact:
+    postgres_password: "{{ minio_log_postgres_password.stdout }}"
+
+- name: block for podman CLI
+  block:
+    - name: run postgres container
+      containers.podman.podman_container:
+        name: "{{ minio_log_postgres_name }}"
+        image: "{{ minio_log_postgres_image_download_url }}"
+        state: started
+        detach: yes
+        env:
+          POSTGRES_PASSWORD: "{{ postgres_password }}"
+      register: container_output
+
+    - name: disable huge_pages of the container
+      command: >-
+        podman exec -it {{ minio_log_postgres_name }} sed -i -r 's/#huge_pages.*?/huge_pages = off/g' /usr/share/postgresql/postgresql.conf.sample
+      changed_when: true
+
+    - name: output huge_pages setting of the container
+      shell: >-
+        podman exec -it {{ minio_log_postgres_name }} cat /usr/share/postgresql/postgresql.conf.sample | grep huge_pages
+      changed_when: true
+
+    - name: commit the container
+      command: >-
+        podman commit {{ minio_log_postgres_name }}
+      register: podman_commit_id
+      changed_when: true
+
+    - name: tag the container with the change to the new local image
+      command: >-
+        podman tag {{ podman_commit_id.stdout }} {{ registry_local_address }}/{{ minio_log_postgres_local_image_name }}:{{ minio_log_postgres_local_image_tag }}
+      changed_when: true
+
+    - name: push the new local image to the local registry
+      command: >-
+        podman push {{ registry_local_address }}/{{ minio_log_postgres_local_image_name }}:{{ minio_log_postgres_local_image_tag }}
+      changed_when: true
+
+    - name: stop the container
+      command: >-
+        podman stop {{ minio_log_postgres_name }}
+      changed_when: true
+
+    - name: remove the container
+      command: >-
+        podman rm -f {{ minio_log_postgres_name }}
+      changed_when: true
+  when:
+    - container_runtime in ["crio", "containerd"]
+
+- name: block for docker CLI
+  block:
+    - name: run postgres container
+      community.docker.docker_container:
+        name: "{{ minio_log_postgres_name }}"
+        image: "{{ minio_log_postgres_image_download_url }}"
+        state: started
+        detach: yes
+        env:
+          POSTGRES_PASSWORD: "{{ postgres_password }}"
+      register: container_output
+
+    - name: disable huge_pages of the container
+      command: >-
+        docker exec -it {{ minio_log_postgres_name }} sed -i -r 's/#huge_pages.*?/huge_pages = off/g' /usr/share/postgresql/postgresql.conf.sample
+      changed_when: true
+
+    - name: output huge_hages setting of the container
+      shell: >-
+        docker exec -it {{ minio_log_postgres_name }} cat /usr/share/postgresql/postgresql.conf.sample | grep huge_pages
+      changed_when: true
+
+    - name: commit the container
+      command: >-
+        docker commit {{ minio_log_postgres_name }}
+      register: docker_commit_id
+      changed_when: true
+
+    - name: tag the container with the change into the new local image
+      command: >-
+        docker tag {{ docker_commit_id.stdout }} {{ registry_local_address }}/{{ minio_log_postgres_local_image_name }}:{{ minio_log_postgres_local_image_tag }}
+      changed_when: true
+
+    - name: push the new local image to the local registry
+      command: >-
+        docker push {{ registry_local_address }}/{{ minio_log_postgres_local_image_name }}:{{ minio_log_postgres_local_image_tag }}
+      changed_when: true
+
+    - name: stop the container
+      command: >-
+        docker stop {{ minio_log_postgres_name }}
+      changed_when: true
+
+    - name: remove the container
+      command: >-
+        docker rm -f {{ minio_log_postgres_name }}
+      changed_when: true
+  when:
+    - container_runtime in ["docker"]

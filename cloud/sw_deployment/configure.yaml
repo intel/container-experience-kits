@@ -1,0 +1,21 @@
+ansible_host_ip: xxx.xxx.xxx.xxx
+cloud_settings:
+  provider: aws
+  region: eu-central-1
+controller_ips:
+- 127.0.0.1
+exec_containers: []
+git_tag: None
+git_url: https://<token>@github.com/intel/container-experience-kits
+github_personal_token: xxxxxxxxxxxxxxxxxxx
+ra_config_file: data/node1.yaml
+ra_ignore_assert_errors: true
+ra_machine_architecture: skl
+ra_profile: build_your_own
+replicate_from_container_registry: https://registry.hub.docker.com
+replicate_to_container_registry: <ecr url>
+ssh_key: ../deployment/ssh/id_rsa
+worker_ips:
+- xxx.xxx.xxx.xxx
+- xxx.xxx.xxx.xxx
+- xxx.xxx.xxx.xxx

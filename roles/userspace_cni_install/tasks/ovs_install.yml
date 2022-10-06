@@ -147,7 +147,7 @@
 - name: WA for bug in DPDK initial device scan - block qat devices
   block:
     - name: get Device ID from PCI address
-      shell: "set -o pipefail && lspci -s {{ item.qat_id }} -n |cut -f3 -d' ' |cut -f2 -d':'"
+      shell: "set -o pipefail && lspci -s {{ item.qat_id }} -n | cut -f3 -d' ' | cut -f2 -d':'"
       args:
         executable: /bin/bash
       failed_when: false
@@ -156,7 +156,7 @@
       with_items: "{{ qat_devices }}"
 
     - name: get Device ID for VFs from PCI address
-      shell: "set -o pipefail && lspci -s {{ item.qat_id }} -vv |grep 'Device ID:' |cut -f4 -d':' |cut -f2 -d' '"
+      shell: "set -o pipefail && lspci -s {{ item.qat_id }} -vv |grep 'Device ID:' | cut -f4 -d':' | cut -f2 -d' '"
       args:
         executable: /bin/bash
       failed_when: false
@@ -192,7 +192,7 @@
         msg: "unique dev_ids_list_var: {{ dev_ids_list_var }}"
 
     - name: list QAT devices with vfio-pci driver
-      shell: "set -o pipefail && dpdk-devbind.py -s |grep '{{ item }}' |grep 'drv=vfio-pci' |cut -f1 -d' '"
+      shell: "set -o pipefail && dpdk-devbind.py -s | grep '{{ item }}' |grep 'drv=vfio-pci' | cut -f1 -d' '"
       args:
         executable: /bin/bash
       failed_when: false
@@ -217,7 +217,7 @@
     - name: Prepare info for WA
       set_fact:
         block_list_var: "{{ block_list_var }} {{ ovs_dpdk_extra }}{{ item }}"
-      with_items: "{{ qat_dev_list_var.split('\n') }}"
+      loop: "{{ qat_dev_list_var.split('\n') }}"
       when:
         - "qat_dev_list_var | length>0"
         - "item | length>0"

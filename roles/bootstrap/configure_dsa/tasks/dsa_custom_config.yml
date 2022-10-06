@@ -1,0 +1,133 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# make sure DSA device is disabled before configuring
+- name: reset {{ dsa_device.name }} device
+  command: accel-config disable-device {{ dsa_device.name }}
+  failed_when: false
+  changed_when: false
+
+# amount of groups to which WQs can be assigned
+- name: get max groups
+  command: cat {{ dsa_devices_dir }}/{{ dsa_device.name }}/max_groups
+  changed_when: false
+  register: max_groups
+
+- name: fail when more groups were requested than available on device
+  fail:
+    msg: "Requested {{ dsa_device.groups }}, but {{ max_groups.stdout }} available on device.
+          Please update dsa_devices list for {{ dsa_device.name }} in host_vars."
+  when: max_groups.stdout | int < dsa_device.groups
+
+# amount of engines on DSA device - each group has unique engine
+- name: get max engines
+  command: cat {{ dsa_devices_dir }}/{{ dsa_device.name }}/max_engines
+  changed_when: false
+  register: max_engines
+
+- name: fail when more engines were requested than available on device
+  fail:
+    msg: "Requested {{ dsa_device.engines }}, but {{ max_engines.stdout }} available on node.
+          Please update dsa_devices list for {{ dsa_device.name }} in host_vars."
+  when: max_engines.stdout | int < dsa_device.engines
+
+- name: get dsa device id
+  set_fact:
+    dsa_dev_id: "{{ dsa_device.name[-1] }}"
+
+# make sure engines are not assigned to groups
+- name: reset all engines
+  command: accel-config config-engine {{ dsa_device.name }}/engine{{ dsa_dev_id }}.{{ engine_id }} --group-id=-1
+  failed_when: false
+  changed_when: false
+  with_sequence: start=0 end="{{ max_engines.stdout | int - 1 }}"
+  loop_control:
+    loop_var: engine_id
+
+# amount of WQs that can be configured on DSA device
+- name: get max work queues
+  command: cat {{ dsa_devices_dir }}/{{ dsa_device.name }}/max_work_queues
+  changed_when: false
+  register: max_work_queues
+
+- name: fail when more WQs were requested than available on device
+  fail:
+    msg: "Requested {{ dsa_device.wqs | length }} work queues, but {{ max_work_queues.stdout }} are available on device.
+          Please update dsa_devices list for {{ dsa_device.name }} in host_vars."
+  when: max_work_queues.stdout | int < dsa_device.wqs | length
+
+# used to calculate max size of single WQ
+- name: get max work queues size
+  command: cat {{ dsa_devices_dir }}/{{ dsa_device.name }}/max_work_queues_size
+  changed_when: false
+  register: max_work_queues_size
+
+- name: calculate max size of single wq on {{ dsa_device.name }} device
+  set_fact:
+    max_wq_size: "{{ (max_work_queues_size.stdout | int / dsa_device.wqs | length | int) }}"
+
+- name: get pasid value
+  command: cat {{ dsa_devices_dir }}/{{ dsa_device.name }}/pasid_enabled
+  changed_when: false
+  register: pasid_enabled
+
+- name: fail when PASID is disabled, but Shared WQs were requested
+  fail:
+    msg: "Could not configure Shared WQ with ID {{ wq.id }} on device {{ dsa_device.name }} - PASID is disabled.
+          Please make sure iommu is set as: intel_iommu=on,sm_on in Grub GRUB_CMDLINE_LINUX"
+  loop: "{{ dsa_device.wqs }}"
+  loop_control:
+    loop_var: wq
+  when:
+    - wq.mode == 'shared'
+    - pasid_enabled.stdout == '0'
+
+# check the max number of groups that can be configured
+- name: determine number of groups
+  set_fact:
+    number_of_groups: "{{ [dsa_device.engines, dsa_device.groups, dsa_device.wqs | length] | min }}"
+
+# NOTE(pklimowx): can more than one engine be assigned to same group?
+# if yes then it's worth to consider creating list like wqs inside
+# dsa_devices in host_vars which will hold some config regarding engines
+# configure one engine per group
+- name: configure {{ dsa_device.name }} engines
+  command: accel-config config-engine {{ dsa_device.name }}/engine{{ dsa_dev_id }}.{{ engine_id }} --group-id={{ engine_id }}
+  changed_when: false
+  with_sequence: start=0 end="{{ number_of_groups | int - 1 }}"
+  loop_control:
+    loop_var: engine_id
+
+- name: configure Work Queues
+  include_tasks: wqs_custom_config.yml
+  vars:
+    WQ: "{{ work_queue }}" # noqa var-naming
+    dsa_id: "{{ dsa_dev_id }}"
+    max_single_wq_size: "{{ max_wq_size | int }}"
+  loop: "{{ dsa_device.wqs }}"
+  loop_control:
+    loop_var: work_queue
+
+- name: enable device {{ dsa_device.name }}
+  command: accel-config enable-device {{ dsa_device.name }}
+  changed_when: false
+
+- name: enable all configured WQs
+  command: accel-config enable-wq {{ dsa_device.name }}/wq{{ dsa_dev_id }}.{{ enabled_wq_id }}
+  changed_when: false
+  with_sequence: start=0 end="{{ dsa_device.wqs | length - 1 }}"
+  loop_control:
+    loop_var: enabled_wq_id

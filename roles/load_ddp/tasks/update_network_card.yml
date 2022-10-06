@@ -56,7 +56,7 @@
     - name: copy custom .pkg file
       copy:
         remote_src: yes
-        src: "{{ ddp_path }}{{ custom_path_to_profile|basename }}"
+        src: "{{ ddp_path }}{{ custom_path_to_profile | basename }}"
         dest: "{{ (ddp_path, 'ice-' + card_id.stdout + '.pkg') | path_join }}"
         owner: root
         group: root

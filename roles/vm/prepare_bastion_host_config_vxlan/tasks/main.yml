@@ -32,18 +32,27 @@
   with_items: "{{ vm_vxlan_ips | dict2items }}"
   delegate_to: localhost
   changed_when: true
+  when:
+    - (not item.key in current_vms.stdout) or
+      vm_recreate_existing | default(true)
 
 - name: Store ECDSA key fingerprint for VXLAN
   command: ssh -o StrictHostKeyChecking=No {{ item.value }} hostname
   with_items: "{{ vm_vxlan_ips | dict2items }}"
   delegate_to: "{{ groups['vm_host'][0] }}"
   changed_when: true
+  when:
+    - (not item.key in current_vms.stdout) or
+      vm_recreate_existing | default(true)
 
 - name: Store ECDSA key fingerprint on localhost for VXLAN
   command: ssh -o StrictHostKeyChecking=No {{ item.key }} hostname
   with_items: "{{ vm_vxlan_ips | dict2items }}"
   delegate_to: localhost
   changed_when: true
+  when:
+    - (not item.key in current_vms.stdout) or
+      vm_recreate_existing | default(true)
 
 - name: Update vm inventory file - all
   ini_file:

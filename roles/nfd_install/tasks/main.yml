@@ -18,105 +18,12 @@
   include_role:
     name: install_dependencies
 
-- name: clone NFD repository
-  git:
-    repo: "{{ nfd_git_url }}"
-    dest: "{{ nfd_dir }}"
-    version: "{{ nfd_git_ref }}"
-    force: yes
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - nfd_build_image_locally
-
-- name: build NFD image
-  make:
-    target: all
-    chdir: "{{ nfd_dir }}"
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - nfd_build_image_locally
-    - container_runtime == "docker"
-
-- name: read current NFD version
-# noqa 303 - git is called intentionally here
-  command: git describe --tags --dirty --always
-  args:
-    chdir: "{{ nfd_dir }}"
-  register: nfd_img_version
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - nfd_build_image_locally
-
-- name: tag NFD image
-  command: "docker tag {{ nfd_external_image_name }}:{{ nfd_img_version.stdout }} \
-    {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}"
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - nfd_build_image_locally
-    - container_runtime == "docker"
-
-- name: push NFD image to local registry
-  command: docker push {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - nfd_build_image_locally
-    - container_runtime == "docker"
-
-- name: build and tag NFD image
-  command: >-
-    podman build -f Dockerfile
-    --build-arg=VERSION={{ nfd_img_version.stdout }}
-    --build-arg=HOSTMOUNT_PREFIX=/host-
-    --build-arg=BASE_IMAGE_FULL=debian:buster-slim
-    --build-arg=BASE_IMAGE_MINIMAL=gcr.io/distroless/base
-    -t {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
-  args:
-    chdir: "{{ nfd_dir }}"
-  changed_when: true
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - nfd_build_image_locally
-    - '"docker" not in container_runtime'
-
-- name: push NFD image to local registry
-  command: podman push {{ registry_local_address }}/node-feature-discovery:{{ nfd_img_version.stdout }}
-  changed_when: true
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - nfd_build_image_locally
-    - '"docker" not in container_runtime'
-
-- name: create Helm charts directory if needed
-  file:
-    path: "{{ (project_root_dir, 'charts') | path_join }}"
-    state: directory
-    mode: 0755
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-
 - name: copy NFD Helm chart to the controller node
   copy:
     src: "{{ (role_path, 'charts', 'node-feature-discovery') | path_join }}"
     dest: "{{ (project_root_dir, 'charts') | path_join }}"
     mode: 0755
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-
-- name: set values for NFD Helm chart values for locally built and stored image
-  set_fact:
-    nfd_image: "{{ registry_local_address }}/node-feature-discovery"
-    nfd_version: "{{ hostvars[groups['kube_node'][0]].nfd_img_version.stdout }}"
-  when:
-    - nfd_build_image_locally
-    - inventory_hostname == groups['kube_control_plane'][0]
-
-- name: set values for NFD Helm chart values for external image
-  set_fact:
-    nfd_image: "{{ nfd_external_image_name }}"
-    nfd_version: "{{ nfd_external_image_tag }}"
-  when:
-    - not nfd_build_image_locally
-    - inventory_hostname == groups['kube_control_plane'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate NFD Helm chart values template and push to controller node
   template:
@@ -124,31 +31,41 @@
     dest: "{{ (project_root_dir, 'charts', 'nfd-values.yml') | path_join }}"
     force: yes
     mode: preserve
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-
-- name: check if NFD namespace exists
-  command: kubectl get namespace {{ nfd_namespace }}
-  register: ns_exists
-  failed_when: no
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: create a namespace for NFD
-  command: kubectl create namespace {{ nfd_namespace }}
-  when: inventory_hostname == groups['kube_control_plane'][0] and "NotFound" in ns_exists.stderr
+- name: Deploy NFD chart using values files on target
+  kubernetes.core.helm:
+    name: node-feature-discovery
+    release_state: present
+    chart_ref: "{{ (project_root_dir, 'charts', 'node-feature-discovery') | path_join }}"
+    release_namespace: "{{ nfd_namespace }}"
+    values_files: "{{ (project_root_dir, 'charts', 'nfd-values.yml') | path_join }}"
+    wait: yes
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: wait for kubernetes service to be accessible
   wait_for:
     port: 6443
     delay: 10
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: install NFD helm chart
-  command: >-
-    helm upgrade -i node-feature-discovery
-    --namespace {{ nfd_namespace }}
-    -f {{ (project_root_dir, 'charts', 'nfd-values.yml') | path_join }}
-    {{ (project_root_dir, 'charts', 'node-feature-discovery') | path_join }}
+- name: NodeFeatureRules for DPs
+  block:
+    - name: populate NodeFeatureRules yaml file and push to controller node
+      template:
+        src: "node-feature-rules.yml.j2"
+        dest: "{{ (project_root_dir, 'node-feature-rules.yml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: apply NodeFeatureRules
+      k8s:
+        state: present
+        src: "{{ (project_root_dir, 'node-feature-rules.yml') | path_join }}"
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
+    - (qat_dp_enabled | d(false)) or
+      (sgx_dp_enabled | d(false)) or
+      (gpu_dp_enabled | d(false)) or
+      (dsa_dp_enabled | d(false)) or
+      (dlb_dp_enabled | d(false))

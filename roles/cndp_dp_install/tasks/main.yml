@@ -73,9 +73,11 @@
 
     - name: tag Intel CNDP Device Plugin image when docker is used as container runtime
       command: docker tag afxdp-device-plugin {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+      changed_when: true
 
     - name: push Intel CNDP Device Plugin image to local registry when docker is used as container runtime
       command: docker push {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+      changed_when: true
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
     - container_runtime == "docker"
@@ -84,14 +86,18 @@
   block:
     - name: build Intel CNDP Device Plugin image when containerd/cri-o is used as container runtime
       command: podman build -t afxdp-device-plugin -f images/amd64.dockerfile .
+      changed_when: true
       args:
         chdir: "{{ intel_cndp_dp_dir }}"
 
     - name: tag Intel CNDP Device Plugin image when containerd/cri-o is used as container runtime
       command: podman tag afxdp-device-plugin {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+      changed_when: true
 
     - name: push Intel CNDP Device Plugin image to local registry when containerd/cri-o is used as container runtime
       command: podman push {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
+      changed_when: true
+
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
     - '"docker" not in container_runtime'

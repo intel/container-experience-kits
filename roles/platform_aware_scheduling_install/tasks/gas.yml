@@ -28,13 +28,13 @@
     mode: preserve
   loop:
     - {
-        src: "gas-values.yaml.j2",
-        dest: "{{ (project_root_dir, 'charts/gpu-aware-scheduling/values.yaml') | path_join }}"
-      }
+      src: "gas-values.yaml.j2",
+      dest: "{{ (project_root_dir, 'charts/gpu-aware-scheduling/values.yaml') | path_join }}"
+    }
     - {
-        src: "gas-chart.yaml.j2",
-        dest: "{{ (project_root_dir, 'charts/gpu-aware-scheduling/Chart.yaml') | path_join }}"
-      }
+      src: "gas-chart.yaml.j2",
+      dest: "{{ (project_root_dir, 'charts/gpu-aware-scheduling/Chart.yaml') | path_join }}"
+    }
 
 - name: install GAS helm chart
   command: >-
@@ -48,4 +48,3 @@
   register: result
   until: result.rc == 0
   changed_when: true
-

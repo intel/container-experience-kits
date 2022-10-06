@@ -64,7 +64,7 @@
         state: absent
       with_items: "{{ kubepods_files.files | default([]) }}"
       when:
-        -  kubepods_files.files | length > 0
+        - kubepods_files.files | length > 0
       changed_when: false
       failed_when: false
 
@@ -89,8 +89,8 @@
       with_items:
         - "{{ existing_containers.stdout  | default([]) }}"
       when:
-        -  existing_containers.stdout | length > 0
-        -  container_runtime == "docker"
+        - existing_containers.stdout | length > 0
+        - container_runtime == "docker"
       changed_when: false
       failed_when: false
     - name: list running or stopped containers
@@ -105,8 +105,8 @@
       with_items:
         - "{{ crictl_existing_containers.stdout  | default([]) }}"
       when:
-        -  crictl_existing_containers.stdout | length > 0
-        -  container_runtime != "docker"
+        - crictl_existing_containers.stdout | length > 0
+        - container_runtime != "docker"
       changed_when: false
       failed_when: false
 
@@ -118,14 +118,14 @@
       changed_when: false
       failed_when: false
       when:
-        -  container_runtime == "docker"
+        - container_runtime == "docker"
     - name: remove container images
       command: "docker rmi -f {{ item }}"
       with_items:
         - "{{ container_images.stdout | default([]) }}"
       when:
-        -  container_images.stdout | length > 0
-        -  container_runtime == "docker"
+        - container_images.stdout | length > 0
+        - container_runtime == "docker"
       changed_when: false
       failed_when: false
     - name: list existing containers images
@@ -134,14 +134,14 @@
       changed_when: false
       failed_when: false
       when:
-        -  container_runtime != "docker"
+        - container_runtime != "docker"
     - name: remove container images
       command: "crictl rmi {{ item }}"
       with_items:
         - "{{ crictl_container_images.stdout | default([]) }}"
       when:
-        -  container_runtime != "docker"
-        -  crictl_container_images.stdout | length > 0
+        - container_runtime != "docker"
+        - crictl_container_images.stdout | length > 0
       changed_when: false
       failed_when: false
   when:
@@ -197,6 +197,43 @@
   changed_when: false
   failed_when: false
   when: container_runtime == "crio"
+
+- name: reset DNS settings in dhclient.conf
+  blockinfile:
+    path: "{{ item }}"
+    state: absent
+    marker: "# Ansible entries {mark}"
+  failed_when: false
+  with_items:
+    - /etc/dhclient.conf
+    - /etc/dhcp/dhclient.conf
+    - /etc/resolv.conf
+
+- name: reset entries in /etc/hosts
+  blockinfile:
+    path: "/etc/hosts"
+    state: absent
+    marker: "# Ansible inventory hosts {mark}"
+  failed_when: false
+
+- name: run dhclient to get IP after restarting network in case of failure
+  command: "dhclient"
+  changed_when: true
+  failed_when: false
+
+- name: restart network.service on RHEL / Rocky
+  systemd:
+    name: network.service
+    state: restarted
+  when: ansible_os_family == "RedHat"
+  failed_when: false
+
+- name: restart systemd-resolved on Ubuntu
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  when: ansible_os_family == "Debian"
+  failed_when: false
 
 - debug:
     msg: "k8s cluster has been removed ..."

@@ -16,3 +16,6 @@
 ---
 whereabouts_git_url: "https://github.com/k8snetworkplumbingwg/helm-charts.git"
 whereabouts_commit_hash: "05cc22a9c8165c5cba875bebfa58d1b504a2e6c9"
+
+whereabouts_release_name: "whereabouts"
+whereabouts_release_namespace: "kube-system"

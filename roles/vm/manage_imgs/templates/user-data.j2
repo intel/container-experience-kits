@@ -19,7 +19,7 @@ runcmd:
 {% if vm_image_distribution == "ubuntu" %}
   - netplan apply
 {% endif %}
-{% if item.type == "work" %}
+{% if vm.type == "work" %}
   - systemctl daemon-reload
   - systemctl enable unsafe-iommu.service
   - systemctl start unsafe-iommu.service
@@ -68,7 +68,6 @@ write_files:
 {% endif %}
   - path: /etc/environment
     content: |
-      PROFILE=full_nfv
       http_proxy={{ http_proxy | default('') }}
       https_proxy={{ https_proxy | default('') }}
       no_proxy=
@@ -81,7 +80,7 @@ write_files:
     content: {{ lookup('file', '/root/.ssh/id_rsa.pub') }}
     permissions: '0644'
 
-{% if item.type == "work" %}
+{% if vm.type == "work" %}
   - path: /etc/systemd/system/unsafe-iommu.service
     content: |
       [Unit]

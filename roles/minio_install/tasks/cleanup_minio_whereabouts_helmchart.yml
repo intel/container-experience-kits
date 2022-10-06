@@ -16,7 +16,7 @@
 ---
 - name: delete Whereabouts Helm Charts
   command: >-
-    helm delete whereabouts --namespace kube-system
+    helm delete {{ whereabouts_release_name }} --namespace {{ whereabouts_release_namespace }}
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
   changed_when: false

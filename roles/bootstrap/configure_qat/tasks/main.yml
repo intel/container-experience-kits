@@ -28,41 +28,48 @@
     mode: '0700'
   become: yes
 
-- name: remove existing configuration file if it exists
+- name: clean up existing QAT configuration file
   file:
-    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
+    path: "{{ sriov_config_path }}/{{ item }}"
     state: absent
+  with_items:
+    - cek_sriov_qat_numvfs
+    - cek_force_qat_driver_binding
   become: yes
 
-- name: create file for QAT ids to create defined VFs
-  file:
-    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
-    state: touch
-    owner: root
-    group: root
-    mode: '0700'
-  become: yes
+- name: Workaround for long qat vfs initiation on Rocky
+  block:
+    - name: get current numvfs for qat_devices[0] on Rocky
+      command: cat "/sys/bus/pci/devices/{{ qat_devices[0].qat_id }}/sriov_numvfs"
+      register: existing_qat_vfs
+      changed_when: false
 
-- name: populate QAT vf template with vfs per bus location
-  lineinfile:
-    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
-    line: "{{ item.qat_id }} {{ item.qat_sriov_numvfs | default(0) }}"
-    owner: root
-    group: root
-    mode: '0700'
-  become: yes
-  with_items: "{{ qat_devices }}"
+    - name: create the first dummy record to warmup QAT device on Rocky
+      include_tasks: create_qat_vfs.yml
+      with_items:
+        - {'qat_id': "{{ qat_devices[0].qat_id }}", 'qat_sriov_numvfs': 2}
 
-- name: create the first dummy record to warmup QAT device on Rocky
-  lineinfile:
-    path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
-    insertbefore: "{{ qat_devices[0].qat_id }} {{ qat_devices[0].qat_sriov_numvfs | default(0) }}"
-    line: "{{ qat_devices[0].qat_id }} 2"
-  become: yes
+    - name: clean up VFs from the first dummy record to warmup QAT device on Rocky
+      include_tasks: create_qat_vfs.yml
+      with_items:
+        - {'qat_id': "{{ qat_devices[0].qat_id }}", 'qat_sriov_numvfs': 0}
+      when: existing_qat_vfs.stdout|int == 0
   when:
     - ansible_distribution == "Rocky"
     - qat_devices | length > 0
-    - qat_devices[0].qat_sriov_numvfs > 0
+    - not on_vms | default (false)
+
+- name: create QAT vfs
+  include_tasks: create_qat_vfs.yml
+  when:
+    - item.qat_sriov_numvfs | default(0) > 0
+    - not on_vms | default (false)
+  with_items: "{{ qat_devices }}"
+
+- name: set QAT VFs driver
+  include_tasks: bind_qat_vfs.yml
+  when: item.qat_sriov_numvfs | default(0) > 0
+  with_items: "{{ qat_devices }}"
 
 - name: copy QAT SRIOV setup script to /usr/local/bin
   copy:

@@ -27,7 +27,7 @@
       make:
         target:
           docker-build
-        chdir:  "{{ tcs_git_path }}"
+        chdir: "{{ tcs_git_path }}"
       environment:
         REGISTRY: "{{ registry_local_address }}"
 
@@ -35,7 +35,7 @@
       make:
         target:
           docker-push
-        chdir:  "{{ tcs_git_path }}"
+        chdir: "{{ tcs_git_path }}"
       environment:
         REGISTRY: "{{ registry_local_address }}"
   when:
@@ -48,13 +48,13 @@
       make:
         target:
           enclave-config/privatekey.pem
-        chdir:  "{{ tcs_git_path }}"
+        chdir: "{{ tcs_git_path }}"
 
     - name: prepare vendor dir
       make:
         target:
           vendor
-        chdir:  "{{ tcs_git_path }}"
+        chdir: "{{ tcs_git_path }}"
 
     - name: "collect required values: read project Makefile"
       slurp:
@@ -79,39 +79,24 @@
         -t {{ registry_local_address }}/trusted-certificate-issuer:latest
         -f Dockerfile .
       args:
-        chdir:  "{{ tcs_git_path }}"
+        chdir: "{{ tcs_git_path }}"
         executable: "/bin/bash"
       changed_when: false
 
     - name: push container image
       command: "podman push {{ registry_local_address }}/trusted-certificate-issuer:latest"
       args:
-        chdir:  "{{ tcs_git_path }}"
+        chdir: "{{ tcs_git_path }}"
       changed_when: false
   when:
     - tcs.build_image_locally | default(false)
     - '"docker" not in container_runtime'
 
-- name: pre-create psp
-  block:
-    - name: pre-create tcs namespace
-      shell: "set -o pipefail && kubectl create ns {{ tcs.namespace }} -o yaml --dry-run=client | kubectl apply -f -"
-      args:
-        executable: /bin/bash
-      changed_when: true
-
-    - name: pre-create tcs ns rolebinding
-      shell: |-
-        set -o pipefail && \
-        kubectl create -n {{ tcs.namespace }} rolebinding wa-psp \
-        --clusterrole psp:privileged \
-        --group system:serviceaccounts:{{ tcs.namespace }} \
-        -o yaml --dry-run=client | kubectl apply -f -
-      args:
-        executable: /bin/bash
-      changed_when: true
-  when:
-    - psp_enabled | default(false)
+- name: create tcs namespace
+  k8s:
+    name: "{{ tcs.namespace }}"
+    kind: Namespace
+    state: present
 
 - name: update TCS config - kustomization file
   lineinfile:
@@ -142,12 +127,13 @@
   make:
     target:
       install
-    chdir:  "{{ tcs_git_path }}"
+    chdir: "{{ tcs_git_path }}"
 
 - name: deploy TCS
   make:
     target:
       deploy
-    chdir:  "{{ tcs_git_path }}"
+    chdir: "{{ tcs_git_path }}"
   environment:
-    REGISTRY: "{{ (tcs.build_image_locally) | ternary(registry_local_address, 'intel') }}"
+    REGISTRY: "{{ (tcs.build_image_locally) | ternary(registry_local_address, 'docker.io') }}"
+    IMG_TAG: "{{ tcs_image_tag }}"

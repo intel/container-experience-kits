@@ -12,10 +12,11 @@ data:
   PCCS_HOSTNAME: {{ .Values.ctk_loadkey.pccs_hostname | quote }}
   APPHSM_PORT: {{ .Values.ctk_loadkey.apphsm_port | quote }}
   APPHSM_HOSTNAME: {{ .Values.ctk_loadkey.apphsm_hostname | quote }}
-  NGINX_HOSTNAME: {{ .Values.ctk_loadkey.main.hostname | quote }}
-  NGINX_PORT: {{ .Values.ctk_loadkey.main.port | quote }}
   CLIENT_TOKEN: {{ .Values.ctk_loadkey.client_token | quote }}
   CLIENT_KEY_LABEL: {{ .Values.ctk_loadkey.client_key_label | quote }}
   TEST_UNIQUE_UID: {{ .Values.ctk_loadkey.test_unique_uid | quote }}
   DEFAULT_USER_PIN: {{ .Values.ctk_loadkey.default_user_pin | quote }}
   DEFAULT_SO_PIN: {{ .Values.ctk_loadkey.default_so_pin | quote }}
+  DEFAULT_CLIENT_TOKEN_ID: {{ .Values.ctk_loadkey.default_client_token_id | quote }}
+  PKCS11_PROXY_TLS_PSK_FILE: {{ .Values.ctk_loadkey.pkcs11_proxy_tls_psk_file | quote }}
+  PKCS11_DAEMON_SOCKET: "tls://{{ .Values.ctk_loadkey.pkcs11_daemon_socket_hostname }}:{{ .Values.ctk_loadkey.pkcs11_daemon_socket_port }}"

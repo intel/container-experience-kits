@@ -1,0 +1,90 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Fetch and install linkerd cli
+  ansible.builtin.get_url:
+    url: "{{ linkerd_cli_uri }}"
+    dest: "{{ linkerd_cli_bin }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  become: true
+
+- name: Fetch information about namespaces
+  ansible.builtin.command: "{{ kubectl_cli_bin }} get namespaces"
+  register: k8s_namespaces
+  changed_when: false
+
+- name: Debug list of namespaces
+  ansible.builtin.debug:
+    var: k8s_namespaces.stdout
+
+- name: Fetch list of ClusterRoleBindings
+  ansible.builtin.command: "{{ kubectl_cli_bin }} get ClusterRoleBindings"
+  register: k8s_cluster_role_bindings
+  changed_when: false
+
+- name: Debug list of ClusterRoleBindings
+  ansible.builtin.debug:
+    var: k8s_cluster_role_bindings.stdout
+
+- name: Install LinkerD
+  block:
+    - name: Get linkerd pre-check
+      ansible.builtin.command: "{{ linkerd_cli_bin }} check --pre"
+      register: linkerd_pre_check
+      changed_when: false
+
+    - name: Debug linkerd pre-check
+      ansible.builtin.debug:
+        msg: "{{ linkerd_pre_check.stdout_lines }}"
+
+    - name: Install linkerd crds
+      ansible.builtin.shell: "set -o pipefail && {{ linkerd_cli_bin }} install --crds | {{ kubectl_cli_bin }} apply -f -"
+      args:
+        executable: /bin/bash
+      register: linkerd_crds_installation
+      changed_when: true
+
+    - name: Debug linkerd crds installation
+      ansible.builtin.debug:
+        msg: "{{ linkerd_crds_installation }}"
+
+    - name: Install linkerd
+      ansible.builtin.shell: "set -o pipefail && {{ linkerd_cli_bin }} install --set proxyInit.runAsRoot=true | {{ kubectl_cli_bin }} apply -f -"
+      args:
+        executable: /bin/bash
+        warn: false
+      register: linkerd_installation
+      become: true
+      changed_when: true
+
+    - name: Debug linkerd installation
+      ansible.builtin.debug:
+        msg: "{{ linkerd_installation.stdout_lines }}"
+
+    - name: Delete LinkerD Heartbeat CronJob if http_proxy is enabled
+      ansible.builtin.shell: "set -o pipefail && {{ kubectl_cli_bin }} delete cronjob linkerd-heartbeat -n linkerd"
+      args:
+        executable: /bin/bash
+        warn: false
+      when:
+        - (http_proxy is defined and https_proxy is defined) or
+          (http_proxy is defined and https_proxy is not defined) or
+          (http_proxy is not defined and https_proxy is defined)
+  when:
+    - not k8s_namespaces.stdout is search('linkerd')
+    - not k8s_cluster_role_bindings.stdout is search('linkerd-linkerd-proxy-injector')

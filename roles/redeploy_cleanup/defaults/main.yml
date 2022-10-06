@@ -51,3 +51,6 @@ intel_services_to_stop:
   - "sst-bf-configure.service"
   - "sst-tf-configure.service"
   - "vpp.service"
+
+# Mentioned below folder location must match with roles/bootstrap/install_qat_drivers_services/defaults/main.yml
+qat_drivers_dir: "{{ (project_root_dir, 'qat_drivers') | path_join }}"

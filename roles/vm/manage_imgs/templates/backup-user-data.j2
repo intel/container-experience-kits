@@ -24,10 +24,6 @@ runcmd:
   - sed -i 's/ssh_args.*/& -o ServerAliveInterval=60 -o ServerAliveCountMax=10/g' /root/container-experience-kits/ansible.cfg
 
 write_files:
-  - path: /etc/environment
-    content: |
-      PROFILE=full_nfv
-    append: true
   - path: /root/.ssh/id_rsa
     content: |
       {{ lookup('file', '/home/{{ item.0.id }}/.ssh/id_rsa') }}

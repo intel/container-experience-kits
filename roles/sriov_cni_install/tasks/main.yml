@@ -41,10 +41,10 @@
 
 - name: create /opt/cni/bin
   file:
-   path: "/opt/cni/bin"
-   state: directory
-   recurse: yes
-   mode: 0755
+    path: "/opt/cni/bin"
+    state: directory
+    recurse: yes
+    mode: 0755
 
 - name: install sriov-cni binary to /opt/cni/bin directory
   copy:

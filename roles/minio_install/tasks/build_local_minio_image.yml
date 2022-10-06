@@ -1,0 +1,97 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone MinIO repository
+  git:
+    repo: "{{ minio_git_url }}"
+    version: "{{ minio_git_tag }}"
+    dest: "{{ minio_local_build_dir }}"
+    force: yes
+
+- name: modify MinIO Dockerfile content
+  replace:
+    path: "{{ (minio_local_build_dir, 'Dockerfile') | path_join }}"
+    regexp: 'FROM minio/minio:latest'
+    replace: >-
+      FROM ubuntu:22.04
+
+      RUN apt-get update && apt-get install -y --no-install-recommends \
+                  apt-transport-https \
+                  awscli \
+                  bash \
+                  bmon \
+                  bwm-ng \
+                  ca-certificates \
+                  curl \
+                  dnsutils \
+                  gnupg \
+                  iperf \
+                  iproute2 \
+                  iptables \
+                  iputils-ping \
+                  net-tools \
+                  slurm \
+                  tar \
+                  tcpdump \
+                  tcptrack \
+                  unzip \
+              && rm -rf /var/lib/apt/lists/*
+
+# docker is used as container runtime:
+- name: prepare containers images
+  block:
+    - name: compile local MinIO
+      make:
+        chdir: "{{ minio_local_build_dir }}"
+      when: minio_build_image_locally
+
+    - name: build local MinIO custom image
+      command: >-
+        docker build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
+      args:
+        chdir: "{{ minio_local_build_dir }}"
+      changed_when: true
+      when: minio_build_image_locally
+
+    - name: push the local MinIO custom images to local registry
+      command: >-
+        docker push {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
+      when: minio_build_image_locally
+  when:
+    - container_runtime == "docker"
+
+# containerd/cri-o is used as container runtime:
+- name: prepare containers images
+  block:
+    - name: compile local MinIO
+      make:
+        chdir: "{{ minio_local_build_dir }}"
+      when: minio_build_image_locally
+
+    - name: build local MinIO custom image
+      command: >-
+        podman build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
+      args:
+        chdir: "{{ minio_local_build_dir }}"
+      changed_when: true
+      when: minio_build_image_locally
+
+    - name: push the local MinIO custom images to local registry
+      command: >-
+        podman push {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
+      when: minio_build_image_locally
+  when:
+    - container_runtime is in ['containerd', 'crio']

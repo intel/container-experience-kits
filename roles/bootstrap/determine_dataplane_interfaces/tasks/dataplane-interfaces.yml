@@ -35,7 +35,7 @@
 
     - name: adding nic with name added to new_dataplane_interfaces
       set_fact:
-         new_dataplane_interfaces: "{{ new_dataplane_interfaces + [ new_nic ] }}"
+        new_dataplane_interfaces: "{{ new_dataplane_interfaces + [ new_nic ] }}"
   when: ansible_distribution == "Ubuntu"
 
 - name: block for dataplane interface list in RHEL / Rocky

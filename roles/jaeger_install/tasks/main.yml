@@ -1,0 +1,52 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- block:
+    - name: Create observability namespace
+      k8s:
+        name: "observability"
+        kind: Namespace
+        state: present
+
+    - name: Create Jaeger folder
+      file:
+        state: directory
+        dest: "{{ (project_root_dir, 'Jaeger') | path_join }}"
+        mode: 0755
+
+    - name: Download jaeger operator CRD
+      get_url:
+        url: "{{ jaeger_defaults.jaeger_crd_url }}"
+        dest: "{{ (project_root_dir, 'Jaeger', 'jaeger-operator.yaml') | path_join }}"
+        mode: 0755
+
+    - name: Deploy jaeger-operator CRD
+      command: "kubectl apply -f {{ (project_root_dir, 'Jaeger', 'jaeger-operator.yaml') | path_join }}"
+      changed_when: true
+
+    - name: Wait for jaeger-operator to be ready
+      pause:
+        seconds: 30
+
+    - name: Generate Jaeger deployment file
+      template:
+        src: "{{ (role_path, 'templates', 'jaeger_deployment.yaml.j2') | path_join }}"
+        dest: "{{ (project_root_dir, 'Jaeger', 'jaeger_deployment.yaml') | path_join }}"
+        mode: 0644
+
+    - name: Create instance of jaeger-operator
+      command: "kubectl apply -f {{ (project_root_dir, 'Jaeger', 'jaeger_deployment.yaml') | path_join }}"
+      changed_when: true
+  when: inventory_hostname == groups['kube_control_plane'][0]

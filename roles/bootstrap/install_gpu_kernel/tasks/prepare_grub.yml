@@ -55,4 +55,5 @@
 
     - name: set default kernel with grub command
       command: grub-set-default "Advanced options for Ubuntu>Ubuntu, with Linux {{ gpu_dp_kernel_version }}"
+      changed_when: true
   when: ansible_distribution == "Ubuntu" and ansible_distribution_version == '21.04'

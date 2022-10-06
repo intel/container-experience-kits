@@ -28,16 +28,19 @@
     mode: '0755'
     use_proxy: yes
 
+# ln -s /usr/lib/x86_64-linux-gnu/libnuma.so /usr/lib64/libnuma.so
+# RHEL 8.6 RT ERR: src file does not exist, use "force=yes" if you really want to create the link: /usr/lib/x86_64-linux-gnu/libnuma.so
 - name: create libnuma symlink
   file:
     src: "/usr/lib/x86_64-linux-gnu/libnuma.so"
     dest: "/usr/lib64/libnuma.so"
     state: link
-# ln -s /usr/lib/x86_64-linux-gnu/libnuma.so /usr/lib64/libnuma.so
+  when: ansible_distribution == 'Ubuntu'
 
 - name: install Intel oneAPI
-  command: "sh {{ intel_oneapi_dir }}/intel-oneapi-basekit-offline.sh -a --silent --eula accept --install-dir {{ intel_oneapi_dir }}"
-  changed_when: false
+#  command: "sh {{ intel_oneapi_dir }}/intel-oneapi-basekit-offline.sh -a --silent --eula accept --install-dir {{ intel_oneapi_dir }}"
+  command: "sh {{ intel_oneapi_dir }}/intel-oneapi-basekit-offline.sh -a --silent --eula accept --components intel.oneapi.lin.dpcpp-cpp-compiler:intel.oneapi.lin.ipp.devel:intel.oneapi.lin.ippcp.devel:intel.oneapi.lin.mkl.devel:intel.oneapi.lin.dpcpp-ct:intel.oneapi.lin.dpl:intel.oneapi.lin.dpcpp_dbg --install-dir {{ intel_oneapi_dir }}" # noqa yaml[line-length]
+  changed_when: true
   failed_when: false # to allow re-run install without uninstall
 #  environment:
 #    PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ intel_oneapi_dir }}"

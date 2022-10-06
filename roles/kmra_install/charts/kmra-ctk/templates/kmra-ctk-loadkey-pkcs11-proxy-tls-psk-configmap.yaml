@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-p11-proxy-tls-psk-conf
+  namespace: {{ .Release.Namespace }}
+data:
+  p11_proxy_tls.psk: |
+    {{ .Values.ctk_loadkey.pkcs11_proxy_tls_psk }}

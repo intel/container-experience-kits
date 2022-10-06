@@ -42,6 +42,3 @@
     - "{{ kmra.apphsm.helm_values_file }}"
     - "{{ kmra.ctk_loadkey_demo.helm_values_file }}"
   failed_when: false
-
-
-

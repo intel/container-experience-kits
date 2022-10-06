@@ -1,5 +1,5 @@
 # Check Telemetry Aware Scheduler
-A Health Metric Demo Policy [https://github.com/intel/platform-aware-scheduling/blob/master/telemetry-aware-scheduling/docs/health-metric-example.md] is deployed for Telemetry Aware Scheduler (TAS) when `tas_enable_demo_policy: true`, in `group_vars/all.yml` as shown below:
+A Health Metric Demo Policy (https://github.com/intel/platform-aware-scheduling/blob/master/telemetry-aware-scheduling/docs/health-metric-example.md) is deployed for Telemetry Aware Scheduler (TAS) when `tas_enable_demo_policy: true`, in `group_vars/all.yml` as shown below:
 ```
 # Intel Telemetry Aware Scheduling
 tas_enabled: true
@@ -119,7 +119,7 @@ The pod should fail to schedule and end up in state “Pending” as shown below
 ```
 # kubectl get pods -n kube-system | grep tas-test
   NAME                        READY   STATUS    RESTARTS   AGE
-  tas-test-xxxx-yyyy          1/1     Pending   0          3m
+  tas-test-xxxx-yyyy          0/1     Pending   0          3m
 ```
 As `node_health_metric` is set to 1 (dontschedule), this is expected.
 Delete the pod before continuing with the next test:
@@ -128,7 +128,7 @@ Delete the pod before continuing with the next test:
 ```
 
 ## Check Deschedule Policy
-To see the impact of the descheduling policy, use a component called descheduler. For more details, visit [https://github.com/intel/platform-aware-scheduling/blob/master/telemetry-aware-scheduling/docs/health-metric-example.md#seeing-the-impact].
+To see the impact of the descheduling policy, use a component called descheduler. For more details, visit (https://github.com/intel/platform-aware-scheduling/blob/master/telemetry-aware-scheduling/docs/health-metric-example.md#seeing-the-impact).
 
 Start by setting `node_health_metric` to 0 (scheduleonmetric) on all worker nodes as follows:
 ``` 

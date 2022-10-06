@@ -21,8 +21,8 @@
     label: gpt
     number: 1
     part_type: primary
-    part_end: "{{ hostvars[inventory_hostname]['minio_pv'][ansible_loop.index0].capacity }}"
-    flags: [ lvm ]
+    part_end: "{{ minio_tenant_volume_size }}GiB"
+    flags: [lvm]
     state: present
 
 - name: format the partition

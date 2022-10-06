@@ -1,0 +1,60 @@
+argv:
+  - --skip-confirmation
+{% if istio_service_mesh.context is defined and istio_service_mesh.context != '' %}
+  - --context
+  - {{ istio_service_mesh.context }}
+{% endif -%}
+{% if istio_service_mesh.filename is defined and istio_service_mesh.filename != [] %}
+{% for item in istio_service_mesh.filename %}
+  - --filename
+  - {{ item }}
+{% endfor -%}
+{% endif -%}
+{% if istio_service_mesh.namespace is defined and istio_service_mesh.namespace != '' %}
+  - --namespace
+  - {{ istio_service_mesh.namespace }}
+{% endif -%}
+{% if istio_service_mesh.istio_namespace is defined and istio_service_mesh.istio_namespace != '' %}
+  - --istioNamespace
+  - {{ istio_service_mesh.istio_namespace }}
+{% endif -%}
+{% if istio_service_mesh.kubeconfig is defined and istio_service_mesh.kubeconfig != '' %}
+  - --kubeconfig
+  - {{ istio_service_mesh.kubeconfig }}
+{% endif -%}
+{% if istio_service_mesh.vklog is defined and istio_service_mesh.vklog != '' %}
+  - --vklog
+  - {{ istio_service_mesh.vklog }}
+{% endif -%}
+{% if istio_service_mesh.revision is defined and istio_service_mesh.revision != '' %}
+  - --revision
+  - {{ istio_service_mesh.revision }}
+{% endif -%}
+{% if istio_service_mesh.manifest is defined and istio_service_mesh.manifest != '' %}
+  - --manifests
+  - {{ istio_service_mesh.manifest }}
+{% endif -%}
+{% if istio_service_mesh.dry_run is defined and istio_service_mesh.dry_run | bool %}
+  - --dry-run
+{% endif -%}
+{% if istio_service_mesh.force is defined and istio_service_mesh.force | bool %}
+  - --force
+{% endif -%}
+{% if istio_service_mesh.readiness_timeout is defined and istio_service_mesh.readiness_timeout != '' %}
+  - --readiness-timeout
+  - {{ istio_service_mesh.readiness_timeout }}
+{% endif -%}
+{% if istio_service_mesh.set is defined and istio_service_mesh.set != [] %}
+{% for item in istio_service_mesh.set %}
+  - --set
+  - {{ item }}
+{% endfor -%}
+{% endif -%}
+{% if istio_service_mesh.verify is defined and istio_service_mesh.verify | bool and istio_service_mesh.profile != 'empty' %}
+  - --verify
+{% endif -%}
+{% if istio_service_mesh.profile in ['default', 'demo', 'minimal', 'external', 'empty', 'preview'] %}
+  - --set profile={{ istio_service_mesh.profile }}
+{% else %}
+  - --filename={{ istio_service_mesh_profiles_dir }}/{{ istio_service_mesh.profile }}.yaml
+{% endif -%}

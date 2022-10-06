@@ -15,7 +15,7 @@
 ##
 ---
 intel_cndp_git_url: "https://github.com/CloudNativeDataPlane/cndp.git"
-intel_cndp_version: "v22.04.0"
+intel_cndp_version: "v22.08.0"
 intel_cndp_dir: "{{ (project_root_dir, 'intel-cndp') | path_join }}"
 
 docker_bin_dir: "/usr/bin"

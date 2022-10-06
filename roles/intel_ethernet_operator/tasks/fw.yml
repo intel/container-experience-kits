@@ -39,6 +39,7 @@
       retries: 60
       delay: 10
       failed_when: "'Failed' in fw_update_info.stdout"
+      changed_when: false
 
     - name: check node after reboot
       block:
@@ -96,7 +97,7 @@
             - "'InProgress' not in after_fw_update_info.stdout"
           retries: 30
           delay: 10
-          failed_when: "'Failed' in after_fw_update_info.stdout or 'PostUpdateReboot' in after_fw_update_info.stdout or 'InProgress' in after_fw_update_info.stdout" # noqa 204 line-length
+          failed_when: "'Failed' in after_fw_update_info.stdout or 'PostUpdateReboot' in after_fw_update_info.stdout or 'InProgress' in after_fw_update_info.stdout" # noqa yaml[line-length]
           changed_when: false
       when: "'PostUpdateReboot' in fw_update_info.stdout"
 
@@ -109,4 +110,4 @@
       command: kubectl delete enc {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}
       changed_when: true
 
-  when: hostvars[node_name]['intel_ethernet_operator']['fw_update']
+  when: hostvars[node_name]['intel_ethernet_operator']['fw_update'] |d(false)

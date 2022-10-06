@@ -1,5 +1,0 @@
-networks-status:[\s\S]*?
-{%- for i in range(minio_tenant_sriov_resources | length + 1) -%}
-(?:")(name)(?:":\s*")([\S]*)(?:",[\s\S]*?)(?:")(ips)(?:":\s*\[\s*")([\S]*)(?:"[\s\S]*?)
-{%- endfor -%}
-[\s\S]*?(pod-name)(?::\s)([\S]*)

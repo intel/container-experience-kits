@@ -9,7 +9,7 @@ spec:
     kubernetes.io/hostname: node1
   acceleratorSelector:
     pciAddress: 0000.1d.00.0
-  physicalFunction:  
+  physicalFunction:
     pfDriver: pci-pf-stub
     vfDriver: vfio-pci
     vfAmount: 2

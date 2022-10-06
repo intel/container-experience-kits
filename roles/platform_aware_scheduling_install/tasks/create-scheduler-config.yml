@@ -35,7 +35,7 @@
     - name: configure API version in kube-scheduler config file
       lineinfile:
         path: /tmp/kubescheduler-config.yaml
-        line: "apiVersion: kubescheduler.config.k8s.io/v1beta2"
+        line: "apiVersion: kubescheduler.config.k8s.io/v1beta3"
         regexp: "apiVersion: "
         state: present
         mode: 0600
@@ -130,8 +130,8 @@
         state: present
         mode: 0600
       with_items:
-      - { arg: "    - --policy-configmap", value: "pas-scheduler-extenders-policy" }
-      - { arg: "    - --policy-configmap-namespace", value: "{{ pas_namespace }}" }
+        - {arg: "    - --policy-configmap", value: "pas-scheduler-extenders-policy"}
+        - {arg: "    - --policy-configmap-namespace", value: "{{ pas_namespace }}"}
   when: kube_version is version('v1.22', '<')
 
 - name: configure arguments from Kubernetes Scheduler file - dnsPolicy

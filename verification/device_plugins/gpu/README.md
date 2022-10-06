@@ -11,14 +11,14 @@ kubectl get node <work node name> -o json |jq .metadata.labels
   "feature.node.kubernetes.io/cpu-cpuid.ADX": "true",
   ……
   "feature.node.kubernetes.io/intel.qat": "true",
-  "feature.node.kubernetes.io/kernel-version.full": "5.4.48",
+  "feature.node.kubernetes.io/kernel-version.full": "5.15.0-25-generic",
   "feature.node.kubernetes.io/kernel-version.major": "5",
-  "feature.node.kubernetes.io/kernel-version.minor": "4",
-  "feature.node.kubernetes.io/kernel-version.revision": "48",
+  "feature.node.kubernetes.io/kernel-version.minor": "15",
+  "feature.node.kubernetes.io/kernel-version.revision": "0",
   ……
   "gpu.intel.com/cards": "card0.card1.card2.card3",
   "kubernetes.io/arch": "amd64",
-  "kubernetes.io/hostname": "as09-16-wpr",
+  "kubernetes.io/hostname": "node1",
   "kubernetes.io/os": "linux",
   "node-role.kubernetes.io/worker": ""
 }

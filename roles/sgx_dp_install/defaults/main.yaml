@@ -15,10 +15,9 @@
 ##
 ---
 intel_sgx_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_sgx_dp_git_ref: "v0.23.0"
-intel_sgx_dp_version: "0.23.0"
+intel_sgx_dp_git_ref: "v0.24.0"
+intel_sgx_dp_version: "0.24.0"
 intel_sgx_dp_dir: "{{ (project_root_dir, 'intel-sgx-dp') | path_join }}"
-intel_sgx_psp_rbac_dir: "{{ (project_root_dir, 'psp-rbac-rules') | path_join }}"
 
 sgx_dp_build_image_locally: true
 sgx_dp_provision_limit: 20

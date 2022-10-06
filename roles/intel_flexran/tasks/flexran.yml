@@ -14,13 +14,14 @@
 ##   limitations under the License.
 ##
 ---
+# no need. per POR, customer must manually pre-extract FlexRAN package on target(s)
 # - name: create Intel FlexRAN directory on worker node
 #   file:
 #     path: "{{ intel_flexran_dir }}"
 #     state: directory
 #     mode: '0755'
 
-# - name: unpack Intel FlexRAN tarball on worker node
+# - name: unpack Intel FlexRAN tarball on target(s)
 #   unarchive:
 #     src: "{{ (intel_flexran_staging_location, intel_flexran_tarball) | path_join }}"
 #     dest: "{{ intel_flexran_dir }}"
@@ -43,22 +44,30 @@
     content: "{{ intel_oneapi_dir }}"
     mode: '0755'
 
+- debug: msg="Intel FlexRAN mode is '{{ intel_flexran_mode }}'"
+
+- name: set Intel FlexRAN mode
+  lineinfile:
+    path: "{{ (intel_flexran_dir, 'xran/build.sh') | path_join }}"
+    regexp: '^SAMPLEAPP=0'
+    line: SAMPLEAPP=1
+  when: intel_flexran_mode == "xran"
+
+- name: set Intel FlexRAN target isa
+  set_fact:
+    target_isa: "-i spr"
+  when: configured_arch == "spr"
+
 - name: build Intel FlexRAN SDK
-  shell: "source set_env_var.sh -d && ./flexran_build.sh -e -r 5gnr -m sdk" # noqa 305
+  shell: "source set_env_var.sh -d && ./flexran_build.sh -e -r 5gnr {{ target_isa | default('') }} -m sdk"
   args:
     executable: /bin/bash
     chdir: "{{ intel_flexran_dir }}"
-  changed_when: false
-
-# - name: build DPDK # all this presumably already done by DPDK role. need to re-run after building sdk above?!
-#   shell: "source set_env_var.sh -d && cd $RTE_SDK && meson build && cd build && meson configure && ninja && ninja install" # noqa 305
-#   args:
-#     executable: /bin/bash
-#     chdir: "{{ intel_flexran_dir }}"
+  changed_when: true
 
 - name: build FlexRAN ALL for 5GNR
-  shell: "source set_env_var.sh -d && ./flexran_build.sh -e -r 5gnr" # noqa 305
+  shell: "ldconfig && export RTE_SDK={{ intel_flexran_dpdk_dir }} && source set_env_var.sh -d && export PKG_CONFIG_PATH=$RTE_SDK/build/meson-uninstalled && ./flexran_build.sh -e -r 5gnr {{ target_isa | default('') }}"  # noqa yaml[line-length]
   args:
     executable: /bin/bash
     chdir: "{{ intel_flexran_dir }}"
-  changed_when: false
+  changed_when: true

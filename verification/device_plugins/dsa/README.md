@@ -15,7 +15,7 @@ List the allocatable node resources for the target worker node:
 ```
 # kubectl get node <worker node> -o json | jq '.status.allocatable'
 {
-  "cpu": "77",
+  "cpu": "95550m",
   "dsa.intel.com/wq-user-dedicated": "16",
   "dsa.intel.com/wq-user-shared": "160",
   "ephemeral-storage": "282566437625",

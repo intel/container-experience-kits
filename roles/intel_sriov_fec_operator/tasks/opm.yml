@@ -21,4 +21,3 @@
     checksum: "sha256:{{ opm_chk }}"
     mode: '0755'
     use_proxy: yes
-

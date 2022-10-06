@@ -44,7 +44,7 @@ Start by listing allocatable node resources for the target worker node:
 ```
 # kubectl get node <worker node> -o json | jq '.status.allocatable'
 {
-  "cpu": "93",
+  "cpu": "95550m",
   "ephemeral-storage": "452220352993",
   "hugepages-1Gi": "4Gi",
   "hugepages-2Mi": "256Mi",

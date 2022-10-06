@@ -14,6 +14,18 @@
 ##   limitations under the License.
 ##
 ---
+- name: check if intel-rapl dir exist
+  stat: path=/sys/devices/virtual/powercap/intel-rapl
+  register: intel_rapl_status
+
+- name: disable pkgpower_plugin if intel-rapl dir is not available
+  set_fact:
+    enable_pkgpower_plugin: false
+  changed_when: true
+  when:
+    - not intel_rapl_status.stat.exists
+    - enable_pkgpower_plugin
+
 - name: disable intel_pmu plugin
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'intel_pmu' ] }}"
@@ -31,7 +43,7 @@
 
 - name: prepare list of plugins to be deployed
   set_fact:
-    plugins: "{{ collectd_plugins[collectd_profile|default('basic')] | difference(exclude_collectd_plugins) }}"
+    plugins: "{{ collectd_plugins[collectd_profile | default('basic')] | difference(exclude_collectd_plugins) }}"
 
 - name: rename ipmi to 0_ipmi to ensure that ipmi plugin will be loaded first (https://sourceforge.net/p/openipmi/bugs/86/)
   set_fact:
@@ -72,7 +84,7 @@
 - name: get network interfaces for ethstat plugin
   shell: set -o pipefail && hwinfo --short --netcard |  awk -F '  ' '{if ($2!="") print $2}' # noqa 602
   args:
-     executable: /bin/bash
+    executable: /bin/bash
   register: ethstat_interfaces_in_ubuntu
   changed_when: ethstat_interfaces_in_ubuntu is defined
   when:
@@ -83,7 +95,7 @@
 - name: get network interfaces for ethstat plugin
   shell: set -o pipefail && lshw -c network -businfo | grep "pci@" |  awk -F '  ' '{if ($2!="") print $2}' # noqa 602
   args:
-     executable: /bin/bash
+    executable: /bin/bash
   register: ethstat_interfaces
   changed_when: ethstat_interfaces is defined
   when:

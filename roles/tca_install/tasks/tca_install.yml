@@ -24,7 +24,7 @@
 - name: "prepare to build_image_locally: clean deps"
   command: "go mod tidy -go=1.17"
   args:
-    chdir:  "{{ tca_git_path }}"
+    chdir: "{{ tca_git_path }}"
   changed_when: true
   when:
     - tca.build_image_locally | default(false)
@@ -32,7 +32,7 @@
 - name: "prepare to build_image_locally: create vendor dir"
   command: "go mod vendor"
   args:
-    chdir:  "{{ tca_git_path }}"
+    chdir: "{{ tca_git_path }}"
   changed_when: true
   when:
     - tca.build_image_locally | default(false)
@@ -43,7 +43,7 @@
       make:
         target:
           docker-build
-        chdir:  "{{ tca_git_path }}"
+        chdir: "{{ tca_git_path }}"
       environment:
         REGISTRY: "{{ registry_local_address }}"
 
@@ -51,7 +51,7 @@
       make:
         target:
           docker-push
-        chdir:  "{{ tca_git_path }}"
+        chdir: "{{ tca_git_path }}"
       environment:
         REGISTRY: "{{ registry_local_address }}"
   when:
@@ -63,13 +63,13 @@
     - name: build container image
       command: "podman build -t {{ registry_local_address }}/sgx-attestation-controller:latest -f Dockerfile ."
       args:
-        chdir:  "{{ tca_git_path }}"
+        chdir: "{{ tca_git_path }}"
       changed_when: false
 
     - name: push container image
       command: "podman push {{ registry_local_address }}/sgx-attestation-controller:latest"
       args:
-        chdir:  "{{ tca_git_path }}"
+        chdir: "{{ tca_git_path }}"
       changed_when: false
   when:
     - tca.build_image_locally | default(false)
@@ -127,31 +127,17 @@
     state: present
     mode: 0644
 
-- name: pre-create psp
-  block:
-    - name: pre-create TCA namespace
-      shell: "set -o pipefail && kubectl create ns {{ tca.namespace }} -o yaml --dry-run=client | kubectl apply -f -"
-      args:
-        executable: /bin/bash
-      changed_when: true
-
-    - name: pre-create TCA ns rolebinding
-      shell: |-
-        set -o pipefail && \
-        kubectl create -n {{ tca.namespace }} rolebinding wa-psp \
-        --clusterrole psp:privileged \
-        --group system:serviceaccounts:{{ tca.namespace }} \
-        -o yaml --dry-run=client | kubectl apply -f -
-      args:
-        executable: /bin/bash
-      changed_when: true
-  when:
-    - psp_enabled | default(false)
+- name: create tca namespace
+  k8s:
+    name: "{{ tca.namespace }}"
+    kind: Namespace
+    state: present
 
 - name: deploy TCA
   make:
     target:
       deploy
-    chdir:  "{{ tca_git_path }}"
+    chdir: "{{ tca_git_path }}"
   environment:
-    REGISTRY: "{{ (tca.build_image_locally) | ternary(registry_local_address, 'intel') }}"
+    REGISTRY: "{{ (tca.build_image_locally) | ternary(registry_local_address, 'docker.io') }}"
+    IMG_TAG: "{{ tca_image_tag }}"

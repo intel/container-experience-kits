@@ -1,0 +1,116 @@
+resource "aws_vpc" "default" {
+  cidr_block           = "{{ vpc_cidr_block }}"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-default-vpc"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_internet_gateway" "default" {
+  vpc_id = aws_vpc.default.id
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-default-igw"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_route_table" "default" {
+  vpc_id = aws_vpc.default.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.default.id
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-default-rt"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+{% for subnet in subnets %}
+resource "aws_subnet" "{{ subnet.name }}" {
+  vpc_id                  = aws_vpc.default.id
+  map_public_ip_on_launch = true
+  
+  cidr_block              = "{{ subnet.cidr_block }}"
+  availability_zone       = "{{ subnet.az }}"
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-subnet-{{ subnet.name }}"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_route_table_association" "{{ subnet.name }}" {
+  subnet_id      = aws_subnet.{{ subnet.name }}.id
+  route_table_id = aws_route_table.default.id
+}
+
+{% endfor %}
+
+resource "aws_security_group" "default" {
+  name        = "cwdf-infra-{{ job_id }}-default-sg"
+  vpc_id      = aws_vpc.default.id
+
+  ingress {
+    description      = "SSH"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = [{% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}]
+  }
+
+  ingress {
+    description      = "PING"
+    from_port        = 8
+    to_port          = 0
+    protocol         = "icmp"
+    cidr_blocks      = [{% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-default-sg"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_key_pair" "default" {
+  key_name   = "cwdf-infra-{{ job_id }}-default-keypair"
+  public_key = "{{ ssh_pub_key }}"
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-default-keypair"
+      JobId = "{{ job_id }}"
+    }
+  )
+}

@@ -53,17 +53,6 @@
     - hostvars[item]['dataplane_interfaces'] | default({}) | length > 0
   loop: "{{ groups['kube_node'] }}"
 
-# NOTE(kmlynekx): this is workaround for
-# https://github.com/kubernetes-sigs/node-feature-discovery/issues/812
-- name: label configured nodes with feature.node.kubernetes.io/network-sriov.capable=true label
-  shell: "set -o pipefail &&  kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} feature.node.kubernetes.io/network-sriov.capable=true --overwrite"
-  args:
-    executable: /bin/bash
-  changed_when: true
-  when:
-    - hostvars[item]['iommu_enabled']
-  loop: "{{ groups['kube_node'] }}"
-
 - name: deploy sriov-network-operator
   command: |
     helm upgrade \
@@ -74,3 +63,40 @@
   args:
     chdir: "{{ sriov_network_charts_dir }}"
   changed_when: true
+
+- name: wait for sriov-network-config-daemon daemonset
+  pause:
+    seconds: 20
+
+- name: wait for sriov-network-config-daemon pods
+  shell: >-
+    set -o pipefail && kubectl get ds sriov-network-config-daemon
+    -n {{ sriov_network_operator_namespace }} -o yaml | grep 'numberReady'
+  args:
+    executable: /bin/bash
+  register: sriov_daemon_wait
+  until: "'0' not in sriov_daemon_wait.stdout"
+  failed_when: "'0' in sriov_daemon_wait.stdout or sriov_daemon_wait.rc != 0"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: check if SriovNetworkNodeState CR was created
+  command: kubectl get SriovNetworkNodeState -n {{ sriov_network_operator_namespace }}
+  register: sriov_node_state_check
+  until: "'No resources found in {{ sriov_network_operator_namespace }}' not in sriov_node_state_check.stderr"
+  failed_when: "'No resources found in {{ sriov_network_operator_namespace }}' in sriov_node_state_check.stderr"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: wait for SriovNetworkNodeState CR sync
+  command: kubectl get SriovNetworkNodeState {{ item }} -n {{ sriov_network_operator_namespace }} -o yaml
+  register: sriov_node_wait
+  until: sriov_node_wait.stdout is not search('InProgress') and sriov_node_wait.stdout is search('syncStatus')
+  failed_when:
+    sriov_node_wait.stdout is search('Failed') or sriov_node_wait.stdout is search('InProgress') or sriov_node_wait.stdout is not search('syncStatus')
+  retries: 30
+  delay: 10
+  changed_when: false
+  loop: "{{ groups['kube_node'] }}"

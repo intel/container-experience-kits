@@ -27,15 +27,15 @@
     msg: "No QAT module found. Please set update_qat_drivers to true in host vars to resolve the issue."
   when: '"intel_qat" not in qat_confirm_mod.stdout'
 
-- name: make sure QAT service is started and enabled
+- name: make sure qat_service service is started and enabled
   service:
-    name: qat
+    name: qat_service
     state: started
     enabled: yes
 
 # ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove and use ansible service module
-- name: check status of QAT service
-  shell: "set -o pipefail && service qat status | grep qat_dev"
+- name: check status of qat_service service
+  shell: "set -o pipefail && service qat_service status | grep qat_dev"
   args:
     executable: /bin/bash
   register: qat_status_check

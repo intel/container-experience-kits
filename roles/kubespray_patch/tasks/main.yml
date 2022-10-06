@@ -34,11 +34,22 @@
   with_items: "{{ host_vars_details.results }}"
   when: item.stat.exists
 
-- name: WA remove missing aufs-tools package from kubernetes/preinstall required_pkgs
+- name: add retries for restart of api-server
+  blockinfile:
+    path: "{{ (playbook_dir, 'kubespray', 'roles', 'kubernetes', 'preinstall', 'handlers', 'main.yml') | path_join }}"
+    insertafter: "crictl"
+    block: |2
+        register: preinstall_restart_apiserver
+        retries: 10
+        until: preinstall_restart_apiserver.rc == 0
+        delay: 1
+  when: adq_dp.enabled | d(false)
+
+- name: remove wireguard package
   lineinfile:
-    path: "{{ playbook_dir }}/kubespray/roles/kubernetes/preinstall/vars/ubuntu.yml"
-    regexp: '  - aufs-tools'
+    path: "{{ (playbook_dir, 'kubespray', 'roles', 'network_plugin', 'calico', 'vars', 'redhat.yml') | path_join }}"
     state: absent
+    regexp: '  - wireguard-dkms'
   when:
-    - (target_distribution == "Ubuntu" and target_distribution_version in  ['20.04', '22.04']) or
-      (vm_enabled and vm_image_distribution == "ubuntu" and vm_image_version_ubuntu in  ['20.04', '22.04'])
+    - wireguard_enabled
+    - target_distribution == "Rocky" and target_distribution_version >= "9.0"

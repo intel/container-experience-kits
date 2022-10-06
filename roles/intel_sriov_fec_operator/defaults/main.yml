@@ -17,7 +17,7 @@
 # Reference: https://github.com/smart-edge-open/sriov-fec-operator/tree/sriov-fec-operator-22.03.14/spec
 # FEC = Forward Error Correction
 # CR = Custom Resource
-# ACC100 = Intel vRAN Dedicated H/W Accelerator Card 
+# ACC100 = Intel vRAN Dedicated H/W Accelerator Card
 
 # Intel Smart Edge Open (SEO) FEC Operator
 intel_sriov_fec_operator_git: "https://github.com/smart-edge-open/sriov-fec-operator.git"
@@ -43,5 +43,3 @@ opm_ver: "v1.22.0"
 opm_chk: "e671f494f0944af228e9f2bc09042d04ec47b61d7094fa2129c8690ec6b6ed27"
 opm_dir: "/usr/local/bin/"
 opm_cmd: "opm"
-
-

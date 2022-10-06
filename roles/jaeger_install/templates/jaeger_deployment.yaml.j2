@@ -1,0 +1,22 @@
+apiVersion: "{{jaeger_defaults.apiVersion}}"
+kind: Jaeger
+metadata:
+  name: "{{jaeger_defaults.name}}"
+  namespace: "{{jaeger_defaults.namespace}}"
+spec:
+  strategy: "{{jaeger_defaults.strategy}}"
+  "{{jaeger_defaults.strategy}}":
+    image: "{{jaeger_defaults.image}}"
+    options:
+      log-level: "{{jaeger_defaults.log_level}}"
+  storage:
+    type: "{{jaeger_defaults.storage_type}}"
+    options:
+      memory:
+        max-traces: "{{jaeger_defaults.max_traces}}"
+  ingress:
+    enabled: {{jaeger_defaults.ingress_enabled}}
+  agent:
+    strategy: "{{jaeger_defaults.agent_strategy}}"
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ""

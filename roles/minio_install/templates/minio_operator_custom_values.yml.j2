@@ -1,4 +1,5 @@
----
+# Default values for minio-operator.
+
 operator:
   ## Setup environment variables for the Operator
   # env:
@@ -10,9 +11,17 @@ operator:
   #     value: ""
   image:
     repository: {{ minio_operator_image | default("minio/operator") }}
-    tag: {{ minio_operator_version | default("v4.4.1")}}
+    tag: {{ minio_operator_version | default("v4.4.28")}}
     pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  initcontainers: []
   replicaCount: {{ minio_tenant_servers }}
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    fsGroup: 1000
+  nodeSelector: {}
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -22,8 +31,8 @@ operator:
             operator: In
             values:
             - minio
-  tolerations: [ ]
-  topologySpreadConstraints: [ ]
+  tolerations: []
+  topologySpreadConstraints: []
   resources:
     requests:
       cpu: 200m
@@ -33,10 +42,12 @@ operator:
 console:
   image:
     repository: {{ minio_console_image | default("minio/console") }}
-    tag: {{ minio_console_version | default("v0.13.2")}}
+    tag: {{ minio_console_version | default("v0.19.4")}}
     pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  initcontainers: []
   replicaCount: 1
-  affinity:
+  nodeSelector: {}
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -46,11 +57,20 @@ console:
             operator: In
             values:
             - minio
+  tolerations: []
+  topologySpreadConstraints: []
+  resources: {}
+  securityContext:
+    runAsUser: 1000
+    runAsNonRoot: true
   ingress:
     enabled: false
     ingressClassName: ""
-    labels: { }
-    annotations: { }
-    tls: [ ]
+    labels: {}
+    annotations: {}
+    tls: []
     host: console.local
     path: /
+    pathType: Prefix
+  volumes: []
+  volumeMounts: []

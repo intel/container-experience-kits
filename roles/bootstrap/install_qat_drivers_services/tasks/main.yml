@@ -18,11 +18,11 @@
   include_role:
     name: install_dependencies
 
-- name: WA for libudev-dev version issue on Ubuntu 22.04
+- name: WA for libudev-dev version issue on Ubuntu
   apt:
     name: 'udev'
     state: latest # noqa 403 package-latest
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+  when: ansible_distribution == "Ubuntu"
 
 - name: get current udev package version
   shell: "set -o pipefail && apt list --installed 2>/dev/null |grep '^udev' | awk 'NR==1{ print $2 }'"
@@ -54,9 +54,20 @@
     url: "{{ qat_drivers_download_url }}"
     checksum: "{{ qat_drivers_pkg_checksum }}"
     dest: "{{ qat_drivers_dir }}"
+    mode: 0755
   register: qat_driver
   until: qat_driver is not failed
   retries: 5
+  when: configured_arch != "spr"
+
+- name: copy QAT driver package
+  copy:
+    dest: "{{ qat_drivers_dir }}/{{ qat_drivers_version }}.tar.gz"
+    src: "{{ qat_drivers_folder }}/{{ qat_drivers_version }}.tar.gz"
+    owner: root
+    group: root
+    mode: 0644
+  when: configured_arch == "spr"
 
 - name: unarchive QAT drivers package
   unarchive:
@@ -88,15 +99,16 @@
   become: yes
   notify:
     - reboot server
+  when: configured_arch != "spr"
 
-- name: playbook terminated, QAT module load blocking on CentOS > 8
-  fail:
-    msg:
-      - "Purpose for failure might be an already intel_qat module set up on server. Recommended is to have clean image of OS without pre-installed QAT module."
-      - "make uninstall && make clean && make distclean commands can roll-back QAT drivers package {{ qat_drivers_version }} already carried out this point"
-  when:
-    - ansible_distribution == "CentOS" and ansible_distribution_version >= '8.3'
-    - "'ERROR:' in qat_make_install.stderr"
+# Reboot with driver ver: QAT20.L.0.8.0-00071 causing issues, there is no need to reboot.
+- name: make install QAT drivers
+  make:
+    chdir: "{{ qat_drivers_dir }}"
+    target: install
+  register: qat_make_install
+  become: yes
+  when: configured_arch == "spr"
 
 - name: confirm QAT module installed
   shell: "set -o pipefail && lsmod | grep qat"
@@ -118,14 +130,41 @@
   when:
     - on_vms is defined and on_vms
 
-- name: make sure old qat_service is stopped and disabled
+- name: make sure qat service is stopped and disabled
   service:
     state: stopped
-    name: qat_service
+    name: qat
     enabled: no
 
-- name: make sure QAT service is started and enabled
+- name: make sure qat_service service is started and enabled
   service:
     state: restarted
-    name: qat
+    name: qat_service
     enabled: yes
+
+# Mentioned below block is also present in "roles/bootstrap/configure_openssl/tasks/intel_qatlibs_and_qatsvm_configuration.yml" that will only occurs if,
+# "enable_intel_qatlibs" is "true" in host_vars because, in order to compile QAT configuration,
+# QATlibs must be installed before SVM feature is configured
+- name: configuration for QAT Shared Virtual Memory (SVM)
+  block:
+    - name: set QAT SVM is enabled
+      set_fact:
+        svm_value: 1
+
+    - name: enable address translation services for QAT Shared Virtual Memory (SVM)
+      replace:
+        path: "{{ item }}"
+        regexp: '(^ATEnabled\s)(.*)$'
+        replace: 'ATEnabled = {{ svm_value }}'
+        mode: 0600
+      with_items:
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.sym.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.asym.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.sym.vm"
+        - "{{ qat_drivers_dir }}/build/4xxxvf_dev0.conf.vm"
+      failed_when: false
+  when:
+    - configured_arch == "spr"
+    - enable_intel_qatlibs is defined and not enable_intel_qatlibs

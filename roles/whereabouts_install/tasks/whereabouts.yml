@@ -36,8 +36,8 @@
 
 - name: install Whereabouts Helm chart
   command: >-
-    helm install whereabouts
+    helm install {{ whereabouts_release_name }}
     {{ (project_root_dir, 'charts', 'whereabouts', 'whereabouts') | path_join }}
-    --namespace kube-system
+    --namespace {{ whereabouts_release_namespace }}
     --set installCRDs=true
   changed_when: true

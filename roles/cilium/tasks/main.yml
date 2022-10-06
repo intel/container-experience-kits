@@ -1,0 +1,139 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+    - name: remove cilium
+      command: helm delete cilium -n kube-system
+      changed_when: true
+      when: adq_cilium_deploy | d(false)
+
+    - name: create Cilium directory
+      file:
+        path: "{{ (project_root_dir, 'cilium') | path_join }}"
+        state: directory
+        mode: '0755'
+
+    - name: copy Cilium config map
+      copy:
+        src: cilium-cm.yml
+        dest: "{{ (project_root_dir, 'cilium', 'cilium-cm.yml') | path_join }}"
+        owner: root
+        group: root
+        mode: '0644'
+
+    # - name: populate Cilium chart values
+    #   template:
+    #     src: "values.yml.j2"
+    #     dest: "{{ (project_root_dir, 'cilium', 'cilium-values.yml') | path_join }}"
+    #     force: yes
+    #     mode: preserve
+    #   changed_when: true
+
+    - name: create Cilium config map
+      command: "kubectl apply -f {{ (project_root_dir, 'cilium', 'cilium-cm.yml') | path_join }}"
+      changed_when: true
+      when: adq_cilium_deploy | d(false)
+
+    - name: add Cilium stable chart repo
+      kubernetes.core.helm_repository:
+        name: "{{ cilium_helm_repo_name }}"
+        repo_url: "{{ cilium_helm_repo }}"
+
+    - name: deploy generic Cilium
+      command: >-
+        helm install cilium cilium/cilium
+        --version "{{ cilium_version }}"
+        --namespace kube-system
+        --set kubeProxyReplacement=strict
+        --set k8sServiceHost="{{ adq_dp.interface_address }}"
+        --set k8sServicePort=6443
+        --set devices="{{ adq_dp.interface_name }}"
+      when: not adq_cilium_deploy | d(false)
+
+    - name: deploy Cilium with ADQ flags
+      command: >-
+        helm install cilium cilium/cilium
+        --version "{{ cilium_version }}"
+        --namespace kube-system
+        --set kubeProxyReplacement=strict
+        --set k8sServiceHost="{{ adq_dp.interface_address }}"
+        --set k8sServicePort=6443
+        --set devices="{{ adq_dp.interface_name }}"
+        --set l7Proxy=false
+        --set sockops.enabled=true
+        --set tunnel=disabled
+        --set ipv4NativeRoutingCIDR="{{ kube_pods_subnet }}"
+        --set enableipv4masquerade=true
+        --set autoDirectNodeRoutes=true
+        --set endpointRoutes.enabled=true
+        --set bpf.masquerade=true
+        --set ipv4.enabled=true
+        --set disable-envoy-version-check=true
+        --set ipam.mode=kubernetes
+        --set cni.customConf=true
+        --set cni.configMap=cni-configuration
+        --set prometheus.enabled=false
+        --set operator.prometheus.enabled=false
+        --set hubble.enabled=true
+        --set hubble.metrics.enabled="{dns,drop,tcp,flow,port-distribution,icmp,http}"
+        --set extraArgs='{--bpf-filter-priority=99}'
+      changed_when: true
+      when: adq_cilium_deploy | d(false)
+
+    # - name: deploy Cilium
+    #   kubernetes.core.helm:
+    #     name: cilium
+    #     state: present
+    #     chart_ref: cilium/cilium
+    #     chart_version: v1.12.0
+    #     namespace: "{{ cilium_namespace }}"
+    #     values_files: "{{ (project_root_dir, 'cilium', 'cilium-values.yml') | path_join }}"
+    #     wait: yes
+
+    - name: wait for Cilium to be ready
+      pause:
+        minutes: 2
+
+    - name: restart unmanaged pods
+      shell: >-
+        set -o pipefail && kubectl get pods --all-namespaces
+        -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,HOSTNETWORK:.spec.hostNetwork --no-headers=true
+        | grep '<none>' | awk '{print "-n "$1" "$2}' | xargs -L 1 -r kubectl delete pod
+      args:
+        executable: /bin/bash
+      when: not adq_cilium_deploy | d(false)
+
+    - name: check if all pods are running
+      shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
+      args:
+        executable: /bin/bash
+      register: cilium_pods_status
+      retries: 30
+      delay: 15
+      until:
+        - "'Error' not in cilium_pods_status.stdout"
+        - "'CrashLoopBackOff' not in cilium_pods_status.stdout"
+        - "'Terminating' not in cilium_pods_status.stdout"
+        - "'ContainerCreating' not in cilium_pods_status.stdout"
+        - "'Pending' not in cilium_pods_status.stdout"
+      changed_when: false
+      when: not adq_cilium_deploy | d(false)
+
+  when: inventory_hostname == groups['kube_control_plane'][0]
+  environment:
+    http_proxy: "{{ http_proxy | d('') }}"
+    https_proxy: "{{ https_proxy | d ('') }}"
+    no_proxy: "{{ no_proxy | d('') }}"

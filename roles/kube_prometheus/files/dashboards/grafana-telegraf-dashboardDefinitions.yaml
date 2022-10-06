@@ -1737,7 +1737,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     cluster-total.json: |-
@@ -3608,7 +3608,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     controller-manager.json: |-
@@ -4748,7 +4748,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     k8s-resources-cluster.json: |-
@@ -7319,7 +7319,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     k8s-resources-namespace.json: |-
@@ -9594,7 +9594,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     k8s-resources-node.json: |-
@@ -10561,7 +10561,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     k8s-resources-pod.json: |-
@@ -12322,7 +12322,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     k8s-resources-workload.json: |-
@@ -14345,7 +14345,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     k8s-resources-workloads-namespace.json: |-
@@ -16529,7 +16529,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     kubelet.json: |-
@@ -19051,7 +19051,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     namespace-by-pod.json: |-
@@ -20504,7 +20504,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     namespace-by-workload.json: |-
@@ -22229,7 +22229,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     node-cluster-rsrc-use.json: |-
@@ -23182,7 +23182,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     node-rsrc-use.json: |-
@@ -24162,7 +24162,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     nodes.json: |-
@@ -25152,7 +25152,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     persistentvolumesusage.json: |-
@@ -25718,7 +25718,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     pod-total.json: |-
@@ -26935,7 +26935,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     prometheus-remote-write.json: |-
@@ -28594,7 +28594,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     prometheus.json: |-
@@ -29810,7 +29810,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     proxy.json: |-
@@ -31030,7 +31030,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     scheduler.json: |-
@@ -32093,7 +32093,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     statefulset.json: |-
@@ -33010,7 +33010,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     workload-total.json: |-
@@ -34437,7 +34437,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-cpu.json: |-
@@ -36386,7 +36386,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-disk.json: |-
@@ -37476,7 +37476,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-intel.json: |-
@@ -37974,7 +37974,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-ipmi.json: |-
@@ -38417,7 +38417,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-netlink.json: |-
@@ -39415,7 +39415,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-power.json: |-
@@ -39858,7 +39858,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-numa.json: |-
@@ -41189,7 +41189,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-hugepages.json: |-
@@ -41525,7 +41525,7 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 - apiVersion: v1
   data:
     collectd-ethstats.json: |-
@@ -42301,5 +42301,5 @@ items:
       app.kubernetes.io/component: grafana
       app.kubernetes.io/name: grafana
       app.kubernetes.io/part-of: kube-prometheus
-      app.kubernetes.io/version: 8.3.4
+      app.kubernetes.io/version: 8.5.11
 kind: ConfigMapList

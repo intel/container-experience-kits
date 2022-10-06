@@ -25,3 +25,5 @@ install_dependencies:
     - kernel-devel
     - elfutils-libelf-devel
     - ethtool
+    - tar
+    - unzip

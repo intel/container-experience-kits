@@ -29,15 +29,15 @@ pas_namespace: kube-system
 
 # Descheduler
 descheduler_git_url: https://github.com/kubernetes-sigs/descheduler.git
-descheduler_git_version: "v0.23.1"
+descheduler_git_version: "v0.24.1"
 descheduler_dir: "{{ (project_root_dir, 'sigs.k8s.io/descheduler') | path_join }}"
 sigs_k8s_io_dir: "{{ (project_root_dir, 'sigs.k8s.io') | path_join }}"
 
 # TAS deployment
 tas_enabled: false
 tas_build_image_locally: false
-tas_git_version: "telemetry-aware-scheduling/v0.2.0"
-tas_extender_image_tag_default: "0.2.0"
+tas_git_version: "telemetry-aware-scheduling/v0.3.0"
+tas_extender_image_tag_default: "0.3.0"
 tas_version: |-
   {{ ('telemetry-aware-scheduling' in tas_git_version)
       | ternary(tas_git_version[28:], tas_git_version[1:]) }}
@@ -69,8 +69,8 @@ tas_verbosity: 4
 # GAS deployment
 gas_enabled: false
 gas_build_image_locally: false
-gas_git_version: "gpu-aware-scheduling/v0.3.0"
-gas_extender_image_tag_default: "0.3.0"
+gas_git_version: "gpu-aware-scheduling/v0.4.0"
+gas_extender_image_tag_default: "0.4.0"
 gas_version: |-
   {{ ('gpu-aware-scheduling' in gas_git_version)
       | ternary(gas_git_version[22:], gas_git_version[1:]) }}

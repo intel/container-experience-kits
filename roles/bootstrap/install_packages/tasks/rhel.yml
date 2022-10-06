@@ -14,27 +14,50 @@
 ##   limitations under the License.
 ##
 ---
-- name: enable powertools repository on Rocky >= 8.3
+- name: verify system subscription status on RHEL
+  command: "subscription-manager list --available --all"
+  register: check_subscription_status
+  failed_when: false
+  when: ansible_distribution == 'RedHat'
+
+- debug:
+    msg: "Detected not-subscribed RHEL image. Deployment will proceed assuming private repos are properly configured and available"
+  when:
+    - ansible_distribution == "RedHat"
+    - "'This system is not yet registered' in check_subscription_status.stderr"
+
+- name: enable powertools repository on Rocky < 9.0
 # noqa 303 - yum is called intenionallly here
   command: yum config-manager --set-enabled powertools
-  when:
-    - ansible_distribution in ['CentOS', 'Rocky']
-    - ansible_distribution_version >= '8.3'
+  when: ansible_distribution == 'Rocky' and ansible_distribution_version < '9.0'
 
 - name: enable CodeReady Linux Builder repository on RHEL 8
   rhsm_repository:
     name: codeready-builder-for-rhel-8-x86_64-rpms
   when:
-    - ansible_distribution in ['RedHat']
-    - ansible_distribution_version >= '8'
+    - ansible_distribution == "RedHat" and ansible_distribution_version < "9.0"
+    - "'This system is not yet registered' not in check_subscription_status.stderr"
+  failed_when: false # allow to fail if o/s is not subscribed but need to warn user
 
-- name: install epel-release on CentOS
+- name: enable CodeReady Linux Builder repository on RHEL 9
+  rhsm_repository:
+    name: codeready-builder-for-rhel-9-x86_64-rpms
+  when:
+    - ansible_distribution == "RedHat" and ansible_distribution_version >= "9.0"
+    - "'This system is not yet registered' not in check_subscription_status.stderr"
+  failed_when: false # allow to fail if o/s is not subscribed but need to warn user
+
+# Rocky 9.0 --set-enabled crb is required which is similar to --set-enabled powertools on Rocky <= 9.0
+- name: enable CRB to support dependent on packages from repositories
+  command: "dnf config-manager --set-enabled crb -y"
+  when: ansible_distribution == "Rocky" and ansible_distribution_version >= "9.0"
+
+- name: install epel-release on Rocky >= 9.0
   package:
     name: epel-release
-  when:
-    - ansible_distribution == "CentOS"
+  when: ansible_distribution == "Rocky" and ansible_distribution_version >= "9.0"
 
-- name: obtain EPEL GPG key on RHEL8
+- name: obtain RPM-GPG-KEY-EPEL-8
   rpm_key:
     state: present
     key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8
@@ -42,36 +65,54 @@
     - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '8'
 
-- name: install epel-release on RHEL8
+- name: install RPM-GPG-KEY-EPEL-8
   package:
     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
   when:
     - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '8'
 
+# CPUID package is missing on RHEL 9.0 / Rocky 9.0
+- name: block for downloading CPUID on RHEL / Rocky >= 9.0
+  block:
+    - name: download CPUID on Rocky >= 9.0
+      get_url:
+        url: "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/c/cpuid-20200427-1.el8.x86_64.rpm"
+        dest: "{{ project_root_dir }}"
+        mode: 0755
+
+    - name: install downloaded CPUID package on RHEL / Rocky >= 9.0
+      package:
+        name: "{{ project_root_dir }}/cpuid-20200427-1.el8.x86_64.rpm"
+        state: present
+  when:
+    - ansible_distribution in ['RedHat', 'Rocky']
+    - ansible_distribution_version >= '9'
+
+- name: obtain RPM-GPG-KEY-EPEL-9
+  rpm_key:
+    state: present
+    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+  when: ansible_distribution == "RedHat" and ansible_distribution_version >= "9"
+
+- name: install RPM-GPG-KEY-EPEL-9
+  package:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+  when: ansible_distribution == "RedHat" and ansible_distribution_version >= "9"
+
 - name: get full distribution versions
   command: cat /etc/redhat-release
   register: release
-  changed_when: true
+  changed_when: false
 
 - name: set full distribution version
   set_fact:
     full_dist_version: "{{ release.stdout | regex_replace('.*(\\d+.\\d+.\\d\\d\\d\\d).*', '\\1') }}"
 
-#- name: update CentOS Vault yum repository on CentOS 8
-#  yum_repository:
-#    name: C{{ full_dist_version }}-base
-#    description: CentOS-{{ full_dist_version }} - Base
-#    file: CentOS-Vault
-#    baseurl: http://vault.centos.org/{{ full_dist_version }}/BaseOS/$basearch/os/
-#    baseurl: http://vault.centos.org/{{ full_dist_version }}/BaseOS/Source/
-#    gpgcheck: yes
-#    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
-#    enabled: yes
-#  when:
-#    - ansible_distribution == "CentOS"
-#    - ansible_distribution_version >= '8' and ansible_distribution_version < '8.3'
-#    - not update_kernel
+- name: get current kernel version
+  command: uname -r
+  register: current_kernel_version
+  changed_when: false
 
 # CentOS-Vault repo not working for CentOS 8, so install kernel headers directly
 - name: pull matching kernel headers on CentOS 8.3
@@ -142,6 +183,28 @@
     - ansible_distribution_version == '8.5'
     - not update_kernel
 
+- name: pull matching kernel headers on Rocky 9.0
+  package:
+    name: "{{ item }}"
+    state: present
+  retries: 5
+  delay: 10
+  register: source_status
+  until: source_status is not failed
+  with_items:
+    - "https://dl.rockylinux.org/pub/rocky/9.0/AppStream/x86_64/kickstart/Packages/k/kernel-headers-5.14.0-70.13.1.el9_0.x86_64.rpm"
+    - "https://dl.rockylinux.org/pub/rocky/9.0/AppStream/x86_64/kickstart/Packages/k/kernel-devel-5.14.0-70.13.1.el9_0.x86_64.rpm"
+  when:
+    - ansible_distribution == "Rocky"
+    - ansible_distribution_version == '9.0'
+    - not update_kernel
+    - current_kernel_version.stdout == '5.14.0-70.13.1.el9_0.x86_64'
+
+- name: install epel-next-release on Rocky >= 9.0
+  package:
+    name: epel-next-release
+  when: ansible_distribution == "Rocky" and ansible_distribution_version >= "9.0"
+
 # pull the matching kernel headers if kernel is not updated
 - name: pull matching kernel headers from configured repos
 # noqa 503 - more than one condition, can't be a handler
@@ -154,9 +217,12 @@
   until: kernel_source is success
   when:
     - not source_status.changed
-    - (ansible_distribution in ['RedHat', 'Rocky']) or
-      (ansible_distribution == "CentOS" and ansible_distribution_version != '8.4')
+    - ansible_os_family == "RedHat"
     - not update_kernel
+    - not 'rt' in ansible_kernel
+# with RHEL 8.6 RT not-subscribed:
+#         "No package kernel-headers-4.18.0-372.9.1.rt7.166.el8.x86_64 available.",
+#         "No package kernel-devel-4.18.0-372.9.1.rt7.166.el8.x86_64 available."
 
 - name: install the 'Development tools' package group
   package:
@@ -171,6 +237,15 @@
     - ansible_os_family == "RedHat"
     - ansible_distribution_version >= '8'
 
+# no harm to remove package it will be reinstalled / updated during dnf update
+- name: remove network-scripts package when update packages is required in Rocky / RHEL >= 9.0
+  package:
+    name: network-scripts
+    state: absent
+  when:
+    - ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0"
+    - update_all_packages | default(false)
+
 - name: update all packages
   package:
     name: '*'
@@ -183,8 +258,8 @@
 - name: update to the latest kernel and kernel headers on the Red Hat OS family
   package:
     name:
-    - kernel
-    - kernel-devel
+      - kernel
+      - kernel-devel
     state: latest # noqa 403
   notify:
     - reboot server
@@ -204,8 +279,8 @@
 - name: install command line tools to collect hardware details
   package:
     name:
-     - inxi
-     - jq
+      - inxi
+      - jq
     state: present
   when: ansible_os_family == "RedHat"
 

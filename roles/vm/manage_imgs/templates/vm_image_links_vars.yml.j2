@@ -1,18 +1,30 @@
 ---
 {% if vm_image_distribution == "ubuntu" %}
 {% if vm_image_version_ubuntu == "22.04" %}
+
 vm_image_url: "https://cloud-images.ubuntu.com/jammy/current/{{ vm_image }}"
-
 vm_image_checksums: "https://cloud-images.ubuntu.com/jammy/current/MD5SUMS"
+
 {% else %}
+
 vm_image_url: "https://cloud-images.ubuntu.com/releases/{{ vm_image_version_ubuntu }}/release/{{ vm_image }}"
-
 vm_image_checksums: "https://cloud-images.ubuntu.com/releases/{{ vm_image_version_ubuntu }}/release/MD5SUMS"
-{% endif %}
-vm_image_destination_file: "{{ vm_project_root_dir }}/{{ vm_image }}"
-{% elif vm_image_distribution == "rocky" %}
-vm_image_url: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/{{ vm_image }}"
 
-vm_image_checksums: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/CHECKSUM"
-vm_image_destination_file: "{{ vm_project_root_dir }}/{{ vm_image }}"
 {% endif %}
+
+{% elif vm_image_distribution == "rocky" %}
+{% if vm_image_version_rocky == "9.0" %}
+
+vm_image_url: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/{{ vm_image }}"
+vm_image_checksums: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/CHECKSUM"
+
+{% else %}
+
+vm_image_url: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/{{ vm_image }}"
+vm_image_checksums: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/CHECKSUM"
+
+{% endif %}
+
+{% endif %}
+
+vm_image_destination_file: "{{ vm_project_root_dir }}/{{ vm_image }}"

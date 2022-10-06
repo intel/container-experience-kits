@@ -14,33 +14,36 @@
 ##   limitations under the License.
 ##
 ---
-- name: validate isolcpus settings
-  assert:
-    that: isolcpus | length > 0
-    fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
+- block:
+  - name: Validate isolcpus settings
+    assert:
+      that: isolcpus | length > 0
+      fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
 
-- name: load present CPUs range
-  command: cat /sys/devices/system/cpu/present
-  become: yes
-  changed_when: false
-  register: cpus_present_file
+  - name: Load present CPUs range
+    command: cat /sys/devices/system/cpu/present
+    become: true
+    changed_when: false
+    register: cpus_present_file
 
-- name: get range of all available CPUs
-  set_fact:
-    cpus_present: "{{ cpus_present_file.stdout }}"
+  - name: Get range of all available CPUs
+    set_fact:
+      cpus_present: "{{ cpus_present_file.stdout }}"
 
-- name: validate provided isolcpus value
-  action: validate_isolcpus
+  - name: Validate provided isolcpus value
+    action: validate_isolcpus
+  when:
+    - not vm_enabled
 
-- name: set isolcpus flag
+- name: Set isolcpus flag
   set_fact:
     isolcpus_flags: "isolcpus={{ isolcpus }} rcu_nocbs={{ isolcpus }} nohz_full={{ isolcpus }} nr_cpus={{ ansible_processor_vcpus }}"
 
-- name: prepare CPU isolation grub commandline string
+- name: Prepare CPU isolation grub commandline string
   set_fact:
     cpu_isolation_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} {{ isolcpus_flags }}" {{ isolcpus_marker }}'
 
-- name: set CPU isolation flags in /etc/default/grub
+- name: Set CPU isolation flags in /etc/default/grub
   lineinfile:
     dest: /etc/default/grub
     regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)" {{ isolcpus_marker }}$'

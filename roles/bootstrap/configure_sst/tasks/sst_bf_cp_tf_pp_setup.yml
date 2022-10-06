@@ -14,9 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-- name: install 'intel-speed-select' tool on Ubuntu 20.04+ on ICX Platform
+- name: install Intel-Speed-Select-Technology (ISST) tool on Ubuntu
   include_tasks: ubuntu_install_sst_tool.yml
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version > '18.04'
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04'
 
 - name: Intel(R)-Speed-Select-Technology (ISST) verification
   command: "intel-speed-select --info"
@@ -32,21 +32,21 @@
   register: sst_pp_verify
   changed_when: true
 
-- name:  SST-BF verification
+- name: SST-BF verification
   command: "intel-speed-select base-freq enable -a"
   register: sst_bf_verify
   when:
     - sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled
     - '"get-config-levels:0" in sst_pp_verify.stderr'
 
-- name:  SST-CP verification
+- name: SST-CP verification
   command: "intel-speed-select core-power enable -a"
   register: sst_cp_verify
   when:
     - sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled
     - '"get-config-levels:0" in sst_pp_verify.stderr'
 
-- name:  SST-TF verification
+- name: SST-TF verification
   command: "intel-speed-select turbo-freq enable -a"
   register: sst_tf_verify
   when:

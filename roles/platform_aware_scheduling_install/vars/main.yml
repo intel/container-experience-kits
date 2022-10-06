@@ -18,33 +18,33 @@
 # please use defaults/main.yml instead
 extenders:
   - {
-      name: "{{ tas_name }}",
-      dir: "{{ tas_extender_dir }}",
-      image: "{{ tas_extender_image }}",
-      tag: "{{ tas_extender_image_tag }}",
-      context: "{{ tas_image_build_context }}",
-      build: "{{ tas_build_image_locally }}",
-      bin_build: "{{ tas_build_bin }}",
-      secret_name: "{{ tas_extender_secret_name }}",
-      service_name: "{{ tas_service_name }}",
-      tls_enabled: "{{ tas_tls_enabled }}",
-      ssl: "{{ tas_ssl }}",
-      version: "{{ tas_git_version }}"
-    }
+    name: "{{ tas_name }}",
+    dir: "{{ tas_extender_dir }}",
+    image: "{{ tas_extender_image }}",
+    tag: "{{ tas_extender_image_tag }}",
+    context: "{{ tas_image_build_context }}",
+    build: "{{ tas_build_image_locally }}",
+    bin_build: "{{ tas_build_bin }}",
+    secret_name: "{{ tas_extender_secret_name }}",
+    service_name: "{{ tas_service_name }}",
+    tls_enabled: "{{ tas_tls_enabled }}",
+    ssl: "{{ tas_ssl }}",
+    version: "{{ tas_git_version }}"
+  }
   - {
-      name: "{{ gas_name }}",
-      dir: "{{ gas_extender_dir }}",
-      image: "{{ gas_extender_image }}",
-      tag: "{{ gas_extender_image_tag }}",
-      context: "{{ gas_image_build_context }}",
-      build: "{{ gas_build_image_locally }}",
-      bin_build: "{{ gas_build_bin }}",
-      secret_name: "{{ gas_extender_secret_name }}",
-      service_name: "{{ gas_service_name }}",
-      tls_enabled: "{{ gas_tls_enabled }}",
-      ssl: "{{ gas_ssl }}",
-      version: "{{ gas_git_version }}"
-    }
+    name: "{{ gas_name }}",
+    dir: "{{ gas_extender_dir }}",
+    image: "{{ gas_extender_image }}",
+    tag: "{{ gas_extender_image_tag }}",
+    context: "{{ gas_image_build_context }}",
+    build: "{{ gas_build_image_locally }}",
+    bin_build: "{{ gas_build_bin }}",
+    secret_name: "{{ gas_extender_secret_name }}",
+    service_name: "{{ gas_service_name }}",
+    tls_enabled: "{{ gas_tls_enabled }}",
+    ssl: "{{ gas_ssl }}",
+    version: "{{ gas_git_version }}"
+  }
 
 # kube-scheduler config files to backup
 kube_scheduler_configs:

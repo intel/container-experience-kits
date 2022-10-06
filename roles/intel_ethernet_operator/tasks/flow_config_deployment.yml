@@ -29,8 +29,8 @@
     force: yes
     mode: preserve
   loop:
-    - { src: 'flow-config-sriov-network.yml.j2', dst: 'flow-config-sriov-network.yml' }
-    - { src: 'flow-config-node-agent.yml.j2', dst: 'flow-config-node-agent.yml' }
+    - {src: 'flow-config-sriov-network.yml.j2', dst: 'flow-config-sriov-network.yml'}
+    - {src: 'flow-config-node-agent.yml.j2', dst: 'flow-config-node-agent.yml'}
 
 - name: create SRIOV network attachment definition for the DCF VF pool
   k8s:

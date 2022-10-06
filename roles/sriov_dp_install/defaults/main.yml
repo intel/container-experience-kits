@@ -17,7 +17,7 @@
 sriov_net_dp_git_url: "https://github.com/k8snetworkplumbingwg/sriov-network-device-plugin.git"
 sriov_net_dp_dir: "{{ (project_root_dir, 'sriov-network-device-plugin') | path_join }}"
 sriov_net_dp_image: "ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin"
-sriov_net_dp_tag: "v3.4.0"
+sriov_net_dp_tag: "v3.5.0"
 sriov_net_dp_build_image_locally: false
 sriov_net_dp_namespace: kube-system
 

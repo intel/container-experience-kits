@@ -17,7 +17,7 @@
 - name: comment swap lines in /etc/fstab
   replace:
     path: /etc/fstab
-    regexp: '(.*swap.*)$'
+    regexp: '^([^#].*swap.*)$'
     replace: '# \1'
     mode: 0600
   become: yes
@@ -65,27 +65,11 @@
   become: yes
   failed_when: false
 
-- name: check if IP forwarding already enabled
-  command: sysctl net.ipv4.ip_forward -b
-  register: is_ip_forward_enabled
-  changed_when: false
-
-- name: enable IP forwarding on the fly
-  command: sysctl -w net.ipv4.ip_forward=1
-  become: yes
-  changed_when: true
-  when: is_ip_forward_enabled.stdout != "1"
-
 - name: add IP forwarding to sysctl.conf
-  lineinfile:
-    path: /etc/sysctl.conf
-    line: 'net.ipv4.ip_forward = 1'
-    regexp: '^net\.ipv4\.ip_forward'
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: yes
+    sysctl_file: "/etc/sysctl.d/99-sysctl.conf"
     state: present
-    mode: 0600
-  become: yes
-
-- name: apply sysctl.conf
-  command: sysctl -p /etc/sysctl.conf
-  become: yes
-  changed_when: true
+    reload: yes

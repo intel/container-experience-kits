@@ -51,11 +51,6 @@ rules:
       - rolebindings
     verbs:
       - '*'
-  - apiGroups: ['policy']
-    resources: ['podsecuritypolicies']
-    verbs:     ['use']
-    resourceNames:
-      - sriov-psp
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -105,11 +100,7 @@ rules:
       - 'leases'
     verbs:
       - '*'
-  - apiGroups: ['policy']
-    resources: ['podsecuritypolicies']
-    verbs:     ['use']
-    resourceNames:
-      - sriov-psp
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -125,8 +116,3 @@ rules:
       - configmaps
     verbs:
       - get
-  - apiGroups: ['policy']
-    resources: ['podsecuritypolicies']
-    verbs:     ['use']
-    resourceNames:
-      - sriov-psp

@@ -48,16 +48,17 @@
 # - multus
 # - cndp
 # - cndp_dp
-# - psp
 # - cert_manager
 # - registry
 # - hugepages
-# - service_mesh
+# - istio_service_mesh
 #     enabled
 #     tcpip_bypass_ebpf
 #     tls_splicing
 #     sgx_signer
 #     intel_preview
+# - linkerd_service_mesh
+#     enabled
 # - intel_ethernet_operator
 #     enabled
 #     flow_config
@@ -96,15 +97,17 @@ access:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
-    enabled: on
-    tcpip_bypass_ebpf: on
-    tls_splicing: on
-    intel_preview: optional
+  istio_service_mesh:
+    enabled: off
+    tcpip_bypass_ebpf: off
+    tls_splicing: off
+    sgx_signer: off
+    intel_preview: off
+  linkerd_service_mesh:
+    enabled: off
   wireguard: on
   multus: on
   firewall: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: on
@@ -137,7 +140,6 @@ basic:
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: optional
@@ -165,8 +167,8 @@ full_nfv:
   openssl: on
   gpu: optional
   gpu_dp: optional
-  sgx: optional
-  sgx_dp: optional
+  sgx: on
+  sgx_dp: on
   kmra:
     pccs: optional
     apphsm: optional
@@ -187,18 +189,19 @@ full_nfv:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
+  istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
     sgx_signer: optional
     intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
   wireguard: on
   multus: on
   firewall: optional
   cndp: on
   cndp_dp: on
-  psp: on
   cert_manager: on
   registry: on
   hugepages: on
@@ -221,8 +224,8 @@ on_prem:
   sriov_operator: optional
   sriov_network_dp: on
   nic_drivers: on
-  sgx: optional
-  sgx_dp: optional
+  sgx: on
+  sgx_dp: on
   kmra:
     pccs: optional
     apphsm: optional
@@ -243,18 +246,19 @@ on_prem:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
+  istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
     sgx_signer: optional
     intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
   wireguard: on
   multus: on
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: on
@@ -287,17 +291,19 @@ regional_dc:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
+  istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
+    sgx_signer: optional
     intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
   wireguard: on
   multus: on
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: optional
@@ -319,8 +325,8 @@ remote_fp:
   sriov_operator: optional
   sriov_network_dp: on
   nic_drivers: on
-  sgx: optional
-  sgx_dp: optional
+  sgx: on
+  sgx_dp: on
   kmra:
     pccs: optional
     apphsm: optional
@@ -343,18 +349,19 @@ remote_fp:
     prometheus: on
     collectd: on
     telegraf: optional
-  service_mesh:
+  istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
     tls_splicing: optional
     sgx_signer: optional
     intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
   wireguard: on
   multus: on
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: on
@@ -405,18 +412,19 @@ build_your_own:
     prometheus: optional
     collectd: optional
     telegraf: optional
-  service_mesh:
+  istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
     tls_splicing: optional
     sgx_signer: optional
     intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
   wireguard: optional
   multus: optional
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: optional
   cert_manager: optional
   registry: optional
   hugepages: optional

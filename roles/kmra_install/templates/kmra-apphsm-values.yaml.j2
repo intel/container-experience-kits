@@ -17,7 +17,7 @@ apphsm:
       tag: "{{ kmra.apphsm.image_tag }}"
       pullPolicy: IfNotPresent
     port: "{{ kmra.apphsm.upstream_port }}"
-    hostname: "{{ kmra.apphsm.hostname }}"
+    hostname: "{{ kmra.apphsm.hostname | trim}}"
   init:
     image:
       repo: "{{ kmra.apphsm.init_image_repo }}"
@@ -32,4 +32,5 @@ apphsm:
   ctk_loadkey_demo_enabled: "{{ kmra.ctk_loadkey_demo.enabled | bool | lower }}"
   default_user_pin: "{{ kmra.apphsm.default_user_pin }}"
   default_so_pin: "{{ kmra.apphsm.default_so_pin }}"
+  nonce_lifetime: "{{ kmra.apphsm.nonce_lifetime }}"
   keys: {{ kmra.apphsm.app_keys }}

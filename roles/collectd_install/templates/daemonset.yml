@@ -20,9 +20,6 @@ spec:
         - name: collectd
           image: "{{ image_collectd.repository }}@{{ image_collectd.digest }}"
           imagePullPolicy: "{{ image_collectd.pullPolicy }}"
-          command: ["/bin/bash", "-c"]
-          args:
-            - "yum -y remove kernel-devel kernel-headers ; /run_collectd.sh"
           securityContext:
             privileged: true
           volumeMounts:
@@ -71,8 +68,8 @@ spec:
             - name: https
               containerPort: 9104
           args:
-            - "--tls-cert-file={{ rbac_proxy_ssl_mount_path }}{{ rbac_proxy_ssl_secret_name }}.cert"
-            - "--tls-private-key-file={{ rbac_proxy_ssl_mount_path }}{{ rbac_proxy_ssl_secret_name }}.key"
+            - "--tls-cert-file={{ rbac_proxy_ssl_mount_path }}/{{ rbac_proxy_ssl_secret_name }}.cert"
+            - "--tls-private-key-file={{ rbac_proxy_ssl_mount_path }}/{{ rbac_proxy_ssl_secret_name }}.key"
             - "--tls-cipher-suites={{ rbac_proxy_tls_cipher_suites | join(',') }}"
             - "--secure-listen-address=0.0.0.0:9104"
             - "--upstream=http://127.0.0.1:9103/"

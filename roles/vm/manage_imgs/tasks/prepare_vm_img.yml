@@ -1,0 +1,97 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Check VM status - {{ vm.name }}
+  command: virsh list
+  register: current_vms
+  changed_when: false
+  failed_when: false
+
+- name: Handle VMs
+  block:
+    - name: Make sure user directories exist
+      file:
+        path: "{{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+        recurse: yes
+
+    - name: Destroy VMs if changing state
+      command: virsh destroy {{ vm.name }}
+      changed_when: true
+      register: destroy_result
+      failed_when: (destroy_result.stderr != '') and
+        (('domain is not running' not in destroy_result.stderr) and
+        ('failed to get domain' not in destroy_result.stderr))
+
+    - name: Undefine VMs if changing state
+      command: virsh undefine {{ vm.name }}
+      changed_when: true
+      register: undefine_result
+      failed_when: (undefine_result.stderr != '') and
+        ('failed to get domain' not in undefine_result.stderr)
+
+    - name: Remove VM disk images if changing state
+      file:
+        path: "{{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.qcow2"
+        state: absent
+
+    - name: Remove VM config images if changing state
+      file:
+        path: "{{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.iso"
+        state: absent
+
+    - name: Generate cloud-init user-data
+      template:
+        src: user-data.j2
+        dest: "{{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/user-data"
+        mode: 0644
+
+    - name: Generate cloud-init meta-data
+      template:
+        src: meta-data.j2
+        dest: "{{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/meta-data"
+        mode: 0644
+
+    - name: Create disk images for VMs
+      command: >
+        qemu-img create -f qcow2 -F qcow2 -o backing_file={{ vm_project_root_dir }}/{{ vm_image }}
+        {{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.qcow2 256G
+      changed_when: true
+
+    - name: Create config images for VMs
+      command: >
+        genisoimage -output {{ vm_project_root_dir }}//{{ vm.type }}/{{ vm.name }}/cek.iso -volid cidata -joliet
+        -rock {{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/meta-data {{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/user-data
+      changed_when: true
+  when:
+    - (not vm.name in current_vms.stdout) or
+      vm_recreate_existing | default(true)
+
+- name: Current VM - {{ vm.name }}
+  debug:
+    msg: "Current VM - {{ vm.name }} was not changed"
+  when:
+    - (vm.name in current_vms.stdout)
+    - not vm_recreate_existing | default(true)
+
+- name: Set current_vms_to_skip for VMs in next play
+  set_fact:
+    current_vms_to_skip: "{{ current_vms.stdout }}"
+  delegate_to: "{{ vm.name }}"
+  delegate_facts: True

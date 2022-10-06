@@ -84,6 +84,7 @@
   get_url:
     url: "{{ linux_dg1_firmware_url }}"
     dest: "{{ gpu_kernel_src_dst }}"
+    mode: 0644
   changed_when: false
 
 - name: ensure destination directory exists

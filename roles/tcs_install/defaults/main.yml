@@ -13,7 +13,8 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
+---
 tcs_git_repo_url: https://github.com/intel/trusted-certificate-issuer
-tcs_git_version: v0.1.0
-
+tcs_git_version: 0.2.0
 tcs_git_path: "{{ (project_root_dir, 'tcs') | path_join }}"
+tcs_image_tag: 0.2.0

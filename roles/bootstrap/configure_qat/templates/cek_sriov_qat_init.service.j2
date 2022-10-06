@@ -5,7 +5,9 @@ After=qat.service
 Requires=qat.service
 
 [Service]
-Environment=SRIOV_NUMVFS_MAPPINGS={{ sriov_config_path }}/cek_sriov_qat_numvfs
+Environment=QAT_SRIOV_NUMVFS_MAPPINGS={{ sriov_config_path }}/cek_sriov_qat_numvfs
+Environment=QAT_DEVICE_DRIVER_MAPPINGS={{ sriov_config_path }}/cek_qat_vfs
+Environment=DEVBIND_TOOL=/usr/local/bin/dpdk-devbind.py
 Type=oneshot
 ExecStartPre=/bin/sleep 10
 ExecStart=/usr/local/bin/cek_sriov_qat_init

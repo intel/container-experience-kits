@@ -19,14 +19,7 @@
     dd
     if=/dev/zero of=/tmp/diskimage{{ ansible_loop.index }}
     bs=1M
-    count=
-    {%- if hostvars[inventory_hostname]['minio_pv'][ansible_loop.index0].capacity.endswith('GiB') -%}
-    "{{ hostvars[inventory_hostname]['minio_pv'][ansible_loop.index0].capacity[:-3] |int * 1024 }}"
-    {%- elif hostvars[inventory_hostname]['minio_pv'][ansible_loop.index0].capacity.endswith('TiB') -%}
-    "{{ hostvars[inventory_hostname]['minio_pv'][ansible_loop.index0].capacity[:-3]|int * 1024 * 1024 }}"
-    {%- else -%}
-    "{{ hostvars[inventory_hostname]['minio_pv'][ansible_loop.index0].capacity }}"
-    {%- endif -%}
+    count="{{ minio_tenant_volume_size |int * 1024 }}"
   changed_when: true
 
 - name: create mount point for the file block devices

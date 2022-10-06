@@ -34,11 +34,22 @@
     # in case when SR-IOV VFs have been already configured we reset it first to avoid "device or resource busy" error
     - name: reset SR-IOV Virtual Functions
       shell: echo 0 > /sys/class/net/{{ item.name }}/device/sriov_numvfs
-      when: existing_vfs|int != item.sriov_numvfs
+      when: existing_vfs.stdout|int != 0 and existing_vfs.stdout|int != item.sriov_numvfs
 
     - name: enable SR-IOV Virtual Functions
       shell: echo {{ item.sriov_numvfs }} > /sys/class/net/{{ item.name }}/device/sriov_numvfs
-      when: existing_vfs|int != item.sriov_numvfs
+      when: existing_vfs.stdout|int != item.sriov_numvfs
+
+    - name: force driver binding when VFs are created
+      lineinfile:
+        path: "{{ sriov_config_path }}/cek_force_driver_binding"
+        line: "{{ item.name }}"
+        regexp: "^{{ item.name }}"
+        create: yes
+        owner: root
+        group: root
+        mode: '0600'
+      when: existing_vfs.stdout|int != item.sriov_numvfs
 
     - name: get full PCI address of the PF
       shell: basename $(readlink -f /sys/class/net/{{ item.name }}/device)
@@ -50,11 +61,12 @@
     - name: save number of VFs
       lineinfile:
         path: "{{ sriov_config_path }}/cek_sriov_numvfs"
-        line: "{{ pf_pci_address.stdout }} {{ item.sriov_numvfs | default(0) | int }}"
+        line: "{{ pf_pci_address.stdout }} {{ item.sriov_numvfs | default(0) | int }} {{ item.name }}"
         regexp: "^{{ pf_pci_address.stdout }}"
         create: yes
         owner: root
         group: root
         mode: '0600'
-  when:
-    - item.sriov_numvfs | default(0) | int != 0
+      become: yes
+      when:
+        - item.sriov_numvfs | default(0) | int != 0

@@ -23,8 +23,8 @@
     dest: "{{ intel_power_manager_dir }}"
     force: yes
   when:
-   - inventory_hostname == groups['kube_control_plane'][0] or
-     (inventory_hostname == groups['kube_node'][0] and intel_power_manager.build_image_locally | default(false) | bool)
+    - inventory_hostname == groups['kube_control_plane'][0] or
+      (inventory_hostname == groups['kube_node'][0] and intel_power_manager.build_image_locally | default(false) | bool)
 
 - name: set facts for Intel Kubernetes Power Manager templates
   set_fact:
@@ -35,7 +35,7 @@
   when:
     - intel_power_manager.build_image_locally | default(false) | bool
 
-# NOTE(pklimowx): node-agent DS is deployed automatically via Power Operator after providing
+# NOTE(pklimowx): node-agent DS is deployed automatically via Power Manager after providing
 # PowerProfile. The yaml file needs to be patched before building image to provide correct source for it.
 # Both images depend on intel_power_manager* variable as there is no public image for AppQoS
 - name: patch Node Agent DaemonSet yaml
@@ -52,28 +52,31 @@
         regexp: "^        - image: 'appqos:latest'"
         line: "        - image: {{ app_qos_image }}"
   when:
-   - intel_power_manager.build_image_locally | default(false) | bool
-   - inventory_hostname == groups['kube_node'][0]
+    - intel_power_manager.build_image_locally | default(false) | bool
+    - inventory_hostname == groups['kube_node'][0]
 
 # docker runtime is in use
 - name: prepare images for Intel Kubernetes Power Manager
   block:
     - name: build images for Intel Kubernetes Power Manager
       command: docker build -f build/{{ item.file }} -t {{ item.name }}:latest .
+      changed_when: true
       args:
         chdir: "{{ intel_power_manager_dir }}"
       with_items:
-        - { file: Dockerfile, name: intel-power-operator }
-        - { file: Dockerfile.nodeagent, name: intel-power-node-agent }
+        - {file: Dockerfile, name: intel-power-operator}
+        - {file: Dockerfile.nodeagent, name: intel-power-node-agent}
 
     - name: tag Intel Kubernetes Power Manager images
       command: docker tag {{ item }}:latest {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
+      changed_when: true
       with_items:
         - intel-power-operator
         - intel-power-node-agent
 
     - name: push Intel Kubernetes Power Manager images to local registry
       command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
+      changed_when: true
       with_items:
         - intel-power-operator
         - intel-power-node-agent
@@ -87,11 +90,12 @@
   block:
     - name: build and tag images for Intel Kubernetes Power Manager
       command: podman build -f build/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_power_manager_git_ref }} .
+      changed_when: true
       args:
         chdir: "{{ intel_power_manager_dir }}"
       with_items:
-        - { file: Dockerfile, name: intel-power-operator }
-        - { file: Dockerfile.nodeagent, name: intel-power-node-agent }
+        - {file: Dockerfile, name: intel-power-operator}
+        - {file: Dockerfile.nodeagent, name: intel-power-node-agent}
 
     - name: push Intel Kubernetes Power Manager images to local registry
       command: podman push {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
@@ -104,23 +108,24 @@
     - intel_power_manager.build_image_locally | default(false) | bool
     - inventory_hostname == groups['kube_node'][0]
 
-- name: prepare and deploy Intel Power Operator
+- name: prepare and deploy Intel Power Manager
   block:
-    - name: apply rbac patch to allow PSP
-      patch:
-        src: "{{ (role_path, 'files', 'rbac.patch') | path_join }}"
-        dest: "{{ (intel_power_manager_dir, 'config', 'rbac', 'rbac.yaml') | path_join }}"
-      when: psp_enabled | default(true) | bool
+    - name: create Intel Power Manager namespace
+      k8s:
+        name: "{{ intel_power_manager_namespace }}"
+        kind: Namespace
+        state: present
+        definition:
+          metadata:
+            labels:
+              control-plane: controller-manager
 
     - name: apply k8s prerequisites
       k8s:
         state: present
-        src: "{{ (intel_power_manager_dir, 'config', 'rbac', item + '.yaml') | path_join }}"
-      with_items:
-        - namespace
-        - rbac
+        src: "{{ (intel_power_manager_dir, 'config', 'rbac', 'rbac.yaml') | path_join }}"
 
-    - name: create and install Intel Power Operator CRDs
+    - name: create and install Intel Power Manager CRDs
       make:
         chdir: "{{ intel_power_manager_dir }}"
 

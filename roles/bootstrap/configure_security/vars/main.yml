@@ -61,6 +61,81 @@ fw_open_ports:
     - 8285/udp
     - 8472/udp
 
+adq_open_ports:
+  controller:
+    # etcd access
+    - 2379:2380/tcp
+    # VXLAN overlay
+    - 8472/udp
+    # cluster health checks (cilium-health)
+    - 4240/tcp
+    # Hubble server
+    - 4244/tcp
+    # Hubble Relay
+    - 4245/tcp
+    # cilium-agent pprof server (listening on 127.0.0.1)
+    - 6060/tcp
+    # cilium-operator pprof server (listening on 127.0.0.1)
+    - 6061/tcp
+    # Hubble Relay pprof server (listening on 127.0.0.1)
+    - 6062/tcp
+    # cilium-agent health status API (listening on 127.0.0.1 and/or ::1)
+    - 9879/tcp
+    # cilium-agent gops server (listening on 127.0.0.1)
+    - 9890/tcp
+    # operator gops server (listening on 127.0.0.1)
+    - 9891/tcp
+    # clustermesh-apiserver gops server (listening on 127.0.0.1)
+    - 9892/tcp
+    # Hubble Relay gops server (listening on 127.0.0.1)
+    - 9893/tcp
+    # cilium-agent Prometheus metrics
+    - 9962/tcp
+    # cilium-operator Prometheus metrics
+    - 9963/tcp
+    # cilium-proxy Prometheus metrics
+    - 9964/tcp
+    # WireGuard encryption tunnel endpoint
+    - 51871/udp
+    # health checks
+    - ICMP 8/0
+  node:
+    # etcd access
+    - 2379:2380/tcp
+    # VXLAN overlay
+    - 8472/udp
+    # cluster health checks (cilium-health)
+    - 4240/tcp
+    # Hubble server
+    - 4244/tcp
+    # Hubble Relay
+    - 4245/tcp
+    # cilium-agent pprof server (listening on 127.0.0.1)
+    - 6060/tcp
+    # cilium-operator pprof server (listening on 127.0.0.1)
+    - 6061/tcp
+    # Hubble Relay pprof server (listening on 127.0.0.1)
+    - 6062/tcp
+    # cilium-agent health status API (listening on 127.0.0.1 and/or ::1)
+    - 9879/tcp
+    # cilium-agent gops server (listening on 127.0.0.1)
+    - 9890/tcp
+    # operator gops server (listening on 127.0.0.1)
+    - 9891/tcp
+    # clustermesh-apiserver gops server (listening on 127.0.0.1)
+    - 9892/tcp
+    # Hubble Relay gops server (listening on 127.0.0.1)
+    - 9893/tcp
+    # cilium-agent Prometheus metrics
+    - 9962/tcp
+    # cilium-operator Prometheus metrics
+    - 9963/tcp
+    # cilium-proxy Prometheus metrics
+    - 9964/tcp
+    # WireGuard encryption tunnel endpoint
+    - 51871/udp
+    # health checks
+    - ICMP 8/0
 
 fw_open_subnets:
   - "{{ kube_pods_subnet }}"

@@ -19,14 +19,14 @@
     - name: set iteration number
       set_fact:
         num: 1
-        req_num: "{{ hostvars[inventory_hostname]['minio_pv'] |length }}"
+        req_num: "{{ hostvars[inventory_hostname]['minio_pv'] | length }}"
 
     - name: umount volumes
       command: >-
         umount --lazy "{{ item.mountPath }}"
       loop: "{{ hostvars[inventory_hostname]['minio_pv'] }}"
       when:
-        - hostvars[inventory_hostname]['minio_pv'] is defined and hostvars[inventory_hostname]['minio_pv']|length > 0
+        - hostvars[inventory_hostname]['minio_pv'] is defined and hostvars[inventory_hostname]['minio_pv'] | length > 0
       changed_when: false
       failed_when: false
 
@@ -37,7 +37,7 @@
         state: absent
       loop: "{{ hostvars[inventory_hostname]['minio_pv'] }}"
       when:
-        - hostvars[inventory_hostname]['minio_pv'] is defined and hostvars[inventory_hostname]['minio_pv']|length > 0
+        - hostvars[inventory_hostname]['minio_pv'] is defined and hostvars[inventory_hostname]['minio_pv'] | length > 0
       changed_when: false
       failed_when: false
 
@@ -71,7 +71,7 @@
       file:
         path: "{{ ('/tmp', 'diskimage' ~ ansible_loop.index) | path_join }}"
         state: absent
-      loop: "{{ range(num, req_num|int + 1) | list }}"
+      loop: "{{ range(num, req_num | int + 1) | list }}"
       loop_control:
         extended: yes
       changed_when: false

@@ -16,14 +16,16 @@
 ---
 # VM enabled
 # If VM is enabled then Virtual Machines are created and CEK is deployed into those VMs
-
 - name: preflight checks
   import_playbook: preflight.yml
 - name: configure target hosts OS layer
-  import_playbook: infra/{{ lookup('env', 'PROFILE') | default('full_nfv', True) }}.yml
+  vars:
+    group_vars_content: "{{ lookup('file', '../group_vars/all.yml') | from_yaml }}"
+  import_playbook: "infra/{{ group_vars_content['profile_name'] }}.yml"
 - name: prepare VMs for VM deploymnet
   import_playbook: infra/prepare_vms.yml
 - name: deploy CEK on VMs
   vars:
     on_vms: True
-  import_playbook: "{{ lookup('env', 'PROFILE') | default('full_nfv', True) }}.yml"
+    group_vars_content: "{{ lookup('file', '../group_vars/all.yml') | from_yaml }}"
+  import_playbook: "{{ group_vars_content['profile_name'] }}.yml"

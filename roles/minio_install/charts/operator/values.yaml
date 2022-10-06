@@ -27,20 +27,20 @@ operator:
   #     value: ""
   image:
     repository: minio/operator
-    tag: v4.4.1
+    tag: v4.4.28
     pullPolicy: IfNotPresent
-  imagePullSecrets: [ ]
-  initcontainers: [ ]
+  imagePullSecrets: []
+  initcontainers: []
   replicaCount: 2
   securityContext:
     runAsUser: 1000
     runAsGroup: 1000
     runAsNonRoot: true
     fsGroup: 1000
-  nodeSelector: { }
-  affinity: { }
-  tolerations: [ ]
-  topologySpreadConstraints: [ ]
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
   resources:
     requests:
       cpu: 200m
@@ -50,25 +50,27 @@ operator:
 console:
   image:
     repository: minio/console
-    tag: v0.13.2
+    tag: v0.19.4
     pullPolicy: IfNotPresent
-  imagePullSecrets: [ ]
-  initcontainers: [ ]
+  imagePullSecrets: []
+  initcontainers: []
   replicaCount: 1
-  nodeSelector: { }
-  affinity: { }
-  tolerations: [ ]
-  topologySpreadConstraints: [ ]
-  resources: { }
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  resources: {}
   securityContext:
     runAsUser: 1000
     runAsNonRoot: true
   ingress:
     enabled: false
     ingressClassName: ""
-    labels: { }
-    annotations: { }
-    tls: [ ]
+    labels: {}
+    annotations: {}
+    tls: []
     host: console.local
     path: /
-
+    pathType: Prefix
+  volumes: []
+  volumeMounts: []

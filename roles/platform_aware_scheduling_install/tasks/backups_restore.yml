@@ -46,4 +46,3 @@
         state: absent
       when:
         - config_backup.stat.exists
-

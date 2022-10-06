@@ -39,16 +39,9 @@
           [EventRateLimit,
           DefaultStorageClass,
           {% if always_pull_enabled %}AlwaysPullImages,{% endif %}
-          NodeRestriction{% if psp_enabled %}, PodSecurityPolicy{% endif %}]
-        cek_docker_version: >-
-          {% if ansible_distribution_version >= '21.04' %}latest{% else %}19.03{%endif %}
+          NodeRestriction,
+          PodSecurity]
         kube_config_dir: /etc/kubernetes
-    - name: prepare facts for Ubuntu >= 21.10
-      set_fact:
-        docker_containerd_version: latest
-      when:
-        - ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.10"
-        - container_runtime == "docker"
     - name: set kube_cert_dir
       set_fact:
         kube_cert_dir: "{{ kube_config_dir }}/ssl"
@@ -62,6 +55,7 @@
       set_fact:
         calico_vxlan_mode: 'CrossSubnet'
         calico_ipip_mode: 'Never'
+        calico_feature_detect_override: "ChecksumOffloadBroken=true"
       when:
         - kube_network_plugin == "calico"
         - calico_network_backend == "vxlan"
@@ -70,13 +64,18 @@
       set_fact:
         calico_ipip_mode: 'Always'
         calico_endpoint_to_host_action: "ACCEPT"
-        calico_wireguard_enabled: "{{ wireguard_enabled | default(true) | bool }}"
+        calico_vxlan_mode: 'Never'
+        calico_wireguard_enabled: "{{ wireguard_enabled | default(false) | bool }}"
         epel_enabled: >-
-          {% if ansible_distribution == 'Rocky' %}true{% else %}false{% endif %}
+          {% if ansible_distribution == 'Rocky' and ansible_distribution_version < '9' and wireguard_enabled | d(false) %}true{% else %}false{% endif %}
       when:
         - kube_network_plugin == "calico"
         - calico_network_backend == "bird"
         - not calico_advanced_options
+    - name: prepare ADQ facts
+      set_fact:
+        kube_proxy_remove: true
+      when: adq_dp.enabled | d(false) | bool
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -87,7 +86,6 @@
         container_manager: docker
         docker_iptables_enabled: true
         docker_dns_servers_strict: false
-        docker_version: "{{ cek_docker_version }}"
       when: container_runtime == "docker"
     - name: add containerd runtime vars
       set_fact:
@@ -107,13 +105,15 @@
         skip_downloads: false
         etcd_deployment_type: host
       when: container_runtime == "crio"
+
 - name: run kubespray
-  import_playbook: kubespray/cluster.yml
+  import_playbook: "{% if scale | default(false) | bool %}kubespray/scale.yml{% else %}kubespray/cluster.yml{% endif %}"
   vars:
     kubeadm_enabled: true
     helm_enabled: true
+    krew_enabled: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
-    nginx_image_tag: 1.21.3
+    nginx_image_tag: 1.23.0-alpine
     calico_node_livenessprobe_timeout: 15
     calico_node_readinessprobe_timeout: 15
     override_system_hostname: false
@@ -142,10 +142,8 @@
       service-account-key-file: "{{ kube_cert_dir }}/sa.key"
       admission-control-config-file: "{{ kube_config_dir }}/admission-control/config.yaml"
     kube_kubeadm_scheduler_extra_args:
-      address: 127.0.0.1
       profiling: false
     kube_kubeadm_controller_extra_args:
-      address: 127.0.0.1
       service-account-private-key-file: "{{ kube_cert_dir }}/sa.key"
     kubelet_config_extra_args:
       protectKernelDefaults: true
@@ -154,7 +152,6 @@
       eventRecordQPS: 0
     kube_apiserver_request_timeout: 60s
     kube_apiserver_enable_admission_plugins: "{{ enable_admission_plugins_prepare | from_yaml }}"
-    podsecuritypolicy_enabled: "{{ psp_enabled }}"
     kube_encrypt_secret_data: true
     apiserver_extra_volumes:
       - name: admission-control-config
@@ -172,6 +169,12 @@
 
 - hosts: k8s_cluster
   tasks:
+    - name: deploy Cilium
+      include_role:
+        name: cilium
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+        - adq_dp.enabled | d(false) | bool
     - name: restart docker daemon to recreate iptables rules
       systemd: name=docker state=restarted
       become: yes
@@ -208,6 +211,7 @@
       until: results.status == 200
       retries: 30
       delay: 5
+
     - name: allow traffic on wireguard interface
       block:
         - name: allow traffic on wireguard interface on Ubuntu
@@ -229,14 +233,6 @@
         - wireguard_enabled | default(true) | bool
         - kube_network_plugin == "calico" and calico_network_backend == "bird"
         - firewall_enabled | default(false) | bool
-
-    - name: patch default calico controller configuration to not expose metrics port
-      command: "/usr/local/bin/calicoctl patch kubeControllersConfiguration default --patch='{ \"spec\": { \"prometheusMetricsPort\": 0 }}'"
-      when:
-        - ansible_hostname == groups['kube_control_plane'][0]
-        - kube_network_plugin == "calico"
-        - not calico_metrics_enabled
-      changed_when: true
 
     - name: fix podman dependencies
       apt:
@@ -298,12 +294,8 @@
     - role: cluster_defaults
       tags: defaults
       when:
-        - cert_manager_enable | default(false) or
+        - cert_manager_enabled | default(false) or
           registry_enable | default(false)
-    - role: cert_manager_install
-      tags: cert-manager
-      when:
-        - cert_manager_enable | default(false)
     - role: container_registry
       tags: registry
       when:

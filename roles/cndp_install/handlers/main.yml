@@ -61,7 +61,7 @@
     daemon-reload: yes
 
 - name: containerd | wait for containerd
-  command: "{{ containerd_bin_dir }}/ctr images ls -q"
+  command: "ctr images ls -q"
   register: containerd_ready
   retries: 8
   delay: 4

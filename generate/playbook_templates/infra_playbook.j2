@@ -59,7 +59,19 @@
       when: ufs_enabled | default(false) | bool
     - role: bootstrap/set_sriov_kernel_flags
       tags: setup-sriov
-      when: iommu_enabled | default(true) | bool or on_vms | default(false) | bool
+      when:
+        - iommu_enabled | default(true) | bool or on_vms | default(false) | bool
+        - not ((configure_dlb_devices is defined and configure_dlb_devices) or
+          (configure_dsa_devices is defined and configure_dsa_devices))
+    - role: bootstrap/set_siov_kernel_flags
+      tags: setup-siov
+      when:
+        - iommu_enabled | default(true) | bool
+        - ((configure_dsa_devices is defined and configure_dsa_devices) or
+          (configure_dlb_devices is defined and configure_dlb_devices)) and
+          ((ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and update_kernel) or
+          (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04') or
+          (ansible_os_family == "RedHat" and ansible_distribution_version >= '9.0'))
     - role: bootstrap/set_rdt_kernel_flags
       when: telegraf_enabled | default(true) | bool
     - role: bootstrap/set_intel_flexran_kernel_flags
@@ -110,6 +122,16 @@
       when:
         - update_qat_drivers | default(false) | bool
         - qat_devices | default([]) | length > 0
+    - role: bootstrap/configure_dlb
+      tags: dlb-dp
+      when:
+        - configure_dlb_devices is defined and configure_dlb_devices
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and update_kernel) or
+          (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04') or
+          (ansible_os_family == "RedHat" and ansible_distribution_version >= '9.0')
+    - role: bootstrap/configure_dsa
+      tags: dsa-dp
+      when: configure_dsa_devices | default(false)
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 {%- endif %}
@@ -126,6 +148,9 @@
   roles:
     - role: cluster_defaults
     - role: bootstrap/determine_dataplane_interfaces
+      tags:
+        - determine-dataplane-interfaces
+        - setup-sriov-nic
       when:
         - dataplane_interfaces | default([]) | length > 0
     - role: bootstrap/update_nic_drivers
@@ -181,6 +206,7 @@
           or on_vms | default(false) | bool
         - update_qat_drivers | default(false) | bool
     - role: bootstrap/configure_openssl
+      tags: configure-openssl
       when:
         - qat_devices | default([]) | length > 0
         - iommu_enabled | default(true) | bool
@@ -188,11 +214,62 @@
         - update_qat_drivers | default(false) | bool
         - openssl_install | default(false) | bool
 {%- endif %}
-{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'build_your_own'] %}
+{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'regional_dc', 'build_your_own'] %}
     - role: bootstrap/configure_sgx
       tags: sgx
       when:
         - configure_sgx | default(false) | bool
 {%- endif %}
+  environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
+  any_errors_fatal: true
+
+- hosts: kube_control_plane[0]
+  vars:
+    proxy_env:
+    {%- raw %}
+      http_proxy: "{{ http_proxy | d('') }}"
+      https_proxy: "{{ https_proxy | d ('') }}"
+      no_proxy: "{{ no_proxy | d('') }}"
+    {%- endraw %}
+  tasks:
+    {%- raw %}
+    - name: register mgmt driver
+      shell: "set -o pipefail && ethtool -i {{ hostvars[inventory_hostname]['ansible_default_ipv4']['interface'] }} | grep driver | sed 's/^driver: //'"
+      args:
+        executable: /bin/bash
+      register: mgmt_interface_driver
+      changed_when: false
+      when: adq_dp.enabled |d(false) | bool
+    {%- endraw %}
+    - include_role:
+        name: cluster_defaults
+      when: adq_dp.enabled |d(false) | bool
+    - name: install dependencies
+      package:
+        name:
+          - build-essential
+          - linux-headers-{% raw %}{{ ansible_kernel }}{% endraw %}
+          - libelf-dev
+          - ethtool
+        state: present
+      when: adq_dp.enabled |d(false) | bool
+    - meta: flush_handlers
+      when: adq_dp.enabled |d(false) | bool
+    - name: regather facts in case mgmt interface changed since start of play
+      setup:
+        gather_subset:
+          - network
+      when: adq_dp.enabled |d(false) | bool
+    - name: ADQ - update ICE driver on control plane
+      include_role:
+        name: bootstrap/update_nic_drivers
+        tasks_from: ice.yml
+      when: adq_dp.enabled |d(false) | bool
+    - name: ADQ - update ICE firmware on control plane
+      include_role:
+        name: bootstrap/update_nic_firmware
+        tasks_from: adq_update.yml
+      when: adq_dp.enabled |d(false) | bool
+  roles: []
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true

@@ -20,10 +20,3 @@ rules:
   resources:
     - subjectaccessreviews
   verbs: ["create"]
-{% if psp_enabled %}
-- apiGroups: ['policy']
-  resources: ['podsecuritypolicies']
-  verbs:     ['use']
-  resourceNames:
-    - node-exporter
-{% endif %}

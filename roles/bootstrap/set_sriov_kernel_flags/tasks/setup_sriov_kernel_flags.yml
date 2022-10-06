@@ -22,12 +22,12 @@
   set_fact:
     vfio_cmdline: " vfio-pci.disable_denylist=1"
   when:
-      - qat_devices is defined and (qat_devices|length>0)
-      - install_dpdk | default(false)
-      - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and update_kernel) or
-        (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04') or
-        (ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version >= '8.4') or
-        (ansible_distribution == "CentOS" and ansible_distribution_version >= '8.5')
+    - qat_devices is defined and (qat_devices|length>0)
+    - install_dpdk | default(false)
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "20.04" and update_kernel) or
+      (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.04") or
+      (ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version >= '8.4') or
+      (ansible_distribution == "CentOS" and ansible_distribution_version >= "8.5")
 
 - name: set noiommu default kernel flags
   set_fact:

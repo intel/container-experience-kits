@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multus-service-controller
+  namespace: kube-system
+  labels:
+    app: multus-service-controller
+    name: multus-service-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multus-service-controller
+      name: multus-service-controller
+  template:
+    metadata:
+      labels:
+        app: multus-service-controller
+        name: multus-service-controller
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      serviceAccountName: multus-service
+      containers:
+      - name: multus-service-controller
+        image: ghcr.io/k8snetworkplumbingwg/multus-service:latest-nft
+        imagePullPolicy: Always
+        command: ["/usr/bin/multus-service-controller"]
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "80Mi"
+          limits:
+            cpu: "100m"
+            memory: "150Mi"
+        args:
+        - "--logtostderr"
+        - "-v=4"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "80Mi"
+          limits:
+            cpu: "100m"
+            memory: "150Mi"

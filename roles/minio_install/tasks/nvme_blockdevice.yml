@@ -17,10 +17,10 @@
 - name: set iteration number
   set_fact:
     num: 1
-    req_num: "{{ hostvars[inventory_hostname]['minio_pv'] |length }}"
+    req_num: "{{ hostvars[inventory_hostname]['minio_pv'] | length }}"
 
 - name: configuring nvme block device partition
   include_tasks: create_nvme_partition.yml
-  loop: "{{ range(num, req_num|int + 1)|list }}"
+  loop: "{{ range(num, req_num|int + 1) | list }}"
   loop_control:
     extended: yes

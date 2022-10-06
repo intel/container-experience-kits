@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ istio_service_mesh.tcpip_bypass_ebpf.name }}
+  namespace: {{ istio_service_mesh.tcpip_bypass_ebpf.namespace }}
+  labels:
+    k8s-app: {{ istio_service_mesh.tcpip_bypass_ebpf.name }}
+spec:
+  selector:
+    matchLabels:
+      name: {{ istio_service_mesh.tcpip_bypass_ebpf.name }}
+  template:
+    metadata:
+      labels:
+        name: {{ istio_service_mesh.tcpip_bypass_ebpf.name }}
+    spec:
+      tolerations:
+      # this toleration is to have the daemonset runnable on master nodes
+      # remove it if your masters can't run pods
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      containers:
+      - name: {{ istio_service_mesh.tcpip_bypass_ebpf.name }}
+        image: {{ istio_service_mesh.tcpip_bypass_ebpf.image }}:{{ istio_service_mesh.tcpip_bypass_ebpf.version }}
+        imagePullPolicy: IfNotPresent
+        securityContext:
+            privileged: true
+        volumeMounts:
+        - name: sysfs
+          mountPath: /sys/fs
+        env:
+        - name: BPF_BYPASS_TCPIP
+          value: "enabled"
+      volumes:
+      - name: sysfs
+        hostPath:
+          path: /sys/fs

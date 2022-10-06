@@ -51,7 +51,7 @@
   shell: >-
     cat "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-storage-networks' ~ ansible_loop.index ~ '.yml') | path_join }}"
     >> "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-storage-networks.yml') | path_join }}"
-  loop: "{{ range(num, req_num|int + 1)|list }}"
+  loop: "{{ range(num, req_num | int + 1) | list }}"
   loop_control:
     extended: yes
   changed_when: true
@@ -75,6 +75,6 @@
 
 - name: load minio_tenant_sriov_resources for jinja template
   set_fact:
-    minio_tenant_sriov_resources : "{{ minio_tenant_sriov_resources['minio_tenant_sriov_resources'] }}"
+    minio_tenant_sriov_resources: "{{ minio_tenant_sriov_resources['minio_tenant_sriov_resources'] }}"
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

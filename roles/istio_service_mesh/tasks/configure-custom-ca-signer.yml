@@ -1,0 +1,60 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create Istio custom manifests directory
+  file:
+    path: "{{ istio_service_mesh_charts_dir }}"
+    state: directory
+    mode: 0755
+
+- name: configure TCSCluster issuer
+  template:
+    src: "tcs-cluster-issuer.yaml.j2"
+    dest: "{{ (istio_service_mesh_charts_dir, 'tcs-cluster-issuer.yaml') | path_join }}"
+    force: yes
+    mode: preserve
+
+- name: create TCSIssuer
+  command: "kubectl apply -f {{ (istio_service_mesh_charts_dir, 'tcs-cluster-issuer.yaml') | path_join }}"
+  changed_when: true
+
+- name: wait for secret creation
+  pause:
+    seconds: 30
+
+- name: read tls cert from the secret
+  shell: |-
+    set -o pipefail && \
+    kubectl get secret -n {{ istio_service_mesh.sgx_signer.tcs_namespace }} {{ istio_service_mesh.sgx_signer.name }}-secret -o jsonpath='{.data.tls\.crt}' | \
+    base64 -d
+  args:
+    executable: /bin/bash
+  changed_when: true
+  register: tcs_issuer_secret
+  no_log: true
+
+- name: configure Istio custom profile template
+  template:
+    src: "custom-ca.yaml.j2"
+    dest: "{{ (role_path, 'files', 'profiles', 'custom-ca.yaml') | path_join }}"
+    force: yes
+    mode: preserve
+  delegate_to: localhost
+  become: false
+
+- name: override profile name to use 'custom-ca'
+  set_fact:
+    istio_service_mesh: "{{ istio_service_mesh | combine({'profile': 'custom-ca'}, recursive=True) }}"

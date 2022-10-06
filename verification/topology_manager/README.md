@@ -11,17 +11,11 @@ After the pod is in a terminated state, the Kubernetes scheduler will not attemp
 To verify that Topology Manager is running, use the following command:
 ```
 # journalctl | grep topology_manager
-Feb 03 09:30:38 ar09-09-cyp kubelet[79709]: I0203 09:30:38.418222   79709 topology_manager.go:133] "Creating topology manager with policy per scope" topologyPolicyName="best-effort" topologyScopeName="container"
-Feb 03 09:30:38 ar09-09-cyp kubelet[79709]: I0203 09:30:38.620193   79709 topology_manager.go:200] "Topology Admit Handler"
-Feb 03 09:30:38 ar09-09-cyp kubelet[79709]: I0203 09:30:38.636035   79709 topology_manager.go:200] "Topology Admit Handler"
-Feb 03 09:30:38 ar09-09-cyp kubelet[79709]: I0203 09:30:38.652310   79709 topology_manager.go:200] "Topology Admit Handler"
-Feb 03 09:30:44 ar09-09-cyp kubelet[80859]: I0203 09:30:44.589837   80859 topology_manager.go:133] "Creating topology manager with policy per scope" topologyPolicyName="best-effort" topologyScopeName="container"
-Feb 03 09:30:44 ar09-09-cyp kubelet[80859]: I0203 09:30:44.761846   80859 topology_manager.go:200] "Topology Admit Handler"
-Feb 03 09:30:44 ar09-09-cyp kubelet[80859]: I0203 09:30:44.761979   80859 topology_manager.go:200] "Topology Admit Handler"
-Feb 03 09:30:44 ar09-09-cyp kubelet[80859]: I0203 09:30:44.762071   80859 topology_manager.go:200] "Topology Admit Handler"
-Feb 03 09:30:57 ar09-09-cyp kubelet[80859]: I0203 09:30:57.175938   80859 topology_manager.go:200] "Topology Admit Handler"
-Feb 03 09:31:04 ar09-09-cyp kubelet[85026]: I0203 09:31:04.125414   85026 topology_manager.go:133] "Creating topology manager with policy per scope" topologyPolicyName="best-effort" topologyScopeName="container"
-Feb 03 09:31:04 ar09-09-cyp kubelet[85026]: I0203 09:31:04.300730   85026 topology_manager.go:200] "Topology Admit Handler"
+Sep 19 05:58:35 node1 kubelet[137442]: I0919 05:58:35.380933  137442 topology_manager.go:200] "Topology Admit Handler"
+Sep 19 06:58:35 node1 kubelet[137442]: I0919 06:58:35.161388  137442 topology_manager.go:200] "Topology Admit Handler"
+Sep 19 07:58:35 node1 kubelet[137442]: I0919 07:58:35.059673  137442 topology_manager.go:200] "Topology Admit Handler"
+Sep 19 08:58:42 node1 kubelet[137442]: I0919 08:58:42.098158  137442 topology_manager.go:200] "Topology Admit Handler"
+Sep 19 09:58:42 node1 kubelet[137442]: I0919 09:58:42.903203  137442 topology_manager.go:200] "Topology Admit Handler"
 ```
 
 ## Change Topology Manager Policy: Redeploy Kubernetes Playbook

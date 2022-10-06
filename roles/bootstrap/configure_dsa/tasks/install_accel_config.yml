@@ -1,0 +1,43 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone accel-config tool repository
+  git:
+    repo: "{{ idxd_config_git_url }}"
+    dest: "{{ idxd_config_dir }}"
+    version: "{{ idxd_config_git_ref }}"
+    force: yes
+
+- name: prepare files for building accel-config tool
+  command: "{{ item }}"
+  changed_when: false
+  args:
+    chdir: "{{ idxd_config_dir }}"
+  with_items:
+    - ./autogen.sh
+    - ./configure CFLAGS='-g -O2' --prefix=/usr --sysconfdir=/etc --libdir=/usr/lib64
+
+- name: build accel-config tool (1/2)
+  make:
+    chdir: "{{ idxd_config_dir }}"
+
+- name: build accel-config tool (2/2)
+  make:
+    target: "{{ item }}"
+    chdir: "{{ idxd_config_dir }}"
+  with_items:
+    - check
+    - install

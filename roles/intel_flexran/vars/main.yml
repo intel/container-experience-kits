@@ -33,3 +33,26 @@ install_dependencies:
   RedHat:
     - git
     - make
+    - numactl-devel
+    - elfutils-libelf-devel
+    - cmake
+    - gcc-c++
+    - libhugetlbfs*
+    - libstdc++*
+    - kernel-devel
+    - numactl*
+    - gcc
+    - mlocate
+    - expect
+    - gdb
+    - dstat
+    - libvirt-devel
+    - libgcrypt
+    - meson
+    - libvirt
+    - qemu-kvm
+    - pkgconf
+    - pciutils
+    - libzstd-devel.x86_64
+    - iproute-devel.x86_64
+#    - pyelftools # RH8.6RT: "failures": "No package pyelftools available."

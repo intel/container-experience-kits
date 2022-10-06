@@ -14,18 +14,19 @@
 ##   limitations under the License.
 ##
 ---
-# NOTE(pklimowx): these lists should be updated with complete set of machine SKUs.  Please add alphabetically
-supported_clx_nskus:
+confirmed_skl_cpus:
+  # Sky Lake Xeon Gold (quad)
+  - "6152"
+  # Sky Lake Xeon Platinum (octa)
+  - "8176"
+confirmed_clx_ncpus:
   - "5218N"
   - "6252N"
   - "6230N"
-  
-supported_clx_skus:
+confirmed_clx_cpus:
   - "6252"
 
-supported_icx_skus:
-  - "$0000%@"
-  - "0000%@"
+confirmed_icx_cpus:
   - "06/6c"
   - "5318N"
   - "6338"
@@ -33,7 +34,12 @@ supported_icx_skus:
   - "6346"
   - "6348"
   - "8358"
+  - "8360Y"
   - "8380"
+  - "$0000%@"
 
-supported_spr_skus:
+confirmed_spr_cpus:
+  - "8470N"
+  - "8471N"
+  - "8490H"
   - "0000%@"

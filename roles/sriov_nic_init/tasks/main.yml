@@ -54,15 +54,17 @@
 
 - name: clean up existing configuration file
   file:
-    path: "{{ item }}"
+    path: "{{ sriov_config_path }}/{{ item }}"
     state: absent
-  become: yes
   with_items:
-    - "{{ sriov_config_path }}/cek_sriov_numvfs"
-    - "{{ sriov_config_path }}/cek_interfaces"
+    - cek_sriov_numvfs
+    - cek_force_driver_binding
+  become: yes
 
 - name: configure VFs
   include_tasks: create_vfs.yml
+  when:
+    - item.sriov_numvfs | default(0) > 0
   with_items: "{{ dataplane_interfaces }}"
 
 - name: bring up PF interfaces
@@ -75,7 +77,7 @@
   when: item.sriov_numvfs | default(0) > 0
   with_items: "{{ dataplane_interfaces }}"
 
-- name: copy NIC setup script to /usr/bin
+- name: copy NIC SRIOV setup script to /usr/local/bin
   copy:
     src: "{{ role_path }}/files/cek_sriov_nic_init"
     dest: /usr/local/bin/cek_sriov_nic_init
@@ -95,8 +97,8 @@
 
 - name: ensure that systemd service is enabled on startup and restarted to apply the configuration
   systemd:
-    daemon_reload: yes
-    enabled: yes
-    state: restarted
     name: cek_sriov_nic_init
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
   become: yes

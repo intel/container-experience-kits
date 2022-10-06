@@ -16,18 +16,24 @@ ctk_loadkey:
       name: "{{ kmra.ctk_loadkey_demo.image_name }}"
       tag: "{{ kmra.ctk_loadkey_demo.image_tag }}"
       pullPolicy: IfNotPresent
-    port:  "{{ kmra.ctk_loadkey_demo.upstream_port }}"
-    hostname: "{{ kmra.ctk_loadkey_demo.upstream_server_name | default('0.0.0.0')}}"
   init:
     image:
       repo: "{{ kmra.ctk_loadkey_demo.init_image_repo }}"
       name: "{{ kmra.ctk_loadkey_demo.init_image_name }}"
       tag: "{{ kmra.ctk_loadkey_demo.init_image_tag }}"
       pullPolicy: IfNotPresent
+  nginx:
+    image:
+      repo: "{{ kmra.ctk_loadkey_demo.nginx_image_repo }}"
+      name: "{{ kmra.ctk_loadkey_demo.nginx_image_name }}"
+      tag: "{{ kmra.ctk_loadkey_demo.nginx_image_tag }}"
+      pullPolicy: IfNotPresent
+    port:  "{{ kmra.ctk_loadkey_demo.nginx_demo_port }}"
+    hostname: "{{ kmra.ctk_loadkey_demo.nginx_demo_server_name | default('0.0.0.0')}}"
   pccs_port: "{{ kmra.pccs.upstream_port }}"
   pccs_hostname: "{{ kmra.pccs.hostname }}"
   apphsm_port: "{{ kmra.apphsm.upstream_port }}"
-  apphsm_hostname: "{{ kmra.apphsm.hostname }}"
+  apphsm_hostname: "{{ kmra.apphsm.hostname | trim}}"
   sgx_prv_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"
   use_secure_cert: "{{ kmra.ctk_loadkey_demo.use_secure_cert | quote }}"
   client_token: "{{ kmra.ctk_loadkey_demo.client_token }}"
@@ -35,3 +41,8 @@ ctk_loadkey:
   test_unique_uid: "{{ kmra.ctk_loadkey_demo.test_unique_uid }}"
   default_user_pin: "{{ kmra.ctk_loadkey_demo.default_user_pin }}"
   default_so_pin: "{{ kmra.ctk_loadkey_demo.default_so_pin }}"
+  default_client_token_id: "{{ kmra.ctk_loadkey_demo.default_client_token_id }}"
+  pkcs11_proxy_tls_psk: "{{ kmra.ctk_loadkey_demo.pkcs11_proxy_tls_psk }}"
+  pkcs11_proxy_tls_psk_file: "{{ kmra.ctk_loadkey_demo.pkcs11_proxy_tls_psk_file }}"
+  pkcs11_daemon_socket_hostname: "{{ kmra.ctk_loadkey_demo.pkcs11_daemon_socket_hostname }}"
+  pkcs11_daemon_socket_port: "{{ kmra.ctk_loadkey_demo.pkcs11_daemon_socket_port }}"

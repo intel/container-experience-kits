@@ -58,8 +58,8 @@
 - name: pick final sysctl entries values
   set_fact:
     vpp_nr_hugepages: "{{ (default_hugepage_size == '2M') | ternary(number_of_hugepages_2M, number_of_hugepages_1G) }}"
-    vpp_shmmax: "{{ [vpp_calc_shmmax|int, vpp_orig_shmmax|int] | max }}"
-    vpp_max_map_count: "{{ [vpp_orig_max_map_count|int, vpp_calc_max_map_count|int] | max }}"
+    vpp_shmmax: "{{ [vpp_calc_shmmax | int, vpp_orig_shmmax | int] | max }}"
+    vpp_max_map_count: "{{ [vpp_orig_max_map_count | int, vpp_calc_max_map_count | int] | max }}"
 
 - name: download packagecloud.io to install VPP packages
   get_url:
@@ -70,7 +70,7 @@
 - name: execute VPP bash script
   command: "./script.deb.sh"
   args:
-   chdir: "{{ vpp_dir }}"
+    chdir: "{{ vpp_dir }}"
   changed_when: true
 
 - name: install vpp packages in Red Hat
@@ -91,6 +91,8 @@
       - vpp-plugin-core
       - vpp-plugin-dpdk
       - libvppinfra
+      - vpp-plugin-devtools
+      - vpp-dev
       - libvppinfra-dev
       - python3-vpp-api
     state: present

@@ -54,7 +54,7 @@
       Rocky: firewalld
       Ubuntu: ufw
   become: yes
-  ignore_errors: true
+  failed_when: false
   when: not firewall_enabled | default(false) | bool
 
 - name: configure SELinux
@@ -68,7 +68,7 @@
 - name: increase file size limit settings
   blockinfile:
     dest: /etc/security/limits.conf
-    marker: ""
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - CEK values"
     block: |2
       root soft fsize unlimited
       root hard fsize unlimited

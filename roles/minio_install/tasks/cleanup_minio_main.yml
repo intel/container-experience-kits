@@ -30,10 +30,44 @@
       name: minio_install
       tasks_from: cleanup_minio_sriovnetwork
 
+  - name: load MinIO tenant multus service variables
+    include_vars: "{{ item }}"
+    with_first_found:
+      - files:
+          - "main.yml"
+        paths:
+          - "{{ (role_path, '..', 'multus_service', 'defaults') | path_join }}"
+
+  - name: cleanup MinIO tenant multus helmchart
+    include_role:
+      name: minio_install
+      tasks_from: cleanup_minio_multus_service_helmchart
+
+  - name: load MinIO tenant whereabouts service variables
+    include_vars: "{{ item }}"
+    with_first_found:
+      - files:
+          - "main.yml"
+        paths:
+          - "{{ (role_path, '..', 'whereabouts_install', 'defaults') | path_join }}"
+
   - name: cleanup MinIO tenant whereabouts helmchart
     include_role:
       name: minio_install
       tasks_from: cleanup_minio_whereabouts_helmchart
+
+  - name: load MinIO tenant ingress controller variables
+    include_vars: "{{ item }}"
+    with_first_found:
+      - files:
+          - "main.yml"
+        paths:
+          - "{{ (role_path, '..', 'kubernetes_ingress_install', 'defaults') | path_join }}"
+
+  - name: cleanup MinIO tenant ingress controller helmchart
+    include_role:
+      name: kubernetes_ingress_install
+      tasks_from: cleanup_kubernetes_ingress
 
   - name: cleanup MinIO file systems
     import_tasks: cleanup_minio_filesystems.yml

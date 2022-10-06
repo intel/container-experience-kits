@@ -61,6 +61,14 @@
     mode: 0644
   when: '"1.3.31.0" in pkgurl'
 
+- name: unarchive DDP package subfolder excluding from list of URLs
+  unarchive:
+    src: "{{ temp_ddp_path }}/ice_comms-1.3.37.0.zip"
+    dest: "{{ temp_ddp_path }}"
+    remote_src: yes
+    mode: 0644
+  when: '"1.3.37.0" in pkgurl'
+
 - name: find PKG files
   find:
     paths: "{{ temp_ddp_path }}"

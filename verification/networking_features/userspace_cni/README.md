@@ -6,7 +6,7 @@ When Userspace CNI is enabled, an example network attachment definintion is crea
 ```
 # kubectl get net-attach-def
 NAME            AGE
-userspace-ovs   7d
+userspace-ovs   14h
 ```
 
 ## Deploy Workload
@@ -44,7 +44,7 @@ Deploy the pod:
 Start by verifying that a vhostuser socket has been added to the pod:
 ```
 # kubectl exec pod-userspace-1 -- ls /vhu/
-35998a9a2ce2-net1
+5dee26822a53-net1
 ```
 If there are multiple worker nodes in the cluster, check which one the pod has been deployed on:
 ```
@@ -54,15 +54,15 @@ Node:         node1/<node IP>
 Connect to that node using the IP found above, and verify that the vhostuser socket and interface has been added to OVS-DPDK:
 ```
 # ovs-vsctl show
-b11c98d8-080f-4cad-adaa-467256809265
+6836950b-fe14-42f7-823b-06ae680b88f4
     Bridge br0
         datapath_type: netdev
         Port br0
             Interface br0
                 type: internal
-        Port "35998a9a2ce2-net1"
-            Interface "35998a9a2ce2-net1"
+        Port "5dee26822a53-net1"
+            Interface "5dee26822a53-net1"
                 type: dpdkvhostuser
-    ovs_version: "2.17.1"
+    ovs_version: "2.17.2"
 ```
 At this point, the vhostuser socket is ready to use in the pod. The steps for using VPP as the vSwitch are similar, but instead of the Userspace CNI resource name userspace-ovs, use userspace-vpp.

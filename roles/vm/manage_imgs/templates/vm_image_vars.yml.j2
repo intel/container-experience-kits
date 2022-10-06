@@ -11,10 +11,15 @@ vm_image_checksum_type: "md5"
 vm_image_checksum_cut_line: "-f1"
 vm_os_variant: "ubuntu20.04"
 {% elif vm_image_distribution|lower == "rocky" %}
-vm_image_distribution: "{{ vm_image_distribution|lower }}"
-vm_image_version: "{{ vm_image_version_rocky }}"
-vm_image: "Rocky-8-GenericCloud-{{ vm_image_version_rocky }}-20211114.2.x86_64.qcow2"
 vm_image_checksum_type: "sha256"
 vm_image_checksum_cut_line: "-f4"
+vm_image_distribution: "{{ vm_image_distribution|lower }}"
+vm_image_version: "{{ vm_image_version_rocky }}"
+{% if vm_image_version_rocky == "9.0" %}
+vm_image: "Rocky-9-GenericCloud-{{ vm_image_version_rocky }}-20220830.0.x86_64.qcow2"
+vm_os_variant: "rocky9.0"
+{% else %}
+vm_image: "Rocky-8-GenericCloud-{{ vm_image_version_rocky }}-20211114.2.x86_64.qcow2"
 vm_os_variant: "rocky8.5"
+{% endif %}
 {% endif %}

@@ -21,8 +21,8 @@
         that: "{{ minio_tenant_servers | int }} <= {{ groups['kube_node'] | length | int }}"
         msg: |
           "Incorrect configuration."
-          "The number of MinIO tenant servers '{{ minio_tenant_servers |int }}' defined in group vars must be"
-          "less or equal to the number of nodes '{{ groups['kube_node']|length |int }}'"
+          "The number of MinIO tenant servers '{{ minio_tenant_servers | int }}' defined in group vars must be"
+          "less or equal to the number of nodes '{{ groups['kube_node'] | length | int }}'"
 
     - name: make sure the MinIO tenant volumes per server >= the MiniO PV list
       assert:

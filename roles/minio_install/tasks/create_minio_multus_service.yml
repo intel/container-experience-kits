@@ -1,0 +1,45 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check MinIO Tenant Helm charts temp directory
+  stat:
+    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
+  register: tenant_temp_dir
+
+- name: create the temp folder for MinIO Tenant custom values
+  file:
+    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - not tenant_temp_dir.stat.exists
+
+- name: populate MinIO Tenant Multus Service configuration
+  template:
+    src: "minio_tenant_multus_services.yml.j2"
+    dest: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-tenant-multus-service.yml') | path_join }}"
+    force: yes
+    mode: preserve
+
+# - name: apply MinIO Tenant Multus Serivce
+#   k8s:
+#     state: present
+#     src: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-tenant-multus-service.yml') | path_join }}"
+
+- name: apply MinIO Tenant Multus Serivce
+  command: >-
+    kubectl apply -f {{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-tenant-multus-service.yml') | path_join }}
+  changed_when: true

@@ -2,6 +2,8 @@
   "name": "multus-cni-network",
   "type": "multus",
   "cniVersion": "0.3.1",
+  "logFile": "/var/log/multus.log",
+  "logLevel": "debug",
   "capabilities": {
     "portMappings": true
   },
@@ -11,12 +13,23 @@
       "name": "default-cni-network",
       "plugins": [
         {
+{% if kube_network_plugin == "cni" %}
+          "name": "k8s-pod-network",
+          "cniVersion": "0.3.1",
+          "type": "cilium-cni"
+{% endif %}
 {% if kube_network_plugin == "calico" %}
           "name": "k8s-pod-network",
           "cniVersion": "0.3.1",
           "type": "calico",
-          "log_level": "info",
+          "log_level": "debug",
           "log_file_path": "/var/log/calico/cni/cni.log",
+          "logOptions": {
+            "maxAge": 5,
+            "maxSize": 100,
+            "maxBackups": 5,
+            "compress": true
+          },
           "datastore_type": "kubernetes",
           "ipam": {
             "type": "calico-ipam"

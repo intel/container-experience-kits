@@ -25,4 +25,3 @@
   k8s:
     state: present
     src: "{{ cndp_k8s_manifest_dir }}/cndp_net_attach_def-e2e.yml"
-

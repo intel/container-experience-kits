@@ -27,92 +27,92 @@
     minio_tenant_sriov_vfs_list: []
 
 - block:
-  - name: collect the minio_vfs of nodes
-    set_fact:
-      minio_tenant_sriov_vfs: "{{ hostvars[inventory_hostname]['dataplane_interfaces'] | map(attribute='minio_vf') | list | length }}"
-    when:
-      - inventory_hostname in groups['kube_node']
+    - name: collect the minio_vfs of nodes
+      set_fact:
+        minio_tenant_sriov_vfs: "{{ hostvars[inventory_hostname]['dataplane_interfaces'] | map(attribute='minio_vf') | list | length }}"
+      when:
+        - inventory_hostname in groups['kube_node']
 
-  - name: insert nodename into temp_minio_interfaces
-    set_fact:
-      temp_minio_interfaces: "{{ temp_minio_interfaces | default([]) + [item | combine({'nodename': minio_hostname})] }}"
-    vars:
-      minio_hostname: "{{ inventory_hostname }}"
-    loop: "{{ hostvars[inventory_hostname]['dataplane_interfaces'] }}"
-    when:
-      - inventory_hostname in groups['kube_node']
+    - name: insert nodename into temp_minio_interfaces
+      set_fact:
+        temp_minio_interfaces: "{{ temp_minio_interfaces | default([]) + [item | combine({'nodename': minio_hostname})] }}"
+      vars:
+        minio_hostname: "{{ inventory_hostname }}"
+      loop: "{{ hostvars[inventory_hostname]['dataplane_interfaces'] }}"
+      when:
+        - inventory_hostname in groups['kube_node']
 
-  - name: collect PF name per minio_interface
-    include_tasks: collect_minio_pf_name.yml
-    loop: "{{ hostvars[inventory_hostname]['temp_minio_interfaces'] }}"
-    when:
-      - inventory_hostname in groups['kube_node']
+    - name: collect PF name per minio_interface
+      include_tasks: collect_minio_pf_name.yml
+      loop: "{{ hostvars[inventory_hostname]['temp_minio_interfaces'] }}"
+      when:
+        - inventory_hostname in groups['kube_node']
 
-  - name: update PF name per minio_interfaces
-    set_fact:
-      minio_interfaces: "{{ minio_interfaces | default([]) + [item | combine({'minio_pf_name': minio_pf_name_list[ansible_loop.index0]})] }}"
-    loop: "{{ hostvars[inventory_hostname]['temp_minio_interfaces'] }}"
-    loop_control:
-      extended: yes
-    when:
-      - inventory_hostname in groups['kube_node']
+    - name: update PF name per minio_interfaces
+      set_fact:
+        minio_interfaces: "{{ minio_interfaces | default([]) + [item | combine({'minio_pf_name': minio_pf_name_list[ansible_loop.index0]})] }}"
+      loop: "{{ hostvars[inventory_hostname]['temp_minio_interfaces'] }}"
+      loop_control:
+        extended: yes
+      when:
+        - inventory_hostname in groups['kube_node']
 
-  - name: set sriov vfs over all nodes
-    set_fact:
-      minio_vfs: "{{ hostvars[inventory_hostname]['minio_interfaces'] | selectattr('minio_vf', '==', True) }}"
-    when:
-      - inventory_hostname in groups['kube_node']
+    - name: set sriov vfs over all nodes
+      set_fact:
+        minio_vfs: "{{ hostvars[inventory_hostname]['minio_interfaces'] | selectattr('minio_vf', '==', True) }}"
+      when:
+        - inventory_hostname in groups['kube_node']
 
-  - name: set total_num_minio_vfs
-    set_fact:
-      total_num_minio_vfs: "{{ total_num_minio_vfs | default([]) + [hostvars[item]['minio_vfs'] | length] }}"
-    loop: "{{ groups['kube_node'] }}"
-    when:
-      - inventory_hostname in groups['kube_control_plane'][0]
+    - name: set total_num_minio_vfs
+      set_fact:
+        total_num_minio_vfs: "{{ total_num_minio_vfs | default([]) + [hostvars[item]['minio_vfs'] | length] }}"
+      loop: "{{ groups['kube_node'] }}"
+      when:
+        - inventory_hostname in groups['kube_control_plane'][0]
 
-  - name: check minio_vf settings per node are identical
-    assert:
-      that:
-        - total_num_minio_vfs | unique | length == 1
-      msg: |
-        Incorrect configuration of 'minio_vf: true' in dataplane_interfaces for MinIO install.
-        Make sure the number of 'minio_vf: true' per node has to be same over all nodes.
-        Or, check if there is any missing 'minio_vf: true' or 'minio_vf: false' in dataplane_interfaces.
-        {{ hostvars[item]['minio_interfaces'] }}
-    loop: "{{ groups['kube_node'] }}"
-    when:
-      - inventory_hostname in groups['kube_control_plane'][0]
+    - name: check minio_vf settings per node are identical
+      assert:
+        that:
+          - total_num_minio_vfs | unique | length == 1
+        msg: |
+          Incorrect configuration of 'minio_vf: true' in dataplane_interfaces for MinIO install.
+          Make sure the number of 'minio_vf: true' per node has to be same over all nodes.
+          Or, check if there is any missing 'minio_vf: true' or 'minio_vf: false' in dataplane_interfaces.
+          {{ hostvars[item]['minio_interfaces'] }}
+      loop: "{{ groups['kube_node'] }}"
+      when:
+        - inventory_hostname in groups['kube_control_plane'][0]
 
-  - name: filter minio_pf_name over all nodes
-    set_fact:
-      minio_pfs: "{{ hostvars[inventory_hostname]['minio_interfaces'] | json_query(the_var) }}"
-    vars:
-      the_var: "[?minio_pf_name].minio_pf_name"
-    when:
-      - inventory_hostname in groups['kube_node']
+    - name: filter minio_pf_name over all nodes
+      set_fact:
+        minio_pfs: "{{ hostvars[inventory_hostname]['minio_interfaces'] | json_query(the_var) }}"
+      vars:
+        the_var: "[?minio_pf_name].minio_pf_name"
+      when:
+        - inventory_hostname in groups['kube_node']
 
-  - name: combine all minio_pfs from nodes
-    set_fact:
-      total_minio_pfs: "{{ total_minio_pfs | default([]) + [hostvars[item]['minio_pfs']] }}"
-    loop: "{{ groups['kube_node'] }}"
-    when:
-      - inventory_hostname in groups['kube_control_plane'][0]
+    - name: combine all minio_pfs from nodes
+      set_fact:
+        total_minio_pfs: "{{ total_minio_pfs | default([]) + [hostvars[item]['minio_pfs']] }}"
+      loop: "{{ groups['kube_node'] }}"
+      when:
+        - inventory_hostname in groups['kube_control_plane'][0]
 
-  - name: zip each item from total_minio_pfs to make sure each list has same minio_pfs name
-    set_fact:
-      same_minio_vfs: "{{ (total_minio_pfs | first) | zip (*total_minio_pfs[1:]) }}"
-    when:
-      - inventory_hostname in groups['kube_control_plane'][0]
+    - name: zip each item from total_minio_pfs to make sure each list has same minio_pfs name
+      set_fact:
+        same_minio_vfs: "{{ (total_minio_pfs | first) | zip (*total_minio_pfs[1:]) }}"
+      when:
+        - inventory_hostname in groups['kube_control_plane'][0]
 
-  - name: check minio_vf resource name per node are identical
-    assert:
-      that:
-        - "item | unique | length == 1"
-      msg: |
-        "Inconsitent PF name over nodes in dataplane_interfaces for MinIO install."
-        "Make sure the PF names of 'minio_vf: true' over nodes should be same."
-        "{{ item }}"
-    loop: "{{ same_minio_vfs }}"
-    when:
-      - inventory_hostname == groups['kube_control_plane'][0]
+    - name: check minio_vf resource name per node are identical
+      assert:
+        that:
+          - "item | unique | length == 1"
+        msg: |
+          "Inconsitent PF name over nodes in dataplane_interfaces for MinIO install."
+          "Make sure the PF names of 'minio_vf: true' over nodes should be same."
+          "{{ item }}"
+      loop: "{{ same_minio_vfs }}"
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
   any_errors_fatal: true

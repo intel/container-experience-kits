@@ -1,0 +1,153 @@
+resource "aws_iam_role" "eks-cluster-role" {
+  name = "cwdf-infra-{{ job_id }}-eks-cluster-role"
+  assume_role_policy = jsonencode({
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "eks.amazonaws.com"
+      }
+    }]
+    Version = "2012-10-17"
+  })
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-role"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-role-AmazonEKSClusterPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks-cluster-role.name
+}
+
+resource "aws_iam_role" "eks-cluster-nodegroup-role" {
+  name = "cwdf-infra-{{ job_id }}-eks-cluster-nodegroup-role"
+
+  assume_role_policy = jsonencode({
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+    Version = "2012-10-17"
+  })
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-nodegroup-role"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-nodegroup-role-AmazonEKSWorkerNodePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.eks-cluster-nodegroup-role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-nodegroup-role-AmazonEKS_CNI_Policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks-cluster-nodegroup-role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-nodegroup-role-AmazonEC2ContainerRegistryReadOnly" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks-cluster-nodegroup-role.name
+}
+
+resource "aws_eks_cluster" "default" {
+  role_arn = aws_iam_role.eks-cluster-role.arn
+
+  name     = "cwdf-infra-{{ job_id }}-eks-cluster"
+  version = "{{ eks.kubernetes_version }}"
+
+  vpc_config {
+    subnet_ids = [{% for subnet in eks.subnets %}aws_subnet.{{ subnet }}.id,{% endfor %}]
+  }
+
+  # Ensure that IAM Role permissions are created before and deleted after EKS Cluster handling.
+  # Otherwise, EKS will not be able to properly delete EKS managed EC2 infrastructure such as Security Groups.
+  depends_on = [
+    aws_iam_role_policy_attachment.eks-cluster-role-AmazonEKSClusterPolicy
+  ]
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+{% for node_group in eks.node_groups %}
+resource "aws_eks_node_group" "{{ node_group.name }}" {
+  cluster_name    = aws_eks_cluster.default.name
+  node_group_name = "{{ node_group.name }}"
+  node_role_arn   = aws_iam_role.eks-cluster-nodegroup-role.arn
+  subnet_ids      = [{% for subnet in eks.subnets %}aws_subnet.{{ subnet }}.id,{% endfor %}]
+
+  scaling_config {
+    desired_size = {{ node_group.vm_count }}
+    max_size     = {{ node_group.vm_count }}
+    min_size     = {{ node_group.vm_count }}
+  }
+
+  remote_access {
+    ec2_ssh_key = aws_key_pair.default.key_name
+    source_security_group_ids = [aws_security_group.default.id]
+  }
+
+  instance_types = ["{{ node_group.instance_type }}"]
+
+  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
+  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+  depends_on = [
+    aws_iam_role_policy_attachment.eks-cluster-nodegroup-role-AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.eks-cluster-nodegroup-role-AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.eks-cluster-nodegroup-role-AmazonEC2ContainerRegistryReadOnly,
+    {% if will_create_ansible_instance %}
+    kubernetes_config_map.aws-auth
+    {% endif %}
+  ]
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-nodegroup-{{ node_group.name }}"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+{% endfor %}
+
+data "aws_instances" "eks-instances" {
+  filter {
+    name   = "tag:eks:cluster-name"
+    values = [aws_eks_cluster.default.name]
+  }
+
+  depends_on = [{% for node_group in eks.node_groups %} aws_eks_node_group.{{node_group.name}},  {% endfor %}]
+}
+
+locals {
+  eks_worker_instances = [
+    for index, id in data.aws_instances.eks-instances.ids : {
+      id: id
+      public_ip: data.aws_instances.eks-instances.public_ips[index]
+      private_ip: data.aws_instances.eks-instances.private_ips[index]
+    }
+  ]
+}
+
+output "eks_worker_instances" {
+  value = local.eks_worker_instances
+}

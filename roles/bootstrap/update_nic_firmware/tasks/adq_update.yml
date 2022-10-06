@@ -1,0 +1,136 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get current FW version
+  shell: "set -o pipefail && ethtool -i {{ adq_dp.interface_name }} | grep -i firmware-version | awk '{ print $2 }'"
+  changed_when: false
+  args:
+    executable: /bin/bash
+  register: adq_interface_fw_version
+
+- name: check if current firmware version meets required version requirements
+  set_fact:
+    continue_nvmupdate: "{{ adq_interface_fw_version.stdout is version_compare(adq_ice_fw_required_version, '!=') }}"
+
+- debug:
+    msg: "The current firmware release on the card is {{ adq_interface_fw_version.stdout }}. Required is {{ adq_ice_fw_required_version }}"
+
+- name: assert that current FW is not too old
+  assert:
+    that: adq_interface_fw_version.stdout is version_compare(nvmupdate.ice.min_updatable_fw_version, '>=')
+    msg: >-
+      "Current firmware version {{ adq_interface_fw_version.stdout }} is too old to upgrade;
+      it must be {{ nvmupdate.ice.min_updatable_fw_version }} or newer"
+  when: continue_nvmupdate | bool
+
+- block:
+    - name: download nvmupdate package
+      get_url:
+        url: "{{ adq_ice_fw_url }}"
+        checksum: "{{ adq_ice_fw_checksum }}"
+        dest: "{{ adq_ice_fw_dest }}"
+        mode: 0644
+      register: nvmupdate_download
+      until: nvmupdate_download is not failed
+      retries: 5
+
+    - name: unarchive nvmupdate package
+      unarchive:
+        src: "{{ adq_ice_fw_dest }}"
+        dest: "{{ (project_root_dir) | path_join }}"
+        remote_src: yes
+        extra_opts: [--strip-components=1] # to unpack Linux_x64 directly, skipping top-level model specific dir (e.g. 700Series)
+        mode: 0755
+  when: continue_nvmupdate | bool
+
+- block:
+    # get device MAC address - this allows to run nvmupdate for the requested device only
+    - debug: var=ansible_facts[adq_dp.interface_name]['macaddress']
+      when: continue_nvmupdate | bool
+
+    - name: check ip routing table for interface {{ adq_dp.interface_name }}
+      command: ip route list
+      register: ip_route
+      changed_when: true
+      when: continue_nvmupdate | bool
+
+- debug:
+    msg: "interface {{ adq_dp.interface_name }} is not active in ip route list"
+  when:
+    - continue_nvmupdate | bool
+    - adq_dp.interface_name not in ip_route.stdout
+
+- block:
+    - debug:
+        msg: "interface {{ adq_dp.interface_name }} is active in ip route list, will remove interface {{ adq_dp.interface_name }} from list"
+
+    - name: interface {{ adq_dp.interface_name }} was found active, grep interface before removing it
+      shell: "set -o pipefail && ip route list | grep {{ adq_dp.interface_name }}"
+      args:
+        executable: /bin/bash
+      register: grep_interface
+      changed_when: true
+
+    - debug:
+        var: grep_interface.stdout_lines
+
+    - name: remove interface {{ adq_dp.interface_name }} from routing table and proceed to firmware upgrade / downgrade
+      command: "ip route del {{ grep_interface.stdout }}"
+      changed_when: true
+  when:
+    - continue_nvmupdate | bool
+    - adq_dp.interface_name in ip_route.stdout
+
+- block:
+    - debug:
+        msg: >-
+          updating firmware... This operation may take several minutes.
+          To avoid damage to your device, do not stop the update or
+          reboot or power off the system during this process!
+
+    - name: update firmware
+    # noqa 305 - shell is used intentionally here
+      shell:
+        cmd: "./nvmupdate64e -u -l -o update.xml -b -c nvmupdate.cfg -m '{{ ansible_facts[adq_dp.interface_name]['macaddress'] | replace(':','') }}'"
+      args:
+        chdir: "{{ (project_root_dir, 'Linux_x64') | path_join }}"
+        executable: /bin/bash
+      register: nvmupdate_result
+      failed_when: false
+      changed_when: true
+  when: continue_nvmupdate | bool
+
+- name: show additional message on unsupported platforms
+  debug:
+    msg: >
+      Failed to update firmware on interface {{ adq_dp.interface_name }} .
+      This is probably caused by unsupported platform - contact your vendor for more information.
+  when:
+    - continue_nvmupdate | bool
+    - (nvmupdate_result.stdout is search('No devices to update.'))
+
+- name: fail if fw update failed
+  fail:
+    msg: "Failed to update firmware on interface {{ adq_dp.interface_name }}. Error: {{ nvmupdate_result.stdout }}"
+  when:
+    - continue_nvmupdate | bool
+    - (nvmupdate_result.stdout is not search('update successful'))
+
+- name: reboot after update
+# noqa 503 - more than one condition here, so can't be a handler
+  reboot:
+    reboot_timeout: 1200 # wait up to 20 minutes - if reboot takes longer after NVM update
+  when: continue_nvmupdate | bool

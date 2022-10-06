@@ -14,61 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-- name: Allocate requested number of CPUs
-  cpupin:
-    name: "{{ item.name }}"
-    number: "{{ item.cpu_total if item.cpu_total is defined else omit }}"
-    cpus: "{{ item.cpus if item.cpus is defined else omit }}"
-    numa: "{{ item.numa if item.numa is defined else omit }}"
-    number_host_os: "{{ cpu_host_os if cpu_host_os is defined else omit }}"
-    alloc_all: "{{ item.alloc_all if item.alloc_all is defined else omit }}"
-    pinning: false
-  loop: "{{ vms }}"
-  changed_when: true
-  register: allocated_cpus
-  throttle: 1
-
-- name: Initialize new_vms variable
-  set_fact:
-    cpupin_vms: []
-  changed_when: true
-
-- name: Merge data structures
-  include: merge_dicts.yml
-  loop: "{{ vms }}"
-  loop_control:
-    loop_var: vm
+- name: Allocate cpus in case it's not done already by isolcpus
+  include_role:
+    name: bootstrap/allocate_cpus
+  when:
+    - isolcpus_cpus_total is not defined and not isolcpus_cpus_total
 
 - name: Start VMs
-  command: >
-    virt-install
-      --connect qemu:///system
-      --name {{ item.name }}
-      --cpu host
-      --ram {{ item.memory }}
-      --vcpus={{ item.cpu_total }},sockets=1,cores={{ (item.cpu_total / 2)|int }},threads=2
-      --cpuset={{ item.cpus }}
-      --os-variant {{ vm_os_variant }}
-      --disk path={{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/cek.qcow2,format=qcow2
-      --disk {{ vm_project_root_dir }}/{{ item.type }}/{{ item.name }}/cek.iso,device=cdrom
-      --network network=vm-default,model=virtio
-      {%- if item.type == "work" %}
-      {%- for pci in item.pci %}
-      --hostdev {{ pci }},address.type=pci
-      {%- endfor -%}
-      {%- endif %}
-      --network network=vxlanbr{{ item.vxlan }},model=virtio
-      --import --noautoconsole
-  loop: "{{ cpupin_vms }}"
-  changed_when: true
-
-- name: Make VMs persistent accross VM host reboot
-  command: virsh autostart {{ item.name }}
-  loop: "{{ cpupin_vms }}"
-  changed_when: true
-
-- name: Optimize VMs
-  include_tasks: optimize.yml
-  loop: "{{ cpupin_vms }}"
+  include: start_vm.yml
+  loop: "{{ cpupin_vms | default([]) }}"
   loop_control:
     loop_var: vm

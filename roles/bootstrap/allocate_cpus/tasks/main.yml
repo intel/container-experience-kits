@@ -1,0 +1,44 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Allocate requested number of CPUs
+  cpupin:
+    name: "{{ item.name }}"
+    number: "{{ item.cpu_total if item.cpu_total is defined else omit }}"
+    cpus: "{{ item.cpus if item.cpus is defined else omit }}"
+    numa: "{{ item.numa if item.numa is defined else omit }}"
+    number_host_os: "{{ cpu_host_os if cpu_host_os is defined else omit }}"
+    alloc_all: "{{ item.alloc_all if item.alloc_all is defined else omit }}"
+    pinning: false
+  loop: "{{ vms }}"
+  changed_when: true
+  register: allocated_cpus
+  throttle: 1
+
+- name: Initialize new_vms variable
+  set_fact:
+    cpupin_vms: []
+  changed_when: true
+
+- name: Merge data structures
+  include: merge_dicts.yml
+  loop: "{{ vms }}"
+  loop_control:
+    loop_var: vm
+
+- name: Debug allocated_cpus
+  debug:
+    var: allocated_cpus

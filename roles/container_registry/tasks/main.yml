@@ -154,6 +154,14 @@
     validate_certs: yes
   when: container_runtime == "docker"
 
+- name: copy auth file
+  copy:
+    src: "{{ ansible_env.HOME }}/.docker/config.json"
+    dest: /var/lib/kubelet/config.json
+    remote_src: yes
+    mode: '0755'
+  when: container_runtime == "docker"
+
 - name: grant access to the registry
   command: podman login --authfile="{{ registry_auth }}" -u docker -p "{{ password }}" "{{ registry_local_address }}"
   changed_when: false

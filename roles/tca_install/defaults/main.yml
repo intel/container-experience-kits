@@ -15,5 +15,6 @@
 ##
 ---
 tca_git_repo_url: https://github.com/intel/trusted-attestation-controller
-tca_git_version: v0.1.0
+tca_git_version: 0.2.0
 tca_git_path: "{{ (project_root_dir, 'tca') | path_join }}"
+tca_image_tag: 0.2.0

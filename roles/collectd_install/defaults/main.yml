@@ -14,9 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-collectd_configuration_files_dir: "{{ host_collectd_folder }}/collectd.conf.d"
-barometer_collectd_dir: "{{ project_root_dir }}/barometer"
-collectd_deployment_dir: "{{ project_root_dir }}/k8s/collectd/"
+collectd_configuration_files_dir: "{{ (host_collectd_folder, 'collectd.conf.d') | path_join }}"
+barometer_collectd_dir: "{{ (project_root_dir, 'barometer') | path_join }}"
+collectd_deployment_dir: "{{ (project_root_dir, 'k8s', 'collectd') | path_join }}"
 
 collectd_scrap_interval: 30
 collectd_write_threads: 25
@@ -47,8 +47,8 @@ unixsock_host_socket_dir: /var/run/collectd/
 enable_custom_types_db: false
 
 image_collectd:
-  repository: "opnfv/barometer-collectd"
-  digest: sha256:a7cea43d9d2f67c38fbf0407786edbe660ee9072945f7bb272b55fd255e8eaca
+  repository: intel/observability-collectd
+  digest: sha256:ece869707363959223135d777148f3b97db0477990ef23b2ca4e0644d92ecb09
   pullPolicy: Always
 image_collectd_exporter:
   repository: prom/collectd-exporter
@@ -58,12 +58,11 @@ image_rbac_proxy:
   repository: quay.io/coreos/kube-rbac-proxy
   version: v0.5.0
   pullPolicy: Always
-psp_enabled: true
 
 collectd_namespace: monitoring
 host_collectd_folder: /opt/collect.d
 pkgpower_repo_url: "https://github.com/intel/CommsPowerManagement.git"
-pkgpower_dir: "{{ project_root_dir }}/commspowermanagement"
+pkgpower_dir: "{{ (project_root_dir, 'commspowermanagement') | path_join }}"
 
 # currently excluded plugins were not delivered with latest stable
 # opnfv/barometer-collectd image (digest sha256:ed5c574f653e)
@@ -203,7 +202,7 @@ collectd_plugins:
 # List of plugins that will be excluded from collectd deployment.
 exclude_collectd_plugins: []
 
-rbac_proxy_ssl_mount_path: /etc/ssl/rbac-proxy/
+rbac_proxy_ssl_mount_path: /etc/ssl/rbac-proxy
 rbac_proxy_ssl_secret_name: rbac-proxy-ssl
 
 rbac_proxy_tls_cipher_suites:

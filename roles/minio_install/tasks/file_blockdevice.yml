@@ -17,28 +17,28 @@
 - name: set iteration number
   set_fact:
     num: 1
-    req_num: "{{ hostvars[inventory_hostname]['minio_pv'] |length }}"
+    req_num: "{{ hostvars[inventory_hostname]['minio_pv'] | length }}"
 
 - name: create local file block device
   include_tasks: create_blockdevicefiles.yml
-  loop: "{{ range(num, req_num|int + 1)|list }}"
+  loop: "{{ range(num, req_num|int + 1) | list }}"
   loop_control:
     extended: yes
 
 - name: format with xfs file block devices
   include_tasks: format_blockdevicefiles.yml
-  loop: "{{ range(num, req_num|int + 1)|list }}"
+  loop: "{{ range(num, req_num|int + 1) | list }}"
   loop_control:
     extended: yes
 
 - name: setup the loop devices
   include_tasks: setup_loopdevices.yml
-  loop: "{{ range(num, req_num|int + 1)|list }}"
+  loop: "{{ range(num, req_num|int + 1) | list }}"
   loop_control:
     extended: yes
 
 - name: mount the loop devices
   include_tasks: mount_loopdevices.yml
-  loop: "{{ range(num, req_num|int + 1)|list }}"
+  loop: "{{ range(num, req_num|int + 1) | list }}"
   loop_control:
     extended: yes

@@ -95,14 +95,13 @@
           until: "'PostUpdateReboot' not in after_ddp_update_info.stdout"
           retries: 30
           delay: 10
-          failed_when: "'Failed' in after_ddp_update_info.stdout or 'PostUpdateReboot' in after_ddp_update_info.stdout or 'InProgress' in after_ddp_update_info.stdout" # noqa 204 line-length
+          failed_when: "'Failed' in after_ddp_update_info.stdout or 'PostUpdateReboot' in after_ddp_update_info.stdout or 'InProgress' in after_ddp_update_info.stdout" # noqa yaml[line-length]
           changed_when: false
       when: "'PostUpdateReboot' in ddp_update_info.stdout"
 
     - name: remove DDP CR after update
-      k8s:
-        state: absent
-        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+      command: "kubectl delete -f {{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+      changed_when: true
 
     - name: remove EthernetNodeConfig after update
       command: kubectl delete enc {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}
@@ -130,7 +129,7 @@
             state: absent
           delegate_to: "{{ node_name }}"
           when:
-            - not hostvars[node_name]['enable_ice_systemd_service']
+            - not hostvars[node_name]['enable_ice_systemd_service'] |d(false)
             - mgmt_interface_driver_ieo.stdout != "ice"
             - "'irdma' not in ieo_lsmod.stdout"
 
@@ -140,7 +139,7 @@
             state: present
           delegate_to: "{{ node_name }}"
           when:
-            - not hostvars[node_name]['enable_ice_systemd_service']
+            - not hostvars[node_name]['enable_ice_systemd_service'] |d(false)
             - mgmt_interface_driver_ieo.stdout != "ice"
             - "'irdma' not in ieo_lsmod.stdout"
 
@@ -162,5 +161,5 @@
             name: ddp
             enabled: yes
           delegate_to: "{{ node_name }}"
-      when: hostvars[node_name]['enable_ice_systemd_service']
-  when: hostvars[node_name]['intel_ethernet_operator']['ddp_update']
+      when: hostvars[node_name]['enable_ice_systemd_service'] |d(false)
+  when: hostvars[node_name]['intel_ethernet_operator']['ddp_update'] |d(false)

@@ -16,19 +16,27 @@
 ---
 - name: preflight check for Intel FlexRAN
   include_tasks: flexran_preflight.yml
-  when: inventory_hostname == groups['kube_node'][0]
+
+- name: bring-up oRU for Intel FlexRAN # DPDK and anything else that is already on gNR node
+  include_tasks: oru.yml
+  when:
+    - groups['oru'][0] is defined and inventory_hostname == groups['oru'][0]
+    - intel_flexran_mode == "xran"
 
 - name: install dependencies for Intel FlexRAN
   include_role:
     name: install_dependencies
 
+- name: install pyelftools for FlexRAN
+  command: "pip3 install pyelftools"
+  changed_when: false
+  when: ansible_distribution == 'RedHat'
+
 - name: deploy Intel oneAPI
   include_tasks: oneapi.yml
-  when: inventory_hostname == groups['kube_node'][0]
 
 - name: deploy Intel FlexRAN
   include_tasks: flexran.yml
-  when: inventory_hostname == groups['kube_node'][0]
 
 - name: deploy Intel pf_bb (Physical Function Baseband) device config app
   include_tasks: pf_bb.yml
@@ -46,4 +54,12 @@
 
 - name: test Timer Mode
   include_tasks: timer_mode.yml
-  when: inventory_hostname == groups['kube_node'][0]
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+    - intel_flexran_mode == "timer"
+
+- name: test xRAN Mode
+  include_tasks: xran_mode.yml
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+    - intel_flexran_mode == "xran"

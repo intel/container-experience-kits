@@ -18,11 +18,28 @@ minio_application_name: "minio"               # MinIO Main Application Name
 minio_operator_namespace: "minio-operator"    # MinIO Operator/Console namespace
 minio_tenant_namespace: "minio-tenant"        # MinIO Sample Tenant namespace
 
+minio_git_url: "https://github.com/minio/minio.git"
+minio_git_tag: "RELEASE.2022-08-22T23-53-06Z"
+minio_local_build_dir: "{{ (project_root_dir, 'minio') | path_join }}"
+minio_local_build_name: "minio"
+
+minio_build_image_locally: true
+
 minio_operator_release_name: "minio-operator" # MinIO Operator/Console Helm Charts release name
 minio_tenant_release_name: "minio-tenant"     # MinIO Tenant Helm Charts release name
 
+minio_storage_controller_key: storage             # MinIO controller key
+minio_storage_controller_value: minio_controller  # MinIO controller value
+
 minio_storage_worker_key: storage             # MinIO worker key
+minio_multus_selector_key: app                # MinIO multus selector key
 minio_storage_worker_value: minio             # MinIO worker value
 
 minio_sriov_network_name_prefix: minio-sriov  # MinIO Tenants SriovNetwork name prefix
-minio_sriov_network_deviceType: netdevice     # MinIO Tenants SriovNetwork device type
+minio_sriov_network_devicetype: netdevice     # MinIO Tenants SriovNetwork device type
+
+minio_log_postgres_name: 'minio_log_postgres'             # MinIO Log Postgress container name
+minio_log_postgres_image_download_url: "library/postgres:13"  # MinIO Log DB image download URL
+minio_log_postgres_local_image_name: "postgres"               # MinIO Log DB local build image name
+minio_log_postgres_local_image_tag: "minio"                   # MinIO Log DB local build tag
+minio_log_huge_pages: "off"                                   # MinIO Log DB huge_pages settings: try, on, and off

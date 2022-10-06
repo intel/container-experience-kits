@@ -1,0 +1,51 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adq-cluster-config
+  namespace: {{ adq_dp_namespace }}
+data:
+  adq-cluster-config.json: |-
+    {
+      "NodeConfigs": [
+        {
+          "Labels": {
+            "kubernetes.io/os": "linux"
+          },
+          "EgressMode": "skbedit",
+          "FilterPrio": 1,
+          "Globals": {
+            "Dev": "{{ adq_dp.interface_name }}",
+            "Queues": 16,
+            "Busypoll": 50000,
+            "Busyread": 50000,
+            "Txadapt": false,
+            "Txusecs": 50,
+            "Rxadapt": false,
+            "Rxusecs": 50
+          },
+          "TrafficClass": [
+            {
+              "Queues": 4,
+              "Pollers": 4
+            },
+            {
+              "Queues": 4,
+              "Pollers": 4
+            },
+            {
+              "Queues": 4,
+              "Pollers": 4
+            },
+            {
+              "Queues": 4,
+              "Pollers": 4
+            },
+            {
+              "Queues": 32,
+              "Mode": "shared"
+            }
+          ]
+        }
+      ]
+    }

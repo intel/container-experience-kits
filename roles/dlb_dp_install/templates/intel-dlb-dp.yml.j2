@@ -1,0 +1,18 @@
+---
+apiVersion: deviceplugin.intel.com/v1
+kind: DlbDevicePlugin
+metadata:
+  name: intel-dlb-device-plugin
+  # example apparmor annotation
+  # see more details here:
+  #  - https://kubernetes.io/docs/tutorials/clusters/apparmor/#securing-a-pod
+  #  - https://github.com/intel/intel-device-plugins-for-kubernetes/issues/381
+{% if ansible_distribution == "Ubuntu" %}
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/intel-dlb-plugin: {{ dlb_dp_apparmor_profile | default("unconfined") }}
+{% endif %}
+spec:
+  image: {{ dlb_dp_image | default("docker.io/intel/intel-dlb-plugin") }}:{{ dlb_dp_version | default("0.24.0") }}
+  logLevel: {{ dlb_dp_verbosity | default(4) }}
+  nodeSelector:
+    intel.feature.node.kubernetes.io/dlb: "true" 

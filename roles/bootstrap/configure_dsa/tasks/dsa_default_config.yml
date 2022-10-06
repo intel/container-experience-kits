@@ -1,0 +1,96 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# make sure DSA device is disabled before configuring
+- name: reset dsa{{ dsa_id }} device
+  command: accel-config disable-device dsa{{ dsa_id }}
+  failed_when: false
+  changed_when: false
+
+# amount of groups to which WQs can be assigned
+- name: get max groups
+  command: cat {{ dsa_devices_dir }}/dsa{{ dsa_id }}/max_groups
+  changed_when: false
+  register: max_groups
+
+# amount of engines on DSA device - each group has unique engine
+- name: get max engines
+  command: cat {{ dsa_devices_dir }}/dsa{{ dsa_id }}/max_engines
+  changed_when: false
+  register: max_engines
+
+# make sure engines are not assigned to groups
+- name: reset all engines
+  command: accel-config config-engine dsa{{ dsa_id }}/engine{{ dsa_id }}.{{ engine_id }} --group-id=-1
+  failed_when: false
+  changed_when: false
+  with_sequence: start=0 end="{{ max_engines.stdout | int - 1 }}"
+  loop_control:
+    loop_var: engine_id
+
+# amount of WQs that can be configured on DSA device
+- name: get max work queues
+  command: cat {{ dsa_devices_dir }}/dsa{{ dsa_id }}/max_work_queues
+  changed_when: false
+  register: max_work_queues
+
+# sum of sizes of all WQs should be at most equal to max_work_queues_size - get that max value
+- name: get max work queues size
+  command: cat {{ dsa_devices_dir }}/dsa{{ dsa_id }}/max_work_queues_size
+  changed_when: false
+  register: max_work_queues_size
+
+- name: determine number of groups
+  set_fact:
+    number_of_groups: "{{ [max_engines.stdout | int, max_groups.stdout | int, max_work_queues.stdout | int] | min }}"
+
+# configure one engine per group, and no more engines than queues
+- name: configure dsa{{ dsa_id }} engines
+  command: accel-config config-engine dsa{{ dsa_id }}/engine{{ dsa_id }}.{{ engine_id }} --group-id={{ engine_id }}
+  changed_when: false
+  with_sequence: start=0 end="{{ number_of_groups | int - 1 }}"
+  loop_control:
+    loop_var: engine_id
+
+- name: calculate single Work Queue size
+  set_fact:
+    single_wq_size: "{{ (max_work_queues_size.stdout | int / max_work_queues.stdout | int) }}"  # all WQs are the same size
+
+# tried to randomize priorities of WQs. Max priority is 15 that's why 'else' value is provided
+- name: configure Dedicated Work Queues
+  command: >-
+    accel-config config-wq dsa{{ dsa_id }}/wq{{ dsa_id }}.{{ dwq_id }}
+    --group-id="{{ dwq_id | int % number_of_groups | int }}"
+    --mode=dedicated
+    --priority={{ dwq_id | int * 2 + 1 if dwq_id | int <= 7 else 5 }}
+    --wq-size={{ single_wq_size | int }}
+    --type=user
+    --name=dedicated-queue-{{ dsa_id }}.{{ dwq_id }}
+  with_sequence: start=0 end="{{ max_work_queues.stdout | int - 1 }}"
+  changed_when: true
+  loop_control:
+    loop_var: dwq_id
+
+- name: enable device dsa{{ dsa_id }}
+  command: accel-config enable-device dsa{{ dsa_id }}
+  changed_when: false
+
+- name: enable all configured WQs
+  command: accel-config enable-wq dsa{{ dsa_id }}/wq{{ dsa_id }}.{{ enabled_wq_id }}
+  changed_when: false
+  with_sequence: start=0 end="{{ max_work_queues.stdout | int - 1 }}"
+  loop_control:
+    loop_var: enabled_wq_id

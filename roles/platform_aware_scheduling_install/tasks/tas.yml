@@ -49,13 +49,13 @@
     mode: preserve
   loop:
     - {
-        src: "tas-values.yaml.j2",
-        dest: "{{ (project_root_dir, 'charts/telemetry-aware-scheduling/values.yaml') | path_join }}"
-      }
+      src: "tas-values.yaml.j2",
+      dest: "{{ (project_root_dir, 'charts/telemetry-aware-scheduling/values.yaml') | path_join }}"
+    }
     - {
-        src: "tas-chart.yaml.j2",
-        dest: "{{ (project_root_dir, 'charts/telemetry-aware-scheduling/Chart.yaml') | path_join }}"
-      }
+      src: "tas-chart.yaml.j2",
+      dest: "{{ (project_root_dir, 'charts/telemetry-aware-scheduling/Chart.yaml') | path_join }}"
+    }
 
 - name: install TAS helm chart
   command: >-

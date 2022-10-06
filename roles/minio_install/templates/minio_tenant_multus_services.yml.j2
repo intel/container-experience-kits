@@ -1,0 +1,18 @@
+{%- for sriov_res in minio_tenant_sriov_resources %}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: minio-multus-service-{{ loop.index }}
+  namespace: {{ minio_tenant_namespace }}
+  labels:
+    service.kubernetes.io/service-proxy-name: multus-proxy
+  annotations:
+    k8s.v1.cni.cncf.io/service-network: {{ sriov_res['sriov_network'] }}
+spec:
+  selector:
+    {{ minio_multus_selector_key }}: {{ minio_storage_worker_value }}
+  ports:
+  - protocol: TCP
+    port: 9000
+{% endfor %}

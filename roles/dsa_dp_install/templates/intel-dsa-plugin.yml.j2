@@ -1,0 +1,12 @@
+---
+apiVersion: deviceplugin.intel.com/v1
+kind: DsaDevicePlugin
+metadata:
+  name: intel-dsa-plugin
+spec:
+  image: {{ dsa_dp_image | default("docker.io/intel/intel-dsa-plugin") }}:{{ intel_dsa_dp_version | default("0.24.0") }}
+  sharedDevNum: {{ dsa_shared_devices }}
+  logLevel: {{ dsa_dp_verbosity }}
+  nodeSelector:
+    intel.feature.node.kubernetes.io/dsa: "true"
+    dsa.configured: 'true'

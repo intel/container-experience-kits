@@ -14,19 +14,11 @@
 ##   limitations under the License.
 ##
 ---
-- name: determine machine type
-  include_role:
-    name: check_machine_type
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-
 - name: install dependencies
   include_role:
     name: install_dependencies
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool or
-      is_spr | default(false) | bool
 
 - name: clone Intel Device Plugins repository
   git:
@@ -36,8 +28,6 @@
     force: yes
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool or
-      is_spr | default(false) | bool
 
 # docker is used as container runtime:
 - name: prepare containers images
@@ -72,8 +62,6 @@
       when: sgx_dp_build_image_locally
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool or
-      is_spr | default(false) | bool
     - container_runtime == "docker"
 
 # containerd/cri-o is used as container runtime:
@@ -85,8 +73,8 @@
         chdir: "{{ intel_sgx_dp_dir }}"
       changed_when: true
       with_items:
-        - { file: intel-sgx-initcontainer.Dockerfile, name: intel-sgx-initcontainer }
-        - { file: intel-sgx-plugin.Dockerfile, name: intel-sgx-plugin }
+        - {file: intel-sgx-initcontainer.Dockerfile, name: intel-sgx-initcontainer}
+        - {file: intel-sgx-plugin.Dockerfile, name: intel-sgx-plugin}
       when: sgx_dp_build_image_locally
 
     - name: push Intel SGX Device Plugin images to local registry
@@ -98,48 +86,7 @@
       when: sgx_dp_build_image_locally
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool or
-      is_spr | default(false) | bool
     - '"docker" not in container_runtime'
-
-# start deployment of SGX DP
-- name: prepare and deploy PSP and RBAC
-  block:
-    - name: make sure directory for PSP and RBAC rules exists
-      file:
-        path: "{{ intel_sgx_psp_rbac_dir }}"
-        state: directory
-        mode: 0755
-
-    - name: copy PSP and RBAC files
-      copy:
-        src: "{{ (role_path , 'files', item) | path_join }}"
-        dest: "{{ (intel_sgx_psp_rbac_dir, item) | path_join }}"
-        mode: 0755
-      loop:
-        - sgx-psp.yml
-        - sgx-rbac-cluster-role.yml
-
-    - name: populate RBAC role binding yaml file and push to controller node
-      template:
-        src: "sgx-rbac-role-binding.yml.j2"
-        dest: "{{ (intel_sgx_psp_rbac_dir, 'sgx-rbac-role-binding.yml') | path_join }}"
-        force: yes
-        mode: preserve
-
-    - name: create PSP and RBAC
-      k8s:
-        state: present
-        src: "{{ (intel_sgx_psp_rbac_dir,  item) | path_join }}"
-      loop:
-        - sgx-psp.yml
-        - sgx-rbac-cluster-role.yml
-        - sgx-rbac-role-binding.yml
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-    - hostvars[groups['kube_node'][0]]['is_icx'] or
-      hostvars[groups['kube_node'][0]]['is_spr']
-    - psp_enabled | default(true)
 
 - name: prepare and deploy Intel SGX Device Plugin
   block:
@@ -163,15 +110,10 @@
         src: "{{ (project_root_dir, 'intel-sgx-plugin.yml') | path_join  }}"
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
-    - hostvars[groups['kube_node'][0]]['is_icx'] or
-      hostvars[groups['kube_node'][0]]['is_spr']
 
 - name: wait for Intel SGX Device Plugin
   pause:
     minutes: 1
-  when:
-    - is_icx | default(false) | bool or
-      is_spr | default(false) | bool
 
 - name: build Intel sgx-aesmd demo image Docker engine
   block:
@@ -186,14 +128,14 @@
 
     - name: tag Intel sgx-aesmd image
       command: docker tag intel/sgx-aesmd-demo:{{ intel_sgx_dp_version }} {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      changed_when: true
 
     - name: push Intel sgx-aesmd image to local registry
       command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      changed_when: true
   when:
     - sgx_aesmd_demo_enable | default(false) | bool
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool or
-      is_spr | default(false) | bool
     - container_runtime == "docker"
 
 - name: build Intel sgx-aesmd demo image non-Docker engine
@@ -210,8 +152,6 @@
   when:
     - sgx_aesmd_demo_enable | default(false) | bool
     - inventory_hostname == groups['kube_node'][0]
-    - is_icx | default(false) | bool or
-      is_spr | default(false) | bool
     - '"docker" not in container_runtime'
 
 - name: prepare and deploy Intel SGX aesmd demo
@@ -242,8 +182,7 @@
         --namespace {{ sgx_aesmd_namespace }}
         --create-namespace
         {{ (project_root_dir, 'charts', 'intel-sgx-aesmd') | path_join }}
+      changed_when: true
   when:
     - sgx_aesmd_demo_enable | default(false) | bool
     - inventory_hostname == groups['kube_control_plane'][0]
-    - hostvars[groups['kube_node'][0]]['is_icx'] or
-      hostvars[groups['kube_node'][0]]['is_spr']

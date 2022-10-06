@@ -1,0 +1,73 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies for Intel DSA devices
+  include_role:
+    name: install_dependencies
+
+- name: install accel-config tool
+  include_tasks: install_accel_config.yml
+
+- name: get number of DSA devices
+  find:
+    paths: "{{ dsa_devices_dir }}"
+    file_type: any
+    use_regex: yes
+    patterns:
+      - '^(dsa)\w'
+  register: found_dsa_devices
+
+- name: apply default configuration for DSA devices
+  include_tasks: dsa_default_config.yml
+  vars:
+    dsa_id: "{{ item.path[-1] }}"
+  with_items: "{{ found_dsa_devices.files }}"
+  when:
+    - configure_dsa_devices | default(false) | bool
+    - dsa_devices | default([]) | length | int == 0
+
+- name: fail if configured number of DSA devices is greater than actual number of DSA devices on the node
+  fail:
+    msg: "Max supported DSA devices by node is {{ found_dsa_devices.matched }}, but configuration for {{ dsa_devices | length }} was provided.
+          Please update dsa_devices list in host_vars."
+  when: dsa_devices | default([]) | length > found_dsa_devices.matched
+
+- name: apply custom configuration for DSA devices
+  include_tasks: dsa_custom_config.yml
+  vars:
+    dsa_device: "{{ item }}"
+  loop: "{{ dsa_devices }}"
+  when:
+    - configure_dsa_devices | default(false) | bool
+    - dsa_devices | default([])  | length > 0
+
+- name: save accel-config configuration
+  command: accel-config save-config
+  changed_when: true
+
+- name: create systemd unit file
+  copy:
+    src: "{{ (role_path , 'files', 'dsa_config.service') | path_join }}"
+    dest: /lib/systemd/system/dsa_config.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: ensure that systemd service is enabled
+  systemd:
+    name: dsa_config
+    enabled: yes
+    daemon_reload: yes

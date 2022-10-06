@@ -14,48 +14,53 @@
 ##   limitations under the License.
 ##
 ---
-- name: read CPU type
-  shell:
-    cmd: lscpu | grep "Model name:"
-  register: cpu_model
-  changed_when: false
-
-- name: set is_clx to false
+- name: set CPU ID
   set_fact:
-    is_clx: False
+    cpu_id: "{{ ansible_processor[2] | regex_search('\\$?\\d\\d\\d\\d\\%?\\@?\\w?|\\d\\d/\\d\\w') }}" # noqa var-spacing
 
-- name: check if clx mode
-  set_fact:
-    is_clx: True
-  when: item in cpu_model.stdout
-  loop: "{{ supported_clx_skus }}"
+- name: print CPU ID
+  debug:
+    msg: "CPU ID: {{ cpu_id }}"
 
-- name: set is_clx_nsku to false
-  set_fact:
-    is_clx_nsku: False
+- name: check if CPU has confirmed support
+  assert:
+    that: "cpu_id in {{ lookup('ansible.builtin.vars', 'confirmed_' + configured_arch + '_cpus') }} \
+           {% if configured_arch == 'clx' %} or cpu_id in {{ confirmed_clx_ncpus }} {% endif %} \
+           or cpu_id in {{ unconfirmed_cpu_models }}"
+    fail_msg:
+      "CPU model '{{ cpu_id }}' present on target is not in the confirmed CPUs list.\n
+      To proceed, please add  '{{ cpu_id }}' to the list of unconfirmed CPUs in variable 'unconfirmed_cpu_models' in group_vars.\n
+      Please be aware that by using CPU model that is not confirmed, some features may not work properly."
 
-- name: check if clx_nsku mode
+- name: set skl, icx, clx, spr to false
   set_fact:
-    is_clx_nsku: True
-  when: item in cpu_model.stdout
-  loop: "{{ supported_clx_nskus }}"
+    is_skl: false
+    is_clx: false
+    is_clx_ncpu: false
+    is_icx: false
+    is_spr: false
 
-- name: set is_icx to false
+- name: set is_skl architecture variable
   set_fact:
-    is_icx: False
+    is_skl: true
+  when: cpu_id in confirmed_skl_cpus
 
-- name: check if icx mode
+- name: set is_clx architecture variable
   set_fact:
-    is_icx: True
-  when: item in cpu_model.stdout
-  loop: "{{ supported_icx_skus }}"
+    is_clx: true
+  when: cpu_id in confirmed_clx_cpus
 
-- name: set is_spr to false
+- name: set is_icx architecture variable
   set_fact:
-    is_spr: False
+    is_icx: true
+  when: cpu_id in confirmed_icx_cpus
 
-- name: check if spr mode
+- name: set is_spr architecture variable
   set_fact:
-    is_spr: True
-  when: item in cpu_model.stdout
-  loop: "{{ supported_spr_skus }}"
+    is_spr: true
+  when: cpu_id in confirmed_spr_cpus
+
+- name: check if clx_ncpu mode
+  set_fact:
+    is_clx_ncpu: true
+  when: cpu_id in confirmed_clx_ncpus

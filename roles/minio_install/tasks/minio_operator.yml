@@ -33,7 +33,7 @@
     dest: "{{ (project_root_dir, 'charts') | path_join }}"
     mode: 0755
 
-- name: check MinIO Operator Helm charts temp directory.
+- name: check MinIO Operator Helm charts temp directory
   stat:
     path: "{{ (project_root_dir, 'charts', 'operator', 'temp') | path_join }}"
   register: operator_temp_dir
@@ -60,19 +60,44 @@
     kind: Namespace
     state: present
 
-- name: label minio on nodes
+- name: label minio on controller nodes
+  command: >-
+    kubectl label --overwrite nodes {{ hostvars[item]['ansible_hostname'] }}
+    {{ minio_storage_controller_key }}={{ minio_storage_controller_value }}
+  loop: "{{ groups['kube_control_plane'] }}"
+  changed_when: true
+
+- name: label minio on worker nodes
   command: >-
     kubectl label --overwrite nodes {{ hostvars[item]['ansible_hostname'] }}
     {{ minio_storage_worker_key }}={{ minio_storage_worker_value }}
   loop: "{{ groups['kube_node'] }}"
   changed_when: true
 
+# https://github.com/minio/operator/blob/master/docs/upgrade.md#upgrade-minio-operator-via-helm-charts
+- name: create CRD (tenants.minio.min.io)
+  k8s:
+    src: "{{ (project_root_dir, 'charts', 'operator', 'templates', 'minio.min.io_tenants.yaml') | path_join }}"
+    state: present
+    apply: true
+
+- name: ensure current version of tenants.minio.min.io CRD includes the labels
+  command: >-
+    kubectl label crd tenants.minio.min.io app.kubernetes.io/managed-by=Helm --overwrite
+  changed_when: true
+
+- name: ensure current version of tenants.minio.min.io CRD includes the annotations
+  command: >-
+    kubectl annotate crd tenants.minio.min.io
+    meta.helm.sh/release-name={{ minio_operator_release_name }}
+    meta.helm.sh/release-namespace={{ minio_operator_namespace }} --overwrite
+  changed_when: true
+
 - name: install MinIO Operator Helm charts
   command: >-
-    helm install
+    helm upgrade --install
     {{ minio_operator_release_name }}
     {{ (project_root_dir, 'charts/operator') | path_join }}
     --namespace {{ minio_operator_namespace }}
-    --set installCRDs=true
     -f {{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-operator-custom-values.yml') | path_join }}
   changed_when: true

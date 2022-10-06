@@ -1,33 +1,11 @@
 ---
 image:
-  repository: {{ nfd_image | default("k8s.gcr.io/nfd/node-feature-discovery") }}
-  tag: {{ nfd_version | default("v0.11.0")}}
+  repository: {{ nfd_image |d("k8s.gcr.io/nfd/node-feature-discovery") }}
+  # This should be set to 'IfNotPresent' for released version
   pullPolicy: IfNotPresent
-
-{% if sgx_dp_enabled | default(false) or gpu_dp_enabled | default(false) %}
-nfd_resource_labels:
-{% if sgx_dp_enabled | default(false) %}
-  - "sgx.intel.com/epc"
-{% endif %}
-{% if gpu_dp_enabled | default(false) %}
-  - "gpu.intel.com/memory.max"
-  - "gpu.intel.com/millicores"
-{% endif %}
-{% else %}
-nfd_resource_labels: []
-{% endif %}
-
-{% if sgx_dp_enabled | default(false) or gpu_dp_enabled | default(false) %}
-nfd_extra_labels_ns:
-{% if sgx_dp_enabled | default(false) %}
-  - "sgx.intel.com"
-{% endif %}
-{% if gpu_dp_enabled | default(false) %}
-  - "gpu.intel.com"
-{% endif %}
-{% else %}
-nfd_extra_labels_ns: []
-{% endif %}
+  # tag, if defined will use the given image tag, else Chart.AppVersion will be used
+  tag: {{ nfd_image_tag |d("v0.11.1") }}
+imagePullSecrets: []
 
 gpu_dp:
   enabled: {{ gpu_dp_enabled | default(false) | bool | lower }}
@@ -37,62 +15,205 @@ gpu_dp:
   max_memory: "0"
 {% endif %}
 
-{% if sgx_dp_enabled | default(false) or qat_dp_enabled | default(false) %}
-sgx_dp_enabled: {{ sgx_dp_enabled | default(false) | bool | lower }}
+nameOverride: ""
+fullnameOverride: ""
 
-config:
-  sources:
-    custom:
+nodeFeatureRule:
+  createCRD: true
+
+master:
+  instance:
+{% if sgx_dp_enabled | default(false) or gpu_dp_enabled | default(false) %}
+  extraLabelNs:
 {% if sgx_dp_enabled | default(false) %}
-      - name: "intel.sgx"
-        labels:
-          intel.sgx: "true"
-        matchFeatures:
-          - feature: cpu.cpuid
-            matchExpressions:
-              SGX: {op: Exists}
-              SGXLC: {op: Exists}
-          - feature: cpu.sgx
-            matchExpressions:
-              enabled: {op: IsTrue}
-{% if not (ansible_distribution == "Ubuntu" and ansible_distribution_version == "20.04") %}
-          - feature: kernel.config
-            matchExpressions:
-              X86_SGX: {op: Exists}
+    - "sgx.intel.com"
 {% endif %}
+{% if gpu_dp_enabled | default(false) %}
+    - "gpu.intel.com"
 {% endif %}
-{% if qat_dp_enabled | default(false) %}
-      - name: "intel.qat"
-        labels:
-          intel.qat: "true"
-        matchFeatures:
-          - feature: pci.device
-            matchExpressions:
-              vendor: {op: In, value: ["8086"]}
-              device: {op: In, value: {{ qat_supported_pf_dev_ids | list + qat_supported_vf_dev_ids | list }}}
+  resourceLabels:
+{% if sgx_dp_enabled | default(false) %}
+    - "sgx.intel.com/epc"
 {% endif %}
+{% if gpu_dp_enabled | default(false) %}
+    - "gpu.intel.com/memory.max"
+    - "gpu.intel.com/millicores"
+{% endif %}
+{% else %}
+  extraLabelNs: []
+  resourceLabels: []
 {% endif %}
 
-sleepInterval: {{ nfd_sleep_interval | default("60s")}}
+  featureRulesController: null
+  deploymentAnnotations: {}
+  replicaCount: 1
 
+  podSecurityContext: {}
+    # fsGroup: 2000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ "ALL" ]
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    # runAsUser: 1000
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: {{ nfd_sa_create | default(true) | bool | lower }}
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: {{ nfd_sa_name | default(false) | bool | lower }}
+
+  rbac:
+    create: {{ nfd_rbac_enabled | default(true) | bool | lower }}
+
+  service:
+    type: {{ nfd_svc_type }}
+    port: {{ nfd_svc_port }}
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  nodeSelector: {}
+
+  tolerations:
+  - key: "node-role.kubernetes.io/master"
+    operator: "Equal"
+    value: ""
+    effect: "NoSchedule"
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Equal"
+    value: ""
+    effect: "NoSchedule"
+
+  annotations: {}
+
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 1
+          preference:
+            matchExpressions:
+              - key: "node-role.kubernetes.io/master"
+                operator: In
+                values: [""]
+        - weight: 1
+          preference:
+            matchExpressions:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: In
+                values: [""]
+
+worker:
+  config:
+    core:
+      sleepInterval: {{ nfd_sleep_interval |d("60s") }}
+
+  daemonsetAnnotations: {}
+  podSecurityContext: {}
+    # fsGroup: 2000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ "ALL" ]
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    # runAsUser: 1000
+
+  serviceAccount:
+    # Specifies whether a service account should be created.
+    # We create this by default to make it easier for downstream users to apply PodSecurityPolicies.
+    create: {{ nfd_sa_create | default(false) | bool | lower }}
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: {{ nfd_sa_name | default(false) | bool | lower }}
+
+  # Allow users to mount the hostPath /usr/src, useful for RHCOS on s390x
+  # Does not work on systems without /usr/src AND a read-only /usr, such as Talos
+  mountUsrSrc: false
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  annotations: {}
+
+  affinity: {}
+
+topologyUpdater:
+  enable: false
+  createCRDs: false
+
+  serviceAccount:
+    create: false
+    annotations: {}
+    name:
+  rbac:
+    create: false
+
+  kubeletConfigPath:
+  kubeletPodResourcesSockPath:
+  updateInterval: 60s
+  watchNamespace: "*"
+
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ "ALL" ]
+    readOnlyRootFilesystem: true
+    runAsUser: 0
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  nodeSelector: {}
+  tolerations: []
+  annotations: {}
+  affinity: {}
+
+# Optionally use encryption for worker <--> master comms
+# TODO: verify hostname is not yet supported
+#
+# If you do not enable certManager (and have it installed) you will
+# need to manually, or otherwise, provision the TLS certs as secrets
 tls:
-  enabled: {{ nfd_tls_enabled | default(false) | bool | lower }}
-  generate: {{ nfd_tls_generate | default(false) | bool | lower }}
-  masterKey: "{{ nfd_tls_master_key }}"
-  masterCert: "{{ nfd_tls_master_cert }}"
-  workerKey: "{{nfd_tls_worker_key}}"
-  workerCert: "{{ nfd_tls_worker_cert }}"
-  caCert: "{{ nfd_tls_ca_cert }}"
-
-
-serviceAccount:
-  create: {{ nfd_sa_create | default(false) | bool | lower }}
-  name: "{{ nfd_sa_name }}"
-
-rbac:
-  enabled: {{ nfd_rbac_enabled | default(false) | bool | lower }}
-
-service:
-  port: {{ nfd_svc_port }}
-  type: "{{ nfd_svc_type }}"
-
+  enable: true
+  certManager: {{ cert_manager_enabled |d(false) }}

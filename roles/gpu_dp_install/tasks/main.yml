@@ -41,12 +41,14 @@
 
     - name: tag Intel GPU Device Plugin images
       command: docker tag intel/{{ item }}:{{ intel_gpu_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_gpu_dp_version }}
+      changed_when: true
       loop:
         - intel-gpu-plugin
         - intel-gpu-initcontainer
 
     - name: push Intel GPU Device Plugin image to local registry
       command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_gpu_dp_version }}
+      changed_when: true
       loop:
         - intel-gpu-plugin
         - intel-gpu-initcontainer
@@ -64,15 +66,15 @@
         chdir: "{{ intel_gpu_dp_dir }}"
       changed_when: true
       with_items:
-        - { file: intel-gpu-initcontainer.Dockerfile, name: intel-gpu-initcontainer }
-        - { file: intel-gpu-plugin.Dockerfile, name: intel-gpu-plugin }
+        - {file: intel-gpu-initcontainer.Dockerfile, name: intel-gpu-initcontainer}
+        - {file: intel-gpu-plugin.Dockerfile, name: intel-gpu-plugin}
 
     - name: push Intel GPU Device Plugin image to local registry
       command: podman push {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
       changed_when: true
       with_items:
-        - { name: intel-gpu-initcontainer }
-        - { name: intel-gpu-plugin }
+        - {name: intel-gpu-initcontainer}
+        - {name: intel-gpu-plugin}
   when:
     - inventory_hostname == groups['kube_node'][0]
     - gpu_dp_build_image_locally

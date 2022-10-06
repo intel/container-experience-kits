@@ -14,5 +14,24 @@
 ##   limitations under the License.
 ##
 ---
-- name: setup CPU isolation
+- name: Get cpus for cpu isolation in case of VMRA
+  block:
+    - name: Set isolcpus_cpus_total variable
+      set_fact:
+        isolcpus_cpus_total: ""
+
+    - name: Allocate cpus
+      include_role:
+        name: bootstrap/allocate_cpus
+
+    - name: Get vms cpus
+      include_tasks: get_required_cpus.yml
+
+    - name: Debug cpupin_vms
+      debug:
+        var: cpupin_vms
+  when:
+    - vm_enabled and (not on_vms | default(false))
+
+- name: Setup CPU isolation
   include_tasks: setup_isolcpus.yml

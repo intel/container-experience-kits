@@ -1,0 +1,68 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get maximum possible number of VFs
+  command: cat /sys/bus/pci/devices/{{ item.qat_id }}/sriov_totalvfs
+  register: total_vfs
+  changed_when: false
+
+- name: get current number of VFs
+  command: cat /sys/bus/pci/devices/{{ item.qat_id }}/sriov_numvfs
+  register: existing_vfs
+  changed_when: false
+
+- name: fail if requested number of VFs is higher than supported
+  assert:
+    that: item.qat_sriov_numvfs | default(0) | int <= total_vfs.stdout | int
+    fail_msg: "Requested qat_sriov_numvfs for {{ item.qat_id }} must be lower than {{ total_vfs.stdout | int }}"
+
+- name: create QAT VFs and save SR-IOV numvfs configuration
+  block:
+    # in case when QAT SR-IOV VFs have been already configured we reset it first to avoid "device or resource busy" error
+    - name: reset QAT SR-IOV Virtual Functions
+      shell: echo 0 > /sys/bus/pci/devices/{{ item.qat_id }}/sriov_numvfs
+      when: existing_vfs.stdout|int != 0 and existing_vfs.stdout|int != item.qat_sriov_numvfs
+            and (existing_vfs.stdout|int != total_vfs.stdout|int or item.qat_sriov_numvfs|int == 0)
+
+    - name: enable QAT SR-IOV Virtual Functions
+      shell: echo {{ item.qat_sriov_numvfs }} > /sys/bus/pci/devices/{{ item.qat_id }}/sriov_numvfs
+      when: existing_vfs.stdout|int != item.qat_sriov_numvfs
+            and (existing_vfs.stdout|int != total_vfs.stdout|int or item.qat_sriov_numvfs|int == 0)
+
+    - name: force driver binding when QAT VFs are created
+      lineinfile:
+        path: "{{ sriov_config_path }}/cek_force_qat_driver_binding"
+        line: "{{ item.qat_id }}"
+        regexp: "^{{ item.qat_id }}"
+        create: yes
+        owner: root
+        group: root
+        mode: '0600'
+      when: existing_vfs.stdout|int != item.qat_sriov_numvfs
+            and (existing_vfs.stdout|int != total_vfs.stdout|int or item.qat_sriov_numvfs|int == 0)
+
+    - name: save number of QAT VFs per bus location
+      lineinfile:
+        path: "{{ sriov_config_path }}/cek_sriov_qat_numvfs"
+        line: "{{ item.qat_id }} {{ item.qat_sriov_numvfs | default(0) }}"
+#        regexp: "^{{ item.qat_id }}" # It was removed intentionally to enable WA for Rocky
+        create: yes
+        owner: root
+        group: root
+        mode: '0600'
+      become: yes
+      when:
+        - item.qat_sriov_numvfs | default(0) | int != 0

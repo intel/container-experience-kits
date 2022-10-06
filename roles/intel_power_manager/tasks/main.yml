@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: install dependencies for Power Operator
+- name: install dependencies for Power Manager
   include_role:
     name: install_dependencies
 
@@ -29,9 +29,9 @@
 - name: prepare Intel Kubernetes Power Manager
   include_tasks: power_manager.yml
 
-- name: wait for Power Operator and Power Node Agent to be up and running
+- name: wait for Power Manager and Power Node Agent to be up and running
   pause:
-    prompt: "Waiting for Power Operator pods to be up and running..."
+    prompt: "Waiting for Power Manager pods to be up and running..."
     minutes: 1
 
 - name: deploy example power pods

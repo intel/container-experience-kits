@@ -43,6 +43,7 @@
 
     - name: install Intel Device Plugins Operator
       command: kubectl apply -k {{ intel_dp_operator_dir }}/deployments/operator/default
+      changed_when: true
       register: result
       retries: 10
       delay: 5

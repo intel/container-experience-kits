@@ -16,11 +16,16 @@
 ---
 install_dependencies:
   Debian:
+    - cmake
     - g++
     - pkg-config
     - wget
     - make
     - yasm
+    - libboost-all-dev
+    - libnl-genl-3-dev
+    - zlib1g
+    - zlib1g-dev
   RedHat:
     - "@Development Tools"
     - pciutils
@@ -35,3 +40,4 @@ install_dependencies:
     - perl
     - usbutils
     - yasm
+    - boost-devel

@@ -22,8 +22,8 @@
         force: yes
         mode: preserve
       loop:
-        - { src: 'flow-config-sriov-policy.yml.j2', dst: 'flow-config-sriov-policy.yml' }
-        - { src: 'flow-config-node-flow.yml.j2', dst: 'flow-config-node-flow.yml' }
+        - {src: 'flow-config-sriov-policy.yml.j2', dst: 'flow-config-sriov-policy.yml'}
+        - {src: 'flow-config-node-flow.yml.j2', dst: 'flow-config-node-flow.yml'}
 
     - name: apply SRIOV Network Node Policy for Flow Config
       k8s:

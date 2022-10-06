@@ -13,3 +13,6 @@
 - name: install Intel Container Experience Kit features
   import_playbook: intel/{{ playbook_name }}.yml
   when: kubernetes | default(true)
+- name: run post deployment hooks
+  import_playbook: k8s/post_deployment_hooks.yml
+  when: post_deployment_hook_enabled | default(false)

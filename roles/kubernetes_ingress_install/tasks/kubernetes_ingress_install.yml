@@ -1,0 +1,66 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+  - name: check Kubernetes-Ingress Helm charts directory.
+    stat:
+      path: "{{ (project_root_dir, 'charts', 'kubernetes-ingress') | path_join }}"
+    register: kubernetes_ingress_path
+
+  - name: create Kubernetes-Ingress Helm charts directory if needed
+    file:
+      path: "{{ (project_root_dir, 'charts', 'kubernetes-ingress') | path_join }}"
+      state: directory
+      mode: 0755
+    when:
+      - kubernetes_ingress_path.stat.exists is defined and not kubernetes_ingress_path.stat.exists
+
+  - name: check Kubernetes-Ingress Helm charts temp directory.
+    stat:
+      path: "{{ (project_root_dir, 'charts', 'kubernetes-ingress', 'temp') | path_join }}"
+    register: kubernetes_ingress_temp_dir
+
+  - name: create the temp folder for Kubernetes-Ingress custom values
+    file:
+      path: "{{ (project_root_dir, 'charts', 'kubernetes-ingress', 'temp') | path_join }}"
+      state: directory
+      mode: 0755
+    when:
+      - not kubernetes_ingress_temp_dir.stat.exists
+
+  - name: populate Kubernetes-Ingress Helm charts values template and push to controller node
+    template:
+      src: "kubernetes_ingress_custom_values.yml.j2"
+      dest: "{{ (project_root_dir, 'charts', 'kubernetes-ingress', 'temp', 'kubernetes-ingress-custom-values.yml') | path_join }}"
+      force: yes
+      mode: preserve
+
+  - name: Add Kubernetes Ingress Controller Helm Chart Repository
+    command: >-
+      helm repo add "{{ kubernetes_ingress_helm_chart_repo_name }}" "{{ kubernetes_ingress_helm_repo_url }}"
+    changed_when: true
+
+  - name: Deploy {{ kubernetes_ingress_helm_chart_version }} of {{ kubernetes_ingress_helm_chart_ref }}
+    command: >-
+      helm install
+      {{ kubernetes_ingress_release_name }}
+      {{ kubernetes_ingress_helm_chart_ref }}
+      --namespace {{ kubernetes_ingress_helm_chart_release_namespace }}
+      --create-namespace
+      -f {{ (project_root_dir, 'charts', 'kubernetes-ingress', 'temp', 'kubernetes-ingress-custom-values.yml') | path_join }}
+    changed_when: true
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]

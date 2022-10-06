@@ -57,8 +57,8 @@
     chdir: "{{ extender.ssl }}"
     executable: /bin/bash
   loop:
-    - { name: server, target: "tls-extender" }
-    - { name: client, target: "tls-extender-client" }
+    - {name: server, target: "tls-extender"}
+    - {name: client, target: "tls-extender-client"}
   changed_when: true
 
 - name: create secret {{ extender.secret_name }}

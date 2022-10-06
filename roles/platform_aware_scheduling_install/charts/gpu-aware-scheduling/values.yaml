@@ -42,4 +42,3 @@ tls:
 #   key: <key>
 #   certificate: <secret>
 verbosity: 4
-

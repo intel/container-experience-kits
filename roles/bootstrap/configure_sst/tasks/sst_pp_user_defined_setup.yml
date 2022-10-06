@@ -55,7 +55,7 @@
 
 - name: SST-PP turbostat output when online CPUs is not set to auto configuration
   debug:
-    msg: "{{ read_turbostat_values.stdout|replace('\\t',' ') }}"
+    msg: "{{ read_turbostat_values.stdout | replace('\\t',' ') }}"
 
 - name: create directory sst_pp_config to save details
   file:

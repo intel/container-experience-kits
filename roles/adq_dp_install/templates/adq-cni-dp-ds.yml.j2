@@ -1,0 +1,141 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: adq-cni-dp
+  namespace: {{ adq_dp_namespace }}
+spec:
+  selector:
+      matchLabels:
+        name: adq-cni-dp
+  template:
+    metadata:
+      labels:
+        name: adq-cni-dp
+    spec:
+      tolerations:
+      - operator: Exists
+      hostNetwork: true
+      hostPID: true
+      serviceAccountName: adq
+      initContainers:
+      - name: install-cni
+        image: {{ registry_local_address }}/adq-cni-dp:{{ intel_adq_dp_version }}
+        command: [ "sh", "-c", "cp -f /adq-cni /opt/cni/bin/adq-cni" ]
+        securityContext:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - name: cni
+          mountPath: /opt/cni/bin
+      - name: configs
+        image: {{ registry_local_address }}/adq-cni-dp:{{ intel_adq_dp_version }}
+        command: ["sh", "-c", "/entrypoint.sh"]
+        securityContext:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        volumeMounts:
+        - name: cni-cfg
+          mountPath: /host/etc/cni/net.d/
+        - name: adq-cluster-config
+          mountPath: /etc/adq
+        - name: adqsetup-config
+          mountPath: /adqsetup-config
+        - name: configs-tmp
+          mountPath: /configs-tmp
+      - name: adqsetup
+        image: {{ registry_local_address }}/adqsetup:{{ intel_adq_dp_version }}
+        command: ["adqsetup", "apply", "/adqsetup-config/adqsetup.conf"]
+        securityContext:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+          privileged: true
+        volumeMounts:
+        - name: adqsetup-config
+          mountPath: /adqsetup-config
+          readOnly: true
+      containers:
+      - name: deviceplugin
+        image: {{ registry_local_address }}/adq-cni-dp:{{ intel_adq_dp_version }}
+        args:
+        - -reconcile-period=35s
+        securityContext:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - name: device-plugins
+          mountPath: /var/lib/kubelet/device-plugins
+        - name: sys-devices
+          mountPath: /sys/devices/
+          readOnly: true
+        - name: sys-class-net
+          mountPath: /sys/class/net/
+          readOnly: true
+        - name: cni-cfg
+          mountPath: /etc/cni/net.d/
+          readOnly: true
+      - name: adq-netprio
+        image: {{ registry_local_address }}/adq-cni-dp:{{ intel_adq_dp_version }}
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        securityContext:
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+        command: ["/adq-netprio"]
+        args:
+        - -cni-config-path=/etc/cni/net.d/05-cilium.conflist
+        - -reconcile-period=2s
+        volumeMounts:
+        - mountPath: /sys/fs/cgroup
+          name: cgroupfs
+        - mountPath: /var/lib/kubelet/pod-resources/kubelet.sock
+          name: pod-resources
+          readOnly: true
+        - name: cni-cfg
+          mountPath: /etc/cni/net.d/
+          readOnly: true
+        - name: kubelet-pki
+          mountPath: /var/lib/kubelet/pki/kubelet.crt
+          readOnly: true
+      volumes:
+      - name: device-plugins
+        hostPath:
+          path: /var/lib/kubelet/device-plugins
+      - name: pod-resources
+        hostPath:
+          path: /var/lib/kubelet/pod-resources/kubelet.sock
+          type: Socket
+      - name: cni
+        hostPath:
+          path: /opt/cni/bin
+      - name: cni-cfg
+        hostPath:
+          path: /etc/cni/net.d/
+      - name: sys-devices
+        hostPath:
+          path: /sys/devices/
+      - name: sys-class-net
+        hostPath:
+          path: /sys/class/net/
+      - name: cgroupfs
+        hostPath:
+          path: /sys/fs/cgroup
+      - name: kubelet-pki
+        hostPath:
+          path: /var/lib/kubelet/pki/kubelet.crt
+          type: File
+      - name: adq-cluster-config
+        configMap:
+          name: adq-cluster-config
+      - name: adqsetup-config
+        emptyDir: {}
+      - name: configs-tmp
+        emptyDir: {}

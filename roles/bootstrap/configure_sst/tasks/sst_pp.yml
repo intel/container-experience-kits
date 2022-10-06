@@ -149,14 +149,14 @@
 
 - name: SST-PP turbostat output when turbo-freq setup is auto configuration
   debug:
-    msg: "{{ read_turbostat_output.stdout|replace('\\t',' ') }}"
+    msg: "{{ read_turbostat_output.stdout | replace('\\t',' ') }}"
   when:
     - '"enable" in sst_tf_config'
     - '"auto" in sst_tf_online_cpus'
 
 - name: save turbostat output for auto config to SST-PP dir path
   shell:
-     cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_auto.txt"
+    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_auto.txt"
   args:
     executable: /bin/bash
     chdir: "{{ project_root_dir }}/sst_pp_config"
@@ -186,7 +186,7 @@
 
 - name: SST-PP turbostat output when all SST-BF,SST-CP and SST-TF are disabled
   debug:
-    msg: "{{ turbostat_output_for_disabled.stdout|replace('\\t',' ') }}"
+    msg: "{{ turbostat_output_for_disabled.stdout | replace('\\t',' ') }}"
   when:
     - '"disable" in sst_bf_config'
     - '"disable" in sst_cp_config'
@@ -194,7 +194,7 @@
 
 - name: save turbostat output to SST-PP dir when SST-BF,SST-CP and SST-TF are disabled
   shell:
-     cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_disabled.txt"
+    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_disabled.txt"
   args:
     executable: /bin/bash
     chdir: "{{ project_root_dir }}/sst_pp_config"
@@ -223,7 +223,7 @@
       intel-speed-select \
       -d perf-profile set-config-level \
       -l {{ sst_pp_level_set.stdout }} -o | \
-      grep -E '(set_tdp_level|online|offline|logical)' > sst_pp_config_details.txt
+      grep -E '(set_tdp_level | online | offline | logical)' > sst_pp_config_details.txt
   args:
     executable: /bin/bash
     chdir: "{{ project_root_dir }}/sst_pp_config"

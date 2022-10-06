@@ -37,8 +37,17 @@ data:
     rm -rf {{ $key.token_key }}
     {{ end }}
 
-    echo "Starting AppHSM..."
+    echo -e "\033[0;31m------------------------------------------------------------"
+    echo -e "KMRA (Key Management Reference Application) is a proof-of-concept"
+    echo -e "software not suitable for production usage. AppHSM Key Server has"
+    echo -e "limited functionality and provisions private keys to non-production"
+    echo -e "SGX enclaves. Please note that the enclave is signed with a test"
+    echo -e "signing key. A production enclave should go through the process of"
+    echo -e "signing an enclave as explained in the section Enclave Signing Tool"
+    echo -e "in the Intel(R) SGX Developer Reference for Linux* OS"
+    echo -e "(https://download.01.org/intel-sgx/latest/linux-latest/docs/)"
+    echo -e "---------------------------------------------------------------\033[0m"
 
     source /opt/intel/apphsm/env_*/bin/activate && \
-        python3.9 /opt/intel/apphsm/apphsm.py && \
+        python3 /opt/intel/apphsm/apphsm.py && \
         deactivate

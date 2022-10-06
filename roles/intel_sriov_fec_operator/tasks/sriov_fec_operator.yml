@@ -48,10 +48,10 @@
     force: yes
     mode: preserve
   loop:
-    - { src: 'acc100-cr.yaml.j2', dst: 'acc100-cr.yaml' }
-    - { src: 'catalog.yml.j2', dst: 'catalog.yml' }
-    - { src: 'operator-group.yml.j2', dst: 'operator-group.yml' }
-    - { src: 'subscription.yml.j2', dst: 'subscription.yml' }
+    - {src: 'acc100-cr.yaml.j2', dst: 'acc100-cr.yaml'}
+    - {src: 'catalog.yml.j2', dst: 'catalog.yml'}
+    - {src: 'operator-group.yml.j2', dst: 'operator-group.yml'}
+    - {src: 'subscription.yml.j2', dst: 'subscription.yml'}
 
 - name: create FEC Operator namespace
   k8s:

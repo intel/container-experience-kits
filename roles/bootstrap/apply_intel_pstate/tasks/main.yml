@@ -17,9 +17,14 @@
 - name: determine machine type
   include_role:
     name: check_machine_type
+  when:
+    - inventory_hostname in groups['kube_node'] or
+      inventory_hostname in groups['vm_host']
+    - not on_vms | default (false)
 
 - name: setup turbo boost
   include_tasks: setup_turbo.yml
   when:
     - turbo_boost_enabled is defined
-    - is_clx_nsku or is_icx or is_spr
+    - not on_vms | default (false)
+    - is_clx_ncpu or is_icx or is_spr

@@ -65,24 +65,7 @@
       debug:
         msg: "group_vars profile_name is: '{{ group_vars_profile }}'"
 
-    - name: set env_profile variable
-      set_fact:
-        env_profile: "{{ lookup('env','PROFILE') | default('not defined', True) }}"
-
-    - name: show environment PROFILE variable
-      debug:
-        msg: "environment variable PROFILE is: '{{ env_profile }}'"
-
-    - name: assert that environment variable PROFILE and group_vars profile_name matches
-      assert:
-        that: "env_profile == group_vars_profile"
-        fail_msg: >
-          "Content of environment variable 'PROFILE'='{{ env_profile }}' doesn't match
-          group_vars variable 'profile_name'='{{ group_vars_profile }}', please fix this discrepancy"
-      when:
-        - env_profile != 'not defined'
-
-- hosts: k8s_cluster
+- hosts: "{{ node | default('k8s_cluster') }}"
   roles:
     - role: redeploy_cleanup
       tag: cleanup

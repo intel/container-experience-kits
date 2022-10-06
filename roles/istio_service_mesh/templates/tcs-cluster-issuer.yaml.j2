@@ -1,0 +1,6 @@
+apiVersion: tcs.intel.com/v1alpha1
+kind: TCSClusterIssuer
+metadata:
+    name: {{ istio_service_mesh.sgx_signer.name }}
+spec:
+    secretName: {{ istio_service_mesh.sgx_signer.name }}-secret

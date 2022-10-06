@@ -1,0 +1,72 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Handle SGX configuration for VM
+  block:
+    - name: Dump domain XML - {{ vm.name }}
+      shell: virsh dumpxml "{{ vm.name }}" > "{{ (vm_project_root_dir, vm.name) | path_join }}.xml"
+      changed_when: true
+
+    - name: Adding memory node to domain XML
+      community.general.xml:
+        path: "{{ (vm_project_root_dir, vm.name) | path_join }}.xml"
+        xpath: /domain/devices
+        add_children:
+          - memory:
+              model: 'sgx-epc'
+
+    - name: Adding target node to domain XML
+      community.general.xml:
+        path: "{{ (vm_project_root_dir, vm.name) | path_join }}.xml"
+        xpath: /domain/devices/memory
+        add_children:
+          - target:
+
+    - name: Adding size node to domain XML
+      community.general.xml:
+        path: "{{ (vm_project_root_dir, vm.name) | path_join }}.xml"
+        xpath: /domain/devices/memory/target
+        add_children:
+          - size:
+              unit: 'MiB'
+
+    - name: Setting memory size to domain XML
+      community.general.xml:
+        path: "{{ (vm_project_root_dir, vm.name) | path_join }}.xml"
+        xpath: /domain/devices/memory/target/size
+        value: "{{ sgx_memory_size | string }}"
+
+    - name: VM destroy for sgx modifications
+      command: virsh destroy "{{ vm.name }}"
+      changed_when: true
+
+    - name: VM undefine for sgx modifications
+      command: virsh undefine "{{ vm.name }}"
+      changed_when: true
+
+    - name: VM create with sgx modifications
+      command: virsh create "{{ (vm_project_root_dir, vm.name) | path_join }}.xml"
+      changed_when: true
+  when:
+    - (not vm.name in current_vms.stdout) or
+      vm_recreate_existing | default(true)
+
+- name: Current VM SGX - {{ vm.name }}
+  debug:
+    msg: "Current VM - {{ vm.name }} was already running. Nothing was changed"
+  when:
+    - (vm.name in current_vms.stdout)
+    - not vm_recreate_existing | default(true)

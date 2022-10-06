@@ -15,8 +15,8 @@
 ##
 ---
 intel_gpu_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_gpu_dp_git_ref: "v0.23.0"
-intel_gpu_dp_version: "0.23.0"
+intel_gpu_dp_git_ref: "v0.24.0"
+intel_gpu_dp_version: "0.24.0"
 intel_gpu_dp_dir: "{{ (project_root_dir, 'intel-gpu-dp') | path_join }}"
 
 gpu_dp_shared_devices: 10

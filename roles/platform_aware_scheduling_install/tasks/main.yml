@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name : install dependencies
+- name: install dependencies
   include_role:
     name: install_dependencies
   when:

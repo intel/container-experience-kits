@@ -7,14 +7,14 @@ The Bond CNI Plugin relies on other CNI Plugins to provide the interfaces to be 
 Start by verifying that the Bond CNI Plugin is available on the worker nodes by connecting through SSH and checking that the Bond CNI binary is available:
 ```
 # ll /opt/cni/bin/bond
--rwxr-xr-x. 1 root root 3836352 Feb 27 13:03 /opt/cni/bin/bond
+-rwxr-xr-x 1 root root 3892645 Sep 16 06:37 /opt/cni/bin/bond*
 ```
 
 Verify that VFs using the kernel driver are available on the worker nodes in the Kubernetes cluster:
 ```
 # kubectl get node <worker node> -o json | jq '.status.allocatable'
 {
-  "cpu": "93",
+  "cpu": "95550m",
   "ephemeral-storage": "452220352993",
   "hugepages-1Gi": "4Gi",
   "hugepages-2Mi": "256Mi",

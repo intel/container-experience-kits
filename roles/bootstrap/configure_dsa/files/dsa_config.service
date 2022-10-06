@@ -1,0 +1,11 @@
+[Unit]
+Description=Intel Container Experience Kits accel-config configuration loading for DSA devices
+AssertPathExists=/etc/accel-config/accel-config.conf
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 40
+ExecStart=accel-config load-config -e -f
+
+[Install]
+WantedBy=multi-user.target

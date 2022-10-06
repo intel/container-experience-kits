@@ -21,11 +21,27 @@
   when: inventory_hostname in groups['kube_control_plane'] or
         ( 'vm_host' in groups and inventory_hostname in groups['vm_host'])
 
+- name: open required ports in the firewall configuration on the controller nodes
+  command: ufw allow {{ item }}
+  with_items: "{{ adq_open_ports['controller'] }}"
+  become: yes
+  when:
+    - inventory_hostname in groups['kube_control_plane']
+    - adq_dp.enabled |d(false) | bool
+
 - name: open required ports in the firewall configuration on the worker nodes
   command: ufw allow {{ item }}
   with_items: "{{ fw_open_ports['node'] }}"
   become: yes
   when: inventory_hostname in groups['kube_node']
+
+- name: open required ports in the firewall configuration on the worker nodes
+  command: ufw allow {{ item }}
+  with_items: "{{ adq_open_ports['node'] }}"
+  become: yes
+  when:
+    - inventory_hostname in groups['kube_node']
+    - adq_dp.enabled |d(false) | bool
 
 - name: allow traffic from Kubernetes subnets
   command: ufw allow from {{ item }}
@@ -46,6 +62,7 @@
       shell: set pipefail -o && route | grep default | awk '{print $8}' # interface name is at the very end of line
       args:
         executable: /bin/bash
+      changed_when: false
       register: default_if
 
     - name: allow incoming trafiic on default interface

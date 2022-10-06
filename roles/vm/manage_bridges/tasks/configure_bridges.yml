@@ -14,40 +14,62 @@
 ##   limitations under the License.
 ##
 ---
-- name: Stop VXLAN bridge
-  virt_net:
-    command: destroy
-    name: "vxlanbr{{ item.vxlan }}"
-  ignore_errors: true
+- name: Set VXLAN bridge name for {{ item.name }}
+  set_fact:
+    vxlan_bridge_name: "vxlanbr{{ item.vxlan }}"
 
-- name: Undefine VXLAN bridge
+- name: Check current VXLAN bridge network - {{ vxlan_bridge_name }}
   virt_net:
-    command: undefine
-    name: "vxlanbr{{ item.vxlan }}"
-  ignore_errors: true
+    command: list_nets
+  register: vxlan_net_list
+  failed_when: false
 
-- name: Define simple VXLAN bridge if needed
-  virt_net:
-    command: define
-    name: "vxlanbr{{ item.vxlan }}"
-    xml: '{{ lookup("template", "simple-bridge.xml.j2") }}'
+- name: Handle VXLAN bridge network
+  block:
+    - name: Stop VXLAN bridge
+      virt_net:
+        command: destroy
+        name: "{{ vxlan_bridge_name }}"
+      failed_when: false
+
+    - name: Undefine VXLAN bridge
+      virt_net:
+        command: undefine
+        name: "{{ vxlan_bridge_name }}"
+      failed_when: false
+
+    - name: Define simple VXLAN bridge if needed
+      virt_net:
+        command: define
+        name: "{{ vxlan_bridge_name }}"
+        xml: '{{ lookup("template", "simple-bridge.xml.j2") }}'
+      when:
+        - item.vxlan not in dhcp
+
+    - name: Define dhcp VXLAN bridge if needed
+      virt_net:
+        command: define
+        name: "{{ vxlan_bridge_name }}"
+        xml: '{{ lookup("template", "dhcp-bridge.xml.j2") }}'
+      when:
+        - item.vxlan in dhcp
+
+    - name: Create VXLAN bridge
+      virt_net:
+        command: create
+        name: "{{ vxlan_bridge_name }}"
+
+    - name: Autostart VXLAN bridge
+      virt_net:
+        autostart: yes
+        name: "{{ vxlan_bridge_name }}"
   when:
-    - item.vxlan not in dhcp
+    - (not vxlan_bridge_name in vxlan_net_list.list_nets) or
+      vm_recreate_existing | default(true)
 
-- name: Define dhcp VXLAN bridge if needed
-  virt_net:
-    command: define
-    name: "vxlanbr{{ item.vxlan }}"
-    xml: '{{ lookup("template", "dhcp-bridge.xml.j2") }}'
+- name: Current VXLAN bridge network
+  debug:
+    msg: "Current VXLAN bridge network - {{ vxlan_bridge_name }} was not changed"
   when:
-    - item.vxlan in dhcp
-
-- name: Create VXLAN bridge
-  virt_net:
-    command: create
-    name: "vxlanbr{{ item.vxlan }}"
-
-- name: Autostart VXLAN bridge
-  virt_net:
-    autostart: yes
-    name: "vxlanbr{{ item.vxlan }}"
+    - (vxlan_bridge_name in vxlan_net_list.list_nets)
+    - not vm_recreate_existing | default(true)

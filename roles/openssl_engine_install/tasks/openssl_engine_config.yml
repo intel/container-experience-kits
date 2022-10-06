@@ -135,24 +135,24 @@
 - name: autogen configuration for OpenSSL*Engine
   command: ./autogen.sh
   args:
-    chdir: "{{ openssl_engine_dir }}/openssl_engine"
+    chdir: "{{ (openssl_engine_dir, 'openssl_engine') | path_join }}"
   changed_when: true
 
 - name: check all configuration is present for OpenSSL*Engine
-  command:  "./configure --enable-multibuff_offload --enable-ipsec_offload --enable-multibuff_ecx --enable-qat_sw"
+  command: "./configure --enable-multibuff_offload --enable-ipsec_offload --enable-multibuff_ecx --enable-qat_sw"
   args:
-    chdir: "{{ openssl_engine_dir }}/openssl_engine"
+    chdir: "{{ (openssl_engine_dir, 'openssl_engine') | path_join }}"
   changed_when: false
 
 - name: Build OpenSSL*Engine Library once successfully configured
   command: 'make -j{{ nproc_out.stdout | int }}'
   args:
-    chdir: "{{ openssl_engine_dir }}/openssl_engine"
+    chdir: "{{ (openssl_engine_dir, 'openssl_engine') | path_join }}"
   changed_when: true
 
 - name: make install OpenSSL*Engine
   make:
-    chdir: "{{ openssl_engine_dir }}/openssl_engine"
+    chdir: "{{ (openssl_engine_dir, 'openssl_engine') | path_join }}"
     target: install
   environment:
     "MAKEFLAGS": "-j{{ nproc_out.stdout | int }}"
@@ -169,5 +169,6 @@
 
 - name: OpenSSL*Engine command returns errors, playbook terminated
   fail:
-     msg: "OpenSSL Engine failed to load... Cause of failure can be unsupported hardware or misconfiguration of Intel QAT OpenSSL*Engine"
-  when: "openssl_engine_version not in confirm_openssl_engine.stdout"
+    msg: "OpenSSL Engine failed to load... Cause of failure can be unsupported hardware or misconfiguration of Intel QAT OpenSSL*Engine"
+  when:
+    - "openssl_engine_version not in confirm_openssl_engine.stdout"

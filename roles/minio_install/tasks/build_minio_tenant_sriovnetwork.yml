@@ -50,7 +50,7 @@
     set -o pipefail && kubectl -n {{ sriov_network_operator_namespace }} get sriovnetworknodepolicy -o json
     | jq '.items[]
     | select(.spec.nodeSelector["kubernetes.io/hostname"] == "{{ hostvars[groups['kube_node'][0]]['minio_interfaces'][ansible_loop.index0]['nodename'] }}"
-    and .spec.deviceType == "{{ minio_sriov_network_deviceType }}")
+    and .spec.deviceType == "{{ minio_sriov_network_devicetype }}")
     | select(.spec.nicSelector.pfNames[0] | startswith("{{ hostvars[groups['kube_node'][0]]['minio_interfaces'][ansible_loop.index0]['minio_pf_name'] }}"))
     | {resourceName: .spec.resourceName}'
   args:

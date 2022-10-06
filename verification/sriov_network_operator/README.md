@@ -6,7 +6,7 @@ Start by listing allocatable node resources for the target worker node:
 ```
 # kubectl get node <worker node> -o json | jq '.status.allocatable'
 {
-  "cpu": "125",
+  "cpu": "95550m",
   "ephemeral-storage": "189274027310",
   "hugepages-1Gi": "4Gi",
   "hugepages-2Mi": "256Mi",
@@ -25,7 +25,7 @@ To get more details about each of the SR-IOV Network Operator resources, we can 
 ```
 # kubectl get SriovNetworkNodeState <worker node> -n sriov-network-operator -o json | jq '.spec'
 {
-  "dpConfigVersion": "3347",
+  "dpConfigVersion": "5941",
   "interfaces": [
     {
       "linkType": "eth",

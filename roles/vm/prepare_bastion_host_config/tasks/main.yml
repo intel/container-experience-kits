@@ -29,24 +29,45 @@
   with_items: "{{ vm_ips | dict2items }}"
   delegate_to: localhost
 
+- name: Initialize bastion host usage
+  set_fact:
+    used_bastion: "{{ 'false' | bool }}"
+
+- name: Check bastion host usage
+  set_fact:
+    used_bastion: "{% if item.key in current_vms.stdout %}{{ used_bastion  or 'true' | bool }}{% else %}{{ used_bastion }}{% endif %}"
+  with_items: "{{ vm_ips | dict2items }}"
+
 - name: Remove old ECDSA key fingerprint on for bastion host
   command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ ansible_host }}"
   delegate_to: localhost
   changed_when: true
+  when:
+    - (not used_bastion | bool) or
+      vm_recreate_existing | default(true)
 
 - name: Store ECDSA key fingerprint for bastion host
   command: ssh -o StrictHostKeyChecking=No {{ ansible_host }} hostname
   delegate_to: localhost
   changed_when: true
+  when:
+    - (not used_bastion | bool) or
+      vm_recreate_existing | default(true)
 
 - name: Remove old ECDSA key fingerprint on localhost
   command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.key }}"
   with_items: "{{ vm_ips | dict2items }}"
   delegate_to: localhost
   changed_when: true
+  when:
+    - (not item.key in current_vms.stdout) or
+      vm_recreate_existing | default(true)
 
 - name: Store ECDSA key fingerprint on localhost
   command: ssh -o StrictHostKeyChecking=No {{ item.key }} hostname
   with_items: "{{ vm_ips | dict2items }}"
   delegate_to: localhost
   changed_when: true
+  when:
+    - (not item.key in current_vms.stdout) or
+      vm_recreate_existing | default(true)

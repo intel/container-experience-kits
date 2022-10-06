@@ -11,6 +11,18 @@ power-node-agent-9dkch               2/2     Running   0          34m
 ```
 **Note:** each profile was deployed in a separate pod
 
+Check the power profiles:
+```
+# kubectl get powerprofiles -n intel-power
+NAME                              AGE
+balance-performance               30m
+balance-performance-node1         30m
+balance-power                     30m
+balance-power-node1               30m
+performance                       30m
+performance-node1                 30m
+```
+
 You can check the frequencies that will be set by balance-performance Power Profile
 ```
 # kubectl get PowerProfiles -n intel-power balance-performance-node1 -o yaml

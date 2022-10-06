@@ -33,10 +33,12 @@
 
     - name: delete any preexisting certs/key/CSR from Kubernetes
       command: kubectl delete csr registry.{{ registry_namespace }}
+      changed_when: true
       failed_when: false
 
     - name: delete any preexisting secrets from Kubernetes
       command: kubectl delete secret -n {{ registry_namespace }} {{ registry_secret_name }}
+      changed_when: true
       failed_when: false
 
     - name: populate registry CSR template
@@ -58,12 +60,14 @@
       args:
         chdir: "/etc/ssl/registry/"
         executable: /bin/bash
+      changed_when: true
       become: yes
 
     - name: read generated key
       command: cat registry-key.pem
       args:
         chdir: "/etc/ssl/registry/"
+      changed_when: false
       register: key
 
     - name: load generated key
@@ -74,6 +78,7 @@
       command: cat registry.csr
       args:
         chdir: "/etc/ssl/registry/"
+      changed_when: false
       register: csr
 
     - name: load generated csr
@@ -89,14 +94,17 @@
 
     - name: send CSR to the Kubernetes API Server
       command: kubectl apply -f /etc/ssl/registry/kube-registry-csr.yml
+      changed_when: true
 
     - name: approve request
       command: kubectl certificate approve registry.kube-system
+      changed_when: true
 
     - name: get approved certificate
       shell: kubectl get csr registry.kube-system -o jsonpath='{.status.certificate}'
       args:
         chdir: "/etc/ssl/registry"
+      changed_when: false
       register: cert
       retries: 30
       delay: 1
@@ -111,6 +119,7 @@
         kubectl create -n {{ registry_namespace }} secret generic {{ registry_secret_name }}
         --from-literal=tls.crt='{{ registry_cert }}'
         --from-literal=tls.key='{{ registry_key }}'
+      changed_when: true
 
     - name: clean up
       file: path=/etc/ssl/registry state=absent
@@ -122,44 +131,44 @@
 - name: copy Kubernetes CA so that registry client can validate registry's certificate
   become: yes
   block:
-  - name: remove existing certs and keys
-    file: path="/etc/docker/certs.d/{{ registry_local_address }}" state=absent
-  - name: ensure that path exists
-    file:
-      path: "/etc/docker/certs.d/{{ registry_local_address }}"
-      mode: '0700'
-      owner: root
-      group: root
-      state: directory
-  - name: place Kubernetes CA in the /etc/docker/certs.d
-    copy:
-      src: /etc/kubernetes/ssl/ca.crt
-      dest: "/etc/docker/certs.d/{{ registry_local_address }}/ca.crt"
-      remote_src: yes
-      mode: '0600'
-      owner: root
-      group: root
+    - name: remove existing certs and keys
+      file: path="/etc/docker/certs.d/{{ registry_local_address }}" state=absent
+    - name: ensure that path exists
+      file:
+        path: "/etc/docker/certs.d/{{ registry_local_address }}"
+        mode: '0700'
+        owner: root
+        group: root
+        state: directory
+    - name: place Kubernetes CA in the /etc/docker/certs.d
+      copy:
+        src: /etc/kubernetes/ssl/ca.crt
+        dest: "/etc/docker/certs.d/{{ registry_local_address }}/ca.crt"
+        remote_src: yes
+        mode: '0600'
+        owner: root
+        group: root
   when: container_runtime == "docker"
 
 # copy CA file so that registry clients can validate its certificate
 - name: copy Kubernetes CA so that registry client can validate registry's certificate
   become: yes
   block:
-  - name: remove existing certs and keys
-    file: path="/etc/containers/certs.d/{{ registry_local_address }}ca.crt" state=absent
-  - name: ensure that path exists
-    file:
-      path: "/etc/containers/certs.d/{{ registry_local_address }}"
-      mode: '0700'
-      owner: root
-      group: root
-      state: directory
-  - name: place Kubernetes CA in the /etc/containers/certs.d/
-    copy:
-      src: /etc/kubernetes/ssl/ca.crt
-      dest: "/etc/containers/certs.d/{{ registry_local_address }}/ca.crt"
-      remote_src: yes
-      mode: '0600'
-      owner: root
-      group: root
+    - name: remove existing certs and keys
+      file: path="/etc/containers/certs.d/{{ registry_local_address }}ca.crt" state=absent
+    - name: ensure that path exists
+      file:
+        path: "/etc/containers/certs.d/{{ registry_local_address }}"
+        mode: '0700'
+        owner: root
+        group: root
+        state: directory
+    - name: place Kubernetes CA in the /etc/containers/certs.d/
+      copy:
+        src: /etc/kubernetes/ssl/ca.crt
+        dest: "/etc/containers/certs.d/{{ registry_local_address }}/ca.crt"
+        remote_src: yes
+        mode: '0600'
+        owner: root
+        group: root
   when: '"docker" not in container_runtime'

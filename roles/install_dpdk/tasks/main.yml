@@ -17,7 +17,7 @@
 - name: Check if dpdk_version is defined
   assert:
     that:
-    - dpdk_version is defined
+      - dpdk_version is defined
     fail_msg: "Required variable 'dpdk_version' is not defined"
 
 - name: install dependencies
@@ -78,7 +78,7 @@
         msg: "[WARNING] DPDK patches were not found, no patches been applied."
       when:
         - patches_found.skipped | default(false) or patches_found.matched == 0
-      ignore_errors: true
+      failed_when: false
 
   when: dpdk_local_patches_dir is defined
 

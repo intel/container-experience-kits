@@ -9,6 +9,7 @@ data:
     {
       "port": {{ .Values.apphsm.main.port | int }},
       "ip": {{ .Values.apphsm.main.hostname | quote }},
+      "nonce_lifetime": {{ .Values.apphsm.nonce_lifetime | int }},
       "clients": [
         {{- if eq .Values.apphsm.ctk_loadkey_demo_enabled "true" -}}
         {

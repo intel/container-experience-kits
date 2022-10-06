@@ -14,7 +14,11 @@
 ##   limitations under the License.
 ##
 ---
-qat_drivers_version: 'QAT.L.4.18.0-00008'
-qat_drivers_download_url: 'https://downloadmirror.intel.com/729932/{{qat_drivers_version }}.tar.gz'
-qat_drivers_pkg_checksum: 'sha1:8BB265F64EC845DDB2B5580638F9FC4293881A1B'
+qat_drivers_version: 'QAT.L.4.18.1-00001'
+qat_drivers_download_url: 'https://downloadmirror.intel.com/738667/{{ qat_drivers_version }}.tar.gz'
+qat_drivers_pkg_checksum: 'sha1:5D967D676963F3D81FB22A60F389D654F231C08C'
+# If updating mentioned below folder location kindly update similar in roles/redeploy_cleanup/defaults/main.yml
 qat_drivers_dir: "{{ (project_root_dir, 'qat_drivers') | path_join }}"
+
+# sha256:checksum of QAT20.L.0.9.6-00024.tar.gz package
+qat_drivers_version_checksum: "b7759c2c7b50077e2840c6cc1001ed4c6c54145a7aa89ccc941ac931c53100b5"

@@ -28,23 +28,6 @@
     - inventory_hostname == groups['kube_node'][0]
     - qat_dp_build_image_locally
 
-# Once the patch is released in official intel_qat_dp version
-# remove this task and disable local build in group_vars.j2 via
-# qat_dp_build_image_locally: false
-# Correction expected in intel_qat_dp version 0.24.0
-- name: apply qat_plugin patch
-  patch:
-    src: "{{ item }}"
-    basedir: "{{ intel_qat_dp_dir }}"
-    strip: 1
-    state: present
-  with_items:
-    - "noiommu.patch"
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - qat_dp_build_image_locally
-    - on_vms is defined and on_vms
-
 - name: prepare containers images
   block:
     - name: Build QAT Plugin before Intel QAT Device Plugin image
@@ -59,9 +42,11 @@
 
     - name: tag Intel QAT Device Plugin image
       command: docker tag intel/intel-qat-plugin:{{ intel_qat_dp_version }} {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
+      changed_when: true
 
     - name: push Intel QAT Device Plugin image to local registry
       command: docker push {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}
+      changed_when: true
   when:
     - inventory_hostname == groups['kube_node'][0]
     - qat_dp_build_image_locally
@@ -75,7 +60,7 @@
         chdir: "{{ intel_qat_dp_dir }}"
       changed_when: true
       with_items:
-        - { file: intel-qat-plugin.Dockerfile, name: intel-qat-plugin }
+        - {file: intel-qat-plugin.Dockerfile, name: intel-qat-plugin}
 
     - name: push Intel QAT Device Plugin image to local registry
       command: podman push {{ registry_local_address }}/intel-qat-plugin:{{ intel_qat_dp_version }}

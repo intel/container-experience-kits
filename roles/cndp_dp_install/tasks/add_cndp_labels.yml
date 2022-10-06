@@ -15,7 +15,7 @@
 ##
 ---
 - name: add labels for nodes with CNDP
-  command: kubectl label nodes {{ node_name }} cndp=true --overwrite
+  command: kubectl label nodes {{ hostvars[node_name]['ansible_hostname'] }} cndp=true --overwrite
   when:
     - cndp_dp_enabled | default(false)
     - hostvars[node_name]['cndp_enabled'] | default(false)

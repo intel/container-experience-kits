@@ -65,11 +65,31 @@
     force: yes
   when: inventory_hostname in groups['kube_control_plane']
 
-- name: copy EventRateLimit configuration file
+- name: copy admission controller configuration files
   copy:
-    dest: "{{ kube_config_dir }}/admission-control/eventconfig.yaml"
-    src: eventconfig.yaml
+    src: "{{ item }}"
+    dest: "{{ kube_config_dir }}/admission-control/"
     owner: root
     group: root
     mode: 0644
+  with_fileglob: '*.yaml'
   when: inventory_hostname in groups['kube_control_plane']
+
+- block:
+    - name: networkd | disable managing of foreign routes
+      lineinfile:
+        path: "{{ item.dest }}"
+        line: "{{ item.line }}"
+        regexp: "{{ item.regex }}"
+        firstmatch: yes
+      loop:
+        - {dest: "/etc/systemd/networkd.conf",
+           regex: "#ManageForeignRoutingPolicyRules=yes", line: "ManageForeignRoutingPolicyRules=no"}
+        - {dest: "/etc/systemd/networkd.conf",
+           regex: "#ManageForeignRoutes=yes", line: "ManageForeignRoutes=no"}
+
+    - name: Restart systemd-networkd
+      systemd:
+        name: systemd-networkd.service
+        state: restarted
+  when: kube_network_plugin == "cni"

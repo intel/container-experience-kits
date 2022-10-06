@@ -13,8 +13,7 @@ The software provided here is for reference only and not intended for production
     ```
 
 2. Decide which configuration profile you want to use and export environmental variable.
-   For VM case is PROFILE environment variable mandatory.
-   > **_NOTE:_** For non-VM case it will be used only to ease execution of the steps listed below.
+   > **_NOTE:_** It will be used only to ease execution of the steps listed below.
     - For **Kubernetes Basic Infrastructure** deployment:
 
         ```bash
@@ -118,12 +117,13 @@ The software provided here is for reference only and not intended for production
 
     For VM case:
     - update details relevant for vm_host (e.g.: datalane_interfaces, ...)
-    - update VMs definition in host_vars/host-for-vms-1.yml
+    - update VMs definition in host_vars/host-for-vms-1.yml - use that template for the first vm_host
+    - update VMs definition in host_vars/host-for-vms-2.yml - use that template for the second and all other vm_hosts
     - update/create host_vars for all defined VMs (e.g.: host_vars/vm-ctrl-1.yml and host_vars/vm-work-1.yml)
       Needed details are at least dataplane_interfaces
       For more details see [VM case configuration guide](docs/vm_config_guide.md)
 
-9. **Recommended:** Apply bug fix patch for Kubespray submodule (Required for RHEL 8+ and Ubuntu 22.04).
+9. **Required:** Apply bug fix patch for Kubespray submodule (for RHEL 8+ or Rocky 9(if wireguard is enabled)).
 
     ```bash
     ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
@@ -149,11 +149,14 @@ Refer to the documentation linked below to see configuration details for selecte
 
 - [SRIOV Network Device Plugin and SRIOV CNI plugin](docs/sriov.md)
 - [MinIO Operator](docs/storage.md)
+- [Adding and removing worker node(s)](docs/add_remove_nodes.md)
 - [VM case configuration guide](docs/vm_config_guide.md)
+- [VM multinode setup guide](docs/vm_multinode_setup_guide.md)
+- [VM cluster expansion guide](docs/vm_cluster_expansion_guide.md)
 ## Prerequisites and Requirements
 
 - Required packages on the target servers: **Python3**.
-- Required packages on the ansible host (where ansible playbooks are run): **Python3 and Pip3**.
+- Required packages on the ansible host (where ansible playbooks are run): **Python3.8-3.10 and Pip3**.
 - Required python packages on the ansible host.  **See requirements.txt**.
 
 - SSH keys copied to all Kubernetes cluster nodes (`ssh-copy-id <user>@<host>` command can be used for that).

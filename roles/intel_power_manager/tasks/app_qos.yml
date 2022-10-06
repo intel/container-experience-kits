@@ -22,17 +22,8 @@
     force: yes
   when: inventory_hostname in groups['kube_node']
 
-# NOTE(pklimowx): w/a for error "ModuleNotFoundError: No module named 'pqos'"
-- name: copy pqos module to appqos working dir
-  copy:
-    remote_src: yes
-    src: "{{ (intel_appqos_dir, 'lib', 'python', 'pqos') | path_join }}"
-    dest: "{{ (intel_appqos_dir, 'appqos') | path_join }}"
-    mode: 0755
-  when: inventory_hostname in groups['kube_node']
-
 # NOTE(pklimowx): since AppQoS image is not available on docker hub
-# and public images of the Power Operator use `appqos:latest` image,
+# and public images of the Power Manager use `appqos:latest` image,
 # we have to build AppQoS image on each node, and push it to localregistry
 # only once.
 #
@@ -41,15 +32,18 @@
   block:
     - name: build image of App QoS
       command: docker build --no-cache -t appqos -f Dockerfile ../../
+      changed_when: true
       args:
         chdir: "{{ (intel_appqos_dir, 'appqos', 'docker') | path_join }}"
 
     - name: tag App QoS image
       command: docker tag appqos:latest {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      changed_when: true
       when: inventory_hostname == groups['kube_node'][0]
 
     - name: push App QoS image to local registry
       command: docker push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      changed_when: true
       when: inventory_hostname == groups['kube_node'][0]
   when:
     - container_runtime == "docker"
@@ -60,6 +54,7 @@
   block:
     - name: build and tag App QoS image
       command: podman build -f Dockerfile -t {{ registry_local_address }}/appqos:{{ intel_appqos_version }} ../../
+      changed_when: true
       args:
         chdir: "{{ (intel_appqos_dir, 'appqos', 'docker') | path_join }}"
 
@@ -86,6 +81,7 @@
       command: "{{ item }}"
       args:
         chdir: "{{ intel_appqos_cert_dir }}"
+      changed_when: true
       with_items:
         - openssl req -nodes -x509 -newkey rsa:4096 -keyout ca.key -out ca.crt -days 365 -subj "/O=AppQoS/OU=root/CN=localhost"
         - openssl req -nodes -newkey rsa:3072 -keyout appqos.key -out appqos.csr -subj "/O=AppQoS/OU=AppQoS Server/CN=localhost"

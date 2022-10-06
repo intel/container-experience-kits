@@ -39,6 +39,7 @@
         dest: "{{ project_root_dir }}"
         checksum: "{{ iavf_driver_checksum }}"
         timeout: 60
+        mode: 0644
       register: iavf_download
       until: iavf_download is not failed
       retries: 5

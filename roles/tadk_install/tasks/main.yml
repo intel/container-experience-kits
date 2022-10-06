@@ -1,0 +1,54 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Make the path for install
+  ansible.builtin.file:
+    path: "{{ dest_path }}"
+    state: directory
+    mode: '0755'
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Copy file with owner and permissions
+  ansible.builtin.copy:
+    src: "{{ (role_path, 'charts', 'tadk') | path_join }}"
+    dest: "{{ dest_path }}"
+    mode: '0755'
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: populate template files with values
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ (dest_path, 'tadk', item) | path_join }}"
+    force: yes
+    mode: preserve
+  loop:
+    - values.yaml
+    - Chart.yaml
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: deploy the helm
+  ansible.builtin.command: >-
+    helm upgrade -i {{ deploy_name }} --create-namespace --namespace {{ tadk_namespace }}
+    -f {{ (dest_path, 'tadk', 'values.yaml') | path_join }} {{ (dest_path, 'tadk') | path_join }}
+  args:
+    chdir: "{{ (dest_path, 'tadk') | path_join }}"
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]

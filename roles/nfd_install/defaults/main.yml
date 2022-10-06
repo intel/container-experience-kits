@@ -14,32 +14,10 @@
 ##   limitations under the License.
 ##
 ---
-nfd_git_url: "https://github.com/kubernetes-sigs/node-feature-discovery.git"
-nfd_git_ref: "v0.11.0"
-nfd_dir: "{{ (project_root_dir, 'nfd') | path_join }}"
+nfd_image: "k8s.gcr.io/nfd/node-feature-discovery"
+nfd_image_tag: "v0.11.1"
 
-nfd_external_image_name: "k8s.gcr.io/nfd/node-feature-discovery"
-nfd_external_image_tag: "v0.11.0"
-
-nfd_build_image_locally: false
 nfd_namespace: "kube-system"
-nfd_sleep_interval: "60s"
-
-
-nfd_tls_enabled: true
-# automatically generate self-signed certificate
-nfd_tls_generate: true
-# base64-encoded nfd-master private TLS key, required when tls.enabled is true and tls.generate is false
-nfd_tls_master_key: ""
-# base64-encoded nfd-master private TLS certificate, required when tls.enabled is true and tls.generate is false
-nfd_tls_master_cert: ""
-# base64-encoded nfd-worker private TLS key, required when tls.enabled is true and tls.generate is false
-nfd_tls_worker_key: ""
-# base64-encoded nfd-worker private TLS certificate, required when tls.enabled is true and tls.generate is false
-nfd_tls_worker_cert: ""
-# base64-encoded additional CA certificate which will be used to validate peer certificates, required when tls.enabled is true and tls.generate is false
-nfd_tls_ca_cert: ""
-
 
 nfd_sa_create: true
 nfd_sa_name: ""
@@ -47,4 +25,3 @@ nfd_rbac_enabled: true
 
 nfd_svc_port: 8080
 nfd_svc_type: ClusterIP
-

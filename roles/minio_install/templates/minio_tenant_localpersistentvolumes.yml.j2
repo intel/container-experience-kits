@@ -6,7 +6,7 @@ metadata:
    name: {{ pv.name }}-{{ item }}
 spec:
    capacity:
-      storage: {{ pv.capacity[:-1] }}
+      storage: {{ minio_tenant_volume_size }}Gi
    volumeMode: Filesystem
    accessModes:
    - {{ pv.accessMode }}

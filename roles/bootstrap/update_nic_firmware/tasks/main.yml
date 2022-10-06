@@ -22,8 +22,10 @@
 - name: validate host vars interface names with system interface names before FW update
   assert:
     that: "item.name in check_nics_in_system.stdout"
-    fail_msg: "host vars defined dataplane interface name != interface name found in system. Kindly, select correct interface name"
-    success_msg: "host vars defined dataplane interface name = interface name found in system, verification completed"
+    fail_msg:
+      - "Interface name (bus_id) defined in host vars (dataplane interfaces) does not match interface name (bus_id) found in system."
+      - "Please select correct interface name (bus_id) in (dataplane interfaces)"
+    success_msg: "In host vars (dataplane interfaces) defined interface name (bus_id) = interface name (bus_id) found in system, verification completed"
   with_items: "{{ dataplane_interfaces }}"
 
 - name: update NIC firmware

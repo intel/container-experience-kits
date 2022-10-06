@@ -52,4 +52,3 @@ docker_log_opts: "--log-opt max-size=50m --log-opt max-file=5"
 # docker_rpm_keepcache: 1
 
 yum_repo_dir: /etc/yum.repos.d
-

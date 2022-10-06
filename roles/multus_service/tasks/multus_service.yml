@@ -1,0 +1,49 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check Multus Service Helm charts directory
+  stat:
+    path: "{{ (project_root_dir, 'charts', 'multus_service') | path_join }}"
+  register: multus_service_path
+
+- name: create Multus Service Helm charts directory if needed
+  file:
+    path: "{{ (project_root_dir, 'charts', 'multus_service') | path_join }}"
+    state: directory
+    mode: 0755
+  when:
+    - multus_service_path.stat.exists is defined and not multus_service_path.stat.exists
+
+- name: copy Multus Service charts to the controller node
+  copy:
+    src: "{{ (role_path, 'charts', 'multus_service') | path_join }}"
+    dest: "{{ (project_root_dir, 'charts') | path_join }}"
+    mode: 0755
+
+# - name: clone Multus Service repository
+  # git:
+    # repo: "{{ multus_service_git_url }}"
+    # dest: "{{ (project_root_dir, 'charts', 'multus_service') | path_join }}"
+    # version: "{{ multus_service_commit_hash }}"
+    # force: yes
+
+- name: install Multus Service Helm chart
+  command: >-
+    helm install {{ multus_service_release_name }}
+    {{ (project_root_dir, 'charts', 'multus_service') | path_join }}
+    --namespace {{ multus_service_namespace }}
+    --create-namespace
+  changed_when: true

@@ -8,6 +8,9 @@
       tags: remove-kubespray-host-dns-settings
       when:
         - remove_kubespray_host_dns_settings | default(false) | bool
+    - role: adq_dp_install
+      tags: adq_dp
+      when: adq_dp.enabled |d(false) | bool
     - role: nfd_install
       tags: nfd
       when: nfd_enabled | default(true) | bool
@@ -36,14 +39,46 @@
       tags: dp-operator
       when: sgx_dp_enabled | default(false) or
             gpu_dp_enabled | default(false) or
-            qat_dp_enabled | default(false)
+            qat_dp_enabled | default(false) or
+            dsa_dp_enabled | default(false) or
+            dlb_dp_enabled | default(false)
 {%- endif %}
-{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'build_your_own'] %}
+{%- if playbook_name in ['full_nfv', 'regional_dc', 'build_your_own'] %}
+    - role: gpu_dp_install
+      tags: gpu-dp
+      when: gpu_dp_enabled | default(false) | bool
+{%- endif %}
+{%- if playbook_name in ['access', 'full_nfv', 'on_prem', 'remote_fp', 'storage', 'build_your_own'] %}
+    - role: qat_dp_install
+      tags: qat-dp
+      when: qat_dp_enabled | default(false) | bool
+{%- endif %}
+{%- if playbook_name in ['full_nfv', 'regional_dc', 'build_your_own'] %}
+    - role: gpu_dp_install
+      tags: gpu-dp
+      when: gpu_dp_enabled | default(false) | bool
+{%- endif %}
+{%- if playbook_name in ['access', 'full_nfv', 'on_prem', 'remote_fp', 'storage', 'build_your_own'] %}
+    - role: qat_dp_install
+      tags: qat-dp
+      when: qat_dp_enabled | default(false) | bool
+{%- endif %}
+{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'regional_dc', 'build_your_own'] %}
     - role: sgx_dp_install
       tags: sgx-dp
       when:
         - sgx_dp_enabled | default(false)
         - ansible_os_family == "Debian" or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.3')
+    - role: dlb_dp_install
+      tags: dlb-dp
+      when:
+        - dlb_dp_enabled is defined and dlb_dp_enabled | default(false) | bool
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and update_kernel) or
+          (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04') or
+          (ansible_os_family == "RedHat" and ansible_distribution_version >= '9.0')
+    - role: dsa_dp_install
+      tags: dsa-dp
+      when: dsa_dp_enabled is defined and dsa_dp_enabled | default(false) | bool
     - role: kmra_install
       tags: kmra
       when:
@@ -60,22 +95,16 @@
       tags: tca
       when:
         - tca.enabled | default(false) | bool
+{%- endif %}
+{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'regional_dc', 'build_your_own'] %}
     - role: intel_power_manager
       tags: power-manager
       when: intel_power_manager is defined and intel_power_manager.enabled | default(false) | bool
 {%- endif %}
 {%- if playbook_name in ['access', 'full_nfv', 'on_prem', 'remote_fp', 'storage', 'build_your_own'] %}
-    - role: qat_dp_install
-      tags: qat-dp
-      when: qat_dp_enabled | default(false) | bool
     - role: openssl_engine_install
       tags: openssl-engine
       when: openssl_engine_enabled | default(false) | bool
-{%- endif %}
-{%- if playbook_name in ['full_nfv', 'regional_dc', 'build_your_own'] %}
-    - role: gpu_dp_install
-      tags: gpu-dp
-      when: gpu_dp_enabled | default(false) | bool
 {%- endif %}
 {%- if playbook_name in ['full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'build_your_own'] %}
     - role: platform_aware_scheduling_install
@@ -99,23 +128,21 @@
       tags: monitoring
       vars:
         telegraf_profile: {{ playbook_name }}
+    - role: opentelemetry_install
+      when:
+        - opentelemetry_enabled | default(false) | bool
+      tags: opentelemetry
 {%- if playbook_name in ['access', 'full_nfv', 'build_your_own'] %}
     - role: intel_sriov_fec_operator
       tags: intel-sriov-fec-operator
       when:
         - intel_sriov_fec_operator_enabled | default(false) | bool
 {%- endif %}
-{%- if playbook_name in ['access', 'full_nfv', 'build_your_own'] %}
-    - role: intel_flexran
-      tags: intel-flexran
-      when:
-        - intel_flexran_enabled | default(false) | bool
-{%- endif %}
 {%- if playbook_name in ['access', 'full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'build_your_own'] %}
-    - role: service_mesh_install
-      tags: service-mesh
+    - role: istio_service_mesh
+      tags: istio-service-mesh
       when:
-        - service_mesh.enabled | default(true) | bool
+        - istio_service_mesh.enabled | default(true) | bool
 {%- endif %}
 {%- if playbook_name in ['basic', 'full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'build_your_own'] %}
     - role: cndp_install
@@ -137,6 +164,16 @@
       when:
         - minio_enabled | default(false) | bool
 {%- endif %}
+{%- if playbook_name in ['full_nfv', 'build_your_own'] %}
+    - role: tadk_install
+      tags: tadk
+      when:
+        - tadk_install | default(false) | bool
+{%- endif %}
+    - role: cadvisor_install
+      tags: cadvisor
+      when:
+        - cadvisor_enabled | default(false) | bool
   environment:
     - "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
     - REGISTRY_AUTH_FILE: "{{ '{{' }} registry_containerd {{ '}}' }}"
@@ -170,5 +207,26 @@
   roles:
     - role: net_attach_defs_create
       tags: net-attach-defs
+    - role: jaeger_install
+      tags: jaeger
+      when:
+         - jaeger_operator | default(false) | bool
+{%- if playbook_name in ['access', 'full_nfv', 'on_prem', 'regional_dc', 'remote_fp', 'build_your_own'] %}
+    - role: linkerd_service_mesh
+      tags: linkerd-service-mesh
+      when:
+        - linkerd_service_mesh.enabled | default(false) | bool
+{%- endif %}
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
+  any_errors_fatal: true
+
+- hosts: oru, kube_node[0]
+  tasks: []
+  roles:
+{%- if playbook_name in ['access', 'full_nfv', 'build_your_own'] %}
+    - role: intel_flexran
+      tags: intel-flexran
+      when:
+        - intel_flexran_enabled | default(false) | bool
+{%- endif %}
   any_errors_fatal: true

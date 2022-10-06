@@ -27,6 +27,7 @@
   block:
     - name: get interface info
       command: ethtool -i {{ interface_name }}
+      changed_when: false
       register: ethtool
     - name: set ethtool_drvinfo
       set_fact:
@@ -37,37 +38,70 @@
     - name: set fw_short_version
       set_fact:
         fw_short_version: "{{ (fw_full_version.split(' ') | first) }}"
-    # Only major.minor "mm" part are relevant because e.g. on E800 series FW shows as 2.00 on C0 (rev 02) and 2.02 on B0 (rev 01) 
+    # Only major.minor "mm" part are relevant because e.g. on E800 series FW shows as 2.00 on C0 (rev 02) and 2.02 on B0 (rev 01)
     - name: set fw_current_mm
       set_fact:
         fw_current_mm: "{{ fw_short_version[0:3] }}"
     - name: set fw_min_req
       set_fact:
-        fw_min_req: "{{ nvmupdate[nic_module].min_required_fw_version }}"
+        fw_min_req: "{{ nvmupdate[nic_module].required_fw_version }}"
     - name: set fw_min_mm
       set_fact:
         fw_min_mm: "{{ fw_min_req[0:3] }}"
     - debug:
         msg: "On {{ interface_name }} (driver {{ nic_module }}) the firmware version is {{ fw_full_version }}"
 
-- name: check if current firmware version meets minimal requirements
+- name: check if current firmware version meets required version requirements
   set_fact:
-    continue_nvmupdate: "{{ fw_current_mm is version_compare(fw_min_mm, '<') }}"
+    continue_nvmupdate: "{{ fw_current_mm is version_compare(fw_min_mm, '!=') }}"
+    continue_nvmupdate_upgrade: "{{ fw_current_mm is version_compare(fw_min_mm, '<') }}"
+    continue_nvmupdate_downgrade: "{{ fw_current_mm is version_compare(fw_min_mm, '>') }}"
 
 - debug:
-    msg: "The current firmware release on the card is {{ fw_current_mm }}. Min required is {{ fw_min_mm }}"
+    msg: "The current firmware release on the card is {{ fw_current_mm }}. Required is {{ fw_min_mm }}"
 
 - name: assert that current FW is not too old
   assert:
     that: fw_short_version is version_compare(nvmupdate[nic_module].min_updatable_fw_version, '>=')
-    fail_msg: "Current firmware version {{ fw_short_version }} is too old to update; it must be {{ nvmupdate[nic_module].min_updatable_fw_version }} or newer"
+    fail_msg: "Current firmware version {{ fw_short_version }} is too old to upgrade; it must be {{ nvmupdate[nic_module].min_updatable_fw_version }} or newer"
   when: continue_nvmupdate | bool
+
+# download supported nvmupdate64e tool from required fw version
+- name: download supported nvmupdate64e tool
+  block:
+    - name: download nvmupdate package for supported nvmupdate64e tool when downgrading fw
+      get_url:
+        url: "{{ nvmupdate[nic_module].supported_nvmupdate_tool_pkg_url }}"
+        checksum: "{{ nvmupdate[nic_module].supported_nvmupdate_tool_pkg_checksum }}"
+        dest: "{{ ansible_env.HOME }}/nvmupdate.tar.gz"
+        mode: 0644
+      register: ice_nvmupdate_tool
+      until: ice_nvmupdate_tool is not failed
+      retries: 5
+
+    - name: create temporary directory when downgrading fw
+      tempfile:
+        state: directory
+        prefix: nvmupdate_tool
+      register: tempdir_nvmupdate_tool
+
+    - name: unarchive nvmupdate package for supported nvmupdate64e tool when downgrading fw
+      unarchive:
+        src: "{{ ansible_env.HOME }}/nvmupdate.tar.gz"
+        dest: "{{ tempdir_nvmupdate_tool.path }}"
+        remote_src: yes
+        extra_opts: [--strip-components=1] # to unpack Linux_x64 directly, skipping top-level model specific dir (e.g. 700Series)
+        mode: 0755
+  when:
+    - continue_nvmupdate | bool
+    - continue_nvmupdate_downgrade | bool
 
 - name: download nvmupdate package
   get_url:
     url: "{{ nvmupdate[nic_module].nvmupdate_pkg_url }}"
     checksum: "{{ nvmupdate[nic_module].nvmupdate_pkg_checksum }}"
     dest: "{{ ansible_env.HOME }}/nvmupdate.tar.gz"
+    mode: 0644
   register: nvmupdate_download
   until: nvmupdate_download is not failed
   retries: 5
@@ -89,26 +123,27 @@
     mode: 0755
   when: continue_nvmupdate | bool
 
-- name: get downloaded firmware version
-  set_fact:
-    downloaded_version: "{{ nvmupdate[nic_module].min_required_fw_version }}"
-  when: continue_nvmupdate | bool
+# downgrade fw block to remove and add nvmupdate64e tool
+- name: delete nvmupdate64e tool form exiting package when downgrading fw
+  block:
+    - name: remove files
+      file:
+        path: "{{ tempdir_nvmupdate.path }}/Linux_x64/nvmupdate64e"
+        state: absent
+      changed_when: true
 
-- debug:
-    msg: "downloaded firmware version is {{ nvmupdate[nic_module].min_required_fw_version }}"
-  when: continue_nvmupdate | bool
-
-- debug: var=downloaded_version
-  when: continue_nvmupdate | bool
+    - name: copy nvmupdate64e tool from supported package when downgrading fw
+      copy:
+        src: "{{ tempdir_nvmupdate_tool.path }}/Linux_x64/nvmupdate64e"
+        dest: "{{ tempdir_nvmupdate.path }}/Linux_x64/nvmupdate64e"
+        mode: 0755
+        remote_src: yes
+  when:
+    - continue_nvmupdate | bool
+    - continue_nvmupdate_downgrade | bool
 
 # get device MAC address - this allows to run nvmupdate for the requested device only
 - debug: var=ansible_facts[interface_name]['macaddress']
-  when: continue_nvmupdate | bool
-
-- name: assert that downloaded FW package isn't older than required
-  assert:
-    that: downloaded_version is version_compare(nvmupdate[nic_module].min_required_fw_version, '>=')
-    fail_msg: "downloaded FW version is lower than required, please update 'nvmupdate_pkg_url' and 'nvmupdate_pkg_checksum' vars!"
   when: continue_nvmupdate | bool
 
 - name: check ip routing table for interface {{ interface_name }}
@@ -145,7 +180,7 @@
     - continue_nvmupdate | bool
     - 'interface_name in ip_route.stdout'
 
-- name: remove interface {{ interface_name }} from routing table and proceed to firmware update
+- name: remove interface {{ interface_name }} from routing table and proceed to firmware upgrade / downgrade
   command: "ip route del {{ grep_interface.stdout }}"
   when:
     - continue_nvmupdate | bool
@@ -154,50 +189,57 @@
 
 - debug:
     msg: >-
-      updating firmware... This operation may take several minutes.
+      upgrading / downgrading firmware... This operation may take several minutes.
       To avoid damage to your device, do not stop the update or
-      reboot or power off the system during this update!
+      reboot or power off the system during this process!
   when: continue_nvmupdate | bool
 
-- name: update firmware
+- name: upgrade / downgrade firmware
 # noqa 305 - shell is used intentionally here
   shell:
-    chdir: "{{ tempdir_nvmupdate.path }}/Linux_x64"
     cmd: "./nvmupdate64e -u -l -o update.xml -b -c nvmupdate.cfg -m '{{ ansible_facts[interface_name]['macaddress'] | replace(':','') }}'"
+  args:
+    chdir: "{{ tempdir_nvmupdate.path }}/Linux_x64"
+    executable: /bin/bash
   register: nvmupdate_result
   when: continue_nvmupdate | bool
-  changed_when: nvmupdate_result.stdout is search('Reboot is required to complete the update process.')
+  failed_when: false
 
 - name: show additional message on unsupported platforms
   debug:
     msg: >
-      Failed to update firmware on interface {{ interface_name }} (driver {{ nic_module }}).
+      Failed to upgrade / downgrade on interface {{ interface_name }} (driver {{ nic_module }}).
       This is probably caused by unsupported platform - contact your vendor for more information.
   when:
     - continue_nvmupdate | bool
-    - nvmupdate_result.stdout is search('No devices to update.')
+    - (nvmupdate_result.stdout is search('No devices to update.'))
 
-- name: fail if fw update failed
+- name: fail if fw upgrade / downgrade failed
   fail:
-    msg: "Failed to update firmware on interface {{ interface_name }} (driver {{ nic_module }}). Error: {{ nvmupdate_result.stdout }}"
+    msg: "Failed to upgrade / downgrade firmware on interface {{ interface_name }} (driver {{ nic_module }}). Error: {{ nvmupdate_result.stdout }}"
   when:
     - continue_nvmupdate | bool
-    - nvmupdate_result.stdout is not search('update successful.')
+    - continue_nvmupdate_upgrade | bool
+    - (nvmupdate_result.stdout is not search('update successful'))
 
-- name: ensure that temporary files are deleted
+- name: ensure that temporary files are deleted when downgrading fw
+  file:
+    state: absent
+    path: "{{ tempdir_nvmupdate_tool.path }}"
+  when:
+    - continue_nvmupdate_downgrade | bool
+    - continue_nvmupdate | bool
+
+- name: ensure that temporary files are deleted when upgrading fw
   file:
     state: absent
     path: "{{ tempdir_nvmupdate.path }}"
-  when: continue_nvmupdate | bool
+  when:
+    - continue_nvmupdate_upgrade | bool
+    - continue_nvmupdate | bool
 
-- name: output update log
-  debug: var=nvmupdate_result.stdout
-  when: continue_nvmupdate | bool
-
-- name: reboot after update
+- name: reboot after upgrade / downgrade
 # noqa 503 - more than one condition here, so can't be a handler
   reboot:
-    reboot_timeout: 1200 # wait up to 20 minutes - if reboot takes longer after NVM update
-  when:
-    - nvmupdate_result.changed
-    - continue_nvmupdate | bool
+    reboot_timeout: 1200 # wait up to 20 minutes - if reboot takes longer after NVM upgrade / downgrade
+  when: continue_nvmupdate | bool

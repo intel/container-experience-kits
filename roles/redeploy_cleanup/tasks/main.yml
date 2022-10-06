@@ -14,6 +14,20 @@
 ##   limitations under the License.
 ##
 ---
+- name: uninstall opentelemetry
+  include_role:
+    name: opentelemetry_install
+    tasks_from: cleanup
+  tags:
+    - opentelemetry
+
+- name: uninstall cAdvisor
+  include_role:
+    name: cadvisor_install
+    tasks_from: cleanup_cadvisor
+  tags:
+    - cadvisor
+
 - name: reset and remove Kubernetes cluster
   import_tasks: k8s_cleanup.yml
 

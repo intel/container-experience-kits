@@ -130,29 +130,12 @@
       debug:
         msg: "group_vars profile_name is: '{{ group_vars_profile }}'"
 
-    - name: set env_profile variable
-      set_fact:
-        env_profile: "{{ lookup('env','PROFILE') | default('not defined', True) }}"
-
-    - name: show environment PROFILE variable
-      debug:
-        msg: "environment variable PROFILE is: '{{ env_profile }}'"
-
-    - name: assert that environment variable PROFILE and group_vars profile_name matches
-      assert:
-        that: "env_profile == group_vars_profile"
-        fail_msg: >
-          "Content of environment variable 'PROFILE'='{{ env_profile }}' doesn't match
-          group_vars variable 'profile_name'='{{ group_vars_profile }}', please fix this discrepancy"
-      when:
-        - (env_profile != 'not defined') or
-          ( env_profile == 'not defined' and group_vars_profile != 'full_nfv' and vm_enabled | default(false) )
-
     - name: handle the error for check password less access to VM hosts
       block:
         - name: check password less access to VM hosts
           command: "ssh -o PasswordAuthentication=no {{ hostvars[item]['ip'] }} /bin/true"
           with_items: "{{ groups['vm_host'] }}"
+          changed_when: false
       rescue:
         - name: Print when password less authentication failed
           debug:
@@ -163,18 +146,36 @@
       when:
         - vm_enabled and (not on_vms | default(false))
 
+    - name: check scale variable value
+      assert:
+        that: "{{ scale | bool }}"
+        fail_msg: "scale variable must be set to one of the following values { yes, on, 1, true }, case insensitive"
+        success_msg: "scale variable is set to {{ scale }} \ncluster scaling is enabled"
+      when: scale is defined
+
+    - name: check vm_recreate_existing variable value
+      assert:
+        that: "not {{ vm_recreate_existing | bool }}"
+        fail_msg: "vm_recreate_existing has to be false for cluster scaling case"
+        success_msg: "vm_recreate_existing variable is set to {{ vm_recreate_existing }} for cluster scaling"
+      when:
+        - scale is defined
+        - vm_enabled | default(false)
+
 ##############################################
 # Prerequisites for Control and Worker Nodes #
 ##############################################
 - hosts: k8s_cluster,vm_host
   any_errors_fatal: true
+  gather_facts: true
   vars:
     cek_supported_distros: [RedHat, Rocky, Ubuntu]
-    cek_supported_distros_versions: ['8.5', '20.04', '22.04']
+    cek_supported_distros_versions: ['8.5', '8.6', '9.0', '20.04', '22.04']
     cpusets_ranges: []
     cpusets_discretes: []
     isolcpus_ranges: []
     isolcpus_discretes: []
+    isolcpus_list: []
 
   tasks:
     - name: end play for VM host
@@ -182,6 +183,16 @@
       when:
         - "'vm_host' in group_names"
         - on_vms is defined and on_vms
+
+    - name: fail if deployment is VMRA and isolcpus is enabled
+      assert:
+        that:
+          - isolcpus is not defined
+        fail_msg:
+          - "isolcpus variable can't be used on VMRA deployment"
+      when:
+        - vm_enabled and (not on_vms | default(false))
+        - isolcpus_enabled
 
     - name: read Host Vars for VMs
       stat:
@@ -290,11 +301,12 @@
       when:
         - ansible_os_family == "RedHat"
 
-    - name: Check if CRI-O runtime is not used on Ubuntu 21.04
+    - name: Check if CRI-O runtime is not used on RedHat 9.0
       assert:
         that: container_runtime != "crio"
-        msg: "CRI-O runtime is not supported on Ubuntu 21.04"
-      when: ansible_distribution == "Ubuntu" and ansible_distribution_version == "21.04"
+        msg: "CRI-O runtime is not supported on RedHat 9.0"
+      when:
+        - (ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0")
 
     - name: check kubernetes and container runtime variables
       assert:
@@ -309,8 +321,8 @@
 
     - name: check k8s version
       assert:
-        that: "{{ kube_version is version('v1.21', '>=') }}"
-        msg: "Minimum supported k8s version is 1.21, please update kube_version variable with correct version"
+        that: "{{ kube_version is version('v1.22', '>=') }}"
+        msg: "Minimum supported k8s version is 1.22, please update kube_version variable with correct version"
       when: kubernetes and not container_runtime_only_deployment
 
     - name: assert that Multus is enabled in the config
@@ -487,6 +499,7 @@
 
       when:
         - isolcpus_enabled is defined and isolcpus_enabled | bool
+        - isolcpus is defined and isolcpus
 
 ####################################
 # Prerequisites for Worker Node(s) #
@@ -500,7 +513,8 @@
     gpu_pciids:
       - name: DG1
         pciids: ["4907"]
-
+  vars_files:
+    - "roles/check_machine_type/vars/main.yml"
 
   tasks:
     - name: end play for VM host
@@ -630,8 +644,43 @@
       when:
         - dataplane_interfaces is defined and dataplane_interfaces | length > 0
 
+    - name: Print processor info
+      debug:
+        msg: "ansible_processor model: {{ ansible_processor[2] }}"
+      when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
+
+    - name: set CPU ID in preflight
+      set_fact:
+        cpu_id: "{{ ansible_processor[2] | regex_search('\\$?\\d\\d\\d\\d\\%?\\@?\\w?|\\d\\d/\\d\\w') }}"
+      when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
+
+    - name: print CPU ID
+      debug:
+        msg: "CPU ID: {{ cpu_id }}"
+      when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
+
+    - name: check if CPU has confirmed support (preflight)
+      assert:
+        that: "cpu_id in {{ lookup('ansible.builtin.vars', 'confirmed_' + configured_arch + '_cpus') }} \
+               {% if configured_arch == 'clx' %} or cpu_id in {{ confirmed_clx_ncpus }} {% endif %} \
+               or cpu_id in {{ unconfirmed_cpu_models }}"
+        fail_msg:
+          "CPU model '{{ cpu_id }}' present on target is not in the confirmed CPUs list.\n
+          To proceed, please add  '{{ cpu_id }}' to the list of unconfirmed CPUs in variable 'unconfirmed_cpu_models' in group_vars.\n
+          Please be aware that by using CPU model that is not confirmed, some features may not work properly."
+      when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
+
     - name: check QAT Devices list is configured properly
       block:
+        - name: check QAT requirements
+          include_role:
+            name: ../roles/bootstrap/install_qat_drivers_services
+            tasks_from: qat_drivers_preflight
+          when:
+            - configured_arch == "spr"
+            - update_qat_drivers is defined and update_qat_drivers
+            - qat_devices is defined and qat_devices != []
+
         - debug:
             msg: "QAT device(s) defined in host_vars = {{ qat_devices }}"
 
@@ -640,6 +689,16 @@
           args:
             executable: /bin/bash
           register: lshw_qat_host
+          changed_when: false
+          failed_when: false
+          when:
+            - on_vms is not defined or not on_vms
+         
+        - name: assert QAT PCIIDs
+          assert:
+            that: "lshw_qat_host.rc == 0"
+            fail_msg: "No QAT devices were found in system. Please configure properly the QAT PCIIDs in group_vars or disable this feature"
+            success_msg: "QAT PCIIDs verification completed"
           when:
             - on_vms is not defined or not on_vms
 
@@ -648,6 +707,7 @@
           args:
             executable: /bin/bash
           register: lshw_qat_vms
+          changed_when: false
           when:
             - on_vms is defined and on_vms
 
@@ -782,7 +842,7 @@
           - nfd_enabled
         fail_msg: "Deployment of Intel Device Plugins requires nfd_enabled set to 'true' in group_vars"
         success_msg: "NFD configuration verified"
-      when: 
+      when:
         - (qat_dp_enabled | default(false)) or
           (sgx_dp_enabled | default(false)) or
           (gpu_dp_enabled | default(false))
@@ -1011,15 +1071,15 @@
     - name: fail if istio version is not compatible with current k8s version
       assert:
         that:
-          - "{{ service_mesh.version is version('1.10', '>=') }}"
+          - "{{ istio_service_mesh.version is version('1.10', '>=') }}"
         msg: |
-          "Selected Istio service mesh version: '{{ service_mesh.version }}' is not compatible with selected k8s version: '{{ kube_version }}'"
+          "Selected Istio service mesh version: '{{ istio_service_mesh.version }}' is not compatible with selected k8s version: '{{ kube_version }}'"
           "Please, refer to the compatibility table at https://istio.io/latest/docs/releases/supported-releases/"
       when:
         - kubernetes
         - not container_runtime_only_deployment
-        - service_mesh is defined
-        - service_mesh.version is defined
+        - istio_service_mesh is defined
+        - istio_service_mesh.version is defined
 # STORY: "TCS depends on KMRA AppHSM and KMRA PCCS"
     - name: check if KMRA Apps are enabled when TCS is enabled
       assert:
@@ -1029,7 +1089,7 @@
         msg: "KMRA AppHSM and PCCS applications should be enabled in order to have TCS functional."
       when:
         - tcs.enabled | default(false) or tca.enabled | default(false)
-        - configured_arch in ['icx', 'spr']
+        - configured_arch in ['icx']
 
 # STORY: "TCA depends on TCS"
     - name: check if TCS is enabled when TCA enabled
@@ -1039,37 +1099,46 @@
         msg: "TCS should be enabled in order to have TCA functional."
       when:
         - tca.enabled | default(false)
-        - configured_arch in ['icx', 'spr']
+        - configured_arch in ['icx']
 
-# STORY: "service_mesh.sgx_signer' option is available only for icx and spr platforms"
+# STORY: "istio_service_mesh.sgx_signer' option is available only for icx platforms"
     - name: particular service mesh options are available only for specific platforms
       assert:
         that:
-          - "{{ not service_mesh.sgx_signer.enabled | default(false) }}"
-        msg: "'service_mesh.sgx_signer' option is not available for the configured platform architecture."
+          - "{{ not istio_service_mesh.sgx_signer.enabled | default(false) }}"
+        msg: "'istio_service_mesh.sgx_signer' option is not available for the configured platform architecture."
       when:
-        - service_mesh.enabled | default(false)
-        - configured_arch not in ['icx', 'spr']
+        - istio_service_mesh.enabled | default(false)
+        - configured_arch not in ['icx']
 
-# STORY: TCS is available only for icx and spr platforms"
+# STORY: TCS is available only for icx platforms"
     - name: TCS is available only for specific platforms
       assert:
         that:
           - "{{ not tcs.enabled | default(false) }}"
         msg: "TCS is not available for the configured platform architecture."
       when:
-        - configured_arch not in ['icx', 'spr']
+        - configured_arch not in ['icx']
 
-# STORY: TCA is available only for icx and spr platforms"
+    - name: Make sure istio and linkerd are not enabled at the same time
+      assert:
+        that:
+          - "{{ not linkerd_service_mesh.enabled | default (false) }}"
+        fail_msg: "You should not have enabled Istio and LinkerD service mesh on at the same time.
+                   Please choose and enable only one service mesh."
+      when:
+        - istio_service_mesh.enabled | default(false)
+
+# STORY: TCA is available only for icx platforms"
     - name: TCA is available only for specific platforms
       assert:
         that:
           - "{{ not tca.enabled | default(false) }}"
         msg: "TCA is not available for the configured platform architecture."
       when:
-        - configured_arch not in ['icx', 'spr']
+        - configured_arch not in ['icx']
 
-# STORY: "service_mesh.sgx_signer' option depends on KMRA AppHSM, KMRA PCCS, TCS, TCA"
+# STORY: "istio_service_mesh.sgx_signer' option depends on KMRA AppHSM, KMRA PCCS, TCS, TCA"
     - name: check if KMRA Apps, TCS and TCA are enabled when service mesh sgx_signer option is enabled
       assert:
         that:
@@ -1079,8 +1148,8 @@
           - "{{ tca.enabled | default(false ) }}"
         msg: "In order to use service mesh sgx-signer option, please, enable KMRA AppHSM, KMRA PCCS, TCS, TCA."
       when:
-        - service_mesh.sgx_signer.enabled | default(false)
-        - configured_arch in ['icx', 'spr']
+        - istio_service_mesh.sgx_signer.enabled | default(false)
+        - configured_arch in ['icx']
 
 # STORY: TEMPORARY: "ovs dpdk version requirements"
     - debug:
@@ -1098,7 +1167,7 @@
     - name: check OVS DPDK compatibility
       assert:
         that:
-          (ovs_version >= 'v2.17.0' and ovs_version <= 'v2.17.1') and (dpdk_version >= '21.11' and dpdk_version <= '22.03')
+          (ovs_version >= 'v2.17.0' and ovs_version <= 'v2.17.2') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
           or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
           or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
           or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
@@ -1114,23 +1183,23 @@
         - ovs_version is defined #host_vars
         - ovs_dpdk_enabled is defined and ovs_dpdk_enabled #host_vars
 
-    - name: check settings for Intel Power Operator
+    - name: check settings for Intel Power Manager
       assert:
         that:
           - intel_power_manager.power_profiles | length > 0
           - intel_power_manager.power_nodes | length > 0
-        fail_msg: "Intel Power Operator is enabled, but either Power Profiles or Power Nodes are not specified in group vars."
+        fail_msg: "Intel Power Manager is enabled, but either Power Profiles or Power Nodes are not specified in group vars."
       when: intel_power_manager is defined and intel_power_manager.enabled
 
     - name: check if power_nodes are available in inventory
       assert:
         that:
           - item in groups['kube_node']
-        fail_msg: "Intel Power Operator power_nodes have to be present in inventory. '{{ item }}' is not there: {{ groups['kube_node'] }}"
+        fail_msg: "Intel Power Manager power_nodes have to be present in inventory. '{{ item }}' is not there: {{ groups['kube_node'] }}"
       loop: "{{ intel_power_manager.power_nodes }}"
       when: intel_power_manager is defined and intel_power_manager.enabled
 
-    - name: check if Intel Power Operator is enabled, the ISST features should be disabled
+    - name: check if Intel Power Manager is enabled, the ISST features should be disabled
       assert:
         that:
           - not (sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled or
@@ -1138,16 +1207,16 @@
             sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled or
             sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled)
         fail_msg:
-          - "Currently Intel Power Operator and Intel SST features are mutually exclusive."
+          - "Currently Intel Power Manager and Intel SST features are mutually exclusive."
           - "Please disable ISST (SST-BF, SST-CP, SST-TF and SST-PP) in host vars."
       when: intel_power_manager is defined and intel_power_manager.enabled
 
-    - name: check if Intel Power Operator is build locally on containerd/cri-o runtime
+    - name: check if Intel Power Manager is build locally on containerd/cri-o runtime
       assert:
         that: intel_power_manager.build_image_locally
         fail_msg:
-          - "Currently Intel Power Operator must be build locally on containerd and cri-o runtime"
-          - "Please set build_image_locally as true in Intel Power Operator settings"
+          - "Currently Intel Power Manager must be build locally on containerd and cri-o runtime"
+          - "Please set build_image_locally as true in Intel Power Manager settings in group_vars"
       when: intel_power_manager is defined and intel_power_manager.enabled and container_runtime in ["crio", "containerd"]
 
     - name: check Intel Ethernet Operator configuration
@@ -1178,10 +1247,10 @@
               "Deploying the Intel SR-IOV FEC Operator is supported only in the 'access', 'full_nfv', or 'byo' profiles.
               Please correct the group_vars configuration"
 
-        - name: FEC Operator - check distro is Ubuntu 22.04 (generic or realtime)
+        - name: FEC Operator - check distro is Ubuntu 22.04 or RHEL 8.6 (generic or realtime)
           assert:
-            that: ansible_distribution_version == "22.04"
-            msg: "Deploying the Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04. Please change the o/s or correct group_vars configuration"
+            that: ansible_distribution_version == "22.04" or ansible_distribution_version == "8.6"
+            msg: "Deploying the Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04 or RHEL 8.6. Please change the o/s or correct group_vars configuration"
 
         - debug: msg="fec_acc is {{ fec_acc }}"
 
@@ -1212,7 +1281,6 @@
 #          assert:
 #            that: fec_acc PCIID is present in the host and its DevID in supported list
 #            msg: "Deploying the Intel SR-IOV FEC Operator requires the ACC card to be present in the host. Please correct the host h/w configuration"
-
       when: intel_sriov_fec_operator_enabled | default(false) | bool
 
     - name: check Intel FlexRAN requirements
@@ -1221,6 +1289,40 @@
         tasks_from: flexran_preflight
       when: intel_flexran_enabled | default(false)
 
+    - name: check OS when DLB or DSA is enabled
+      assert:
+        that:  (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and (update_kernel or ansible_kernel[0:4] is version('5.14', '>='))) or
+               (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '22.04') or
+               (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.6')
+        success_msg: "DLB or DSA can succesfully be enabled on {{ ansible_distribution }} {{ ansible_distribution_version }}"
+        msg: |
+          DLB and DSA features are not supported on Ubuntu 20.04(with stock kernel) and RHEL/Rocky < 9.
+          {% if ansible_distribution == "Ubuntu" and ansible_kernel[0:4] is version('5.14', '<') %}
+          Found {{ ansible_kernel[0:4] }} kernel on Ubuntu 20.04, but kernel in version 5.14 or higher is required.
+          If you wish to use DLB or DSA feature set 'update_kernel' as true.
+          {% endif %}
+      when: configure_dsa_devices | d(false) or configure_dlb_devices | d(false)
+# SGX on VMs require Ubuntu 22.04 for VM Host and VM Image
+    - name: Check requirements to enable Intel SGX on VMs
+      block:
+        - name: Intel SGX - check if ansible_host distro is Ubuntu 22.04
+          assert:
+            that:
+              - ansible_distribution == "Ubuntu"
+              - ansible_distribution_version == "22.04"
+            msg: "Deploying SGX on VMRA is supported only on Ubuntu 22.04 VM host. Please change the o/s for VM host"
+
+        - name: Intel SGX - check if vm_image distro is Ubuntu 22.04
+          assert:
+            that:
+              - vm_image_distribution | default("ubuntu") == "ubuntu"
+              - vm_image_version_ubuntu | default("20.04") == "20.04"
+            msg: "Deploying SGX on VMRA is supported only on Ubuntu 20.04 VM image. Please change the o/s for VM image"
+      when:
+        - vm_enabled | default(false)
+        - sgx_dp_enabled | default(false)
+        - inventory_hostname in groups['vm_host']
+
 ####################################
 # Prerequisites for Role specific  #
 ####################################
@@ -1228,6 +1330,23 @@
   tasks:
 
 # STORY: "MinIO requires number of nodes should be more than the minimum number of nodes defined in group_vars/all/minio_tenant_servers"
+    - name: display MinIO requirement with multus-service
+      fail:
+        msg: |
+          MinIO deployment for k8s service on additional interfaces with multiple interface/Multus CNI(multus-service) requires:
+           - group_vars/kube_network_plugin: flannel
+           - group_vars/container_runtime: crio
+           - group_vars/minio_build_image_locally: true
+           - host_vars/dataplane_interfaces should be defined
+           - host_vars/dataplane_interfaces[*].minio_vf:true on interfaces
+           - host_vars/dataplane_interfaces[*].sriov_vfs[*].vf_0: 'iaxf' on interfaces
+           - SRIOV network ports should be connected with VEB/VEPA enabled
+      run_once: yes
+      when:
+        - kubernetes
+        - minio_enabled is defined and minio_enabled
+      ignore_errors: true
+
     - name: check MinIO configuration
       include_role:
         name: minio_install

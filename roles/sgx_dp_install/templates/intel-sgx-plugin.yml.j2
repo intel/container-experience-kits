@@ -3,11 +3,11 @@ kind: SgxDevicePlugin
 metadata:
   name: intel-sgx-device-plugin
 spec:
-  image: {{ sgx_dp_image | default("docker.io/intel/intel-sgx-plugin") }}:{{ sgx_dp_version | default("0.23.0") }}
-  initImage: {{ sgx_dp_init_image | default("docker.io/intel/intel-sgx-initcontainer") }}:{{ sgx_dp_version | default("0.23.0") }}
+  image: {{ sgx_dp_image | default("docker.io/intel/intel-sgx-plugin") }}:{{ sgx_dp_version | default("0.24.0") }}
+  initImage: {{ sgx_dp_init_image | default("docker.io/intel/intel-sgx-initcontainer") }}:{{ sgx_dp_version | default("0.24.0") }}
   enclaveLimit: {{ sgx_dp_enclave_limit }}
   provisionLimit: {{ sgx_dp_provision_limit }}
   logLevel: {{ sgx_dp_verbosity | default(4) }}
   nodeSelector:
-    feature.node.kubernetes.io/intel.sgx: 'true'
+    intel.feature.node.kubernetes.io/sgx: 'true'
     sgx.configured: 'true'

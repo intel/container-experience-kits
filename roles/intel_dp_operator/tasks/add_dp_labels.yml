@@ -26,3 +26,9 @@
   when:
     - sgx_dp_enabled | default(false)
     - hostvars[node_name]['configure_sgx'] | default(false)
+
+- name: add labels for nodes with configured DSA
+  command: kubectl label nodes {{ hostvars[node_name]['ansible_hostname'] }} dsa.configured=true --overwrite
+  when:
+    - dsa_dp_enabled | default(false)
+    - hostvars[node_name]['configure_dsa_devices'] | default(false)

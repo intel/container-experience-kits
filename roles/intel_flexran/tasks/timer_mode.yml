@@ -47,7 +47,7 @@
 - debug:
     msg:
       - "Intel FlexRAN deployment is complete and Timer Mode configuration is done."
-      - "The worker node is ready for L1/L2 Tests to be executed and verified according to the Guide"
+      - "The worker node is ready for L1/L2 Tests to be executed and verified. See docs/flexran_guide.md"
 
 # - name: run L1
 #   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/l1') | path_join }} && ./l1.sh -e" # noqa 305
@@ -63,7 +63,7 @@
 #     seconds: 30
 
 # - name: run L2
-#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/testmac') | path_join }} && ./l2.sh --testfile=icelake-sp/icxsp_mu0_10mhz_4x4_hton.cfg" # noqa 204 line-length
+#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/testmac') | path_join }} && ./l2.sh --testfile=icelake-sp/icxsp_mu0_10mhz_4x4_hton.cfg" # noqa yaml[line-length]
 #   args:
 #     executable: /bin/bash
 #     chdir: "{{ intel_flexran_dir }}"

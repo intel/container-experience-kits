@@ -12,10 +12,3 @@ rules:
     resources:
       - subjectaccessreviews
     verbs: ["create"]
-{% if psp_enabled %}
-  - apiGroups: ['policy']
-    resources: ['podsecuritypolicies']
-    verbs:     ['use']
-    resourceNames:
-      - {% raw %}{{ .Release.Name }}{% endraw %}{{''}}
-{% endif %}

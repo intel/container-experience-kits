@@ -1,0 +1,25 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# defaults file for linkerd-cli
+linkerd_cli_arch: "amd64"
+linkerd_version: "2.12.0"
+linkerd_cli_version: "{{ linkerd_version }}"
+linkerd_cli_uri:
+    "https://github.com/linkerd/linkerd2/releases/download/stable-{{ linkerd_cli_version }}/\
+    linkerd2-cli-stable-{{ linkerd_cli_version }}-linux-{{ linkerd_cli_arch }}"
+linkerd_cli_bin: "/usr/local/bin/linkerd"
+kubectl_cli_bin: "/usr/local/bin/kubectl"

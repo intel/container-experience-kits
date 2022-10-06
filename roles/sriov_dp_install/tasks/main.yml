@@ -83,7 +83,7 @@
     chdir: "{{ sriov_net_dp_dir }}"
   changed_when: true
   with_items:
-    - { file: images/Dockerfile, name: sriov-device-plugin }
+    - {file: images/Dockerfile, name: sriov-device-plugin}
   register: sriov_dp_image_build
   retries: 5
   until: sriov_dp_image_build is success
@@ -100,7 +100,7 @@
     chdir: "{{ sriov_net_dp_dir }}"
   changed_when: true
   with_items:
-    - { file: images/Dockerfile, name: sriov-device-plugin }
+    - {file: images/Dockerfile, name: sriov-device-plugin}
   register: sriov_dp_image_build
   retries: 5
   until: sriov_dp_image_build is success

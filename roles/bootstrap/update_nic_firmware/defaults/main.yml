@@ -18,22 +18,32 @@
 nvmupdate:
   # 700 Series
   i40e:
-    nvmupdate_pkg_url: https://downloadmirror.intel.com/732165/700Series_NVMUpdatePackage_v8_70_Linux.tar.gz
-    nvmupdate_pkg_checksum: sha1:1FD0BDB04D1FCFAD5543219DFE93FD11480C950E
-    min_required_fw_version: 8.70
+    nvmupdate_pkg_url: "https://downloadmirror.intel.com/739639/700Series_NVMUpdatePackage_v9_00_Linux.tar.gz"
+    nvmupdate_pkg_checksum: "sha1:B2B183ADD3B6EF8BCB2DA77A6E6A68F482F4BFD1"
+    required_fw_version: "9.0"
     # min fw version for ddp was taken from:
     # https://www.intel.com/content/www/us/en/developer/articles/technical/dynamic-device-personalization-for-intel-ethernet-700-series.html
-    min_ddp_loadable_fw_version: 6.01
-    min_updatable_fw_version: 5.02
+    min_ddp_loadable_fw_version: "6.01"
+    min_updatable_fw_version: "5.02"
   # 800 Series (CVL)
   ice:
-    nvmupdate_pkg_url: https://downloadmirror.intel.com/727313/E810_NVMUpdatePackage_v3_20_Linux.tar.gz
-    nvmupdate_pkg_checksum: sha1:1831DDF95F164969B5BD275DA2A74B80A65EEC9E
-    min_required_fw_version: 3.20
+    nvmupdate_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
+    nvmupdate_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
+    required_fw_version: "4.0"
     # https://builders.intel.com/docs/networkbuilders/intel-ethernet-controller-800-series-device-personalization-ddp-for-telecommunications-workloads-technology-guide.pdf
     # document above does not specify any min fw version needed for ddp feature. So, min_ddp_loadable_fw is the same as min_updatable_fw
-    min_ddp_loadable_fw_version: 0.70
-    min_updatable_fw_version: 0.70
+    min_ddp_loadable_fw_version: "0.70"
+    min_updatable_fw_version: "0.70"
+    # In case of downgrade only, you must download the supported nvmupdate64e tool and replace it with an older FW version by using the url below.
+    supported_nvmupdate_tool_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
+    supported_nvmupdate_tool_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
+    supported_nvmupdate_tool_fw_version: "4.0"
+
 
 nvmupdate_result:
   stdout: ""
+
+adq_ice_fw_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
+adq_ice_fw_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
+adq_ice_fw_dest: "{{ (project_root_dir, 'nvmupdate.tar.gz') | path_join }}"
+adq_ice_fw_required_version: "4.00"

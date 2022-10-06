@@ -18,6 +18,8 @@
 DEVBIND_TOOL=${DEVBIND_TOOL:-"/usr/local/bin/dpdk-devbind.py"}
 SRIOV_NUMVFS_MAPPINGS=${SRIOV_NUMVFS_MAPPINGS:-"/etc/cek/cek_sriov_numvfs"}
 DEVICE_DRIVER_MAPPINGS=${DEVICE_DRIVER_MAPPINGS:-"/etc/cek/cek_interfaces"}
+FORCE_DRIVER_BINDING=${FORCE_DRIVER_BINDING:-"/etc/cek/cek_force_driver_binding"}
+DO_DRIVER_BINDING=""
 
 setup_vfs() {
     echo "Setting up VFs"
@@ -26,9 +28,9 @@ setup_vfs() {
         return 0
     fi
 
-    while read -r pci_address numvfs; do
-        if [[ ${pci_address} == "" ]] || [[ ${numvfs} == "" ]]; then
-            echo "Empty PCI address or number of VFs, skipping..."
+    while read -r pci_address numvfs interface_name; do
+        if [[ ${pci_address} == "" ]] || [[ ${numvfs} == "" ]] || [[ ${interface_name} == "" ]]; then
+            echo "Empty PCI address or number of VFs or interface name, skipping..."
             continue
         fi
 
@@ -45,6 +47,9 @@ setup_vfs() {
             # if change is needed we must reset it first
             echo 0 > "${numvfs_path}"
             echo "${numvfs}" > "${numvfs_path}"
+            DO_DRIVER_BINDING="${DO_DRIVER_BINDING} ${interface_name}"
+        else
+            echo "${numvfs} Virtual Functions are already present on ${pci_address} Do nothing."
         fi
 
         echo "Setting admin state UP for ${pci_address}"
@@ -57,47 +62,58 @@ setup_vfs() {
 }
 
 bind_all() {
-    if [[ ! -r "${DEVICE_DRIVER_MAPPINGS}" ]]; then
-        echo "File ${DEVICE_DRIVER_MAPPINGS} doesn't exist, driver bindings won't be changed"
-        return 0
+    if [[ -r "${FORCE_DRIVER_BINDING}" ]]; then
+        echo "Force driver binding"
+        while read -r interface_name; do
+            DO_DRIVER_BINDING="${DO_DRIVER_BINDING} ${interface_name}"
+        done < "${FORCE_DRIVER_BINDING}"
+        rm -f ${FORCE_DRIVER_BINDING}
     fi
 
-    while read -r pci_address driver; do
-        if [[ ${pci_address} == "" ]] || [[ ${driver} == "" ]]; then
-            echo "Empty PCI address or driver, skipping..."
-            continue
+    for if_name in ${DO_DRIVER_BINDING}; do
+        echo "Driver binding to VFs from PF ${if_name}"
+        if [[ ! -r "${DEVICE_DRIVER_MAPPINGS}_${if_name}" ]]; then
+            echo "File ${DEVICE_DRIVER_MAPPINGS}_${if_name} doesn't exist, driver bindings won't be changed"
+            return 0
         fi
 
-        echo "Binding ${pci_address} to ${driver}"
-
-        device_path="/sys/bus/pci/devices/${pci_address}"
-
-        # skip if device doesn't exist
-        if [[ ! -e "${device_path}" ]]; then
-            echo "Could not find device ${pci_address}, skipping..."
-            continue
-        fi
-
-        # get current driver
-        if [[ -L "${device_path}/driver" ]]; then
-            current_driver=$(readlink "${device_path}/driver")
-            current_driver=$(basename "$current_driver")
-            echo "Current driver of ${pci_address} is ${current_driver}"
-        else
-            current_driver=""
-        fi
-
-        # don't bind if not needed
-        if [[ "${driver}" != "${current_driver}" ]]; then
-            modprobe -q "${driver}" || true
-            if [[ -e "/sys/bus/pci/drivers/${driver}" ]]; then
-                $DEVBIND_TOOL -b "${driver}" --force "${pci_address}"
-            else
-                echo "Failed to bind ${pci_address}: target driver ${driver} doesn't exist"
+        while read -r pci_address driver; do
+            if [[ ${pci_address} == "" ]] || [[ ${driver} == "" ]]; then
+                echo "Empty PCI address or driver, skipping..."
+                continue
             fi
-        fi
 
-    done < "${DEVICE_DRIVER_MAPPINGS}"
+            echo "Binding ${pci_address} to ${driver}"
+
+            device_path="/sys/bus/pci/devices/${pci_address}"
+
+            # skip if device doesn't exist
+            if [[ ! -e "${device_path}" ]]; then
+                echo "Could not find device ${pci_address}, skipping..."
+                continue
+            fi
+
+            # get current driver
+            if [[ -L "${device_path}/driver" ]]; then
+                current_driver=$(readlink "${device_path}/driver")
+                current_driver=$(basename "$current_driver")
+                echo "Current driver of ${pci_address} is ${current_driver}"
+            else
+                current_driver=""
+            fi
+
+            # don't bind if not needed
+            if [[ "${driver}" != "${current_driver}" ]]; then
+                modprobe -q "${driver}" || true
+                if [[ -e "/sys/bus/pci/drivers/${driver}" ]]; then
+                    $DEVBIND_TOOL -b "${driver}" --force "${pci_address}"
+                else
+                    echo "Failed to bind ${pci_address}: target driver ${driver} doesn't exist"
+                fi
+            fi
+
+        done < "${DEVICE_DRIVER_MAPPINGS}_${if_name}"
+    done
 }
 
 setup_vfs

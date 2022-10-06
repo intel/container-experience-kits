@@ -22,7 +22,7 @@
   register: grub
   notify:
     - reboot server
-  when: not (iommu_enabled | default(false) | bool)
+  when: not (iommu_enabled | default(false) | bool) and not (on_vms | default(false) | bool)
 
 - name: setup sriov grub commandline parameters
   include_tasks: setup_sriov_kernel_flags.yml

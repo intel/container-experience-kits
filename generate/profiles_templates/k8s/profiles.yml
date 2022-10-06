@@ -27,6 +27,7 @@
 # - tcs
 # - tca
 # - qat
+# - dsa
 # - gpu
 # - gpu_dp
 # - openssl
@@ -45,21 +46,24 @@
 #     prometheus
 #     collectd
 #     telegraf
+#     opentelemetry
+# - jaeger
 # - wireguard
 # - multus
 # - cndp
 # - cndp_dp
-# - psp
 # - minio
 # - cert_manager
 # - registry
 # - hugepages
-# - service_mesh
+# - istio_service_mesh
 #     enabled
 #     tcpip_bypass_ebpf
 #     tls_splicing
 #     sgx_signer
 #     intel_preview
+# - linkerd_service_mesh
+#     enabled
 # - intel_ethernet_operator
 #     enabled
 #     flow_config
@@ -67,6 +71,7 @@
 #     fw_update
 # - intel_sriov_fec_operator
 # - intel_flexran
+# - tadk
 
 ---
 access:
@@ -107,7 +112,7 @@ access:
   dpdk: on
   ovs_dpdk: off
   pstate: off
-  cstate: on
+  cstate: off
   ufs: off
   sst: off
   power_manager: on
@@ -115,23 +120,25 @@ access:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
     enabled: off
     tcpip_bypass_ebpf: off
     tls_splicing: off
     sgx_signer: off
     intel_preview: off
-  wireguard: on
+  linkerd_service_mesh:
+    enabled: off
+  wireguard: optional
   multus: on
   firewall: optional
   cndp: off
   cndp_dp: off
-  psp: on
   minio: off
   cert_manager: on
   registry: on
   hugepages: on
-  tadk: off
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
@@ -139,6 +146,7 @@ access:
     fw_update: optional
   intel_sriov_fec_operator: on
   intel_flexran: on
+  adq_dp: optional
 
 basic:
   name: basic
@@ -159,12 +167,13 @@ basic:
     prometheus: on
     collectd: optional
     telegraf: on
-  wireguard: on
+    opentelemetry: on
+  jaeger: optional
+  wireguard: optional
   multus: on
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: optional
@@ -172,6 +181,7 @@ basic:
     enabled: optional
     flow_config: optional
     fw_update: optional
+  adq_dp: optional
 
 full_nfv:
   name: full_nfv
@@ -190,6 +200,10 @@ full_nfv:
   qat: on
   qat_dp: on
   openssl: on
+  dsa: on
+  dsa_dp: on
+  dlb: on
+  dlb_dp: on
   gpu: optional
   gpu_dp: optional
   sgx: on
@@ -215,18 +229,21 @@ full_nfv:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
+    opentelemetry: on
+  jaeger: on
+  istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
     sgx_signer: on
     intel_preview: optional
-  wireguard: on
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: optional
   multus: on
   firewall: optional
   cndp: on
   cndp_dp: on
-  psp: on
   minio: optional
   cert_manager: on
   registry: on
@@ -238,6 +255,8 @@ full_nfv:
     fw_update: optional
   intel_sriov_fec_operator: optional
   intel_flexran: optional
+  tadk: on
+  adq_dp: optional
 
 on_prem:
   name: on_prem
@@ -262,6 +281,10 @@ on_prem:
   tca: on
   qat: on
   qat_dp: on
+  dsa: optional
+  dsa_dp: optional
+  dlb: optional
+  dlb_dp: optional
   openssl: on
   tas: on
   dpdk: on
@@ -275,18 +298,21 @@ on_prem:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
     sgx_signer: on
     intel_preview: optional
-  wireguard: on
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: optional
   multus: on
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: on
@@ -294,6 +320,7 @@ on_prem:
     enabled: optional
     flow_config: optional
     fw_update: optional
+  adq_dp: optional
 
 regional_dc:
   name: regional_dc
@@ -310,6 +337,14 @@ regional_dc:
   native_cpu_manager: on
   gpu: on
   gpu_dp: on
+  sgx: on
+  sgx_dp: on
+  kmra:
+    pccs: on
+    apphsm: on
+    ctk_demo: on
+  tcs: on
+  tca: on
   tas: on
   gas: on
   dpdk: optional
@@ -319,17 +354,21 @@ regional_dc:
     prometheus: on
     collectd: optional
     telegraf: on
-  service_mesh:
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
+    sgx_signer: on
     intel_preview: optional
-  wireguard: on
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: optional
   multus: on
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: optional
@@ -337,6 +376,7 @@ regional_dc:
     enabled: optional
     flow_config: optional
     fw_update: optional
+  adq_dp: optional
 
 remote_fp:
   name: remote_fp
@@ -361,6 +401,10 @@ remote_fp:
   tca: optional
   qat: on
   qat_dp: optional
+  dsa: optional
+  dsa_dp: optional
+  dlb: optional
+  dlb_dp: optional
   openssl: on
   tas: on
   ddp: on
@@ -376,18 +420,21 @@ remote_fp:
     prometheus: on
     collectd: on
     telegraf: optional
-  service_mesh:
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
     tls_splicing: optional
     sgx_signer: optional
     intel_preview: optional
-  wireguard: on
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: optional
   multus: on
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: on
   cert_manager: on
   registry: on
   hugepages: on
@@ -396,6 +443,7 @@ remote_fp:
     flow_config: optional
     ddp: on
     fw_update: optional
+  adq_dp: optional
 
 storage:
   name: storage
@@ -419,10 +467,11 @@ storage:
     prometheus: on
     collectd: optional
     telegraf: on
-  wireguard: on
+    opentelemetry: on
+  jaeger: optional
+  wireguard: optional
   multus: on
   firewall: optional
-  psp: on
   minio: on
   cert_manager: on
   registry: on
@@ -432,6 +481,7 @@ storage:
     flow_config: optional
     ddp: optional
     fw_update: optional
+  adq_dp: optional
 
 build_your_own:
   name: build_your_own
@@ -450,6 +500,8 @@ build_your_own:
   qat: optional
   qat_dp: optional
   openssl: optional
+  dsa: optional
+  dsa_dp: optional
   gpu: optional
   gpu_dp: optional
   sgx: optional
@@ -475,18 +527,21 @@ build_your_own:
     prometheus: optional
     collectd: optional
     telegraf: optional
-  service_mesh:
+    opentelemetry: optional
+  jaeger: optional
+  istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
     tls_splicing: optional
     sgx_signer: optional
     intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
   wireguard: optional
   multus: optional
   firewall: optional
   cndp: optional
   cndp_dp: optional
-  psp: optional
   minio: optional
   cert_manager: optional
   registry: optional
@@ -498,3 +553,5 @@ build_your_own:
     fw_update: optional
   intel_sriov_fec_operator: optional
   intel_flexran: optional
+  tadk: optional
+  adq_dp: optional

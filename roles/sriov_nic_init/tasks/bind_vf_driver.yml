@@ -46,7 +46,13 @@
   loop_control:
     loop_var: vf
     extended: yes
-  when:  ansible_loop.index < (item.sriov_numvfs | default(0) | int )
+  when: ansible_loop.index < (item.sriov_numvfs | default(0) | int )
+
+- name: clean up existing configuration file cek_interfaces_{{ item.name }}
+  file:
+    path: "{{ sriov_config_path }}/cek_interfaces_{{ item.name }}"
+    state: absent
+  become: yes
 
 # get a list of VFs PCI addresses and save the configuration
 - name: attach VFs driver
@@ -60,13 +66,14 @@
 
     - name: save VF driver binding
       lineinfile:
-        path: "{{ sriov_config_path }}/cek_interfaces"
+        path: "{{ sriov_config_path }}/cek_interfaces_{{ item.name }}"
         line: "{{ this_item[0] }} {{ this_item[1].value }}"
         regexp: "^{{ this_item[0] }}"
         create: yes
         owner: root
         group: root
         mode: '0600'
+      become: yes
       loop: "{{ vf_pciids.stdout_lines | zip(vfs_acc | dict2items) | list }}"
       loop_control:
         loop_var: this_item

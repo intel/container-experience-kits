@@ -51,7 +51,7 @@
 
 - name: Store VXLAN MACs of running VMs
   set_fact:
-    vm_vxlan_macs: "{{ vm_vxlan_macs|default({}) | combine( {item.item.name: item.stdout} ) }}"
+    vm_vxlan_macs: "{{ vm_vxlan_macs | default({}) | combine( {item.item.name: item.stdout} ) }}"
   when: item.changed and item.item.name is defined  # noqa 503
   loop: "{{ vm_vxlan_mac_out.results }}"
 
@@ -60,7 +60,7 @@
     var: vm_vxlan_macs
 
 - name: Get VXLAN IPs of running VMs
-  shell: set -o pipefail && ip a | grep -n1 {{ vm_vxlan_macs[item.name] }} | grep 'inet ' | awk '{print $3}' | awk -F'/' '{print $1}'
+  shell: set -o pipefail && ip a | grep -n2 {{ vm_vxlan_macs[item.name] }} | grep 'inet ' | awk '{print $3}' | awk -F'/' '{print $1}'
   args:
     executable: /bin/bash
   register: vm_vxlan_ip_out
@@ -73,7 +73,7 @@
 
 - name: Store VXLAN IPs of running VMs
   set_fact:
-    vm_vxlan_ips: "{{ vm_vxlan_ips|default({}) | combine( {item.item.name: item.stdout} ) }}"
+    vm_vxlan_ips: "{{ vm_vxlan_ips | default({}) | combine( {item.item.name: item.stdout} ) }}"
   when: item.changed and item.item.name is defined  # noqa 503
   loop: "{{ vm_vxlan_ip_out.results }}"
 
@@ -93,6 +93,9 @@
   command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.value }}"
   with_items: "{{ vm_vxlan_ips | dict2items }}"
   changed_when: true
+  when:
+    - (not item.key in current_vms.stdout) or
+      vm_recreate_existing | default(true)
 
 - name: Wait up to 300 seconds for port 22 to become available for VXLAN interface
   wait_for:

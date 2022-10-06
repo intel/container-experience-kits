@@ -16,15 +16,22 @@
 ---
 - hosts: vm_host
   roles:
-    - { role: "vm/conf_libvirt" }
+    - role: vm/compile_libvirt
+      when:
+        - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+        - sgx_dp_enabled | default(false)
+    - role: vm/conf_libvirt
 
 - hosts: vm_host
   gather_facts: false
   roles:
-    - "vm/manage_imgs"
-    - "vm/manage_bridges"
-    - "vm/manage_vms"
-    - "vm/prepare_cek"
+    - role: vm/manage_imgs
+    - role: vm/manage_bridges
+    - role: vm/manage_vms
+    - role: vm/vm_sgx_enable
+      when:
+        - sgx_dp_enabled | default(false)
+    - role: vm/prepare_cek
 
 - hosts: vm_host
   gather_facts: false
@@ -35,7 +42,7 @@
 - hosts: vm_host
   gather_facts: false
   roles:
-    - "vm/prepare_cek_vxlan"
+    - vm/prepare_cek_vxlan
 
 - hosts: vm_host
   gather_facts: false

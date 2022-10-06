@@ -1,0 +1,23 @@
+---
+kubeProxyReplacement: strict
+k8sServiceHost: {{ adq_dp.interface_address }}
+k8sServicePort: 6443
+devices: {{ adq_dp.interface_name }}
+l7Proxy: false
+sockops.enabled: true
+tunnel: disabled
+ipv4NativeRoutingCIDR: {{ kube_pods_subnet }}
+enableipv4masquerade: true
+autoDirectNodeRoutes: true
+endpointRoutes.enabled: true
+bpf.masquerade: true
+ipv4.enabled: true
+disable-envoy-version-check: true
+ipam.mode: kubernetes
+cni.customConf: true
+cni.configMap: cni-configuration
+prometheus.enabled: false
+operator.prometheus.enabled: false
+hubble.enabled: true
+hubble.metrics.enabled: {dns,drop,tcp,flow,port-distribution,icmp,http}
+extraArgs: [--bpf-filter-priority=99]

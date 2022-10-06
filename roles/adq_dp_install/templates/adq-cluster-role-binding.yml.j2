@@ -1,0 +1,13 @@
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: adq
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: adq
+subjects:
+- kind: ServiceAccount
+  name: adq
+  namespace: {{ adq_dp_namespace }}

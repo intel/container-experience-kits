@@ -1,18 +1,17 @@
 # QAT Device Plugin
-This example show how to use the QAT Device Plugin for assigning Virtual Functions (VFs) to workloads in Kubernetes. The QAT deivces provide access to accelerated cryptographic and compression features.
+This example shows how to use the QAT Device Plugin for assigning Virtual Functions (VFs) to workloads in Kubernetes. The QAT devices provide access to accelerated cryptographic and compression features.
 
 ## Verify Node Resources
 Start by listing allocatable node resources for the target worker node:
 ```
 # kubectl get node <worker node> -o json | jq '.status.allocatable'
 {
-  "cpu": "93",
+  "cpu": "95550m",
   "ephemeral-storage": "452220352993",
   "hugepages-1Gi": "4Gi",
   "hugepages-2Mi": "256Mi",
-  "intel.com/intel_sriov_dpdk_700_series": "2",
-  "intel.com/intel_sriov_dpdk_800_series": "2",
-  "intel.com/intel_sriov_netdevice": "4",
+  "intel.com/node1_ens801f0_intelnics_1": "1",
+  "intel.com/node1_ens801f0_intelnics_2": "4",
   "memory": "191733164Ki",
   "pods": "110",
   "qat.intel.com/generic": "32"

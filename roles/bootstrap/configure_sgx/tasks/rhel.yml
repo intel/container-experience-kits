@@ -90,17 +90,69 @@
     line: 'gpgcheck=0'
     mode: '0644'
 
-- name: install sgx platform sw
+- name: install software specific to rocky 8 for sgx platform
   package:
     disable_gpg_check: yes
     name:
       - libsgx-launch
       - libsgx-epid
-      - libsgx-urts
       - libsgx-quote-ex
+      - sgx-aesm-service
+    state: present
+  when: ansible_distribution_version < '9.0'
+
+- name: Setting packages for Rocky / RHEL >= 9.0 for sgx platform
+  block:
+    - name: install software specific to Rocky / RHEL >= 9.0 for sgx platform
+      shell: "set -o pipefail && rpm --reinstall --nodeps '{{ sgx_rpm_directory }}/{{ item }}-{{ sgx_pkg_version }}-1.el8.x86_64.rpm'"
+      loop:
+        - libsgx-launch
+        - libsgx-epid
+        - libsgx-quote-ex
+        - sgx-aesm-service
+      changed_when: true
+
+    - name: install additional software for Rocky / RHEL >= 9.0
+      package:
+        state: present
+        name:
+          - compat-openssl11
+
+    - name: making directory for unpacking rpm
+      file:
+        path: "{{ (project_root_dir, 'protobuf') | path_join }}"
+        state: directory
+        mode: '0644'
+
+    - name: downloading protobuf from rocky 8 repository
+      get_url:
+        url: "{{ protobuf_repository }}/{{ protobuf_version }}"
+        dest: "{{ (project_root_dir, protobuf_dir, protobuf_version) | path_join }}"
+        mode: '0640'
+
+    - name: unpack protobuf rpm
+      shell: 'rpm2cpio {{ protobuf_version }} | cpio -idmv'
+      args:
+        chdir: "{{ (project_root_dir, protobuf_dir) | path_join }}"
+      changed_when: true
+
+    - name: copy protobuf library
+      copy:
+        src: "{{ (project_root_dir, protobuf_dir, protobuf_library_dir, protobuf_library_version) | path_join }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+        dest: "{{ ('/', protobuf_library_dir, protobuf_library_version_long) | path_join }}"
+  when: ansible_distribution_version >= '9.0'
+
+- name: install common software for sgx platform
+  package:
+    disable_gpg_check: yes
+    name:
+      - libsgx-urts
       - libsgx-enclave-common
       - libsgx-uae-service
-      - sgx-aesm-service
       - libsgx-dcap-ql
       - libsgx-ae-qe3
       - libsgx-ae-qve
@@ -120,6 +172,11 @@
   service:
     state: started
     name: aesmd
+
+- name: wait for aesmd service to start
+  pause:
+    minutes: 1
+  when: ansible_distribution_version >= '9.0'
 
 - name: get aesmd service facts
   service_facts:

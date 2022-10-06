@@ -5,8 +5,15 @@ Before=kubelet.service
 
 [Service]
 Type=oneshot
-ExecStart=/sbin/modprobe -r {% if (hostvars[node_name]['ansible_distribution'] == "Ubuntu" and hostvars[node_name]['ansible_distribution_version'] >= "22.04") %}irdma {% endif %}ice
-ExecStart=/sbin/modprobe ice {% if (hostvars[node_name]['ansible_distribution'] == "Ubuntu" and hostvars[node_name]['ansible_distribution_version'] >= "22.04") %}irdma{% endif %}
+{% if (not hostvars[node_name]['update_nic_drivers'] and
+((hostvars[node_name]['ansible_distribution'] == "Ubuntu" and hostvars[node_name]['ansible_distribution_version'] >= "22.04") or
+(hostvars[node_name]['ansible_os_family'] == "RedHat" and hostvars[node_name]['ansible_distribution_version'] >= "8.6"))) %}
+ExecStart=/sbin/modprobe -r irdma ice
+ExecStart=/sbin/modprobe -a ice irdma
+{% else %}
+ExecStart=/sbin/modprobe -r ice
+ExecStart=/sbin/modprobe -a ice
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target

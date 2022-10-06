@@ -1,0 +1,19 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+intel_dlb_driver_ver: "dlb_linux_src_release_7.7.0_2022_06_17"
+intel_dlb_driver_url: "https://downloadmirror.intel.com/734482/{{ intel_dlb_driver_ver }}.txz"
+intel_dlb_driver_checksum: "sha1:253984E464597F6DCCA8DBBA439FA980B93B8180"

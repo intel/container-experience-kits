@@ -1,0 +1,38 @@
+[all]
+{% for host in hosts -%}
+  {{host.host_name}} ansible_host={{host.internal_ip}} ip={{host.internal_ip}} ansible_user={{host.root_user_name}} ansible_ssh_private_key_file={{host.ansible_ssh_key_path}}
+{% endfor -%}
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+[vm_host]
+
+[kube_control_plane]
+{%- for host in hosts -%}
+  {% if 'ra_host' in host.ansible_type %}
+    {{- '\n' -}}
+    {{- host.host_name -}}
+  {% endif %}
+{%- endfor %}
+
+[etcd]
+{%- for host in hosts -%}
+  {% if 'ra_host' in host.ansible_type %}
+    {{- '\n' -}}
+    {{- host.host_name -}}
+  {% endif %}
+{%- endfor %}
+
+[kube_node]
+{%- for host in hosts -%}
+  {% if 'ra_worker' in host.ansible_type %}
+    {{- '\n' -}}
+    {{- host.host_name -}}
+  {% endif %}
+{%- endfor %}
+
+[k8s_cluster:children]
+kube_control_plane
+kube_node
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3

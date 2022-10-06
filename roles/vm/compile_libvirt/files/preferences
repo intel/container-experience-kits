@@ -1,0 +1,12 @@
+Package: libvirt-daemon-system
+Pin: release *
+Pin-Priority: -1
+Package: libvirt-clients
+Pin: release *
+Pin-Priority: -1
+Package: libvirt-daemon-driver-qemu
+Pin: release *
+Pin-Priority: -1
+Package: libvirt-daemon
+Pin: release *
+Pin-Priority: -1

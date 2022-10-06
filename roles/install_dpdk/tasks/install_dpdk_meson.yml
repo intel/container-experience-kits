@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: install dpdk-devel required for libraries enablement in RHEL / CentOS >= 8.2
+- name: install dpdk-devel required for libraries enablement in RHEL / Rocky
   dnf:
     name: dpdk-devel
   when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
@@ -36,21 +36,25 @@
 
     - name: meson build for ease of compiling and linking libraries enablement
       command: "meson build"
+      changed_when: true
       args:
         chdir: "{{ dpdk_dir }}"
 
     - name: configure DPDK with ninja
       command: "ninja"
+      changed_when: true
       args:
         chdir: "{{ dpdk_dir }}/build"
 
     - name: install DPDK with ninja
       command: "ninja install"
+      changed_when: true
       args:
         chdir: "{{ dpdk_dir }}/build"
 
     - name: update the dynamic linker cache
       command: "ldconfig"
+      changed_when: true
       args:
         chdir: "{{ dpdk_dir }}/build"
   vars:

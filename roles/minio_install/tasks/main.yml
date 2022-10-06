@@ -14,6 +14,12 @@
 ##   limitations under the License.
 ##
 ---
+- name: install dependencies
+  include_role:
+    name: install_dependencies
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
 - name: collect the number of nodes
   set_fact:
     minio_nodes: "{{ groups['kube_node'] | length }}"
@@ -36,9 +42,13 @@
   when:
     - minio_nodes | int >= minio_tenant_servers
 
-- name: install dependencies
+- name: install dependencies - whereabouts
   include_role:
     name: whereabouts_install
+
+- name: install dependencies - kubernetes_ingress
+  include_role:
+    name: kubernetes_ingress_install
 
 - name: install MinIO operator/console
   import_tasks: minio_operator.yml
@@ -99,6 +109,20 @@
     - inventory_hostname == groups['kube_control_plane'][0]
     - minio_vfs is defined and minio_vfs | length | int > 0
 
+- name: build MinIO tenant Postgress DB image
+  import_tasks: build_local_postgress_image.yml
+  when:
+    - minio_tenant_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: build MinIO local image
+  import_tasks: build_local_minio_image.yml
+  when:
+    - minio_tenant_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - inventory_hostname == groups['kube_control_plane'][0]
+
 - name: install MinIO tenant
   import_tasks: minio_tenant.yml
   when:
@@ -106,12 +130,14 @@
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
 
+- name: install Multus Service Helmchart
+  include_role:
+    name: multus_service
 
-- name: install additional Endpoints for MinIO Sample Tenant pods
-  import_tasks: add_minio_tenant_endpoints.yml
+- name: create MinIO storage Multus Service
+  import_tasks: create_minio_multus_service.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
-    - minio_tenant_sriov_resources is defined and minio_tenant_sriov_resources | length > 0
     - minio_vfs is defined and minio_vfs | length | int > 0

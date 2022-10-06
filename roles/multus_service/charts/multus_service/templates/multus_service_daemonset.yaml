@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: multus-proxy-ds-amd64
+  namespace: kube-system
+  labels:
+    tier: node
+    app: multus-proxy
+    name: multus-proxy
+spec:
+  selector:
+    matchLabels:
+      name: multus-proxy
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        tier: node
+        app: multus-proxy
+        name: multus-proxy
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      serviceAccountName: multus-service
+      containers:
+      - name: multus-proxy
+        # crio support requires multus:latest for now. support 3.3 or later.
+        image: ghcr.io/k8snetworkplumbingwg/multus-service:latest-nft
+        imagePullPolicy: Always
+        command: ["/usr/bin/multus-proxy"]
+        args:
+        - "--host-prefix=/host"
+        # uncomment this if runtime is docker
+        - "--container-runtime=cri"
+        # change this if runtime is different that crio default
+        - "--container-runtime-endpoint=/run/crio/crio.sock"
+        # uncomment this if you want to store iptables rules
+        - "--pod-iptables=/var/lib/multus-proxy/iptables"
+        - "--logtostderr"
+        - "-v=4"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "80Mi"
+          limits:
+            cpu: "100m"
+            memory: "150Mi"
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN", "SYS_NET_ADMIN"]
+        volumeMounts:
+        - name: host
+          mountPath: /host
+        - name: var-lib-multusproxy
+          mountPath: /var/lib/multus-proxy
+      volumes:
+        - name: host
+          hostPath:
+            path: /
+        - name: var-lib-multusproxy
+          hostPath:
+            path: /var/lib/multus-proxy

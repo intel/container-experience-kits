@@ -16,7 +16,7 @@
 ---
 - name: verify that intel_pstate driver is enabled
   fail:
-     msg: intel_pstate must be enabled for SST-BF to work on CLX platform
+    msg: intel_pstate must be enabled for SST-BF to work on CLX platform
   when: intel_pstate is defined and intel_pstate == "disable"
 
 - name: validate sst mode

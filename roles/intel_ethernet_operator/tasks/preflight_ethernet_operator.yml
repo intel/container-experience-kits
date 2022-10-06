@@ -59,14 +59,16 @@
           - "Intel Ethernet Operator is mutually exclusive with legacy DDP/FW update role."
           - "Please set 'install_ddp_packages' and 'update_nic_firmware' as false"
       when:
-        - (intel_ethernet_operator.ddp_update is defined and intel_ethernet_operator.ddp_update) or
-          (intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update)
+        - intel_ethernet_operator.ddp_update | d(false) or intel_ethernet_operator.fw_update | d(false)
 
-    - name: check if ice driver will be updated
+    - name: check bus_info and ddp profile of dataplane_interfaces
       assert:
-        that: update_nic_drivers
-        msg: "Firmware update requires update_nic_drivers set as true"
-      when: intel_ethernet_operator.fw_update is defined and intel_ethernet_operator.fw_update
+        that:
+          - dataplane_interfaces | json_query("[?ends_with(bus_info, ':00.0')]")
+          - dataplane_interfaces | json_query('[?ddp_profile]')
+        msg: "When DDP update is true, bus_info of one of the interfaces must end with ':00.0', also ddp_profile must be defined"
+      when: intel_ethernet_operator.ddp_update | d(false)
+
 
     - name: check Hugepages settings for Flow Configuration
       assert:

@@ -1,0 +1,113 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies for Intel DLB driver
+  include_role:
+    name: install_dependencies
+
+# dependencies are not limited to packages
+- name: insert mdev module
+  modprobe:
+    name: mdev
+    state: present
+
+- name: load mdev module on boot
+  lineinfile:
+    path: /etc/modules-load.d/mdev.conf
+    line: mdev
+    create: yes
+    mode: 0644
+  become: yes
+
+# build and install Intel DLB driver
+- name: download DLB driver
+  become: yes
+  get_url:
+    url: "{{ intel_dlb_driver_url }}"
+    dest: "{{ project_root_dir }}"
+    checksum: "{{ intel_dlb_driver_checksum }}"
+    timeout: 60
+    mode: 0644
+  register: dlb_download
+  until: dlb_download is not failed
+  retries: 5
+
+- name: untar DLB driver on Ubuntu
+  unarchive:
+    src: "{{ dlb_download.dest }}"
+    dest: "{{ project_root_dir }}"
+    list_files: yes
+    remote_src: yes
+    mode: 0774
+  become: yes
+  when: ansible_os_family == "Debian"
+
+# Ansible built-in unarchive not working as expected in RHEL / Rocky using shell as alternative
+- name: extract DLB driver package on RHEL / Rocky
+  shell: "tar --xz -xf {{ intel_dlb_driver_ver }}.txz" # noqa command-instead-of-module 305
+  args:
+    chdir: "{{ project_root_dir }}"
+    executable: /bin/bash
+  when: ansible_os_family == "RedHat"
+
+- name: build Intel DLB driver
+  make:
+    chdir: "{{ project_root_dir }}/dlb/driver/dlb2"
+
+- name: check if DLB module is loaded
+  command: lsmod
+  register: dlb_module
+  failed_when: false
+  changed_when: false
+
+- name: insert DLB module
+  command: insmod dlb2.ko
+  args:
+    chdir: "{{ project_root_dir }}/dlb/driver/dlb2"
+  when: "'dlb' not in dlb_module.stdout"
+
+- name: link dlb2 module to kernel drivers
+  file:
+    state: link
+    src: "{{ project_root_dir }}/dlb/driver/dlb2"
+    dest: "/usr/lib/modules/{{ ansible_kernel }}/kernel/drivers/dlb2"
+    force: yes
+    mode: 0644
+
+- name: setup DLB module loading on boot
+  lineinfile:
+    path: /etc/modules-load.d/dlb2.conf
+    line: dlb2
+    create: yes
+    mode: 0644
+  become: yes
+
+- name: check if DLB devices are present on the system
+  find:
+    path: /dev
+    file_type: any
+    use_regex: yes
+    pattern: "^(dlb)[0-9]*$"  # devices have to start with "dlb" followed by the ID at the end
+  register: dlb_devices
+
+- name: assert DLB devices presence
+  assert:
+    that:
+      - dlb_devices.matched > 0
+    fail_msg:
+      - "Intel DLB devices cannot be configured."
+      - "If the failure persist, please consider updating your kernel to version 5.12 or 5.13."
+      - "If the above solutions are not working for you, please connact the owner of the code via GitHub issues."

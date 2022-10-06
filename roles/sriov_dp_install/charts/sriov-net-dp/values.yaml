@@ -18,7 +18,7 @@ namespace: kube-system
 
 image:
   repository: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin
-  tag: v3.4.0
+  tag: v3.5.0
   pullPolicy: IfNotPresent
 
 configPath: /etc/pcidp/config.json

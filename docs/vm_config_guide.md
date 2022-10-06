@@ -54,14 +54,14 @@ The first option defines VM image distribution of cloud image, which will be use
   Currently supported distributions are: "ubuntu" and "rocky". Default is "ubuntu"
 Following two options define VM image version for Ubuntu and for Rocky.
   Currently supported ubuntu versions are: "20.04" and "22.04". Default is "20.04"
-  Currently supported rocky version is: "8.5". Default is "8.5"
+  Currently supported rocky versions are: "8.5" and "9.0". Default is "8.5"
 Default VM image distribution is "ubuntu" and default version is "20.04"
 Setting for VM image can be done just on the first VM host. It is common for all VMs across all VM hosts.
 
 ```
 vm_image_distribution: "ubuntu"
 vm_image_version_ubuntu: "22.04"
-vm_image_version_rocky: "8.5"
+vm_image_version_rocky: "9.0"
 ```
 
 The next options defines VM networking
@@ -403,6 +403,8 @@ qat_devices:
     qat_sriov_numvfs: 0
 
 ```
+
+**For SGX** currently it's in experimental phase - it's compiling libvirt from custom repository. Beacause of that it's not supported on all operating system, but only for: Ubuntu 22.04 for host and Ubuntu 20.04 for VMs.
 
 ### Once the deployment is finished we can access VMs from ansible_host via VM name:
 ```
