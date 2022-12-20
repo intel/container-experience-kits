@@ -15,72 +15,108 @@
 ##
 ---
 - name: install dependencies
-  include_role:
+  ansible.builtin.include_role:
     name: install_dependencies
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
-    - prometheus_srv_expose | default(false)
 
-- name: set default value of install_tas_demo_policy
-  set_fact:
-    install_tas_demo_policy: false
+- block:
+    - name: create namespace for kube-prometheus-stack if doesn't exist
+      ansible.builtin.shell: "set -o pipefail && kubectl create ns {{ kube_prometheus_stack_namespace }} -o yaml --dry-run=client | kubectl apply -f -"
+      args:
+        executable: /bin/bash
+      changed_when: true
 
-- name: set install_tas_demo_policy to True
-  set_fact:
-    install_tas_demo_policy: true
-  when:
-    - tas_enabled
-    - tas_enable_demo_policy
+    - name: create kube-prometheus-stack directory
+      ansible.builtin.file:
+        path: "{{ (kube_prometheus_stack_directory, 'certs') | path_join }}"
+        state: directory
+        mode: 0744
 
-- name: generate htpasswd file
-  command: htpasswd -Bbn {{ prometheus_srv_user }} {{ prometheus_srv_password }}
-  register: htpasswd
+    - name: template kube-prometheus-stack certs manifest
+      ansible.builtin.template:
+        src: "kube-prometheus-stack-certs.yml.j2"
+        dest: "{{ (kube_prometheus_stack_directory, 'certs', 'kube-prometheus-stack-certs.yml') | path_join }}"
+        owner: root
+        group: root
+        mode: 0744
+
+    - name: create kube-prometheus-stack certs
+      ansible.builtin.command: "kubectl create -f kube-prometheus-stack-certs.yml"
+      args:
+        chdir: "{{ (kube_prometheus_stack_directory, 'certs') | path_join }}"
+      changed_when: true
+
+    - name: wait for secrets to be created
+      ansible.builtin.pause:
+        seconds: 20
+
+    - name: create password for node-exporter
+      ansible.builtin.set_fact:
+        node_exporter_password: "{{ lookup('ansible.builtin.password', '/dev/null', seed=inventory_hostname) }}"
+
+    - name: generate htpasswd file for node_exporter
+      ansible.builtin.command: htpasswd -Bbn "" {{ node_exporter_password }}
+      register: node_exporter_htpasswd
+      changed_when: true
+
+    - name: create node_exporter secret
+      ansible.builtin.command: >-
+        kubectl create secret generic node-exporter-auth
+        --from-literal=username='prometheus'
+        --from-literal=password='{{ node_exporter_password }}'
+        -n monitoring
+      changed_when: true
+
+    - name: generate htpasswd file
+      ansible.builtin.command: htpasswd -Bbn {{ prometheus_srv_user }} {{ prometheus_srv_password }}
+      register: htpasswd
+      when:
+        - prometheus_srv_expose | default(false)
+
+    - name: create and sign certificate material
+      ansible.builtin.include_role:
+        name: create_signed_k8s_certs
+      vars:
+        secret_name: "{{ item.name }}-ssl"
+        service_name: "{{ item.name }}"
+        key_pair_name: "{{ item.name }}-tls"
+        host_secrets_folder: "/etc/ssl/{{ item.name }}"
+        k8s_namespace: "monitoring"
+        csr_cluster_name: "{{ cluster_name | default('cluster.local') }}"
+      loop:
+        - name: "prometheus-srv"
+          expose: "{{ prometheus_srv_expose | default(false) }}"
+      when:
+        - item.expose
+
+    - name: get ca of kube-prometheus-adapter
+      ansible.builtin.command: >-
+        kubectl get secret prometheus-adapter-tls -n monitoring -o jsonpath="{.data['ca\.crt']}"
+      changed_when: false
+      register: kube_prometheus_adapter_ca
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
-    - prometheus_srv_expose | default(false)
-
-- name: create and sign certificate material
-  include_role:
-    name: create_signed_k8s_certs
-  vars:
-    secret_name: "{{ item.name }}-ssl"
-    service_name: "{{ item.name }}"
-    key_pair_name: "{{ item.name }}-tls"
-    host_secrets_folder: "/etc/ssl/{{ item.name }}"
-    k8s_namespace: "{{ telemetry_namespace }}"
-    csr_cluster_name: "{{ cluster_name | default('cluster.local') }}"
-  loop:
-    - name: "grafana"
-      expose: true
-    - name: "node-exporter"
-      expose: true
-    - name: "prometheus-adapter"
-      expose: true
-    - name: "prometheus-srv"
-      expose: "{{ prometheus_srv_expose | default(false) }}"
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-    - item.expose
 
 - name: prepare TAS demonstration policy files
-  import_tasks: create-tas-demo-policy.yml
+  ansible.builtin.import_tasks: create-tas-demo-policy.yml
   when:
-    - install_tas_demo_policy
+    - tas_enable_demo_policy | d(false)
 
 - name: create persistent folder for grafana and prometheus
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: root
     group: root
-    mode: u+rwx,g-rwx,o-
-  when:
-    - inventory_hostname == groups['kube_node'][0]
+    mode: 0744
   loop:
     - /etc/grafana
     - /etc/prometheus
+  when:
+    - inventory_hostname == groups['kube_node'][0]
 
 - name: install kube-prometheus
-  import_tasks: kube-prometheus.yml
+  ansible.builtin.import_tasks: kube-prometheus.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

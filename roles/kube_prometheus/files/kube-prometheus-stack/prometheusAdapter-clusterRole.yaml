@@ -1,0 +1,25 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: metrics-adapter
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 0.10.0
+  name: prometheus-adapter-custom-metrics-resource-reader
+  namespace: monitoring
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - services
+  - configmaps
+  - pods
+  - nodes
+  - nodes/stats
+  verbs:
+  - get
+  - list
+  - watch

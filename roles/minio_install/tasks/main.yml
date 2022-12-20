@@ -38,9 +38,10 @@
     - minio_nodes | int < minio_tenant_servers
 
 - name: install MinIO operator/console
-  import_tasks: build_minio_variables.yml
+  include_tasks: build_minio_variables.yml
   when:
     - minio_nodes | int >= minio_tenant_servers
+    - minio_tenant_sriov_vfs | int > 0
 
 - name: install dependencies - whereabouts
   include_role:
@@ -49,15 +50,17 @@
 - name: install dependencies - kubernetes_ingress
   include_role:
     name: kubernetes_ingress_install
+  when:
+    minio_ingress_enabled is defined and minio_ingress_enabled
 
 - name: install MinIO operator/console
-  import_tasks: minio_operator.yml
+  include_tasks: minio_operator.yml
   when:
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create MinIO local storage
-  import_tasks: file_blockdevice.yml
+  include_tasks: file_blockdevice.yml
   when:
     - minio_tenant_enabled
     - minio_deploy_test_mode
@@ -65,7 +68,7 @@
     - inventory_hostname in groups['kube_node']
 
 - name: create MinIO nvme storage
-  import_tasks: nvme_blockdevice.yml
+  include_tasks: nvme_blockdevice.yml
   when:
     - minio_tenant_enabled
     - not minio_deploy_test_mode
@@ -73,14 +76,14 @@
     - inventory_hostname in groups['kube_node']
 
 - name: populate MinIO local persisitent volumes
-  import_tasks: create_persistentvolumes.yml
+  include_tasks: create_persistentvolumes.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate MinIO storage class
-  import_tasks: create_storageclass.yml
+  include_tasks: create_storageclass.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
@@ -95,36 +98,38 @@
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: prepare MinIO storage network
-  import_tasks: prepare_minio_tenant_sriovnetwork.yml
+  include_tasks: prepare_minio_tenant_sriovnetwork.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - minio_vfs is defined and minio_vfs | length | int > 0
+    - hostvars[groups['kube_control_plane'][0]]['total_num_minio_vfs'] is defined and hostvars[groups['kube_control_plane'][0]]['total_num_minio_vfs'][0] > 0
 
 - name: populate MinIO storage network
-  import_tasks: create_minio_tenant_sriovnetwork.yml
+  include_tasks: create_minio_tenant_sriovnetwork.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
     - minio_vfs is defined and minio_vfs | length | int > 0
+    - hostvars[groups['kube_control_plane'][0]]['total_num_minio_vfs'] is defined and hostvars[groups['kube_control_plane'][0]]['total_num_minio_vfs'][0] > 0
 
 - name: build MinIO tenant Postgress DB image
-  import_tasks: build_local_postgress_image.yml
+  include_tasks: build_local_postgress_image.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: build MinIO local image
-  import_tasks: build_local_minio_image.yml
+  include_tasks: build_local_minio_image.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install MinIO tenant
-  import_tasks: minio_tenant.yml
+  include_tasks: minio_tenant.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
@@ -135,9 +140,26 @@
     name: multus_service
 
 - name: create MinIO storage Multus Service
-  import_tasks: create_minio_multus_service.yml
+  include_tasks: create_minio_multus_service.yml
   when:
     - minio_tenant_enabled
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
     - minio_vfs is defined and minio_vfs | length | int > 0
+    - hostvars[groups['kube_control_plane'][0]]['total_num_minio_vfs'] is defined and hostvars[groups['kube_control_plane'][0]]['total_num_minio_vfs'][0] > 0
+
+- name: build AWS container image
+  include_tasks: build_local_awscli_image.yml
+  when:
+    - minio_tenant_enabled
+    - minio_awsclient_pods_enabled is defined and minio_awsclient_pods_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: populate MinIO AWS client pods
+  include_tasks: create_aws_client_pods.yml
+  when:
+    - minio_tenant_enabled
+    - minio_awsclient_pods_enabled is defined and minio_awsclient_pods_enabled
+    - minio_nodes | int >= minio_tenant_servers
+    - inventory_hostname == groups['kube_control_plane'][0]

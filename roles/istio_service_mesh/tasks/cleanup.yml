@@ -54,6 +54,32 @@
   changed_when: true
   failed_when: false
 
+- name: remove existing external CA secret
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Secret
+    name: external-ca-cert
+    namespace: "{{ istio_service_mesh.istio_namespace }}"
+    state: absent
+
+- name: wait for termination of all istio pods
+  command: |
+    kubectl get pods \
+    --namespace {{ istio_service_mesh.istio_namespace }}
+  register: istio_pods_termination
+  retries: 30
+  delay: 10
+  until: istio_pods_termination.stdout | length == 0
+  failed_when: false
+  changed_when: true
+
+- name: remove istio-system namespace
+  kubernetes.core.k8s:
+    name: "{{ istio_service_mesh.istio_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: absent
+
 - name: remove istio custom manifests directory
   file:
     path: "{{ istio_service_mesh_charts_dir }}"
@@ -65,3 +91,13 @@
     path: "{{ istio_service_mesh_release_dir }}"
     state: absent
   failed_when: false
+
+- name: wait for istio-system namespace removal
+  command: |
+    kubectl get ns {{ istio_service_mesh.istio_namespace }}
+  register: istio_ns_removal
+  retries: 30
+  delay: 10
+  until: istio_ns_removal.stdout | length == 0
+  failed_when: false
+  changed_when: true

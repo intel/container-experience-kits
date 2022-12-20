@@ -15,15 +15,15 @@
 ##
 ---
 intel_ethernet_operator_git: "https://github.com/intel/intel-ethernet-operator.git"
-intel_ethernet_operator_git_ref: "v22.04"
+intel_ethernet_operator_git_ref: "v22.11"
 intel_ethernet_operator_dir: "{{ (project_root_dir, 'intel-ethernet-operator') | path_join }}"
 
 uft_git: "https://github.com/intel/UFT.git"
-uft_git_ref: "v22.03"
+uft_git_ref: "v22.07"
 uft_dir: "{{ (project_root_dir, 'uft') | path_join }}"
-uft_image: "dcf-tool"
-uft_image_ver: "v22.03"
-dpdk_tag: "v22.03"
+uft_image: "uft"
+uft_image_ver: "v22.07"
+dpdk_tag: "v22.07"
 
 flow_config_resource_name: "cvl_uft_admin"
 flow_config_sriov_network_name: "sriov-cvl-dcf"
@@ -33,17 +33,20 @@ intel_ethernet_operator_namespace: "intel-ethernet-operator"
 intel_ethernet_operator_img_ver: "0.0.1"
 intel_ethernet_operator_make_tls: "false"
 intel_ethernet_operator_target_platform: "K8S"
+intel_ethernet_operator_catalog_image: "{{ registry_local_address }}/intel-ethernet-operator-catalog:v{{ intel_ethernet_operator_img_ver }}"
+
+intel_ethernet_operator_cache_webserver_image: "{{ registry_local_address }}/intel-ethernet-operator-cache-webserver:v1.0"
+intel_ethernet_operator_cache_webserver_name: "fwddp-cache-webserver"
 
 intel_ethernet_operator_files_dir: "{{ (project_root_dir, 'intel-ethernet-operator-files') | path_join }}"
+intel_ethernet_operator_packages_dir: "{{ (intel_ethernet_operator_files_dir, 'packages') | path_join }}"
 intel_ethernet_operator_fw_files_dir: "{{ (intel_ethernet_operator_files_dir, 'fw') | path_join }}"
 intel_ethernet_operator_ddp_files_dir: "{{ (intel_ethernet_operator_files_dir, 'ddp') | path_join }}"
 intel_ethernet_operator_flow_config_files_dir: "{{ (intel_ethernet_operator_files_dir, 'flowconfig') | path_join }}"
-intel_ethernet_operator_node_flow_config_files_dir: "{{ (intel_ethernet_operator_flow_config_files_dir, 'node_flow_config') | path_join }}"
+intel_ethernet_operator_flow_config_rules_dir: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow_config_rules') | path_join }}"
 
-intel_ethernet_operator_catalog_image: "{{ registry_local_address }}/intel-ethernet-operator-catalog:v{{ intel_ethernet_operator_img_ver }}"
-
-intel_ethernet_operator_fw_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
-intel_ethernet_operator_fw_sum: "95cadf0842eb97cd29c3083362db0a35"
+intel_ethernet_operator_fw_url: "https://downloadmirror.intel.com/759036/E810_NVMUpdatePackage_v4_10_Linux.tar.gz"
+intel_ethernet_operator_fw_sum: "64598337c8730ee00239d728e17bdcb180bb8154"
 
 intel_ethernet_operator_ddp_urls:
   'ice_comms-1.3.17.0.pkg': https://downloadmirror.intel.com/29892/eng/ice_comms-1.3.17.0.zip
@@ -54,18 +57,18 @@ intel_ethernet_operator_ddp_urls:
   'ice_comms-1.3.30.0.pkg': https://downloadmirror.intel.com/30590/eng/800%20series%20comms%20binary%20package%201.3.30.0.zip
   'ice_comms-1.3.30.0_rev1.1.pkg': https://downloadmirror.intel.com/29889/eng/800%20series%20comms%20binary%20package%201.3.30.0_rev1.1.zip
   'ice_comms-1.3.31.0.pkg': https://downloadmirror.intel.com/713853/800%20Series%20DDP%20Comms%20Package%201.3.31.0.zip
-  'ice_comms-1.3.35.0.pkg': "https://downloadmirror.intel.com/727568/ice_comms-1.3.35.0.zip"
+  'ice_comms-1.3.35.0.pkg': https://downloadmirror.intel.com/727568/ice_comms-1.3.35.0.zip
   'ice_comms-1.3.37.0.pkg': https://downloadmirror.intel.com/738733/800%20Series%20DDP%20Comms%20Package%201.3.37.0.zip
 
-# MD5 sums of DDP packages
+# SHA-1 sums of DDP packages
 intel_ethernet_operator_ddp_sums:
-  'ice_comms-1.3.17.0.pkg': 99913a7ae36891ecf9106ce6e78e25dc
-  'ice_comms-1.3.20.0.pkg': f688022f4cb05349f08c933e9c4dac9a
-  'ice_comms-1.3.22.0.pkg': cfee9f5466d6c30be9e4aeb15bede19c
-  'ice_comms-1.3.24.0.pkg': ad49a16db55c823ecac36d3d846a807b
-  'ice_comms-1.3.28.0.pkg': 8de9575e712cfcf91a97eadff8ebe0e0
-  'ice_comms-1.3.30.0.pkg': ee291f0e3bc38a0667dd924e08306c68
-  'ice_comms-1.3.30.0_rev1.1.pkg': 91ae9e51497cb6ab35d70d0f502c6be4
-  'ice_comms-1.3.31.0.pkg': d0d838120db7784f0419cd73d481aab3
-  'ice_comms-1.3.35.0.pkg': ee79feecf555fa50d26dfc7c07879e41
-  'ice_comms-1.3.37.0.pkg': ba5febc828e1789d6c81bae5f1ab5d71
+  'ice_comms-1.3.17.0.pkg': a10d5df30d34559b6050c807e0baf44364b35130
+  'ice_comms-1.3.20.0.pkg': 5208c100fee36ba47c90dec955d43e24c6039614
+  'ice_comms-1.3.22.0.pkg': eb5ffa506a77d15facdcc8226b2f3b0a410d6458
+  'ice_comms-1.3.24.0.pkg': 0717f03ab72c1531320ee84be78cdcb194d789ba
+  'ice_comms-1.3.28.0.pkg': dc9ebe605ae1b151cbe67aa2588a0050992461ee
+  'ice_comms-1.3.30.0.pkg': cd076e008972005d93be651286dd2955a17681d4
+  'ice_comms-1.3.30.0_rev1.1.pkg': 89eba571845bd80bfc11869cbcfce995edb9a2f9
+  'ice_comms-1.3.31.0.pkg': 5dbe3ae8d2ada5b78de05da150e5df5befb3bf75
+  'ice_comms-1.3.35.0.pkg': c61189b98bb116e05853f67ba21ca915416aef46
+  'ice_comms-1.3.37.0.pkg': e73d24bdf6b3c8fe46b52ccc31ee534034b0b3e0

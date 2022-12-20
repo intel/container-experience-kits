@@ -3,8 +3,8 @@ Once deployment is complete, check the status of nodes in the cluster:
 ```
 # kubectl get nodes -o wide
 NAME         STATUS   ROLES           AGE   VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE           KERNEL-VERSION      CONTAINER-RUNTIME
-node1        Ready    worker          12h   v1.24.3   10.166.30.64   <none>        Ubuntu 22.04 LTS   5.15.0-25-generic   docker://20.10.17
-controller   Ready    control-plane   12h   v1.24.3   10.166.31.58   <none>        Ubuntu 22.04 LTS   5.15.0-25-generic   docker://20.10.17
+node1        Ready    worker          12h   v1.25.3   10.166.30.64   <none>        Ubuntu 22.04 LTS   5.15.0-25-generic   docker://20.10.20
+controller   Ready    control-plane   12h   v1.25.3   10.166.31.58   <none>        Ubuntu 22.04 LTS   5.15.0-25-generic   docker://20.10.20
 ```
 
 Also check the status of pods running in the cluster. All should be in `Running` or `Completed` status:

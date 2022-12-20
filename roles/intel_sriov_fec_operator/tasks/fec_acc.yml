@@ -17,7 +17,7 @@
 - name: configure vRAN FEC Acc H/W
   k8s:
     state: present
-    src: "{{ (intel_sriov_fec_operator_files_dir, intel_acc100_cr) | path_join }}"
+    src: "{{ (intel_sriov_fec_operator_files_dir, fec_acc_cr) | path_join }}"
 
 - name: wait to apply configuration
   pause:

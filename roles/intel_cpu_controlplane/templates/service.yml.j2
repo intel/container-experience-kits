@@ -1,0 +1,13 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: ctlplane-daemonset
+  namespace: {{ cpu_ctlplane_namespace }}
+spec:
+  selector:
+    app: ctlplane-daemonset
+  ports:
+    - name: service
+      port: 31000
+      targetPort: 31000

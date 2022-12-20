@@ -18,15 +18,15 @@
   include_role:
     name: install_dependencies
 
-# install libarchive required version in CentOS / RHEL >= 8.3
-- name: create dir {{ openssl_engine_dir }}/libarchive_install in CentOS / RHEL >= 8.3
+# install libarchive required version in Rocky / RHEL >= 8.3
+- name: create dir {{ openssl_engine_dir }}/libarchive_install in Rocky / RHEL >= 8.3
   file:
     path: "{{ openssl_engine_dir }}/libarchive_install"
     state: directory
     mode: "u=rwx,g=rx,o=rx"
   when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.3'
 
-- name: download and unarchive libarchive required version for CentOS / RHEL >= 8.3
+- name: download and unarchive libarchive required version for Rocky / RHEL >= 8.3
   unarchive:
     src: "{{ libarchive_url }}"
     dest: "{{ openssl_engine_dir }}/libarchive_install"
@@ -37,7 +37,7 @@
   retries: 5
   when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.3'
 
-- name: configure libarchive with PATH in CentOS / RHEL >= 8.3
+- name: configure libarchive with PATH in Rocky / RHEL >= 8.3
   command: './configure --prefix=/usr --disable-static'
   args:
     chdir: "{{ openssl_engine_dir }}/libarchive_install/libarchive-3.5.1"
@@ -49,7 +49,7 @@
   register: nproc_out
   changed_when: false
 
-- name: make install libarchive in CentOS / RHEL >= 8.3
+- name: make install libarchive in Rocky / RHEL >= 8.3
   make:
     chdir: "/{{ openssl_engine_dir }}/libarchive_install/libarchive-3.5.1"
     target: install

@@ -35,12 +35,6 @@
           {%- if native_cpu_manager_enabled | default(true) and native_cpu_manager_reserved_cpus is defined -%}
             reservedSystemCPUs: "{{ native_cpu_manager_reserved_cpus }}"
           {%- endif -%}
-        enable_admission_plugins_prepare: >-
-          [EventRateLimit,
-          DefaultStorageClass,
-          {% if always_pull_enabled %}AlwaysPullImages,{% endif %}
-          NodeRestriction,
-          PodSecurity]
         kube_config_dir: /etc/kubernetes
     - name: set kube_cert_dir
       set_fact:
@@ -49,8 +43,15 @@
     - name: prepare flannel CNI facts
       set_fact:
         flannel_backend_type: >-
-          {% if ansible_distribution_version >= '21.04' %}host-gw{% else %}vxlan{%endif %}
+          {% if minio_enabled is defined and minio_enabled -%}vxlan{%- else -%}
+          {% if ansible_distribution_version >= '21.04' -%}host-gw{%- else -%}vxlan{% endif %}{% endif %}
       when: kube_network_plugin == "flannel"
+
+    - name: print flannel_backend_type
+      debug:
+        msg: "flannel_backend_type: {{ flannel_backend_type }}"
+      when: kube_network_plugin == "flannel"
+
     - name: prepare calico CNI facts for vxlan backend
       set_fact:
         calico_vxlan_mode: 'CrossSubnet'
@@ -113,9 +114,15 @@
     helm_enabled: true
     krew_enabled: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
+    multus_image_tag: "v3.9.2-amd64"
     nginx_image_tag: 1.23.0-alpine
     calico_node_livenessprobe_timeout: 15
     calico_node_readinessprobe_timeout: 15
+    enable_network_policy: true
+    cri_dockerd_version: 0.2.6
+    cri_dockerd_archive_checksums:
+      amd64:
+        0.2.6: 5d57b160d5a1f75333149823bec3e291a1a0960383ddc9ddd6e4ff177382c755
     override_system_hostname: false
     kube_proxy_mode: iptables
     enable_nodelocaldns: false
@@ -140,7 +147,6 @@
     kube_kubeadm_apiserver_extra_args:
       service-account-lookup: true
       service-account-key-file: "{{ kube_cert_dir }}/sa.key"
-      admission-control-config-file: "{{ kube_config_dir }}/admission-control/config.yaml"
     kube_kubeadm_scheduler_extra_args:
       profiling: false
     kube_kubeadm_controller_extra_args:
@@ -151,13 +157,34 @@
       topologyManagerPolicy: "{% if topology_manager_enabled | default(true) %}{{ topology_manager_policy | default('none') }}{% else %}none{% endif %}"
       eventRecordQPS: 0
     kube_apiserver_request_timeout: 60s
-    kube_apiserver_enable_admission_plugins: "{{ enable_admission_plugins_prepare | from_yaml }}"
+    kube_apiserver_enable_admission_plugins: ["EventRateLimit", "DefaultStorageClass", "NodeRestriction", "{% if always_pull_enabled %}AlwaysPullImages,{% endif %}PodSecurity"] # noqa line-length
+    kube_apiserver_admission_control_config_file: true
+    kube_apiserver_admission_event_rate_limits:
+      limit_1:
+        type: Server
+        qps: 10
+        burst: 50
+      limit_2:
+        type: Namespace
+        qps: 50
+        burst: 100
+      limit_3:
+        type: User
+        qps: 10
+        burst: 50
+      limit_4:
+        type: SourceAndObject
+        qps: 10
+        burst: 50
+    kube_pod_security_use_default: true
+    kube_pod_security_default_enforce: privileged
+    kube_pod_security_default_enforce_version: latest
+    kube_pod_security_default_audit: privileged
+    kube_pod_security_default_audit_version: latest
+    kube_pod_security_default_warn: privileged
+    kube_pod_security_default_warn_version: latest
+    kube_pod_security_exemptions_namespaces: []
     kube_encrypt_secret_data: true
-    apiserver_extra_volumes:
-      - name: admission-control-config
-        hostPath: /etc/kubernetes/admission-control/
-        mountPath: /etc/kubernetes/admission-control/
-        readOnly: true
     preinstall_selinux_state: "{{ ansible_selinux.mode | default('disabled') }}"
     tls_cipher_suites:
       - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
@@ -196,21 +223,15 @@
         - kube_network_plugin == "flannel"
         - flannel_endpoint.stat.exists
 
-    # environment was added here to disable proxy for this health check
-    # standard no_proxy was not evaluated properly here
     - name: wait for kube-apiserver to be up
       uri:
         url: "https://127.0.0.1:6443/healthz"
         validate_certs: no
-      environment:
-        http_proxy: ''
-        https_proxy: ''
-        HTTP_PROXY: ''
-        HTTPS_PROXY: ''
       register: results
       until: results.status == 200
       retries: 30
       delay: 5
+      when: inventory_hostname == groups['kube_control_plane'][0]
 
     - name: allow traffic on wireguard interface
       block:
@@ -222,7 +243,7 @@
             state: reloaded
           when: ansible_os_family == "Debian"
 
-        - name: allow traffic on wireguard interface on RHEL/CentOS
+        - name: allow traffic on wireguard interface on RHEL / Rocky
           firewalld:
             zone: trusted
             interface: wireguard.cali
@@ -234,12 +255,18 @@
         - kube_network_plugin == "calico" and calico_network_backend == "bird"
         - firewall_enabled | default(false) | bool
 
+    - name: fix dpkg configure
+      command: dpkg --configure -a <<<$(echo N)
+      changed_when: true
+      failed_when: false
+
     - name: fix podman dependencies
       apt:
         name:
           - golang-github-containers-common
           - golang-github-containers-image
-        dpkg_options: 'force-overwrite'
+        dpkg_options: 'force-confdef,force-confold'
+        state: latest # noqa package-latest
       when:
         - '"crio" in container_runtime'
         - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
@@ -268,6 +295,21 @@
           when: registries_conf.stat.exists
       when: container_runtime == "containerd"
 
+    - block:
+        - name: check if calico-kube-controller is deployed
+          ansible.builtin.command: kubectl get deployment -n kube-system
+          register: calico_kube_controller_status
+          changed_when: false
+
+        - name: remove calico-kube-controller
+          command: kubectl delete -f calico-kube-controllers.yml
+          args:
+            chdir: /etc/kubernetes/
+          when: "'calico-kube-controllers' in calico_kube_controller_status.stdout"
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+        - kube_network_plugin == "calico"
+  environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
 - hosts: etcd

@@ -34,22 +34,7 @@
   with_items: "{{ host_vars_details.results }}"
   when: item.stat.exists
 
-- name: add retries for restart of api-server
-  blockinfile:
-    path: "{{ (playbook_dir, 'kubespray', 'roles', 'kubernetes', 'preinstall', 'handlers', 'main.yml') | path_join }}"
-    insertafter: "crictl"
-    block: |2
-        register: preinstall_restart_apiserver
-        retries: 10
-        until: preinstall_restart_apiserver.rc == 0
-        delay: 1
-  when: adq_dp.enabled | d(false)
-
-- name: remove wireguard package
-  lineinfile:
-    path: "{{ (playbook_dir, 'kubespray', 'roles', 'network_plugin', 'calico', 'vars', 'redhat.yml') | path_join }}"
-    state: absent
-    regexp: '  - wireguard-dkms'
-  when:
-    - wireguard_enabled
-    - target_distribution == "Rocky" and target_distribution_version >= "9.0"
+- name: apply kubespray patch for crio cleanup
+  ansible.posix.patch:
+    src: "files/kubespray_crio.patch"
+    dest: "{{ playbook_dir }}/kubespray/roles/container-engine/cri-o/tasks/cleanup.yaml"

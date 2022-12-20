@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: external-ca-cert
+  namespace: "{{ istio_service_mesh.istio_namespace }}"
+data:
+  root-cert.pem: |
+    {{ tcs_issuer_secret.stdout | b64encode | indent(4, false) }}

@@ -22,13 +22,6 @@
       inventory_hostname in groups['vm_host']
     - not on_vms | default (false)
 
-# Common part for both ICX and CLX platform
-- name: install libraries utility required for CentOS 8.3+
-  package:
-    name: libbabeltrace-devel
-    state: present
-  when: ansible_distribution == 'CentOS' and ansible_distribution_version >= '8.3'
-
 # Configuartion for Intel(R) Speed Select Technology "SST-BF,SST-CP,SST-TF and SST-PP"
 - name: configure Intel Speed Select Technology (ISST)
   include_tasks: sst_bf_cp_tf_pp_setup.yml
@@ -41,4 +34,4 @@
   include_tasks: clx_setup_sst_bf.yml # for now only sst bf is supported on CLX
   when:
     - is_clx and sst_bf_configuration_enabled
-    - ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version >= '8.3'
+    - ansible_os_family == "RedHat" and ansible_distribution_version >= "8.3"

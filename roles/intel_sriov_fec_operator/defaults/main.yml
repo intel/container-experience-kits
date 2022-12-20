@@ -14,32 +14,32 @@
 ##   limitations under the License.
 ##
 ---
-# Reference: https://github.com/smart-edge-open/sriov-fec-operator/tree/sriov-fec-operator-22.03.14/spec
+# Reference: https://github.com/smart-edge-open/sriov-fec-operator/
 # FEC = Forward Error Correction
 # CR = Custom Resource
 # ACC100 = Intel vRAN Dedicated H/W Accelerator Card
+# ACC200 = Intel FEC Accelerator embedded in SPR
 
-# Intel Smart Edge Open (SEO) FEC Operator
+# Intel Smart Edge Open (SEO) SRIOV-FEC Operator
 intel_sriov_fec_operator_git: "https://github.com/smart-edge-open/sriov-fec-operator.git"
-intel_sriov_fec_operator_git_ref: "sriov-fec-operator-22.03.14"
+intel_sriov_fec_operator_git_ref: "sriov-fec-operator-22.38"
 intel_sriov_fec_operator_dir: "{{ (project_root_dir, 'intel-sriov-fec-operator') | path_join }}"
-intel_sriov_fec_operator_img_ver: "2.2.0"
+intel_sriov_fec_operator_img_ver: "2.5.0"
 intel_sriov_fec_operator_tool: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
 intel_sriov_fec_operator_make_tls: "false"
 # intel_sriov_fec_operator_target_platform: "K8S"
 intel_sriov_fec_operator_namespace: "vran-acceleration-operators"
 intel_sriov_fec_operator_files_dir: "{{ (project_root_dir, 'intel-sriov-fec-operator-files') | path_join }}"
-intel_sriov_fec_operator_catalog_image: "{{ registry_local_address }}/n3000-operators-index:{{ intel_sriov_fec_operator_img_ver }}"
+intel_sriov_fec_operator_catalog_image: "{{ registry_local_address }}/sriov-fec-index:{{ intel_sriov_fec_operator_img_ver }}"
 
-# Intel ACC100 FEC CR (Mount Bryce)
-intel_acc100_cr: "acc100-cr.yaml"
+# Intel FEC CR
+fec_acc_cr: "{{ fec_dev + '-cr.yaml' }}"
 fec_acc_node: "{{ groups['kube_node'][0] }}"
-fec_acc_dev: "{{ fec_acc }}"  # defined in host_vars
+fec_acc_dev: "{{ fec_acc }}"
 
 # Operator Package Manager (OPM)
 opm_url: "https://github.com/operator-framework/operator-registry/releases/download/{{ opm_ver }}/linux-amd64-opm"
-# in sriov-fec Makefile: REQUIRED_OPERATOR_SDK_VERSION ?= v1.14.0
-opm_ver: "v1.22.0"
-opm_chk: "e671f494f0944af228e9f2bc09042d04ec47b61d7094fa2129c8690ec6b6ed27"
+opm_ver: "v1.26.2"
+opm_chk: "303a3b6d19bf870e6650b238773a3ccd9646382821abbfd575ff947b0f296648"
 opm_dir: "/usr/local/bin/"
 opm_cmd: "opm"

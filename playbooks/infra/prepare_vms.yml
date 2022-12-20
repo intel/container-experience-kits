@@ -54,7 +54,7 @@
 - hosts: k8s_cluster
   handlers:
     - name: reboot VMs
-      reboot: { reboot_timeout: 300 }
+      reboot: {reboot_timeout: 300}
   tasks:
     - name: Test updated inventory
       ping:

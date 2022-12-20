@@ -18,7 +18,7 @@ dest_path: "{{ (project_root_dir, 'charts') | path_join }}"
 
 image_registry: intel
 image_name: tadk-waf
-tadk_version: "v22.03"
+tadk_version: "v22.09.0"
 container_port: 8005
 
 service_type: NodePort

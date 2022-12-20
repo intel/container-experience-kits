@@ -1,0 +1,48 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: {{ node_exporter_version }}
+  name: node-exporter
+  namespace: monitoring
+spec:
+  endpoints:
+  - interval: 15s
+    port: https
+    relabelings:
+    - action: replace
+      regex: (.*)
+      replacement: $1
+      sourceLabels:
+      - __meta_kubernetes_pod_node_name
+      targetLabel: instance
+    scheme: https
+    tlsConfig:
+      ca:
+        secret:
+          key: "ca.crt"
+          name: "node-exporter-tls-prometheus-scrapper"
+      cert:
+        secret:
+          key: "tls.crt"
+          name: "node-exporter-tls-prometheus-scrapper"
+      keySecret:
+        key: "tls.key"
+        name: "node-exporter-tls-prometheus-scrapper"
+      insecureSkipVerify: false
+    basicAuth:
+      username:
+        key: username
+        name: node-exporter-auth
+      password:
+        key: password
+        name: node-exporter-auth
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: exporter
+      app.kubernetes.io/name: node-exporter
+      app.kubernetes.io/part-of: kube-prometheus

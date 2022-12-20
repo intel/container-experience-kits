@@ -6,10 +6,14 @@
   import_playbook: infra/{{ playbook_name }}.yml
 - name: deploy container runtime
   import_playbook: infra/container_runtime_deployment.yml
-  when: not kubernetes | default(true) and container_runtime_only_deployment | default(false)
+  when:
+    - not kubernetes | default(true) and container_runtime_only_deployment | default(false)
+    - not on_cloud | default(false)
 - name: provision Kubernetes cluster using kubespray
   import_playbook: k8s/k8s.yml
-  when: kubernetes | default(true)
+  when:
+    - kubernetes | default(true)
+    - not on_cloud | default(false)
 - name: install Intel Container Experience Kit features
   import_playbook: intel/{{ playbook_name }}.yml
   when: kubernetes | default(true)

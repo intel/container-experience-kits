@@ -9,3 +9,6 @@ validators~=0.20.0
 docker~=6.0.0
 boto3~=1.24.60
 GitPython~=3.1.27
+azure.identity~=1.11.0
+azure.mgmt.network~=22.1.0
+azure.mgmt.compute~=29.0.0

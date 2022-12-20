@@ -1,0 +1,26 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: jaeger-elasticsearch-tls
+  namespace: monitoring
+spec:
+  secretName: jaeger-elasticsearch-tls
+  dnsNames:
+  - elasticsearch-master.monitoring.svc.cluster.local
+  - elasticsearch-master.monitoring.svc
+  - elasticsearch-master.monitoring
+  - elasticsearch-master
+  - elasticsearch
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: elasticsearch-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - client auth
+  - server auth
+  - digital signature
+  - key encipherment

@@ -39,7 +39,7 @@
       changed_when: true
 
     - name: check all packages are present for QATLibs installation
-      command: './configure --enable-service'
+      command: './configure'
       args:
         chdir: "{{ intel_qatlib_download_url_dir }}"
       changed_when: true
@@ -66,8 +66,8 @@
     - name: enable address translation services for QAT Shared Virtual Memory (SVM)
       replace:
         path: "{{ item }}"
-        regexp: '(^ATEnabled\s)(.*)$'
-        replace: 'ATEnabled = {{ svm_value }}'
+        regexp: '(^SVMEnabled\s)(.*)$'
+        replace: 'SVMEnabled = {{ svm_value }}'
         mode: 0600
       with_items:
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.vm"
@@ -75,6 +75,4 @@
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.vm"
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.asym.vm"
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.sym.vm"
-        - "{{ qat_drivers_dir }}/build/4xxxvf_dev0.conf.vm"
-      failed_when: false
   when: enable_qat_svm and enable_qat_svm is defined

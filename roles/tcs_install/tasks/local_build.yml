@@ -1,0 +1,109 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: clone TCS repo on worker node
+  git:
+    repo: "{{ tcs_git_repo_url }}"
+    dest: "{{ tcs_git_path }}"
+    version: "{{ tcs_git_version }}"
+    force: true
+
+- name: update Makefile with proper tag
+  replace:
+    path: "{{ (tcs_git_path, 'Makefile') | path_join }}"
+    regexp: '^IMG_TAG.*$'
+    replace: 'IMG_TAG ?= {{ tcs_image_tag }}'
+    mode: 0644
+
+- name: build image locally - docker engine
+  block:
+    - name: build container image
+      make:
+        target:
+          docker-build
+        chdir: "{{ tcs_git_path }}"
+      environment:
+        REGISTRY: "{{ registry_local_address }}"
+
+    - name: push container image
+      make:
+        target:
+          docker-push
+        chdir: "{{ tcs_git_path }}"
+      environment:
+        REGISTRY: "{{ registry_local_address }}"
+  when:
+    - container_runtime == "docker"
+
+- name: build image locally - non-docker engine
+  block:
+    - name: generate private key
+      make:
+        target:
+          enclave-config/privatekey.pem
+        chdir: "{{ tcs_git_path }}"
+
+    - name: prepare vendor dir
+      make:
+        target:
+          vendor
+        chdir: "{{ tcs_git_path }}"
+
+    - name: "collect required values: read project Makefile"
+      slurp:
+        src: "{{ (tcs_git_path, 'Makefile') | path_join }}"
+      register: tcs_makefile
+      no_log: true
+
+    - name: "collect required values: extract value"
+      set_fact:
+        ctk_tag: >-
+          {{ tcs_makefile["content"]
+          | b64decode
+          | regex_findall("CTK_TAG\s*\?=\s*(.+)$", multiline=True)
+          | first
+          | default("master") }}
+
+    - name: build container image
+      # noqa 305 - shell is used intentionally here
+      shell: >-
+        podman build
+        --build-arg CTK_TAG={{ ctk_tag }}
+        -t {{ registry_local_address }}/{{ tac_image_name }}:{{ tcs_image_tag }}
+        -f Dockerfile .
+      args:
+        chdir: "{{ tcs_git_path }}"
+        executable: "/bin/bash"
+      changed_when: false
+
+    - name: push container image
+      command: "podman push {{ registry_local_address }}/{{ tac_image_name }}:{{ tcs_image_tag }}"
+      args:
+        chdir: "{{ tcs_git_path }}"
+      changed_when: false
+  when:
+    - '"docker" not in container_runtime'
+
+# this task should be removed when TCS fix issue with containerd
+- name: change owner of tokens directory
+  file:
+    path: /var/lib/tcs-issuer/tokens
+    state: directory
+    recurse: yes
+    owner: 5000
+    group: 5000
+  when:
+    - container_runtime != "docker"

@@ -9,13 +9,13 @@ metadata:
   #  - https://github.com/intel/intel-device-plugins-for-kubernetes/issues/381
 {% if ansible_distribution == "Ubuntu" and qat_dp_apparmor | default("true") %}
   annotations:
-    container.apparmor.security.beta.kubernetes.io/intel-qat-plugin: {{ qat_dp_apparmor_profile | default("unconfined") }}
+    container.apparmor.security.beta.kubernetes.io/intel-qat-plugin: {{ qat_dp_apparmor_profile }}
 {% endif %}
 spec:
-  image: {{ qat_dp_image | default("docker.io/intel/intel-qat-plugin") }}:{{ intel_qat_dp_version | default("0.24.0") }}
+  image: {{ intel_qat_dp_image }}
   dpdkDriver: {{ qat_dp_dpdk_drivers }}
   kernelVfDrivers: {{ qat_dp_kernel_drivers }}
-  maxNumDevices: {{ qat_dp_max_num_devices }}
+  maxNumDevices: {{ qat_dp_max_num_devices | default(32) }}
 {% if allocation_policy is defined %}
   preferredAllocationPolicy: {{ allocation_policy }}
 {% endif %}

@@ -73,21 +73,21 @@ dataplane_interfaces: []
 {%- if nic_drivers in ['on', 'optional'] %}
 # Set to 'true' to update i40e, ice and iavf kernel modules
 update_nic_drivers: {% if nic_drivers == 'on' %}true{% else %}false{% endif %}
-#i40e_driver_version: "2.20.12" # Downgrading i40e drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
-#i40e_driver_checksum: "sha1:a24f0c5512af31c68cd90667d5822121780d5487" # update checksum per required i40e drivers version
-#ice_driver_version: "1.9.11"    # Downgrading ice drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
-#ice_driver_checksum: "sha1:f05e2322a66de5d4019e7aa6141a109bb419dda4"  # update checksum per required ice drivers version
-#iavf_driver_version: "4.5.3" # Downgrading iavf drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
-#iavf_driver_checksum: "sha1:76b3a7dec392e559dea6112fa55f5614857cff2a" # update checksum per required iavf drivers version
+#i40e_driver_version: "2.21.12" # Downgrading i40e drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
+#i40e_driver_checksum: "sha1:fb103403862d6786ec8f242b6442d01d74a5ff25" # update checksum per required i40e drivers version
+#ice_driver_version: "1.10.1.2"    # Downgrading ice drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
+#ice_driver_checksum: "sha1:b80fb208510c64fd328af4dbe42a69e5e70ab968"  # update checksum per required ice drivers version
+#iavf_driver_version: "4.6.1" # Downgrading iavf drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
+#iavf_driver_checksum: "sha1:7102e6fcb6271f6cb14bcd9e64eccc58fcafd788" # update checksum per required iavf drivers version
 {% endif %}
 # Set 'true' to upgrade / downgrade NIC firmware. FW upgrade / downgrade will be executed on all NICs listed in "dataplane_interfaces[*].bus_info".
 update_nic_firmware: false # Note: downgrading FW is not recommended, users should proceed at their own risk.
 {%- if nic == 'fvl' %}
 #nvmupdate: []  # remove '[]' in case of downgrading FW such as 'nvmupdate:'
 #  i40e: []     # remove '[]' in case of downgrading FW to get required version of NVM 'i40e' 700 Series such as 'i40e:'
-#     nvmupdate_pkg_url: "https://downloadmirror.intel.com/739639/700Series_NVMUpdatePackage_v9_00_Linux.tar.gz"
-#     nvmupdate_pkg_checksum: "sha1:B2B183ADD3B6EF8BCB2DA77A6E6A68F482F4BFD1"
-#     required_fw_version: "9.0"
+#     nvmupdate_pkg_url: "https://downloadmirror.intel.com/759058/700Series_NVMUpdatePackage_v9_10_Linux.tar.gz"
+#     nvmupdate_pkg_checksum: "sha1:2D6556938A51E317FBFC88DDB73FBABB034F7CCA"
+#     required_fw_version: "9.10"
 #      # min fw version for ddp was taken from:
 #      # https://www.intel.com/content/www/us/en/developer/articles/technical/dynamic-device-personalization-for-intel-ethernet-700-series.html
 #     min_ddp_loadable_fw_version: "6.01"
@@ -100,9 +100,9 @@ update_nic_firmware: false # Note: downgrading FW is not recommended, users shou
 {%- if nic == 'cvl' %}
 #nvmupdate: []  # remove '[]' in case of downgrading FW such as 'nvmupdate:'
 #  ice: []      # remove '[]' in case of downgrading FW to get required version of NVM 'ICE' 800 Series such as 'ice:'
-#     nvmupdate_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
-#     nvmupdate_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
-#     required_fw_version: "4.0"
+#     nvmupdate_pkg_url: "https://downloadmirror.intel.com/759036/E810_NVMUpdatePackage_v4_10_Linux.tar.gz"
+#     nvmupdate_pkg_checksum: "sha1:64598337C8730EE00239D728E17BDCB180BB8154"
+#     required_fw_version: "4.10"
 #      # https://builders.intel.com/docs/networkbuilders/intel-ethernet-controller-800-series-device-personalization-ddp-for-telecommunications-workloads-technology-guide.pdf
 #      # document above does not specify any min fw version needed for ddp feature. So, min_ddp_loadable_fw is the same as min_updatable_fw
 #     min_ddp_loadable_fw_version: "0.70"
@@ -111,6 +111,12 @@ update_nic_firmware: false # Note: downgrading FW is not recommended, users shou
 #     supported_nvmupdate_tool_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
 #     supported_nvmupdate_tool_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
 #     supported_nvmupdate_tool_fw_version: "4.0"  
+{%- endif %}
+{%- if cloud_mode == 'on' %}
+
+# install Intel x700 & x800 series NICs DDP packages
+# For Cloud RA, the install_ddp_packages option must be false
+install_ddp_packages: false
 {%- endif %}
 {% if ddp in ['on', 'optional'] %}
 # install Intel x700 & x800 series NICs DDP packages
@@ -142,7 +148,7 @@ bond_cni_enabled: {% if bond_cni == 'on' %}true{% else %}false{% endif %}
 # Install DPDK (required for SR-IOV networking)
 install_dpdk: {% if dpdk == 'on' %}true{% else %}false{% endif %}
 # DPDK version (will be in action if install_dpdk: true)
-dpdk_version: {% if intel_flexran == 'on' %}"21.11"{% else %}"22.07"{% endif %}
+dpdk_version: {% if intel_flexran == 'on' %}"21.11"{% elif ovs_dpdk == 'on' %}"22.07"{% else %}"22.11"{% endif %} # ovs_version: "v3.0.1" does NOT support dpdk_version: "22.11"
 # Custom DPDK patches local path
 {% if intel_flexran == 'on' %}dpdk_local_patches_dir: "/tmp/flexran"{% else %}#dpdk_local_patches_dir: "/tmp/patches/dpdk"{% endif %}
 # It might be necessary to adjust the patch strip parameter, update as required.
@@ -152,7 +158,7 @@ dpdk_version: {% if intel_flexran == 'on' %}"21.11"{% else %}"22.07"{% endif %}
 # Userspace networking
 userspace_cni_enabled: {% if network_userspace == 'on' %}true{% else %}false{% endif %}
 ovs_dpdk_enabled: {% if ovs_dpdk == 'on' %}true{% else %}false{% endif %} # Should be enabled with Userspace CNI, when VPP is set to "false"; 1G hugepages required
-ovs_version: "v2.17.2"
+ovs_version: "v3.0.1" # this version has to be compatible/functional with the DPDK version set by 'dpdk_version'
 # CPU mask for OVS-DPDK PMD threads
 ovs_dpdk_lcore_mask: 0x1
 # Huge memory pages allocated by OVS-DPDK per NUMA node in megabytes
@@ -168,8 +174,13 @@ hugepages_enabled: {% if hugepages == 'on' %}true{% else %}false{% endif %}
 # Hugepage sizes available: 2M, 1G
 default_hugepage_size: {% if vpp == 'on' %}2M{% else %}1G{% endif %}
 # Sets how many hugepages should be created
+{%- if cloud_mode == 'on' %}
+number_of_hugepages_1G: 2
+number_of_hugepages_2M: 512
+{%- else %}
 number_of_hugepages_1G: 4
 number_of_hugepages_2M: 1024
+{%- endif %}
 {% endif %}
 {%- if dlb in ['on', 'optional'] and arch in ['spr'] %} 
 # Configure SIOV and Intel DLB devices - required for Intel DLB Device Plugin support
@@ -217,10 +228,12 @@ intel_ethernet_operator:
   ddp_update: {% if intel_ethernet_operator.ddp == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                   # perform DDP update on PFs listed in dataplane_interfaces using selected DDP profile
 {%- endif %}
   fw_update: {% if intel_ethernet_operator.fw_update == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                     # perform firmware update on PFs listed in dataplane_interfaces
-  # NodeFlowConfig manifests local path
+  # ClusterFlowConfig does not require additional configuration and can be used in conjunction with NodeFlowConfig
+  node_flow_config_enabled: false    # enable NodeFlowConfig
+  # NodeFlowConfig/ClusterFlowConfig manifests local path
   # For more information refer to:
   # https://github.com/intel/intel-ethernet-operator/blob/main/docs/flowconfig-daemon/creating-rules.md
-  # node_flow_config_dir: /tmp/node_flow_config
+  # flow_config_dir: /tmp/flow_config
 {% endif %}
 
 {%- if intel_sriov_fec_operator in ['on', 'optional'] %}
@@ -236,16 +249,26 @@ intel_flexran_enabled: {% if intel_flexran == 'on' %}true{% else %}false{% endif
 {%- if qat in ['on', 'optional'] %}
 # Enabling this feature will install QAT drivers + services
 update_qat_drivers: {% if qat == "on" %}true{% else %}false{% endif %}
+# Optional: uncomment and update qat_drivers_dir location as required. It will be used to store QAT drivers, QATLibs etc...
+# Default location is derived from "project_root_dir" variable, defined in group_vars. Default location is "<project_root_dir>/qat_drivers"
+#qat_drivers_dir: "/opt/intel/QAT/build"
+# There are two services on the system which can be used to start qat devices. They can't run in parallel. One of them needs to be enabled and the second one disabled.
+enabled_qat_service: "qat"
+disabled_qat_service: "qat_service"
 
 {%- if arch in ['spr'] %}
 # SPR platform QAT drivers requirements
 # the folder must exist on the machine that will run Ansible playbooks
-qat_drivers_folder: "/tmp/qat/" # QAT "QAT20.L.0.9.6-00024.tar.gz" driver package is expected to be present in this folder
-qat_drivers_version: "QAT20.L.0.9.6-00024" # CEK has been validated with QAT drivers version "QAT20.L.0.9.6-00024.tar.gz"
+qat_drivers_folder: "/tmp/qat/" # QAT "QAT20.L.0.9.9-00019.tar.gz" driver package is expected to be present in this folder
+qat_drivers_version: "QAT20.L.0.9.9-00019" # CEK has been validated with QAT drivers version "QAT20.L.0.9.9-00019.tar.gz"
 # This package provides user space libraries that allow access to Intel(R) QuickAssist devices and expose the Intel(R) QuickAssist APIs and sample codes.
 enable_intel_qatlibs: {% if qat == "on" %}true{% else %}false{% endif %} # Make sure "openssl_install" is set to "true" else this feature will be skipped in deployment.
 enable_qat_svm: {% if qat == "on" %}true{% else %}false{% endif %} # Enable QAT Shared Virtual Memory (SVM).
 {% endif %}
+# qat parameters used by auto detection of qat devices
+qat_sriov_numvfs_required: 8
+qat_vf_driver_required: {% if arch == "spr" %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
+
 # qat interface configuration list
 qat_devices: []
 {%- if on_vms == 'on' %}
@@ -416,7 +439,7 @@ sst_tf_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
 {%- endif %}
 {% endif %}
 
-{%- if sgx in ['on', 'optional'] and arch in ['icx'] %}
+{%- if sgx in ['on', 'optional'] and arch in ['icx', 'spr'] %}
 # Intel Software Guard Extensions (SGX)
 configure_sgx: {% if sgx == 'on' %}true{% else %}false{% endif %}
 {% endif %}
@@ -460,9 +483,8 @@ cndp_dp_pools:
   - name: "e2e"
     drivers: {% raw %}"{{ dataplane_interfaces | map(attribute='pf_driver') | list | unique }}"{% endraw %}   # List of NIC driver to be included in CNDP device plugin ConfigMap.
 {% endif %}
-{% endif %}
-
-{% if adq_dp in ['on', 'optional'] %}
+{%- endif %}
+{%- if adq_dp in ['on', 'optional'] %}
 # Note: ADQ is experimental feature and enabling it may lead to unexpected results.
 # ADQ requires back-to-back connection between control plane and worker node on CVL interfaces.
 # Name of CVL interfaces must be the same on both nodes, IP address must be present.
@@ -491,7 +513,7 @@ dhcp: []
 # dhcp for vxlan have to be enabled just on the first vm_host
 dhcp:
   - 120
-#vxlan_gw_ip: "40.0.0.1/24"
+vxlan_gw_ip: "40.0.0.1/24"
 {% endif -%}
 # Set hashed password for root user inside VMs. Current value is just placeholder.
 # To create hashed password use e.g.: openssl passwd -6 -salt SaltSalt <your_password>
@@ -618,7 +640,13 @@ shared_workload:
                       # set here a dummy core - the last one to avoid AppQos bug
   shared_workload_type: "global"  # set to node name to make use of node-specific Power Profile, 'global' means use cluster-specific custom Power Profile
 {% endif %}
-{%- if minio in ['on', 'optional'] %}
+
+{%- if not cloud_mode == 'on' %}
+# Useful if system loses IP after reboot. Note: make sure IP is stable / system gets same IP after reboot else will cause failures.
+enable_dhclient_systemd_service: {% if enable_dhclient_systemd_service == "on" %}true{% else %}false{% endif %}
+{%- endif %}
+
+{% if minio in ['on', 'optional'] %}
 # MinIO storage configuration
 minio_pv: []
 #  - name: "mnt-data-1"                         # PV identifier will be used for PVs names followed by node name(e.g., mnt-data-1-hostname)

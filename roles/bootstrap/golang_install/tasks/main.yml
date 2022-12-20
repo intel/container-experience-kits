@@ -31,6 +31,9 @@
       "installed golang version = {{ go_version.stdout if go_version.stdout else 'None' }}"
       "required golang version = {{ golang_version }}"
 
+- debug:
+    msg: "additional_go_version: {{ additional_go_version | default('') }}"
+
 - name: start procedure to install golang in required version
   block:
     - name: uninstall existing golang
@@ -40,6 +43,7 @@
       with_items:
         - "/usr/local/go"
         - "$HOME/go"
+      when: (additional_go_version | default('')) | length == 0
 
     - name: download golang tarball
       get_url:
@@ -51,10 +55,20 @@
       until: golang_download is not failed
       retries: 5
 
+    - name: create directory for additional golang version
+      file:
+        path: "{{ item }}/{{ additional_go_version }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - "/usr/local"
+        - "$HOME"
+      when: (additional_go_version | default('')) | length > 0
+
     - name: untar downloaded golang tarball
       unarchive:
         src: "{{ golang_download.dest }}"
-        dest: /usr/local
+        dest: "/usr/local{% if (additional_go_version | default('')) | length > 0 %}/{{ additional_go_version }}{% endif %}"
         copy: no
         mode: 0755
 
@@ -66,6 +80,7 @@
           export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
         dest: /etc/profile.d/golang.sh
         mode: 0755
+      when: (additional_go_version | default('')) | length == 0
 
     - name: create symlinks to golang binaries
       file:
@@ -76,6 +91,7 @@
       with_items:
         - go
         - gofmt
+      when: (additional_go_version | default('')) | length == 0
   when: golang_version != go_version.stdout
 
 # golang is successfully installed in required version
@@ -84,6 +100,7 @@
   command: go env GOPATH
   register: gopath
   changed_when: false
+  when: (additional_go_version | default('')) | length == 0
 
 - name: start procedure to install cfssl and cfssljson in required versions
   block:
@@ -112,3 +129,4 @@
   when:
     - groups['kube_control_plane'] | length > 0
     - inventory_hostname == groups['kube_control_plane'][0]
+    - (additional_go_version | default('')) | length == 0

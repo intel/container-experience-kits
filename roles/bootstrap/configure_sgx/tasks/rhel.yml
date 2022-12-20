@@ -109,7 +109,21 @@
         - libsgx-launch
         - libsgx-epid
         - libsgx-quote-ex
+      changed_when: true
+
+    - name: check if aesm service is already installed
+      shell: "set -o pipefail && rpm -qa | grep 'sgx-aesm-service'"
+      args:
+        executable: /bin/bash
+      register: aesm_package
+      changed_when: false
+      failed_when: false
+
+    - name: install aesm service
+      shell: "set -o pipefail && rpm --reinstall --nodeps '{{ sgx_rpm_directory }}/{{ item }}-{{ sgx_pkg_version }}-1.el8.x86_64.rpm'"
+      loop:
         - sgx-aesm-service
+      when: "'sgx-aesm-service' not in aesm_package.stdout"
       changed_when: true
 
     - name: install additional software for Rocky / RHEL >= 9.0

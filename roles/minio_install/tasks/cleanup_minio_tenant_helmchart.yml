@@ -37,7 +37,7 @@
 
 - name: delete MinIO PV
   shell: >-
-    set -o pipefail && kubectl delete pv $(kubectl get pv | grep {{ minio_tenant_namespace }}
+    set -o pipefail && kubectl delete pv $(kubectl get pv | grep mnt-data
     | awk -F " " '{ print $1 }'
     | awk -v q='' '$0 = " " q $0 q') --grace-period=0 --force
   args:

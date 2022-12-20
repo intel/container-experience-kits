@@ -14,10 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-intel_dlb_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_dlb_dp_git_ref: "v0.24.0"
-intel_dlb_dp_version: "0.24.0"
-intel_dlb_dp_dir: "{{ (project_root_dir, 'intel-dlb-dp') | path_join }}"
+intel_dlb_dp_image: "docker.io/intel/intel-dlb-plugin:{{ intel_dp_version }}"
 
 dlb_dp_apparmor_profile: "unconfined"
 dlb_dp_verbosity: 4

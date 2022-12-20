@@ -60,7 +60,7 @@
 
     - name: build local MinIO custom image
       command: >-
-        docker build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
+        docker build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }} ./
       args:
         chdir: "{{ minio_local_build_dir }}"
       changed_when: true
@@ -83,7 +83,7 @@
 
     - name: build local MinIO custom image
       command: >-
-        podman build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
+        podman build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }} ./
       args:
         chdir: "{{ minio_local_build_dir }}"
       changed_when: true

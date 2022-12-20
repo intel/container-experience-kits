@@ -15,29 +15,37 @@
 ##
 ---
 - block:
-    - name: load variables from telegraf role
-      ansible.builtin.import_role:
-        name: telegraf_install
-      when: false
-    - name: delete demo collector deployment
-      k8s:
-        state: absent
-        definition: "{{ lookup('file', '../files/collector-demo.yml') | from_yaml }}"
-        namespace: "{{ telegraf_namespace }}"
-      failed_when: false # quick workaround until proper cleanup is implemented (todo)
-  tags:
-    - opentelemetry
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-    - opentelemetry_demo_enabled | default(true) | bool
-- block:
+    - name: remove opentelemetry resources
+      command: kubectl delete -f ./
+      args:
+        chdir: "{{ (project_root_dir, 'opentelemetry') | path_join }}"
+      failed_when: false
+      changed_when: false
+
     - name: remove opentelemetry operator
       kubernetes.core.helm:
         release_name: "{{ opentelemetry_operator_chart_name }}"
         release_namespace: "{{ opentelemetry_operator_namespace }}"
-        update_repo_cache: true
         state: absent
       failed_when: false # quick workaround until proper cleanup is implemented (todo)
+
+    - name: get opentelemetry secrets
+      ansible.builtin.shell:
+        cmd: kubectl get secrets -n monitoring | grep -E 'otel|opentelemetry' | awk '{ print $1 }'
+      args:
+        executable: /bin/bash
+      register: otel_secrets
+      failed_when: false
+      changed_when: false
+
+    - name: remove opentelemetry secrets
+      kubernetes.core.k8s:
+        kind: secret
+        name: "{{ item }}"
+        namespace: monitoring
+        state: absent
+      loop: "{{ otel_secrets.stdout_lines }}"
+
   tags:
     - opentelemetry
   when:

@@ -16,7 +16,7 @@
 - name: check Intel Ethernet Operator configuration
   block:
     - name: check CVL NICs
-      shell: "set -o pipefail && lshw -businfo -numeric -C network | grep -i {{ item.bus_info }} | awk -F ':' '{ print $NF}' | sed 's/.$//' "
+      ansible.builtin.shell: "set -o pipefail && lshw -businfo -numeric -C network | grep -i {{ item.bus_info }} | awk -F ':' '{ print $NF}' | sed 's/.$//' "
       args:
         executable: /bin/bash
       register: cvl_nics
@@ -24,7 +24,7 @@
       loop: "{{ dataplane_interfaces }}"
 
     - name: fail if unsupported CVL NIC is in use
-      fail:
+      ansible.builtin.fail:
         msg: "Detected E822 or E823 device with Device ID {{ present_cvl_nics | intersect(cvl_822_823_nics_ids) }}.
               Intel Ethernet Operator supports only E810 Series Devices"
       when: "present_cvl_nics | intersect(cvl_822_823_nics_ids)"
@@ -50,34 +50,48 @@
           - "1898" # Intel(R) Ethernet Connection E822-L for SFP
           - "1899" # Intel(R) Ethernet Connection E822-L/X557-AT 10GBASE-T
           - "189A" # Intel(R) Ethernet Connection E822-L 1GbE
-    - name: check if legacy DDP/FW update variables are false
-      assert:
+
+    - name: check if legacy DDP update variable is false
+      ansible.builtin.assert:
         that:
           - not install_ddp_packages
-          - not update_nic_firmware
         msg:
-          - "Intel Ethernet Operator is mutually exclusive with legacy DDP/FW update role."
-          - "Please set 'install_ddp_packages' and 'update_nic_firmware' as false"
+          - "Intel Ethernet Operator is mutually exclusive with legacy DDP update role."
+          - "Please set 'install_ddp_packages' as false"
       when:
-        - intel_ethernet_operator.ddp_update | d(false) or intel_ethernet_operator.fw_update | d(false)
+        - intel_ethernet_operator.ddp_update | d(false)
+
+    - name: check if IEO FW update variable is enabled
+      ansible.builtin.assert:
+        that:
+          - not intel_ethernet_operator.fw_update
+        msg:
+          - "Intel Ethernet Operator does not support firmware update at the moment."
+          - "If you wish to use firmware update feature, please set 'update_nic_firmware' as true."
+      when:
+        - intel_ethernet_operator.fw_update | d(false)
 
     - name: check bus_info and ddp profile of dataplane_interfaces
-      assert:
+      ansible.builtin.assert:
         that:
-          - dataplane_interfaces | json_query("[?ends_with(bus_info, ':00.0')]")
-          - dataplane_interfaces | json_query('[?ddp_profile]')
+          - dataplane_interfaces | json_query("[?ends_with(bus_info, ':00.0') && ddp_profile]")
         msg: "When DDP update is true, bus_info of one of the interfaces must end with ':00.0', also ddp_profile must be defined"
       when: intel_ethernet_operator.ddp_update | d(false)
 
-
     - name: check Hugepages settings for Flow Configuration
-      assert:
+      ansible.builtin.assert:
         that: number_of_hugepages_2M >= 1024
         msg: "Flow Configuration requires at least 2Gi of 2M Hugepages."
       when: dataplane_interfaces | json_query('[?flow_configuration]')
 
     - name: check if SRIOV Network Operator is enabled
-      assert:
+      ansible.builtin.assert:
         that: sriov_network_operator_enabled
         msg: "Flow Configuration requires SRIOV Network Operator to be enabled."
-      when: dataplane_interfaces | json_query('[?flow_configuration]')
+      when: intel_ethernet_operator_flow_config_enabled
+
+    - name: check if MinIO is disabled
+      ansible.builtin.assert:
+        that: not minio_enabled | default(false)
+        msg: "Flow Configuration requires MinIO to be disabled."
+      when: intel_ethernet_operator_flow_config_enabled

@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+
+- name: Preflight--Check OS support
+  assert:
+    that: ((ansible_distribution == "Ubuntu") and (ansible_distribution_version == '20.04' or ansible_distribution_version == '22.04'))
+    msg: >-
+      Currently GPU driver supports Ubuntu 20.04 or 22.04 while Redhat support is under development.
+      Please check https://dgpu-docs.intel.com/index.html for hardware support details
+
+# Check GPU availability and preparation, the pre-defined product PCIID can be found in i915_pciids.h of kernel source tree, only DG1 is available now.
+- name: Preflight--Create empty setting list for configure_gpu on the worker node
+  set_fact:
+    setting_list: []
+
+- name: Preflight--Create configure_gpu setting list for the worker node
+  set_fact:
+    setting_list: "{{ setting_list | default([]) + [hostvars[item].configure_gpu | default(false) | bool] }}"
+  with_items:
+    - "{{ groups['kube_node'] }}"
+
+- name: Preflight--Validate configure_gpu settings when gpu_dp_enabled is true
+  assert:
+    that: (setting_list | unique | length > 1) or ((setting_list | unique | length == 1) and setting_list[0])
+    msg: "When gpu_dp_enabled is true, configure_gpu must set true at least on one node with GPU.  Please correct the configuration."
+  when:
+    - setting_list | length > 0
+
+- name: Preflight--Check Intel discrete GPU devices on node and GPU features configuration.
+  block:
+    - name: Preflight--Read GPU Device info from node for GPU check since configure_gpu set to true
+      command: "lshw -c display -businfo -numeric"
+      changed_when: false
+      register: lshw_gpu_hardware
+
+    - name: Preflight--Show GPU device information found from nodes
+      debug:
+        msg: |
+          - "Retrieved GPU device info from node {{ inventory_hostname }}"
+          - "{{ lshw_gpu_hardware.stdout }}"
+
+    - name: Preflight--Check each node for Intel discrete GPU
+      assert:
+        that: "lshw_gpu_hardware.stdout | regex_search('8086:[0-9a-zA-Z]{4}') != none"
+        msg: "Node {{ inventory_hostname }} doesn't have Intel discrete GPU, please set configure_gpu false for this node."
+
+    - name: Preflight--Validate the PCIID from each node is supported
+      assert:
+        that: "'{{ (item | regex_search('8086:[0-9a-zA-Z]{4}')).split(':')[1] }}' in {{ gpu_pciids }}"
+        msg:
+          - "{{ (item | regex_search('8086:[0-9a-zA-Z]{4}')).split(':')[1] }} from "
+          - "  {{ inventory_hostname }} is not in the pre-defined PCIID list of {{ gpu_pciids }}"
+      loop:
+        - "{{ lshw_gpu_hardware.stdout_lines }}"
+      when: " item | regex_search('8086:[0-9a-zA-Z]{4}') != none "
+  when:
+    - configure_gpu is defined and configure_gpu
+
+- name: Set GPU oem kernel version based on OS version
+  include_role:
+    name: bootstrap/install_gpu_driver
+    tasks_from: set_oem_kernel_version

@@ -1,0 +1,62 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# ACC100 FEC Acc (addon card) DevID=0d5c
+# ACC200 FEC Acc (embedded into EEC SPR) DevID=57c0
+
+- name: SRIOV-FEC Operator - probe for h/w acc
+  shell: "set -o pipefail && lspci -D | grep -i acc | grep -i -e 0d5c -e 57c0"
+  args:
+    executable: /bin/bash
+  register: accelerator
+  changed_when: false
+  failed_when: false
+
+- name: SRIOV-FEC Operator - validate h/w acc
+  assert:
+    that: "accelerator.rc == 0"
+    fail_msg: "No SRIOV-FEC Acc device was detected in the target node. Please make sure device is present and 'fec_acc' is set in host vars"
+    success_msg: "Device at PCIID {{ accelerator.stdout.split(' ').0 }} in the target node is a supported SRIOV-FEC Accelerator"
+
+- debug: msg="{{ accelerator.stdout }}"
+
+- name: SRIOV-FEC Operator - reset fec_acc
+  block:
+    - name: SRIOV-FEC Operator - fec_acc reset warning
+      fail:
+        msg: "WARNING: Device set as fec_acc {{ fec_acc }} in the host vars is NOT a supported SRIOV-FEC Accelerator.  Using {{ accelerator.stdout.split(' ').0 }} instead" # noqa line-length
+      ignore_errors: true # noqa ignore-errors
+
+    - set_fact:
+        fec_acc: "{{ accelerator.stdout.split(' ').0 }}"
+  when: fec_acc not in accelerator.stdout
+
+- name: SRIOV-FEC Operator - identify acc device
+  shell: "set -o pipefail && lspci | grep -i acc | grep -i 57c0" # ACC100=0d5c ACC200=57c0
+  args:
+    executable: /bin/bash
+  register: acc57c0
+  changed_when: false
+  failed_when: false
+
+- set_fact:
+    fec_dev: "acc100"
+
+- set_fact:
+    fec_dev: "acc200"
+  when: "acc57c0.rc == 0"
+
+- debug: msg="Intel SRIOV-FEC Accelerator device at {{ fec_acc }} is {{ fec_dev }}"

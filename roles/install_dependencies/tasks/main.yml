@@ -14,18 +14,31 @@
 ##   limitations under the License.
 ##
 ---
-- name: refresh repository cache
-  apt:
+- name: apt auto-remove of not-needed packages
+  ansible.builtin.apt:
+    autoremove: true
+  when: ansible_os_family == 'Debian'
+
+- name: refresh apt repository cache
+  ansible.builtin.apt:
     update_cache: yes
+  register: update_cache_results
+  retries: "{{ number_of_retries | default(5) }}"
+  until: update_cache_results is success
+  delay: "{{ retry_delay | default(3) }}"
+  environment:
+    http_proxy: "{{ http_proxy | d('') }}"
+    https_proxy: "{{ https_proxy | d('') }}"
   when: ansible_os_family == 'Debian'
 
 - name: install packages
   action: "{{ ansible_pkg_mgr }} \
-    name={{ install_dependencies[ansible_os_family] | difference(['linux-headers-' + gpu_dp_kernel_version if gpu_dp_kernel_version is defined else '']) }} \
+    name={{ install_dependencies[ansible_os_family] | difference(['linux-headers-' + gpu_oem_kernel_version if gpu_oem_kernel_version is defined else '']) }} \
     state=present"
   register: pkg_mgr_results
-  retries: 3
+  retries: "{{ number_of_retries | default(5) }}"
   until: pkg_mgr_results is success
+  delay: "{{ retry_delay | default(3) }}"
   environment:
     http_proxy: "{{ http_proxy | d('') }}"
     https_proxy: "{{ https_proxy | d('') }}"

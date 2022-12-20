@@ -10,11 +10,23 @@
 
 ---
 
-## Install Dependencies:
+## Install Dependencies using a) or b):
+
+a) Non-invasive virtual environment method
+
+```bash
+pip3 install pipenv
+pipenv install
+# Then to run and use the environment
+pipenv shell
+```
+
+b) System wide installation method
 
 ```bash
 pip3 install -r requirements.txt
 ```
+
 ## Creating Sample Profiles
 
 To create sample profiles one of the following commands must be executed:
@@ -30,12 +42,13 @@ make examples
 ```
 
 After successful profiles generation, the results might be investigated in the `examples` directory.
-The two directories should be visible:
+The three directories should be visible:
 
 * k8s - contains profiles deployable on the bare metal machines
 * vm - contains profiles deployable on the virtual machines
+* cloud - contains profiles deployable on public clouds (Azure, AWS)
 
-These two directories represent available modes of the CEK project.
+These three directories represent available modes of the CEK project.
 
 ## Discover Supported Architectures
 
@@ -86,14 +99,21 @@ To generate the same profile as above, but for `vm` mode, run:
 make vm-profile PROFILE=full_nfv ARCH=spr NIC=cvl
 ```
 
+For Cloud RA, the architecture must be set according to the target machine types. In most cases, machines will be either `SkyLake` or `CascadeLake`. If different machine types are being used, the earliest architecture must be selected. At this time, changing the value of the Ethernet Network Adapter does not have an impact for Cloud RA.
+To generate the `full_nfv` profile for `cloud` mode, targeting a mix of `SkyLake` and `CascadeLake` machines, run:
+
+```bash
+make cloud-profile PROFILE=full_nfv ARCH=skl
+```
+
 The values of `PROFILE`, `ARCH` and `NIC` parameters are up to you. Please update accordingly.
 
-If you run both commands from above, you should see backups folder in your project root directory:
+If you run multiple of the above commands, you should see backups folder in your project root directory:
 
 ```bash
 ls backups/
 ```
-> **_NOTE:_** Above command will result in an output similar to this: "container-experience-kits$ backups/full_nfv_20220121_141523/" and within the mentioned folder location "group_vars, host_vars, inventory.ini" files can be found which will be backup of earlier prepared deployments.
+> **_NOTE:_** Above command will result in an output similar to this: "container-experience-kits$ backups/full_nfv_20221114_141523/" and within the mentioned folder location "group_vars, host_vars, inventory.ini" files can be found which will be backups of earlier prepared deployments.
 
 Backups folder is created so that earlier prepared deployments are not lost. That way, you can easily switch between profiles deployment. Each backup contains a unique timestamp.
 

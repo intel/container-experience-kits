@@ -1,0 +1,156 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+
+# The installation steps based on get started guide at https://dgpu-docs.intel.com
+- name: Download Intel graphic gpg key in text format
+  get_url:
+    url: "{{ gpu_repo_key_url }}"
+    dest: "{{ gpu_key_text_path }}"
+    force: yes
+
+# TODO: This file will block the gpg command if not removed.
+- name: Remove the key file
+  file:
+    state: absent
+    path: "{{ gpu_usr_key_path }}"
+
+- name: Add Intel graphic gpg key to system
+  expect:
+    command: "gpg --dearmor --output {{ gpu_usr_key_path }} {{ gpu_key_text_path }}"
+    responses:
+      enter: 'y'
+
+- name: Add Intel graphic driver repo
+  apt_repository:
+    filename: "{{ gpu_repo_list_path }}"
+    repo: "deb [arch=amd64 signed-by={{ gpu_usr_key_path }}] {{ gpu_repo_focal_url }} {{ gpu_repo_spec }}"
+    state: present
+    update_cache: yes
+
+- name: Run apt update before kernel installation
+  apt:
+    update_cache: yes
+  register: update_cache_results
+  retries: "{{ number_of_retries | default(5) }}"
+  until: update_cache_results is success
+  delay: "{{ retry_delay | default(3) }}"
+
+- name: Install OEM kernel
+  apt:
+    name: "{{ gpu_oem_kernel_image }}"
+
+- name: Reboot to updated kernel
+  reboot:
+    reboot_timeout: 1200
+
+- name: Get update kernel version
+  command: "uname -r"
+  register: oem_kernel_ver
+  changed_when: false
+
+- name: Show the new kernel version
+  debug:
+    msg: "New kernel version is {{ oem_kernel_ver.stdout }}"
+
+- name: Check new kernel version
+  assert:
+    that: oem_kernel_ver.stdout == "{{ gpu_oem_kernel_version }}"
+    msg: "Wrong kernel version: {{ oem_kernel_ver.stdout }}"
+
+- name: Run apt update before dkms installation
+  apt:
+    update_cache: yes
+  register: update_cache_results
+  retries: "{{ number_of_retries | default(5) }}"
+  until: update_cache_results is success
+  delay: "{{ retry_delay | default(3) }}"
+
+- name: Install DKMS(Dynamic Kernel Module Support) and kernel header files
+  apt:
+    name: "{{ item }}"
+  with_items: "{{ gpu_dkms_packages }}"
+
+- name: Install run-time packages
+  apt:
+    name: "{{ item }}"
+  with_items: "{{ gpu_runtime_packages }}"
+
+- name: Reboot the system for these changes to take effect
+  reboot:
+    reboot_timeout: 1200
+
+- name: Create render group if it doesn't exist
+  group:
+    name: render
+    state: present
+
+- name: Add the current user to the render node group
+  user:
+    name: "{{ ansible_user_id }}"
+    groups: render
+    append: yes
+
+- name: Apply the current user to the new group id immediately
+  meta:
+    reset_connection
+
+- name: Install graphic driver tools for inspection
+  apt:
+    name: "{{ item }}"
+  with_items: "{{ gpu_tool_packages }}"
+
+- name: Run hwinfo
+  command: hwinfo --display
+  register: hwinfo_msg
+  changed_when: false
+
+- name: Set fact for i915 driver string
+  set_fact:
+    drv_list: "{{ hwinfo_msg.stdout | regex_findall('Driver: \"i915\"', multiline=True) }}"
+
+- name: Check if i915 installed successfully
+  assert:
+    that: (drv_list | length) > 0
+    msg: "Can't find i915 driver"
+
+- name: Run vainfo to check libVA readiness
+  command: vainfo
+  register: vainfo_msg
+  changed_when: false
+
+- name: Show vainfo output
+  debug:
+    msg: "{{ vainfo_msg.stdout }}"
+
+- name: Check libVA VA-API version greater than 1.14
+  assert:
+    that: "{{ (vainfo_msg.stdout | regex_search('vainfo: VA-API version: \\d.\\d{2} \\(libva \\d.\\d{2}.\\d\\)')).split()[3] }} > 1.14"
+    msg: "VA-API version must be greater than 1.14"
+
+- name: Run clinfo to check OpenCL readiness
+  command: clinfo
+  register: clinfo_msg
+  changed_when: false
+
+- name: Show clinfo output
+  debug:
+    msg: "{{ clinfo_msg.stdout }}"
+
+- name: Check OpenCL driver-- 'Number of platforms' must be greater than 0
+  assert:
+    that: "{{ (clinfo_msg.stdout | regex_search('Number of platforms\\s+\\d')).split()[3] }} > 0"
+    msg: "'Number of platforms' must be greater than 0"

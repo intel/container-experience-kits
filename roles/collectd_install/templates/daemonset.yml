@@ -58,8 +58,8 @@ spec:
             - "--web.listen-address=127.0.0.1:9103"
             - "--collectd.listen-address=127.0.0.1:25826"
         - name: rbac-proxy
-          image: "{{ image_rbac_proxy.repository }}:{{ image_rbac_proxy.version }}"
-          imagePullPolicy: "{{ image_rbac_proxy.pullPolicy }}"
+          image: "{{ kube_rbac_proxy_image_repo }}:{{ kube_rbac_proxy_image_tag }}"
+          imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: ssl
               mountPath: "{{ rbac_proxy_ssl_mount_path }}"
@@ -70,7 +70,7 @@ spec:
           args:
             - "--tls-cert-file={{ rbac_proxy_ssl_mount_path }}/{{ rbac_proxy_ssl_secret_name }}.cert"
             - "--tls-private-key-file={{ rbac_proxy_ssl_mount_path }}/{{ rbac_proxy_ssl_secret_name }}.key"
-            - "--tls-cipher-suites={{ rbac_proxy_tls_cipher_suites | join(',') }}"
+            - "--tls-cipher-suites={{ kube_rbac_proxy_tls_ciphers }}"
             - "--secure-listen-address=0.0.0.0:9104"
             - "--upstream=http://127.0.0.1:9103/"
       volumes:

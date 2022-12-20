@@ -1,0 +1,32 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: elasticsearch-pv
+  namespace: monitoring
+  labels:
+    name: elasticsearch-pv
+    app.kubernetes.io/component: elasticsearch-pv
+    app.kubernetes.io/name: elasticsearch-pv
+    app.kubernetes.io/version: {{ elasticsearch_chart_version }}
+spec:
+  capacity:
+    storage: 30Gi
+  volumeMode: Filesystem
+  accessModes: ["ReadWriteOnce"]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: elasticsearch
+  local:
+    path: /etc/elasticsearch
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+{% if on_cloud|d(false) %}
+                - {{ hostvars[groups['kube_node'][0]]['ansible_nodename'] }}
+{% else %}
+                - {{ hostvars[groups['kube_node'][0]]['ansible_hostname'] }}
+{% endif %}

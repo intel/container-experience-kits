@@ -20,6 +20,11 @@
 - name: remove FEC Operator namespace
   command: kubectl delete ns {{ intel_sriov_fec_operator_namespace }} # noqa 301
 
+- name: get GOPATH
+  command: go env GOPATH
+  register: gopath
+  changed_when: false
+
 - name: remove Operator Lifecycle Manager (OLM)
   command: operator-sdk olm uninstall # noqa 301
   environment:

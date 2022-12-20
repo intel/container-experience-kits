@@ -14,8 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-docker_version: stable
+docker_version: '20.10'
 docker_cli_version: "{{ docker_version }}"
+
+docker_containerd_version: 1.6.4
+
+containerd_package: 'containerd.io'
+
+yum_repo_dir: /etc/yum.repos.d
 
 # A string of extra options to pass to the docker daemon.
 # This string should be exactly as you wish it to appear.
@@ -51,4 +57,11 @@ docker_log_opts: "--log-opt max-size=50m --log-opt max-file=5"
 # keep docker packages after installation; speeds up repeated ansible provisioning runs when '1'
 # docker_rpm_keepcache: 1
 
-yum_repo_dir: /etc/yum.repos.d
+# Rocky/RedHat docker-ce repo
+docker_rh_repo_base_url: 'https://download.docker.com/linux/centos/{{ ansible_distribution_major_version }}/$basearch/stable'
+docker_rh_repo_gpgkey: 'https://download.docker.com/linux/centos/gpg'
+
+# Ubuntu docker-ce repo
+docker_ubuntu_repo_base_url: "https://download.docker.com/linux/ubuntu"
+docker_ubuntu_repo_gpgkey: 'https://download.docker.com/linux/ubuntu/gpg'
+docker_ubuntu_repo_repokey: '9DC858229FC7DD38854AE2D88D81803C0EBFCD88'

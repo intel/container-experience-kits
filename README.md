@@ -62,7 +62,18 @@ The software provided here is for reference only and not intended for production
         export PROFILE=build_your_own
         ```
 
-3. Install dependencies
+3. Install dependencies using a) or b)
+
+    a) Non-invasive virtual environment method
+
+    ```bash
+    pip3 install pipenv
+    pipenv install
+    # Then to run and use the environment
+    pipenv shell
+    ```
+
+    b) System wide installation method
 
    ```bash
    pip3 install -r requirements.txt
@@ -88,6 +99,8 @@ The software provided here is for reference only and not intended for production
     cp examples/vm/${PROFILE}/inventory.ini .
     ```
 
+    > **_NOTE:_** For cloud profiles no inventory.ini file is created, as it will be generated during machine provisioning. As a result, step 6 can be skipped.
+
 6. Update inventory file with your environment details.
 
     For VM case: update details relevant for vm_host
@@ -104,11 +117,18 @@ The software provided here is for reference only and not intended for production
 
     ```bash
     cp -r examples/k8s/${PROFILE}/group_vars examples/k8s/${PROFILE}/host_vars .
+    ```
 
-    or
+    or, for VM case:
 
-    For VM case:
+    ```bash
     cp -r examples/vm/${PROFILE}/group_vars examples/vm/${PROFILE}/host_vars .
+    ```
+
+    or, for Cloud case:
+
+    ```bash
+    cp -r examples/cloud/${PROFILE}/group_vars examples/cloud/${PROFILE}/host_vars .
     ```
 
 8. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
@@ -123,13 +143,15 @@ The software provided here is for reference only and not intended for production
       Needed details are at least dataplane_interfaces
       For more details see [VM case configuration guide](docs/vm_config_guide.md)
 
-9. **Required:** Apply bug fix patch for Kubespray submodule (for RHEL 8+ or Rocky 9(if wireguard is enabled)).
+9. **Required:** Apply bug fix patch for Kubespray submodule (for RHEL 8+).
 
     ```bash
     ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
     ```
 
 10. Execute `ansible-playbook`.
+
+    > **_NOTE:_** For Cloud case this step is not used. See the [cloud/](cloud/) directory for more details
 
     ```bash
     ansible-playbook -i inventory.ini playbooks/${PROFILE}.yml
@@ -170,3 +192,11 @@ Refer to the documentation linked below to see configuration details for selecte
   Preferable `SELinux` state is `permissive`.
 
   For more details, please, refer to the respective OS documentation.
+
+## Contributing
+
+Contributors, beside basic set of packages, should also install developer packages, using command:
+
+```bash
+pipenv install --dev
+```

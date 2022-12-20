@@ -83,6 +83,10 @@
     - name: stop the container
       command: >-
         podman stop {{ minio_log_postgres_name }}
+      register: result
+      retries: 10
+      delay: 3
+      until: result is not failed
       changed_when: true
 
     - name: remove the container

@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 apiVersion: v2
-appVersion: v0.11.1
+appVersion: "version_placeholder"
 description: |
   Detects hardware features available on each node in a Kubernetes cluster, and advertises
   those features using node labels.

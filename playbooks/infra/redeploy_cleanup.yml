@@ -71,6 +71,6 @@
       tag: cleanup
   handlers:
     - name: reboot server
-      reboot: { reboot_timeout: 1200 }
+      reboot: {reboot_timeout: 1200}
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: false

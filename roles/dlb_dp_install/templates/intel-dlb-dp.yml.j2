@@ -9,10 +9,10 @@ metadata:
   #  - https://github.com/intel/intel-device-plugins-for-kubernetes/issues/381
 {% if ansible_distribution == "Ubuntu" %}
   annotations:
-    container.apparmor.security.beta.kubernetes.io/intel-dlb-plugin: {{ dlb_dp_apparmor_profile | default("unconfined") }}
+    container.apparmor.security.beta.kubernetes.io/intel-dlb-plugin: {{ dlb_dp_apparmor_profile }}
 {% endif %}
 spec:
-  image: {{ dlb_dp_image | default("docker.io/intel/intel-dlb-plugin") }}:{{ dlb_dp_version | default("0.24.0") }}
+  image: {{ intel_dlb_dp_image }}
   logLevel: {{ dlb_dp_verbosity | default(4) }}
   nodeSelector:
-    intel.feature.node.kubernetes.io/dlb: "true" 
+    intel.feature.node.kubernetes.io/dlb: "true"

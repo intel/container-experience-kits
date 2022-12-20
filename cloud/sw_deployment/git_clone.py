@@ -1,13 +1,12 @@
-import logging
-import git
 import click
-from git import RemoteProgress
+import git
 
 
-class CloneProgress(RemoteProgress):
+class CloneProgress(git.RemoteProgress):
     """
     Class for logging the output from Git clone.
     """
+
     def update(self, op_code, cur_count, max_count=None, message=''):
         """
         Takes output from Git clone and wrote it to console.
@@ -39,32 +38,35 @@ def clone_repository(clone_dir, repo_url, branch, token):
     None
 
     """
-    if (token is not None) and ("<token>@" in repo_url):
+    click.echo('GIT clone:')
+    # print the url BEFORE replacing the security token, to avoid printing the token
+    click.echo(f"Repository URL: {repo_url}")
+    click.echo(f"Repository local path: {clone_dir}")
+
+    if token is not None and "<token>@" in repo_url:
         repo_url = repo_url.replace("<token>", token)
     else:
         repo_url = repo_url.replace("<token>@", "")
-    click.echo('GIT clone:')
-    click.echo(f"Repository URL: {repo_url}")
-    click.echo(f"Repository local path: {clone_dir}")
-    click.echo(f"Selected repository branch: {branch}")
+
     if branch is not None:
         return git.Repo.clone_from(url=repo_url,
-                                to_path=clone_dir,
-                                single_branch=True,
-                                branch=branch,
-                                progress=CloneProgress())
+                                   to_path=clone_dir,
+                                   single_branch=True,
+                                   branch=branch,
+                                   progress=CloneProgress())
     else:
         return git.Repo.clone_from(url=repo_url,
-                        to_path=clone_dir,
-                        single_branch=True,
-                        progress=CloneProgress())
+                                   to_path=clone_dir,
+                                   single_branch=True,
+                                   progress=CloneProgress())
+
 
 def switch_repository_to_tag(repo, tag):
     """
     Changing the repository version to specific tag.
 
     Parameters:
-    repo (git obj): PythonGit obj of clonned repository
+    repo (git obj): PythonGit obj of cloned repository
     tag (string): Name of tag to checkout
 
     Return:

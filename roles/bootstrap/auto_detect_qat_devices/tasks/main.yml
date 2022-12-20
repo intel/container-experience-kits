@@ -1,0 +1,73 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: user configured qat_devices
+  debug: var=qat_devices
+
+- name: initializing new qat_devices list
+  set_fact:
+    new_qat_devices: []
+
+- name: detect QAT PF ids from system
+  shell: "set -o pipefail && lspci -nn | egrep -i '{{ qat_supported_pf_dev_ids | join('|') }}' | cut -d' ' -f1"
+  args:
+    executable: /bin/bash
+  register: qat_pf_id_values
+  changed_when: false
+  failed_when: qat_pf_id_values.rc != 0 and qat_pf_id_values.rc != 1
+  when: not on_vms | default(false)
+
+# QAT PF can be possibly added to VM as well
+- name: detect QAT VF ids from system
+  shell: "set -o pipefail && lspci -nn | egrep -i '{{ (qat_supported_vf_dev_ids + qat_supported_pf_dev_ids) | join('|') }}' | cut -d' ' -f1"
+  args:
+    executable: /bin/bash
+  register: qat_vf_id_values
+  changed_when: false
+  failed_when: qat_vf_id_values.rc != 0 and qat_vf_id_values.rc != 1
+  when: on_vms | default(false)
+
+- name: change qat_sriov_numvfs_required to zero for VMs
+  set_fact:
+    qat_sriov_numvfs_required: 0
+  when: on_vms | default(false)
+
+- name: set common qat_id_values
+  set_fact:
+    qat_id_values: "{% if on_vms | default(false) %}{{ qat_vf_id_values.stdout_lines }}{% else %}{{ qat_pf_id_values.stdout_lines }}{% endif %}"
+
+- name: print QAT PF id in system
+  debug:
+    var: qat_id_values
+
+- name: print configured values
+  debug:
+    msg:
+      - "qat_sriov_numvfs_required = {{ qat_sriov_numvfs_required }}"
+      - "qat_vf_driver_required = {{ qat_vf_driver_required }}"
+
+- name: Create new_qat_devices list
+  set_fact:
+    new_qat_devices: "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required, 'qat_default_vf_driver' : qat_vf_driver_required }] }}" # noqa line-length
+  with_items: "{{ qat_id_values }}"
+  changed_when: true
+
+- name: replace original qat_devices
+  set_fact:
+    qat_devices: "{{ new_qat_devices }}"
+
+- name: auto detected qat_devices
+  debug: var=qat_devices

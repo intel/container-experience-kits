@@ -58,3 +58,7 @@ argv:
 {% else %}
   - --filename={{ istio_service_mesh_profiles_dir }}/{{ istio_service_mesh.profile }}.yaml
 {% endif -%}
+{% if istio_service_mesh.intel_preview.enabled is defined and istio_service_mesh.intel_preview.enabled | bool %}
+  - --set hub=docker.io/intel
+  - --set tag={{ istio_service_mesh.intel_preview.version }}
+{% endif -%}

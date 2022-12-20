@@ -39,7 +39,7 @@
 
 - name: install Intel oneAPI
 #  command: "sh {{ intel_oneapi_dir }}/intel-oneapi-basekit-offline.sh -a --silent --eula accept --install-dir {{ intel_oneapi_dir }}"
-  command: "sh {{ intel_oneapi_dir }}/intel-oneapi-basekit-offline.sh -a --silent --eula accept --components intel.oneapi.lin.dpcpp-cpp-compiler:intel.oneapi.lin.ipp.devel:intel.oneapi.lin.ippcp.devel:intel.oneapi.lin.mkl.devel:intel.oneapi.lin.dpcpp-ct:intel.oneapi.lin.dpl:intel.oneapi.lin.dpcpp_dbg --install-dir {{ intel_oneapi_dir }}" # noqa yaml[line-length]
+  command: "sh {{ intel_oneapi_dir }}/intel-oneapi-basekit-offline.sh -a --silent --eula accept --components intel.oneapi.lin.dpcpp-cpp-compiler:intel.oneapi.lin.ipp.devel:intel.oneapi.lin.ippcp.devel:intel.oneapi.lin.mkl.devel:intel.oneapi.lin.dpcpp-ct:intel.oneapi.lin.dpl:intel.oneapi.lin.dpcpp_dbg --install-dir {{ intel_oneapi_dir }}" # noqa line-length
   changed_when: true
   failed_when: false # to allow re-run install without uninstall
 #  environment:

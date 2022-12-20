@@ -54,6 +54,7 @@
 # - Check Intel Ethernet Operator configuration
 # - Check Intel SR-IOV FEC Operator configuration
 # On Role specific Only (k8s_cluster)
+# - Check Observability compontents
 # - Check MinIO requirements
 
 
@@ -251,6 +252,7 @@
         msg:
           - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}' is NOT supported
           - Must be one of {{ cek_supported_distros }} and version {{ cek_supported_distros_versions }}
+      when: on_cloud is not defined or not on_cloud
 
 #    - name: Check Linux Across Cluster
 # TODO ?? Linux OS must be the same on all targets (no mix-n-match)
@@ -269,44 +271,37 @@
 
 # Early check if SELinux is configured properly
     - block:
-      - name: "Collect packages facts"
-        package_facts:
-      - debug:
-          msg:
-            - "Current SELinux status:"
-            - "status: {{ ansible_selinux.status | default('') }}"
-            - "policy version:  {{ ansible_selinux.policyvers | default('') }}"
-            - "type: {{ ansible_selinux.type | default('') }}"
-            - "mode: {{ ansible_selinux.mode | default('') }}"
-            - "config_mode: {{ ansible_selinux.config_mode | default('') }}"
+        - name: "Collect packages facts"
+          package_facts:
+        - debug:
+            msg:
+              - "Current SELinux status:"
+              - "status: {{ ansible_selinux.status | default('') }}"
+              - "policy version:  {{ ansible_selinux.policyvers | default('') }}"
+              - "type: {{ ansible_selinux.type | default('') }}"
+              - "mode: {{ ansible_selinux.mode | default('') }}"
+              - "config_mode: {{ ansible_selinux.config_mode | default('') }}"
 
-      - name: check SELinux condition possibly causing system boot failure
-        debug:
-          msg:
-            - "Current SELinux setup might cause the system possibly will not boot up on next reboot."
-            - "Please, check SELinux settings and set it up according to the documentation."
-        when:
-          - "'selinux-policy' not in ansible_facts.packages"
-          - "'selinux-policy-targeted' not in ansible_facts.packages"
+        - name: check SELinux condition possibly causing system boot failure
+          debug:
+            msg:
+              - "Current SELinux setup might cause the system possibly will not boot up on next reboot."
+              - "Please, check SELinux settings and set it up according to the documentation."
+          when:
+            - "'selinux-policy' not in ansible_facts.packages"
+            - "'selinux-policy-targeted' not in ansible_facts.packages"
 
-      - name: check SELinux configuration for CRI-O runtime
-        assert:
-          that:
-            - (ansible_selinux.status == "enabled" and selinux_state is defined and selinux_state == "disabled") or
-              (ansible_selinux.status != "enabled" and selinux_state is defined and selinux_state != "enabled")
-          fail_msg: "CRI-O runtime requires SELinux in disabled state. Please, set selinux_state variable to 'disabled'"
-          success_msg: "CRI-O runtime SELinux configuration verified"
-        when:
-          - container_runtime == "crio"
+        - name: check SELinux configuration for CRI-O runtime
+          assert:
+            that:
+              - (ansible_selinux.status == "enabled" and selinux_state is defined and selinux_state == "disabled") or
+                (ansible_selinux.status != "enabled" and selinux_state is defined and selinux_state != "enabled")
+            fail_msg: "CRI-O runtime requires SELinux in disabled state. Please, set selinux_state variable to 'disabled'"
+            success_msg: "CRI-O runtime SELinux configuration verified"
+          when:
+            - container_runtime == "crio"
       when:
         - ansible_os_family == "RedHat"
-
-    - name: Check if CRI-O runtime is not used on RedHat 9.0
-      assert:
-        that: container_runtime != "crio"
-        msg: "CRI-O runtime is not supported on RedHat 9.0"
-      when:
-        - (ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0")
 
     - name: check kubernetes and container runtime variables
       assert:
@@ -344,162 +339,172 @@
 
 # check cpusets CPU core/threads shielding configuration
     - block:
-      - debug:
-          msg:
-            - cpusets_enabled = {{ cpusets_enabled }} (host_vars)
-            - cpusets = {{ cpusets }} (host_vars)
-            - ansible_processor_count = {{ ansible_processor_count }}
-            - ansible_processor_cores = {{ ansible_processor_cores }}
-            - ansible_processor_threads_per_core = {{ ansible_processor_threads_per_core }}
-            - ansible_processor_vcpus = {{ ansible_processor_vcpus }}
-            - CPUs Reserved for OS = 0...{{ ansible_processor_count - 1 }}
-#            - CPUs Reserved for OS = {{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }} # [E207] Nested jinja pattern
+        - debug:
+            msg:
+              - cpusets_enabled = {{ cpusets_enabled }} (host_vars)
+              - cpusets = {{ cpusets }} (host_vars)
+              - ansible_processor_count = {{ ansible_processor_count }}
+              - ansible_processor_cores = {{ ansible_processor_cores }}
+              - ansible_processor_threads_per_core = {{ ansible_processor_threads_per_core }}
+              - ansible_processor_vcpus = {{ ansible_processor_vcpus }}
+              - CPUs Reserved for OS = 0...{{ ansible_processor_count - 1 }}
+  #            - CPUs Reserved for OS = {{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }} # [E207] Nested jinja pattern
 
-      - name: check OS for cpusets based on cgroups v1 only
-        assert:
-          that:
-            - (ansible_distribution == 'Ubuntu' and ansible_distribution_version == '20.04')
-          msg:
-            - Unsupported configuration.
-            - CPUs isolation ('cpusets') can be only enabled on Ubuntu 20.04.x.
+        - name: check OS for cpusets based on cgroups v1 only
+          assert:
+            that:
+              - (ansible_distribution == 'Ubuntu' and ansible_distribution_version == '20.04')
+            msg:
+              - Unsupported configuration.
+              - CPUs isolation ('cpusets') can be only enabled on Ubuntu 20.04.x.
 
-      - name: check CPUs isolation
-        assert:
-          that: ( "{{ cpusets }}" | length > 0 )
-          msg:
-            - Incorrect configuration. Conflicting or improper values detected
-            - CPUs isolation ('cpusets') must be set according to the example file for host_vars. Please correct the configuration
+        - name: check CPUs isolation
+          assert:
+            that: ( "{{ cpusets }}" | length > 0 )
+            msg:
+              - Incorrect configuration. Conflicting or improper values detected
+              - CPUs isolation ('cpusets') must be set according to the example file for host_vars. Please correct the configuration
 
-      - name: split cpusets Groups
-        set_fact:
-          cpusets_groups: "{{ cpusets.split(',') }}"
+        - name: split cpusets Groups
+          set_fact:
+            cpusets_groups: "{{ cpusets.split(',') }}"
 
-      - debug: msg="cpusets_groups = {{ cpusets_groups }}"
+        - debug: msg="cpusets_groups = {{ cpusets_groups }}"
 
-      - name: filter cpusets Ranges
-        set_fact:
-          cpusets_ranges: "{{ cpusets_ranges + [item] }}"
-        with_items: "{{ cpusets_groups }}"
-        when: ("-" in item)
+        - name: filter cpusets Ranges
+          set_fact:
+            cpusets_ranges: "{{ cpusets_ranges + [item] }}"
+          with_items: "{{ cpusets_groups }}"
+          when: ("-" in item)
 
-      - debug: msg="cpusets_ranges = {{ cpusets_ranges }}"
+        - debug: msg="cpusets_ranges = {{ cpusets_ranges }}"
 
-      - name: filter cpusets Discretes
-        set_fact:
-          cpusets_discretes: "{{ cpusets_discretes + [item] }}"
-        with_items: "{{ cpusets_groups }}"
-        when: ("-" not in item)
+        - name: filter cpusets Discretes
+          set_fact:
+            cpusets_discretes: "{{ cpusets_discretes + [item] }}"
+          with_items: "{{ cpusets_groups }}"
+          when: ("-" not in item)
 
-      - debug: msg="cpusets_discretes = {{ cpusets_discretes }}"
+        - debug: msg="cpusets_discretes = {{ cpusets_discretes }}"
 
-      - name: build cpusets List
-        set_fact:
-          cpusets_list: "{{ cpusets_list | default([]) | union(cpusets_discretes) | union([item]) }}"
-        with_sequence: "{{ cpusets_ranges }}"
+        - name: build cpusets List
+          set_fact:
+            cpusets_list: "{{ cpusets_list | default([]) | union(cpusets_discretes) | union([item]) }}"
+          with_sequence: "{{ cpusets_ranges }}"
 
-      - debug: msg="cpusets_list = {{ cpusets_list }}"
+        - debug: msg="cpusets_list = {{ cpusets_list }}"
 
-      - name: check cpusets Total
-        assert:
-          that: "{{ cpusets_list | length }} <= ansible_processor_vcpus"
-          msg:
-            - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
-            - The number of cpusets {{ cpusets_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
+        - name: check cpusets Total
+          assert:
+            that: "{{ cpusets_list | length }} <= ansible_processor_vcpus"
+            msg:
+              - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
+              - The number of cpusets {{ cpusets_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
 
-      - name: check cpusets IDs
-        assert:
-          that: "item | int <= ansible_processor_vcpus"
-          msg:
-            - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
-            - The CPU ID {{ item }} set for cpusets is NOT actually present on target. Please correct the configuration
-        with_items: "{{ cpusets_list }}"
+        - name: check cpusets IDs
+          assert:
+            that: "item | int <= ansible_processor_vcpus"
+            msg:
+              - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
+              - The CPU ID {{ item }} set for cpusets is NOT actually present on target. Please correct the configuration
+          with_items: "{{ cpusets_list }}"
 
-      - name: check cpusets OS Reserved
-        assert:
-          that: "item not in cpusets_list"
-          msg:
-            - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
-            - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for cpusets. Please correct the configuration
-        with_items: "{{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }}"
+        - name: check cpusets OS Reserved
+          assert:
+            that: "item not in cpusets_list"
+            msg:
+              - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
+              - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for cpusets. Please correct the configuration
+          with_items: "{{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }}"
 
       when:
         - cpusets_enabled is defined and cpusets_enabled | bool
 
 # check isolcpus CPU core/threads configuration
     - block:
-      - debug:
-          msg:
-            - isolcpus_enabled = {{ isolcpus_enabled }} (host_vars)
-            - isolcpus = {{ isolcpus }} (host_vars)
-            - ansible_processor_count = {{ ansible_processor_count }}
-            - ansible_processor_cores = {{ ansible_processor_cores }}
-            - ansible_processor_threads_per_core = {{ ansible_processor_threads_per_core }}
-            - ansible_processor_vcpus = {{ ansible_processor_vcpus }}
-            - CPUs Reserved for OS = 0...{{ ansible_processor_count - 1 }}
-#            - CPUs Reserved for OS = {{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }} # [E207] Nested jinja pattern
+        - debug:
+            msg:
+              - isolcpus_enabled = {{ isolcpus_enabled }} (host_vars)
+              - isolcpus = {{ isolcpus }} (host_vars)
+              - ansible_processor_count = {{ ansible_processor_count }}
+              - ansible_processor_cores = {{ ansible_processor_cores }}
+              - ansible_processor_threads_per_core = {{ ansible_processor_threads_per_core }}
+              - ansible_processor_vcpus = {{ ansible_processor_vcpus }}
+              - CPUs Reserved for OS = 0...{{ ansible_processor_count - 1 }}
+  #            - CPUs Reserved for OS = {{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }} # [E207] Nested jinja pattern
 
-      - name: check CPUs isolation
-        assert:
-          that: ( "{{ isolcpus }}" | length > 0 )
-          msg:
-            - Incorrect configuration. Conflicting or improper values detected
-            - CPUs isolation ('isolcpus') must be set according to the example file for host_vars. Please correct the configuration
+        - name: check CPUs isolation
+          assert:
+            that: ( "{{ isolcpus }}" | length > 0 )
+            msg:
+              - Incorrect configuration. Conflicting or improper values detected
+              - CPUs isolation ('isolcpus') must be set according to the example file for host_vars. Please correct the configuration
 
-      - name: split isolcpus Groups
-        set_fact:
-          isolcpus_groups: "{{ isolcpus.split(',') }}"
+        - name: split isolcpus Groups
+          set_fact:
+            isolcpus_groups: "{{ isolcpus.split(',') }}"
 
-      - debug: msg="isolcpus_groups = {{ isolcpus_groups }}"
+        - debug: msg="isolcpus_groups = {{ isolcpus_groups }}"
 
-      - name: filter isolcpus Ranges
-        set_fact:
-          isolcpus_ranges: "{{ isolcpus_ranges + [item] }}"
-        with_items: "{{ isolcpus_groups }}"
-        when: ("-" in item)
+        - name: filter isolcpus Ranges
+          set_fact:
+            isolcpus_ranges: "{{ isolcpus_ranges + [item] }}"
+          with_items: "{{ isolcpus_groups }}"
+          when: ("-" in item)
 
-      - debug: msg="isolcpus_ranges = {{ isolcpus_ranges }}"
+        - debug: msg="isolcpus_ranges = {{ isolcpus_ranges }}"
 
-      - name: filter isolcpus Discretes
-        set_fact:
-          isolcpus_discretes: "{{ isolcpus_discretes + [item] }}"
-        with_items: "{{ isolcpus_groups }}"
-        when: ("-" not in item)
+        - name: filter isolcpus Discretes
+          set_fact:
+            isolcpus_discretes: "{{ isolcpus_discretes + [item] }}"
+          with_items: "{{ isolcpus_groups }}"
+          when: ("-" not in item)
 
-      - debug: msg="isolcpus_discretes = {{ isolcpus_discretes }}"
+        - debug: msg="isolcpus_discretes = {{ isolcpus_discretes }}"
 
-      - name: build isolcpus List
-        set_fact:
-          isolcpus_list: "{{ isolcpus_list | default([]) | union(isolcpus_discretes) | union([item]) }}"
-        with_sequence: "{{ isolcpus_ranges }}"
+        - name: build isolcpus List
+          set_fact:
+            isolcpus_list: "{{ isolcpus_list | default([]) | union(isolcpus_discretes) | union([item]) }}"
+          with_sequence: "{{ isolcpus_ranges }}"
 
-      - debug: msg="isolcpus_list = {{ isolcpus_list }}"
+        - debug: msg="isolcpus_list = {{ isolcpus_list }}"
 
-      - name: check isolcpus Total
-        assert:
-          that: "{{ isolcpus_list | length }} <= ansible_processor_vcpus"
-          msg:
-            - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
-            - The number of isolcpus {{ isolcpus_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
+        - name: check isolcpus Total
+          assert:
+            that: "{{ isolcpus_list | length }} <= ansible_processor_vcpus"
+            msg:
+              - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
+              - The number of isolcpus {{ isolcpus_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration # noqa line-length
 
-      - name: check isolcpus IDs
-        assert:
-          that: "item | int <= ansible_processor_vcpus"
-          msg:
-            - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
-            - The CPU ID {{ item }} set for isolcpus is NOT actually present on target. Please correct the configuration
-        with_items: "{{ isolcpus_list }}"
+        - name: check isolcpus IDs
+          assert:
+            that: "item | int <= ansible_processor_vcpus"
+            msg:
+              - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
+              - The CPU ID {{ item }} set for isolcpus is NOT actually present on target. Please correct the configuration
+          with_items: "{{ isolcpus_list }}"
 
-      - name: check isolcpus OS Reserved
-        assert:
-          that: "item not in isolcpus_list"
-          msg:
-            - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
-            - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for isolcpus. Please correct the configuration
-        with_items: "{{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }}"
+        - name: check isolcpus OS Reserved
+          assert:
+            that: "item not in isolcpus_list"
+            msg:
+              - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
+              - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for isolcpus. Please correct the configuration
+          with_items: "{{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }}"
 
       when:
         - isolcpus_enabled is defined and isolcpus_enabled | bool
         - isolcpus is defined and isolcpus
+
+    - name: check Intel CPU Control Plane configuration
+      include_role:
+        name: intel_cpu_controlplane
+        tasks_from: preflight_cpu_controlplane.yml
+      when:
+        - kubernetes
+        - intel_cpu_controlplane is defined and intel_cpu_controlplane.enabled
+      tags:
+        - cpu_ctlplane
 
 ####################################
 # Prerequisites for Worker Node(s) #
@@ -510,9 +515,6 @@
     cstates_supported_distros: [Ubuntu]
     cstates_supported_distros_versions: ['22.04']
     phy_nics_pciids: []
-    gpu_pciids:
-      - name: DG1
-        pciids: ["4907"]
   vars_files:
     - "roles/check_machine_type/vars/main.yml"
 
@@ -535,7 +537,8 @@
         fail_msg:
           - "SRIOV Network DP/SRIOV CNI is enabled, SRIOV Network Operator should be disabled !!"
       when:
-        - sriov_cni_enabled or sriov_net_dp_enabled
+        - (sriov_cni_enabled is defined and sriov_cni_enabled) or
+          (sriov_net_dp_enabled is defined and sriov_net_dp_enabled)
 
     - name: check DP Interfaces
       assert:
@@ -670,17 +673,16 @@
           Please be aware that by using CPU model that is not confirmed, some features may not work properly."
       when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
 
+    - name: check QAT requirements
+      include_role:
+        name: ../roles/bootstrap/install_qat_drivers_services
+        tasks_from: qat_drivers_preflight
+      when:
+        - configured_arch == "spr"
+        - update_qat_drivers is defined and update_qat_drivers
+
     - name: check QAT Devices list is configured properly
       block:
-        - name: check QAT requirements
-          include_role:
-            name: ../roles/bootstrap/install_qat_drivers_services
-            tasks_from: qat_drivers_preflight
-          when:
-            - configured_arch == "spr"
-            - update_qat_drivers is defined and update_qat_drivers
-            - qat_devices is defined and qat_devices != []
-
         - debug:
             msg: "QAT device(s) defined in host_vars = {{ qat_devices }}"
 
@@ -693,7 +695,7 @@
           failed_when: false
           when:
             - on_vms is not defined or not on_vms
-         
+
         - name: assert QAT PCIIDs
           assert:
             that: "lshw_qat_host.rc == 0"
@@ -741,80 +743,30 @@
         - update_qat_drivers is defined and update_qat_drivers
         - qat_devices is defined and qat_devices != []
 
-# Check GPU availability and preparation, the pre-defined product PCIID can be found in i915_pciids.h of kernel source tree, only DG1 is available now.
-    - name: Create empty setting list for configure_gpu on the worker node
-      set_fact:
-        setting_list: []
-
-    - name: Create configure_gpu setting list for the worker node
-      set_fact:
-        setting_list: "{{ setting_list | default([]) + [hostvars[item].configure_gpu | default(false) | bool] }}"
-      with_items:
-        - "{{ groups['kube_node'] }}"
-
-    - name: Validate configure_gpu settings when gpu_dp_enabled is false
+    - name: check QAT SRIOV VFs requirement for qat device auto detection
       assert:
-        that: ((setting_list | unique | length == 1) and not setting_list[0])
-        msg: "Since gpu_dp_enabled is false, configure_gpu must set all false on the node with GPU"
+        that: ({{ qat_sriov_numvfs_required }} <= 16)
+        msg:
+          - Incorrect configuration in qat_sriov_numvfs_required for requested number of QAT VTs
+          - When SRIOV VFs are set for QAT, max value is 16 for each ID (max 48 total per card). Please correct the configuration
       when:
-        - gpu_dp_enabled is defined and not gpu_dp_enabled
-        - setting_list | length > 0
+        - update_qat_drivers is defined and update_qat_drivers
+        - qat_devices is defined and qat_devices == []
 
-    - name: Validate configure_gpu settings when gpu_dp_enabled is true
-      assert:
-        that: (setting_list | unique | length > 1) or ((setting_list | unique | length == 1) and setting_list[0])
-        msg: "When gpu_dp_enabled is true, configure_gpu must set true at least on one node with GPU.  Please correct the configuration."
+    - name: Check GPU hardware requirements
+      include_role:
+        name: gpu_dp_install
+        tasks_from: preflight_gpu_dp
       when:
         - gpu_dp_enabled is defined and gpu_dp_enabled
-        - setting_list | length > 0
-
-    - name: Check Intel discrete GPU devices on node and GPU features configuration.
-      block:
-        - name: Read GPU Device info from node for GPU check since configure_gpu set to true
-          command: "lshw -c display -businfo -numeric"
-          register: lshw_gpu_hardware
-
-        - name: Show GPU device information found from nodes
-          debug:
-            msg: |
-              - "Retrieved GPU device info from node {{ inventory_hostname }}"
-              - "{{ lshw_gpu_hardware.stdout }}"
-
-        - name: Check each node for Intel discrete GPU
-          assert:
-            that: "lshw_gpu_hardware.stdout | regex_search('8086:\\d{4}') != none"
-            msg: "Node {{ inventory_hostname }} doesn't have Intel discrete GPU, please set configure_gpu false for this node."
-
-        - name: Validate the PCIID from each node is supported
-          assert:
-            that: "'{{ (item[1] | regex_search('8086:\\d{4}')).split(':')[1] }}' in item[0].pciids"
-            msg:
-              - "{{ (item[1] | regex_search('8086:\\d{4}')).split(':')[1] }} from "
-              - "  {{ inventory_hostname }} is not in the pre-defined PCIID list of {{ item[0].name }}"
-          with_nested:
-            - "{{ gpu_pciids }}"
-            - "{{ lshw_gpu_hardware.stdout_lines }}"
-          when: " item[1] | regex_search('8086:\\d{4}') != none "
-      when:
-        - configure_gpu is defined and configure_gpu
-
-# At this point, we did dependencies and hardware checks, so we are preparing to deploy kernel update
-# GPU DP Fractional Resources must be passed in correct format
-    - name: check if the GPU max memory is passed in correct format
-      assert:
-        that:
-          - "{{ gpu_dp_max_memory.split(' ') | length == 2 }}"  # value is passed in format <value><space><unit>
-          - "{{ gpu_dp_max_memory.split(' ')[1] in ['GB', 'MB', 'KB', 'Kb'] }}"  # supported units
-        fail_msg: "Please provide variable value in correct format. Use <value><space><unit> format, e.g. '8 GB'"
-      when: gpu_dp_max_memory is defined
 
 # OpenSSL & OpenSSL*Engine must only be configured / installed when update_qat_drivers is set to 'true' and qat_devices is defined in host vars
+# or auto-detected from the system
     - name: check OpenSSL and OpenSSL*Engine requirements
       assert:
         that:
           - update_qat_drivers
-          - qat_devices is defined and qat_devices != []
-        fail_msg: "OpenSSL & OpenSSL*Engine will only configured if update_qat_drivers is set to 'true' & qat_devices is defined in host vars"
+        fail_msg: "OpenSSL & OpenSSL*Engine will only configured if update_qat_drivers is set to 'true'"
         success_msg: "OpenSSL & OpenSSL*Engine verification completed"
       when: openssl_install is defined and openssl_install
 
@@ -832,7 +784,7 @@
           - configure_sgx is defined
           - configure_sgx
         fail_msg:
-            - "Please set configure_sgx to true in host vars to allow SGX configuration on the system"
+          - "Please set configure_sgx to true in host vars to allow SGX configuration on the system"
       when:
         - sgx_dp_enabled is defined and sgx_dp_enabled
 
@@ -968,9 +920,9 @@
           - Incorrect configuration pertaining CNI. Conflicting or improper values detected.
           - When Userspace CNI is enabled, either OVS DPDK or VPP must be enabled, default_hugepage_size must also set under these options.
           - 1. If VPP is enabled, ovs_dpdk_enabled=false, default_hugepage_size = 2M in host_vars; and
-          -      example_net_attach_defs['userspace_ovs_dpdk']=false, example_net_attach_defs['userspace_vpp']=true in group_vars.
+          - example_net_attach_defs['userspace_ovs_dpdk']=false, example_net_attach_defs['userspace_vpp']=true in group_vars.
           - 2. If OVS DPDK is enabled, default_hugepage_size = 1G in host_vars; and
-          -      vpp_enabled=false, example_net_attach_defs['userspace_ovs_dpdk']=true, example_net_attach_defs['userspace_vpp']=false in group_vars.
+          - vpp_enabled=false, example_net_attach_defs['userspace_ovs_dpdk']=true, example_net_attach_defs['userspace_vpp']=false in group_vars.
           - Please correct the configuration.
       when: userspace_cni_enabled is defined and userspace_cni_enabled
 
@@ -985,14 +937,14 @@
     - name: check Intel(R) SST-PP (feature perf-profile) requirements
       assert:
         that:
-          - ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04' or
-            (ansible_distribution in ['RedHat', 'Rocky', 'CentOS'] and ansible_distribution_version >= '8.3')
+          - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "20.04") or
+            (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.3")
           - turbo_boost_enabled
         fail_msg:
-            - "Playbook terminated cause of failure might to two reasons: Firstly, SST-PP is only supported in RedHat / Rocky >= 8.3 or Ubuntu >=20.04"
-            - "To proceed further make sure sst_bf_configuration_enabled, sst_cp_configuration_enabled,"
-            - "sst_tf_configuration_enable & sst_pp_configuration_enabled all should be disabled in host_vars"
-            - "Secondly, make sure turbo_boost_enabled in host_vars is set to 'true', as required for turbo-freq configuration"
+          - "Playbook terminated cause of failure might to two reasons: Firstly, SST-PP is only supported in RedHat / Rocky >= 8.3 or Ubuntu >=20.04"
+          - "To proceed further make sure sst_bf_configuration_enabled, sst_cp_configuration_enabled,"
+          - "sst_tf_configuration_enable & sst_pp_configuration_enabled all should be disabled in host_vars"
+          - "Secondly, make sure turbo_boost_enabled in host_vars is set to 'true', as required for turbo-freq configuration"
         success_msg: "Intel(R) SST-PP (feature perf-profile), verification completed"
       when:
         - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
@@ -1037,7 +989,8 @@
           args:
             executable: /bin/bash
           register: dmesg_dmar_remap
-          changed_when: False
+          changed_when: false
+          failed_when: false
 
         - debug: msg="dmesg >> {{ dmesg_dmar_remap.stdout }}"
 
@@ -1048,12 +1001,15 @@
             - dmesg_dmar_remap.stdout|length  == 0
       when:
         - on_vms is not defined or not on_vms
+        - on_cloud is not defined or not on_cloud
 
 # STORY: CPU Hyper-Threading should be enabled in BIOS
     - name: warn about Hyper-Threading
       fail:
         msg: "Warning: CPU Hyper-Threading is DISABLED on target.  Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
-      when: ansible_processor_threads_per_core != 2
+      when:
+        - ansible_processor_threads_per_core != 2
+        - on_cloud is not defined or not on_cloud
 
 # STORY: "collectd and telegraf are mutually exclusive"
     - name: fail if collectd and telegraf are both enabled
@@ -1088,17 +1044,17 @@
           - "{{ kmra.pccs.enabled | default(false) }}"
         msg: "KMRA AppHSM and PCCS applications should be enabled in order to have TCS functional."
       when:
-        - tcs.enabled | default(false) or tca.enabled | default(false)
+        - tcs.enabled | default(false) or tac.enabled | default(false)
         - configured_arch in ['icx']
 
-# STORY: "TCA depends on TCS"
-    - name: check if TCS is enabled when TCA enabled
+# STORY: "TAC depends on TCS"
+    - name: check if TCS is enabled when TAC enabled
       assert:
         that:
           - "{{ tcs.enabled | default(false ) }}"
-        msg: "TCS should be enabled in order to have TCA functional."
+        msg: "TCS should be enabled in order to have TAC functional."
       when:
-        - tca.enabled | default(false)
+        - tac.enabled | default(false)
         - configured_arch in ['icx']
 
 # STORY: "istio_service_mesh.sgx_signer' option is available only for icx platforms"
@@ -1129,24 +1085,24 @@
       when:
         - istio_service_mesh.enabled | default(false)
 
-# STORY: TCA is available only for icx platforms"
-    - name: TCA is available only for specific platforms
+# STORY: TAC is available only for icx platforms"
+    - name: TAC is available only for specific platforms
       assert:
         that:
-          - "{{ not tca.enabled | default(false) }}"
-        msg: "TCA is not available for the configured platform architecture."
+          - "{{ not tac.enabled | default(false) }}"
+        msg: "TAC is not available for the configured platform architecture."
       when:
         - configured_arch not in ['icx']
 
-# STORY: "istio_service_mesh.sgx_signer' option depends on KMRA AppHSM, KMRA PCCS, TCS, TCA"
-    - name: check if KMRA Apps, TCS and TCA are enabled when service mesh sgx_signer option is enabled
+# STORY: "istio_service_mesh.sgx_signer' option depends on KMRA AppHSM, KMRA PCCS, TCS, TAC.
+    - name: check if KMRA Apps, TCS and TAC are enabled when service mesh sgx_signer option is enabled
       assert:
         that:
           - "{{ kmra.apphsm.enabled | default(false) }}"
           - "{{ kmra.pccs.enabled | default(false) }}"
           - "{{ tcs.enabled | default(false ) }}"
-          - "{{ tca.enabled | default(false ) }}"
-        msg: "In order to use service mesh sgx-signer option, please, enable KMRA AppHSM, KMRA PCCS, TCS, TCA."
+          - "{{ tac.enabled | default(false ) }}"
+        msg: "In order to use service mesh sgx-signer option, please, enable KMRA AppHSM, KMRA PCCS, TCS, TAC."
       when:
         - istio_service_mesh.sgx_signer.enabled | default(false)
         - configured_arch in ['icx']
@@ -1159,15 +1115,15 @@
           - ovs_dpdk_enabled = {{ ovs_dpdk_enabled }} (host_vars)
           - ovs_version = {{ ovs_version }} (host_vars)
       when:
-        - install_dpdk is defined #host_vars
-        - dpdk_version is defined #host_vars
-        - ovs_version is defined #host_vars
-        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled #host_vars
+        - install_dpdk is defined # host_vars
+        - dpdk_version is defined # host_vars
+        - ovs_version is defined # host_vars
+        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled # host_vars
 
     - name: check OVS DPDK compatibility
       assert:
         that:
-          (ovs_version >= 'v2.17.0' and ovs_version <= 'v2.17.2') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
+          (ovs_version >= 'v2.17.0' and ovs_version <= 'v3.0.1') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
           or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
           or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
           or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
@@ -1179,9 +1135,9 @@
           or ovs_version == 'v2.13.0' and dpdk_version == '19.11.6'
         msg: "OVS {{ ovs_version }} does not build with DPDK version {{ dpdk_version }}. Please correct the host_vars configuration"
       when:
-        - dpdk_version is defined #host_vars
-        - ovs_version is defined #host_vars
-        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled #host_vars
+        - dpdk_version is defined # host_vars
+        - ovs_version is defined # host_vars
+        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled # host_vars
 
     - name: check settings for Intel Power Manager
       assert:
@@ -1223,7 +1179,7 @@
       include_role:
         name: intel_ethernet_operator
         tasks_from: preflight_ethernet_operator
-      when: intel_ethernet_operator_enabled
+      when: intel_ethernet_operator_enabled is defined and intel_ethernet_operator_enabled
 
     - name: make sure isolcpus and cpusets are not enabled simultaneously
       assert:
@@ -1231,56 +1187,16 @@
           - (not isolcpus_enabled and cpusets_enabled) or
             (isolcpus_enabled and not cpusets_enabled)
         msg:
-         - "isolcpus_enabled and cpusets_enabled can't be enabled simultaneously."
-         - "Please correct the host_vars configuration for target '{{ ansible_hostname }}'"
+          - "isolcpus_enabled and cpusets_enabled can't be enabled simultaneously."
+          - "Please correct the host_vars configuration for target '{{ ansible_hostname }}'"
       when:
         - (isolcpus_enabled is defined and isolcpus_enabled) or
           (cpusets_enabled is defined and cpusets_enabled)
 
-# FEC Operator is only intended for the 'access'/'full_nfv'/'byo' profiles, on Ubuntu 22.04, and requires FEC Acc H/W on Host(s)
-    - name: Check Intel SR-IOV FEC Operator configuration
-      block:
-        - name: FEC Operator - check profile is access or bring_your_own
-          assert:
-            that: profile_name in ['access', 'full_nfv', 'bring_your_own']
-            msg: >
-              "Deploying the Intel SR-IOV FEC Operator is supported only in the 'access', 'full_nfv', or 'byo' profiles.
-              Please correct the group_vars configuration"
-
-        - name: FEC Operator - check distro is Ubuntu 22.04 or RHEL 8.6 (generic or realtime)
-          assert:
-            that: ansible_distribution_version == "22.04" or ansible_distribution_version == "8.6"
-            msg: "Deploying the Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04 or RHEL 8.6. Please change the o/s or correct group_vars configuration"
-
-        - debug: msg="fec_acc is {{ fec_acc }}"
-
-        - name: FEC Operator - check h/w acc is configured
-          assert:
-            that: fec_acc is defined
-            msg: "Deploying the Intel SR-IOV FEC Operator requires defining the PCIID of the ACC H/W to use. Please correct the host configuration"
-
-        - name: FEC Operator - check runtime is docker
-          assert:
-            that: container_runtime == 'docker'
-            msg: "Deploying the Intel SR-IOV FEC Operator is supported only for docker runtime. Please correct the group_vars configuration"
-
-# TODO
-#        - name: FEC Operator - check Cert Manager is enabled
-#          assert:
-#            that: cert_manager_enabled
-#            msg: "Deploying the Intel SR-IOV FEC Operator requires Cert Manager to be present. Please correct the group_vars configuration"
-#
-#        - debug: msg="iommu_cmdline is {{ iommu_cmdline }}"
-#
-#        - name: FEC Operator - check host IOMMU is set in passthrough mode
-#          assert:
-#            that: iommu_enabled and ("iommu=pt" in iommu_cmdline)
-#            msg: "Deploying the Intel SR-IOV FEC Operator requires Cert Manager to be present. Please correct the group_vars configuration"
-#
-#        - name: check acc h/w
-#          assert:
-#            that: fec_acc PCIID is present in the host and its DevID in supported list
-#            msg: "Deploying the Intel SR-IOV FEC Operator requires the ACC card to be present in the host. Please correct the host h/w configuration"
+    - name: check Intel SRIOV-FEC Operator requirements
+      include_role:
+        name: intel_sriov_fec_operator
+        tasks_from: preflight_sriov_fec_operator
       when: intel_sriov_fec_operator_enabled | default(false) | bool
 
     - name: check Intel FlexRAN requirements
@@ -1291,18 +1207,20 @@
 
     - name: check OS when DLB or DSA is enabled
       assert:
-        that:  (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and (update_kernel or ansible_kernel[0:4] is version('5.14', '>='))) or
-               (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '22.04') or
-               (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.6')
+        that:
+          - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04'
+            and (update_kernel or ansible_kernel[0:4] is version('5.14', '>='))) or
+            (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '22.04') or
+            (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.6')
         success_msg: "DLB or DSA can succesfully be enabled on {{ ansible_distribution }} {{ ansible_distribution_version }}"
         msg: |
-          DLB and DSA features are not supported on Ubuntu 20.04(with stock kernel) and RHEL/Rocky < 9.
+          DLB and DSA features are not supported on Ubuntu 20.04(with stock kernel) and RHEL/Rocky 8.5.
           {% if ansible_distribution == "Ubuntu" and ansible_kernel[0:4] is version('5.14', '<') %}
           Found {{ ansible_kernel[0:4] }} kernel on Ubuntu 20.04, but kernel in version 5.14 or higher is required.
           If you wish to use DLB or DSA feature set 'update_kernel' as true.
           {% endif %}
       when: configure_dsa_devices | d(false) or configure_dlb_devices | d(false)
-# SGX on VMs require Ubuntu 22.04 for VM Host and VM Image
+# SGX on VMs require Ubuntu 22.04 for VM Host
     - name: Check requirements to enable Intel SGX on VMs
       block:
         - name: Intel SGX - check if ansible_host distro is Ubuntu 22.04
@@ -1311,13 +1229,6 @@
               - ansible_distribution == "Ubuntu"
               - ansible_distribution_version == "22.04"
             msg: "Deploying SGX on VMRA is supported only on Ubuntu 22.04 VM host. Please change the o/s for VM host"
-
-        - name: Intel SGX - check if vm_image distro is Ubuntu 22.04
-          assert:
-            that:
-              - vm_image_distribution | default("ubuntu") == "ubuntu"
-              - vm_image_version_ubuntu | default("20.04") == "20.04"
-            msg: "Deploying SGX on VMRA is supported only on Ubuntu 20.04 VM image. Please change the o/s for VM image"
       when:
         - vm_enabled | default(false)
         - sgx_dp_enabled | default(false)
@@ -1328,6 +1239,46 @@
 ####################################
 - hosts: k8s_cluster
   tasks:
+
+# STORY: "Observability: assert that all required compontents are enabled"
+    - name: assert that all observability/monitoring variables are disabled
+      assert:
+        that:
+          - not elasticsearch_enabled | default(false)
+          - not jaeger_operator | default(false)
+          - not opentelemetry_enabled | default(false)
+          - not kibana_enabled | default(false)
+        fail_msg: |
+          When both telegraf and collectd are disabled then the rest of Observability stack needs to be disabled: elastisearch, jaeger, opentelemtry and kibana.
+      when:
+        - not telegraf_enabled | default(false)
+        - not collectd_enabled | default(false)
+
+    - name: assert that all observability/monitoring variables are enabled for telegraf
+      assert:
+        that:
+          - telegraf_enabled | default(false)
+          - elasticsearch_enabled | default(false)
+          - jaeger_operator | default(false)
+          - opentelemetry_enabled | default(false)
+          - kibana_enabled | default(false)
+        fail_msg: |
+          Observability needs to be enabled as a stack: telegraf, elastisearch, jaeger, opentelemtry and kibana.
+      when:
+        - telegraf_enabled | default(false)
+
+    - name: assert that all observability/monitoring variables are disabled for collectd
+      assert:
+        that:
+          - not telegraf_enabled | default(false)
+          - not elasticsearch_enabled | default(false)
+          - not jaeger_operator | default(false)
+          - not opentelemetry_enabled | default(false)
+          - not kibana_enabled | default(false)
+        fail_msg: |
+          When collectd is enabled then Observability stack needs to be disabled: telegraf, elastisearch, jaeger, opentelemtry and kibana.
+      when:
+        - collectd_enabled | default(false)
 
 # STORY: "MinIO requires number of nodes should be more than the minimum number of nodes defined in group_vars/all/minio_tenant_servers"
     - name: display MinIO requirement with multus-service
@@ -1345,7 +1296,7 @@
       when:
         - kubernetes
         - minio_enabled is defined and minio_enabled
-      ignore_errors: true
+      failed_when: false
 
     - name: check MinIO configuration
       include_role:

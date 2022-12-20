@@ -14,67 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-- name: Copy preferences
-  copy:
-    src: preferences
-    dest: /etc/apt/preferences
-    mode: '0644'
+- name: check if libvirt is already compiled
+  command: "libvirtd --version"
+  args:
+    executable: /bin/bash
+  register: libvirtd_version
+  changed_when: false
+  failed_when: false
 
-- name: Install dependencies
-  include_role:
-    name: install_dependencies
-
-- name: Clone libvirt fork with sgx support
-  git:
-    repo: 'https://github.com/hhb584520/libvirt.git'
-    dest: "{{ (project_root_dir, 'libvirt') | path_join }}"
-    version: sgx-dev
-
-- name: Disabling apparmor
-  systemd:
-    name: apparmor
-    enabled: no
-    state: stopped
-
-- name: Adding libvrit group
-  group:
-    name: "{{ item }}"
-    state: present
-    system: true
-  with_items: "{{ libvirt_groups }}"
-
-- name: Adding user libvirt
-  user:
-    name: libvirt-qemu
-    group: libvirt-qemu
-    groups: libvirtd, libvirt
-
-- name: Meson configure libvirt
-  command:
-    cmd: meson build -Dsystem=true -Ddriver_qemu=enabled --prefix=/usr/
-    chdir: "{{ (project_root_dir, 'libvirt') | path_join }}"
-  changed_when: true
-
-- name: Installation of libvirt with sgx support
-  command:
-    cmd: ninja install
-    chdir: "{{ (project_root_dir, 'libvirt', 'build') | path_join }}"
-  changed_when: true
-
-- name: Copy qemu.conf file
-  copy:
-    src: qemu.conf
-    dest: /etc/libvirt/qemu.conf
-    mode: '0644'
-
-- name: Copy x86_features.xml file
-  copy:
-    src: x86_features.xml
-    dest: /usr/share/libvirt/cpu_map/x86_features.xml
-    mode: '0644'
-
-- name: Enabling libvirt
-  systemd:
-    name: libvirtd
-    enabled: yes
-    state: started
+- name: Compile libvirt
+  include_tasks: compile_libvirt.yml
+  when: "'8.4.0' not in libvirtd_version.stdout"

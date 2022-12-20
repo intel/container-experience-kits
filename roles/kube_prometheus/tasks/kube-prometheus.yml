@@ -14,84 +14,98 @@
 ##   limitations under the License.
 ##
 ---
-- name: delete previous kube-prometheus manifests
-  command: "kubectl delete -f {{ kube_prometheus_path }}"
-  changed_when: true
-  failed_when: false
-
-- name: clean up any preexisting files
-  file:
-    path: "{{ kube_prometheus_path }}"
-    state: absent
-
-- name: copy kube-prometheus yamls
-  copy:
-    src: kube-prometheus/
-    dest: "{{ kube_prometheus_path }}"
+- name: copy kube-prometheus-stack manifests
+  ansible.builtin.copy:
+    src: kube-prometheus-stack/
+    dest: "{{ kube_prometheus_stack_directory }}"
     owner: root
     group: root
-    mode: u+rwx,g-rwx,o-
+    mode: 0744
 
-- name: copy dashboards yamls
-  copy:
-    src: "dashboards/{{ 'grafana-telegraf-dashboardDefinitions.yaml' if telegraf_enabled | default(true) else 'grafana-dashboardDefinitions.yaml' }}"
-    dest: "{{ kube_prometheus_path }}"
+- name: copy grafana dashboards manifests
+  ansible.builtin.copy:
+    src: "dashboards/{{ item.dashboard }}"
+    dest: "{{ kube_prometheus_stack_directory }}/{{ item.dashboard }}"
     owner: root
     group: root
-    mode: u+rwx,g-rwx,o-
+    mode: 0744
+  with_items:
+    - dashboard: telegraf-dashboard.yml
+      create: "{{ telegraf_enabled |d(false) }}"
+    - dashboard: collectd-dashboard.yml
+      create: "{{ collectd_enabled |d(false) }}"
+    - dashboard: kubernetes-mixin-dashboards.yml
+      create: true
+  when: item.create | default(false) | bool
+
+- name: replace node_exporter version tag
+  ansible.builtin.replace:
+    path: "{{ kube_prometheus_stack_directory }}/nodeExporter-prometheusRule.yaml"
+    regexp: '<node_exporter_version>'
+    replace: "{{ node_exporter_version }}"
+
+- name: replace grafana version tag
+  ansible.builtin.replace:
+    path: "{{ kube_prometheus_stack_directory }}/{{ item.dashboard }}"
+    regexp: '<grafana_version>'
+    replace: "{{ grafana_version }}"
+  with_items:
+    - dashboard: telegraf-dashboard.yml
+      create: "{{ telegraf_enabled |d(false) }}"
+    - dashboard: collectd-dashboard.yml
+      create: "{{ collectd_enabled |d(false) }}"
+    - dashboard: kubernetes-mixin-dashboards.yml
+      create: true
+  when: item.create | default(false) | bool
 
 - name: find template files
-  find:
-    paths: "{{ role_path }}/templates"
+  ansible.builtin.find:
+    paths: "{{ (role_path, 'templates') | path_join }}"
     recurse: no
     file_type: file
     use_regex: yes
     patterns:
-      - '^(?!collectd).*'
+      - '^(?!kube-prometheus-stack-certs).*'
   register: template_files
   delegate_to: 127.0.0.1
-  when: telegraf_enabled | default(true) | bool
 
-- name: template kube-prometheus yamls
-  template:
-    src: "{{ item.path | basename }}"
-    dest: "{{ kube_prometheus_path }}/{{ item.path | basename | regex_replace('.j2','') }}"
+- name: template kube-prometheus-stack manifests
+  ansible.builtin.template:
+    src: "{{ item.path }}"
+    dest: "{{ kube_prometheus_stack_directory }}/{{ item.path | basename | regex_replace('.j2','') }}"
     owner: root
     group: root
-    mode: u+rwx,g-rwx,o-
+    mode: 0744
   with_items: "{{ template_files.files }}"
-  when: telegraf_enabled | default(true) | bool
-
-- name: template kube-prometheus yamls
-  template:
-    src: "{{ item }}"
-    dest: "{{ kube_prometheus_path }}/{{ item | basename | regex_replace('.j2','') }}"
-    owner: root
-    group: root
-    mode: u+rwx,g-rwx,o-
-  with_fileglob:
-    - ../templates/*.j2
-  when: collectd_enabled | default(false) | bool
 
 - name: template prometheus-srv yamls
-  template:
+  ansible.builtin.template:
     src: "{{ item }}"
-    dest: "{{ kube_prometheus_path }}/{{ item | basename | regex_replace('.j2','') }}"
+    dest: "{{ kube_prometheus_stack_directory }}/{{ item | basename | regex_replace('.j2','') }}"
     owner: root
     group: root
-    mode: u+rwx,g-rwx,o-
+    mode: 0744
   with_fileglob:
     - ../templates/prometheus_srv/*.j2
   when: prometheus_srv_expose | default(false)
 
 - name: install kube-prometheus CRD manifests
-  command: "kubectl apply -f {{ kube_prometheus_path }}/setup"
+  ansible.builtin.command: "kubectl create -f {{ (kube_prometheus_stack_directory, 'crds') | path_join }}"
   changed_when: true
 
 - name: wait for kube-prometheus CRDs to finish installation
-  shell: until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done
+  ansible.builtin.command: >-
+    kubectl wait --for condition=Established crd
+    alertmanagerconfigs.monitoring.coreos.com
+    alertmanagers.monitoring.coreos.com
+    podmonitors.monitoring.coreos.com
+    probes.monitoring.coreos.com
+    prometheuses.monitoring.coreos.com
+    prometheusrules.monitoring.coreos.com
+    servicemonitors.monitoring.coreos.com
+    thanosrulers.monitoring.coreos.com
   changed_when: false
 
 - name: install kube-prometheus application manifests
-  command: "kubectl apply -f {{ kube_prometheus_path }}"
+  ansible.builtin.command: "kubectl create -f {{ kube_prometheus_stack_directory }}"
   changed_when: true

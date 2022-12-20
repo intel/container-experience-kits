@@ -18,10 +18,14 @@
   include_role:
     name: install_dependencies
 
+# - name: set FEC Acc for Intel SRIOV FEC Operator
+#   delegate_to: localhost
+#   include_vars:
+#     file: "{{ (inventory_dir, 'host_vars',  groups['kube_node'][0] + '.yml') | path_join }}"
+
 - name: set FEC Acc for Intel SRIOV FEC Operator
-  delegate_to: localhost
-  include_vars:
-    file: "{{ (inventory_dir, 'host_vars',  groups['kube_node'][0] + '.yml') | path_join }}"
+  include_tasks: fec_dev.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: deploy Operator Package Manager (OPM)
   include_tasks: opm.yml

@@ -43,15 +43,6 @@
     - ansible_os_family == "RedHat"
     - ansible_distribution_version < "9.0"
 
-- name: disable blscfg to enable grub configuration changes (Rocky >= 9.0)
-  lineinfile:
-    dest: /etc/default/grub
-    regexp: '^GRUB_ENABLE_BLSCFG=(.*?)$'
-    line: 'GRUB_ENABLE_BLSCFG=false'
-  when:
-    - ansible_distribution == "Rocky"
-    - ansible_distribution_version >= "9.0"
-
 - name: block for Rocky/RHEL 9.0 or greater
   block:
     - name: check if grub.cfg config file exists (Rocky / RHEL >= 9.0)
@@ -66,22 +57,6 @@
   when:
     - ansible_os_family == "RedHat"
     - ansible_distribution_version >= "9.0"
-
-- block:
-    - name: template the dhclient systemd service
-      template:
-        src: dhclient.service.j2
-        dest: /lib/systemd/system/cek_dhclient.service
-        owner: root
-        group: root
-        mode: 0644
-
-    - name: run cek dhclient systemd service on boot
-      systemd:
-        daemon_reload: yes
-        state: restarted
-        name: cek_dhclient
-        enabled: yes
 
 - name: create empty machine_id list from the worker nodes
   set_fact:
@@ -115,5 +90,4 @@
       changed_when: true
       when:
         - ansible_os_family == "RedHat"
-
   when: ( machine_id_list | unique | length < groups['kube_node'] | length )

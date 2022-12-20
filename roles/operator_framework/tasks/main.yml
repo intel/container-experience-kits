@@ -15,6 +15,11 @@
 ##
 ---
 - block:
+    - name: get GOPATH
+      command: go env GOPATH
+      register: gopath
+      changed_when: false
+
     - name: uninstall Operator Lifecycle Manager (OLM)
       command: operator-sdk olm uninstall
       environment:
@@ -35,7 +40,7 @@
         chdir: "{{ operator_sdk_dir }}"
 
     - name: install Operator Lifecycle Manager (OLM)
-      command: operator-sdk olm install --version v0.20.0
+      command: "operator-sdk olm install --version {{ operator_lm_version }}"
       environment:
         PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ operator_sdk_dir }}"
       changed_when: true

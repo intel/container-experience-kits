@@ -5,6 +5,7 @@ import pprint
 import subprocess
 import sys
 import fnmatch
+import yaml
 
 qat_pf_ids = ['0435', '37c8', '19e2', '18ee', '6f54', '18a0', '4940', '4942']
 qat_vf_ids = ['0443', '37c9', '19e3', '18ef', '6f55', '18a1', '4941', '4943']
@@ -297,6 +298,20 @@ def get_host_info():
     if not hostinfo_out["Host"].keys(): return None
     return hostinfo_out
 
+def get_cpu_arch_codename(cpu_model):
+    cpu_codename_arch = ''
+    with open("cpu_arch.yml", "r") as stream:
+        try:
+            cpu_models = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+    if cpu_models is not None:
+        for arch, obj in cpu_models['architectures'].items():
+            for model in cpu_models['architectures'][arch]['models']:
+                if model in cpu_model:
+                    cpu_codename_arch = arch
+    return cpu_codename_arch
+
 def get_summary(info: dict):
     summary = {}
     # summarize existing object
@@ -314,6 +329,7 @@ def get_summary(info: dict):
     if "lscpu" in info.keys():
         if "Model name" in info["lscpu"]:
             summary["Cpu_Model"] = info["lscpu"]["Model name"]
+            summary["Codename"] = get_cpu_arch_codename(summary["Cpu_Model"])
         if "CPU(s)" in info["lscpu"]:
             summary["Cpu_Count"] = info["lscpu"]["CPU(s)"]
         if "Socket(s)" in info["lscpu"]:

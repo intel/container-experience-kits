@@ -14,6 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-golang_version: 1.17.8
+golang_version: "1.19.3"
 golang_download_url: "https://dl.google.com/go/go{{ golang_version }}.linux-amd64.tar.gz"
-golang_download_checksum: "sha256:980e65a863377e69fd9b67df9d8395fd8e93858e7a24c9f55803421e453f4f99"
+golang_download_checksum: "sha256:74b9640724fd4e6bb0ed2a1bc44ae813a03f1e72a4c76253e2d5c015494430ba"

@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+ansible = "~=5.7.1"
+"ansible-core" = "~=2.12"
+cryptography = "~=3.3"
+jinja2 = "~=2.11"
+netaddr = "~=0.7.19"
+pbr = "~=5.4"
+jmespath = "~=0.9.5"
+"ruamel.yaml" = "~=0.16.10"
+"ruamel.yaml.clib" = "~=0.2.6"
+MarkupSafe = "~=1.1"
+ipaddr = "*"
+
+[dev-packages]
+ansible-lint = "~=5.4.0"
+pylint = "~=2.15.4"
+
+[requires]
+python_version = "3"

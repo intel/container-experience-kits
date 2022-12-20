@@ -1,0 +1,13 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jaeger-operator-monitoring
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: jaeger-operator
+  namespace: observability
+roleRef:
+  kind: Role
+  name: jaeger-operator
+  apiGroup: rbac.authorization.k8s.io

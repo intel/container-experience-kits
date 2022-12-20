@@ -1,0 +1,46 @@
+{%- if minio_tenant_sriov_resources is defined and minio_tenant_sriov_resources != [] %}
+{%- for nodename in groups['kube_node'] %}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: awscli-pod-{{ nodename }}
+  namespace: {{ minio_tenant_namespace }}
+  annotations:
+    k8s.v1.cni.cncf.io/networks: {{ minio_tenant_sriov_resources | map(attribute='sriov_network') | join(',') }}
+spec:
+  containers:
+  - name: awscli-pod-{{ nodename }}
+    image: localhost:30500/awscli:test
+    imagePullPolicy: IfNotPresent
+    command: [ "/bin/bash", "-c", "--" ]
+    args: [ "while true; do sleep 300000; done;" ]
+    resources:
+      requests:
+{% for request in (minio_tenant_sriov_resources | map(attribute='resource') | map(attribute='requests')) %}
+{{ request | indent (width=8, first=True)}}
+{% endfor %}
+      limits:
+{% for limit in (minio_tenant_sriov_resources | map(attribute='resource') | map(attribute='limits')) %}
+{{ limit | indent (width=8, first=True) }}
+{% endfor %}
+  nodeName: {{ nodename }}
+{% endfor %}
+{% else %}
+{%- for nodename in groups['kube_node'] %}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: awscli-pod-{{ nodename }}
+  namespace: {{ minio_tenant_namespace }}
+spec:
+  containers:
+  - name: awscli-pod-{{ nodename }}
+    image: localhost:30500/awscli:test
+    imagePullPolicy: IfNotPresent
+    command: [ "/bin/bash", "-c", "--" ]
+    args: [ "while true; do sleep 300000; done;" ]
+  nodeName: {{ nodename }}
+{% endfor %}
+{% endif %}

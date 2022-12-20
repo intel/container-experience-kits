@@ -19,16 +19,13 @@ runcmd:
 {% if vm_image_distribution == "ubuntu" %}
   - netplan apply
 {% endif %}
-{% if vm.type == "work" %}
-  - systemctl daemon-reload
-  - systemctl enable unsafe-iommu.service
-  - systemctl start unsafe-iommu.service
-{% endif %}
   - echo "End of cloud-init runcmd execution"
 
 package_update: true
 {% if vm_image_distribution == "rocky" %}
+packages_upgrade: true
 packages:
+  - kernel
   - python3
   - vim
 package_reboot_if_required: true
@@ -79,24 +76,3 @@ write_files:
   - path: /root/.ssh/id_rsa.pub
     content: {{ lookup('file', '/root/.ssh/id_rsa.pub') }}
     permissions: '0644'
-
-{% if vm.type == "work" %}
-  - path: /etc/systemd/system/unsafe-iommu.service
-    content: |
-      [Unit]
-      After=systemd-networkd.service
-
-      [Service]
-      ExecStart=/opt/unsafe-iommu.sh
-
-      [Install]
-      WantedBy=default.target
-    permissions: '0664'
-    owner: root:root
-  - path: /opt/unsafe-iommu.sh
-    content: |
-      #! /bin/bash
-      echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
-    permissions: '0744'
-    owner: root:root
-{% endif %}

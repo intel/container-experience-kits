@@ -12,6 +12,20 @@ spec:
           - name: PILOT_CERT_PROVIDER
             value: k8s.io/tcsclusterissuer.tcs.intel.com/{{ istio_service_mesh.sgx_signer.name }}
         overlays:
+          - kind: Deployment
+            name: istiod
+            patches:
+              - path: spec.template.spec.containers[0].volumeMounts[-1]
+                value: |
+                  name: external-ca-cert
+                  mountPath: /etc/external-ca-cert
+                  readOnly: true
+              - path: spec.template.spec.volumes[-1]
+                value: |
+                  name: external-ca-cert
+                  secret:
+                    secretName: external-ca-cert
+                    optional: true
           - kind: ClusterRole
             name: istiod-clusterrole-istio-system
             patches:

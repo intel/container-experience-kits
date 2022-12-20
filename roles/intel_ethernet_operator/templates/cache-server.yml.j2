@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ intel_ethernet_operator_cache_webserver_name }}
+  namespace: {{ intel_ethernet_operator_namespace }}
+  labels:
+    app: {{ intel_ethernet_operator_cache_webserver_name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ intel_ethernet_operator_cache_webserver_name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ intel_ethernet_operator_cache_webserver_name }}
+    spec:
+      containers:
+        - name: {{ intel_ethernet_operator_cache_webserver_name }}
+          image: {{ intel_ethernet_operator_cache_webserver_image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: webserver-port
+      nodeSelector:
+        kubernetes.io/hostname: {{ hostvars[groups['kube_control_plane'][0]]['ansible_hostname'] | lower }}
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists

@@ -18,18 +18,18 @@
 nvmupdate:
   # 700 Series
   i40e:
-    nvmupdate_pkg_url: "https://downloadmirror.intel.com/739639/700Series_NVMUpdatePackage_v9_00_Linux.tar.gz"
-    nvmupdate_pkg_checksum: "sha1:B2B183ADD3B6EF8BCB2DA77A6E6A68F482F4BFD1"
-    required_fw_version: "9.0"
+    nvmupdate_pkg_url: "https://downloadmirror.intel.com/759058/700Series_NVMUpdatePackage_v9_10_Linux.tar.gz"
+    nvmupdate_pkg_checksum: "sha1:2D6556938A51E317FBFC88DDB73FBABB034F7CCA"
+    required_fw_version: "9.10"
     # min fw version for ddp was taken from:
     # https://www.intel.com/content/www/us/en/developer/articles/technical/dynamic-device-personalization-for-intel-ethernet-700-series.html
     min_ddp_loadable_fw_version: "6.01"
     min_updatable_fw_version: "5.02"
   # 800 Series (CVL)
   ice:
-    nvmupdate_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
-    nvmupdate_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
-    required_fw_version: "4.0"
+    nvmupdate_pkg_url: "https://downloadmirror.intel.com/759036/E810_NVMUpdatePackage_v4_10_Linux.tar.gz"
+    nvmupdate_pkg_checksum: "sha1:64598337C8730EE00239D728E17BDCB180BB8154"
+    required_fw_version: "4.10"
     # https://builders.intel.com/docs/networkbuilders/intel-ethernet-controller-800-series-device-personalization-ddp-for-telecommunications-workloads-technology-guide.pdf
     # document above does not specify any min fw version needed for ddp feature. So, min_ddp_loadable_fw is the same as min_updatable_fw
     min_ddp_loadable_fw_version: "0.70"

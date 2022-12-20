@@ -89,6 +89,37 @@ resource "aws_eks_cluster" "default" {
 }
 
 {% for node_group in eks.node_groups %}
+{% if eks.custom_ami == "ubuntu" %}
+resource "aws_launch_template" "{{ node_group.name }}" {
+  image_id               = "{{ eks_ubuntu_ami_id }}"
+  instance_type          = "{{ node_group.instance_type }}"
+  key_name               = aws_key_pair.default.key_name
+
+  vpc_security_group_ids = [
+    aws_security_group.default.id,
+    aws_eks_cluster.default.vpc_config[0].cluster_security_group_id
+  ]
+
+  user_data              = base64encode(<<EOF
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+
+--==BOUNDARY==
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+/etc/eks/bootstrap.sh ${aws_eks_cluster.default.name} \
+  --b64-cluster-ca ${aws_eks_cluster.default.certificate_authority[0].data} \
+  --apiserver-endpoint ${aws_eks_cluster.default.endpoint} \
+  --dns-cluster-ip 172.20.0.10
+
+--==BOUNDARY==--
+EOF
+  )
+
+}
+{% endif %}
+
 resource "aws_eks_node_group" "{{ node_group.name }}" {
   cluster_name    = aws_eks_cluster.default.name
   node_group_name = "{{ node_group.name }}"
@@ -101,12 +132,20 @@ resource "aws_eks_node_group" "{{ node_group.name }}" {
     min_size     = {{ node_group.vm_count }}
   }
 
+  {% if eks.custom_ami == "ubuntu" %}
+  ami_type = "CUSTOM"
+  launch_template {
+    id = aws_launch_template.{{ node_group.name }}.id
+    version = aws_launch_template.{{ node_group.name }}.latest_version
+  }
+  {% else %}
   remote_access {
     ec2_ssh_key = aws_key_pair.default.key_name
     source_security_group_ids = [aws_security_group.default.id]
   }
 
   instance_types = ["{{ node_group.instance_type }}"]
+  {% endif %}
 
   # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
@@ -139,7 +178,7 @@ data "aws_instances" "eks-instances" {
 }
 
 locals {
-  eks_worker_instances = [
+  k8s_worker_instances = [
     for index, id in data.aws_instances.eks-instances.ids : {
       id: id
       public_ip: data.aws_instances.eks-instances.public_ips[index]
@@ -148,6 +187,10 @@ locals {
   ]
 }
 
-output "eks_worker_instances" {
-  value = local.eks_worker_instances
+output "k8s_worker_instances" {
+  value = local.k8s_worker_instances
+}
+
+output "k8s_worker_username" {
+  value = "{{ 'ubuntu' if eks.custom_ami == "ubuntu" else 'ec2-user' }}"
 }

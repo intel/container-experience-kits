@@ -1,0 +1,61 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: jaeger
+  namespace: monitoring
+spec:
+  strategy: production
+  collector:
+    maxReplicas: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+    options:
+      es:
+        server-urls: https://elasticsearch-master.monitoring.svc:9200
+        index-prefix: jaeger_
+        version: 7                                  # Necessary as it doesn't work with 8 yet
+        create-index-templates: false               # Necessary as it doesn't work with 8 yet
+        tls:
+          enabled: true
+          ca: /es/certificates/ca.crt
+          key: /es/certificates/tls.key
+          cert: /es/certificates/tls.crt
+  query:
+    options:
+      log-level: info
+      query:
+        base-path: /jaeger
+      es:
+        server-urls: https://elasticsearch-master.monitoring.svc:9200
+        index-prefix: jaeger_
+        version: 7                                  # Necessary as it doesn't work with 8 yet
+        create-index-templates: false               # Necessary as it doesn't work with 8 yet
+        tls:
+          enabled: true
+          ca: /es/certificates/ca.crt
+          key: /es/certificates/tls.key
+          cert: /es/certificates/tls.crt
+  storage:
+    type: elasticsearch
+    options:
+      es:
+        server-urls: https://elasticsearch-master.monitoring.svc:9200
+        index-prefix: jaeger_
+        version: 7                                  # Necessary as it doesn't work with 8 yet
+        create-index-templates: false               # Necessary as it doesn't work with 8 yet
+        tls:
+          enabled: true
+          ca: /es/certificates/ca.crt
+          key: /es/certificates/tls.key
+          cert: /es/certificates/tls.crt
+    secretName: jaeger-secret
+  volumeMounts:
+    - name: certificates
+      mountPath: /es/certificates/
+      readOnly: true
+  volumes:
+    - name: certificates
+      secret:
+        secretName: jaeger-elasticsearch-tls

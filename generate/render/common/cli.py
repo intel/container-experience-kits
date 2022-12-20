@@ -36,7 +36,7 @@ def parse_cli() -> argparse.Namespace:
         help='''profile name which files, required in deployment, will be copied to the project root directory''')
     parser.add_argument('--arch', '-a', type=str, default='icx', choices={"icx", "clx", "skl", "spr"})  # please add acronyms for new architectures here
     parser.add_argument('--nic', '-n', type=str, default='cvl', choices={"cvl", "fvl"})  # please add new NICs here
-    parser.add_argument('--mode', type=str, default='k8s', choices={"k8s", "vm"}, help='generate configuration files for selected mode')  # please add new modes' name here
+    parser.add_argument('--mode', type=str, default='k8s', choices={"k8s", "vm", "cloud"}, help='generate configuration files for selected mode')  # please add new modes' name here
 
     # vm mode specific args
     parser.add_argument('--vmsconfig', type=str, default="vms_profiles.yml", help='configuration file for created Virtual Machine')

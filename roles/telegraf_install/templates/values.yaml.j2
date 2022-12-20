@@ -6,10 +6,9 @@
 scrapInterval: {{ telegraf_scrap_interval }}
 # port of the prometheus_output plugin to expose
 prometheusMetricsEndpointPort: {{ telegraf_prometheus_metrics_endpoint_port }}
-# whether tpo deploy Prometheus ServiceMonitor
-prometheusServiceMonitor: {{ telegraf_prometheus_service_monitor | bool }}
 
 on_vms: {{ on_vms | default(false) }}
+on_cloud: {{ on_cloud | default(false) }}
 
 # telegraf container
 telegraf:
@@ -36,10 +35,10 @@ telegraf:
 # rbac-proxy container
 rbacproxy:
   image:
-    repository: {{ rbac_proxy_image_name }}
-    sha256: {{ rbac_proxy_image_hash }}
-    tag: {{ rbac_proxy_image_tag }}
-    pullPolicy: {{ rbac_proxy_image_pullpolicy }}
+    repository: {{ kube_rbac_proxy_image_repo }}
+    tag: {{ kube_rbac_proxy_image_tag }}
+    tls_ciphers: {{ kube_rbac_proxy_tls_ciphers }}
+    pullPolicy: IfNotPresent
   securityContext:
     capabilities:
       drop:
@@ -64,4 +63,3 @@ nodeSelector:
   kubernetes.io/os: linux
 
 affinity: {}
-

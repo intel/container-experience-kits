@@ -18,6 +18,8 @@ install_dependencies:
   Debian:
     - git
     - make
+    - wget
   RedHat:
     - git
     - make
+    - wget

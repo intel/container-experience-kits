@@ -1,0 +1,30 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: ctlplane-test-deployment123
+  namespace: test-123
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+    spec:
+      containers:
+        - name: web
+          image:  polinux/stress-ng
+          args: ["--cpu","64"]
+          #resources:
+            # We usually recommend not to specify default resources and to leave this as a conscious
+            # choice for the user. This also increases chances charts run on environments with little
+            # resources, such as Minikube. If you do want to specify resources, uncomment the following
+            # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+          #  limits:
+          #    cpu: 64
+          #    memory: 512Mi
+          #  requests:
+          #    cpu: 32
+          #    memory: 128Mi

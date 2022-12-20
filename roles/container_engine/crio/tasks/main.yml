@@ -14,38 +14,40 @@
 ##   limitations under the License.
 ##
 ---
-- name: load a variable file based on the OS type
-  include_vars: "{{ lookup('first_found', params) }}"
-  vars:
-    params:
-      files:
-        - "{{ ansible_distribution|lower }}-{{ ansible_distribution_major_version }}.yml"
-        - "{{ ansible_distribution|lower }}.yml"
-        - "{{ ansible_os_family|lower }}.yml"
-      paths:
-        - ../vars
-
-- name: import crio repo
-  import_tasks: "crio_repo.yml"
-
 - include_role:  # noqa unnamed-task
     name: container_engine/crictl
 
-- name: build a list of crio runtimes with crun runtime
-  set_fact:
-    crio_runtimes: "{{ crio_runtimes + [crun_runtime] }}"
-  when:
-    - crun_enabled
-
 - name: make sure needed folders exist in the system
-  with_items:
-    - /etc/crio
-    - /etc/containers
-    - /etc/systemd/system/crio.service.d
   file:
     path: "{{ item }}"
     state: directory
     mode: 0755
+  with_items:
+    - /etc/crio
+    - /etc/containers
+    - /etc/systemd/system/crio.service.d
+
+- name: download cri-o archive
+  get_url:
+    url: "{{ crio.url }}"
+    dest: "{{ crio.dest }}"
+    owner: "{{ crio.owner }}"
+    mode: "{{ crio.mode }}"
+    checksum: "{{ 'sha256:' + crio.sha256 }}"
+  delegate_to: "{{ inventory_hostname }}"
+  register: get_url_result
+  until: "'OK' in get_url_result.msg or 'file already exists' in get_url_result.msg"
+  retries: 4
+  delay: 5
+  no_log: true
+
+- name: unpack crio archive
+  unarchive:
+    src: "{{ crio.dest }}"
+    dest: "{{ local_release_dir }}"
+    mode: 0755
+    remote_src: yes
+  notify: restart containerd
 
 - name: install cri-o config
   template:
@@ -61,23 +63,31 @@
     mode: 0644
   register: reg_auth_install
 
-- name: install cri-o packages
-  package:
-    name: "{{ item }}"
-    state: present
-  with_items: "{{ crio_packages }}"
-  register: package_install
-  until: package_install is succeeded
-  retries: 4
-  delay: 3
+- name: copy binaries
+  copy:
+    src: "{{ local_release_dir }}/cri-o/bin/{{ item }}"
+    dest: "{{ bin_dir }}/{{ item }}"
+    mode: 0755
+    remote_src: true
+  with_items:
+    - "{{ crio_bin_files }}"
+  notify: restart crio
 
-- name: remove example CNI configs
-  file:
-    path: "/etc/cni/net.d/{{ item }}"
-    state: absent
-  loop:
-    - 100-crio-bridge.conf
-    - 200-loopback.conf
+- name: copy service file
+  copy:
+    src: "{{ local_release_dir }}/cri-o/contrib/crio.service"
+    dest: /etc/systemd/system/crio.service
+    mode: 0755
+    remote_src: true
+  notify: restart crio
+
+- name: copy default policy
+  copy:
+    src: "{{ local_release_dir }}/cri-o/contrib/policy.json"
+    dest: /etc/containers/policy.json
+    mode: 0755
+    remote_src: true
+  notify: restart crio
 
 - name: copy mounts.conf
   copy:
@@ -94,6 +104,19 @@
     state: directory
     owner: root
     mode: 0755
+
+- name: set overlay driver
+  ini_file:
+    dest: /etc/containers/storage.conf
+    section: storage
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: 0644
+  with_items:
+    - option: driver
+      value: '"overlay"'
+    - option: graphroot
+      value: '"/var/lib/containers/storage"'
 
 # metacopy=on is available since 4.19 and was backported to RHEL 4.18 kernel
 - name: set metacopy mount options correctly
@@ -134,6 +157,20 @@
   notify: restart crio
   when: http_proxy is defined or https_proxy is defined
 
+- name: configure the uid/gid space for user namespaces
+  lineinfile:
+    path: '{{ item.path }}'
+    line: '{{ item.entry }}'
+    regex: '^\s*{{ crio_remap_user }}:'
+    state: '{{ "present" if crio_remap_enable | bool else "absent" }}'
+  loop:
+    - path: /etc/subuid
+      entry: '{{ crio_remap_user }}:{{ crio_subuid_start }}:{{ crio_subuid_length }}'
+    - path: /etc/subgid
+      entry: '{{ crio_remap_user }}:{{ crio_subgid_start }}:{{ crio_subgid_length }}'
+  loop_control:
+    label: '{{ item.path }}'
+
 - name: ensure crio service is started and enabled
   service:
     name: crio
@@ -149,7 +186,6 @@
   when:
     - config_install.changed
     - reg_auth_install.changed
-    - not package_install.changed
     - not service_start.changed
 
 - name: verify that crio is running

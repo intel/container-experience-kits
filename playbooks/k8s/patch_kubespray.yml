@@ -28,6 +28,6 @@
   connection: local
   tasks: []
   roles:
-    - { role: kubespray_patch }
+    - {role: kubespray_patch}
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

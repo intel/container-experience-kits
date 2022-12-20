@@ -1,0 +1,70 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+  - name: delete CPU Control Plane
+    ansible.builtin.command: >-
+      kubectl delete -f {{ (cpu_ctlplane_local_build_dir, 'sample') | path_join }}
+    changed_when: false
+    failed_when: false
+
+  - name: uninstall Intel CPU Control Plane Helm Chart
+    kubernetes.core.helm:
+      name: "{{ cpu_ctlplane_release_name }}"
+      state: absent
+      namespace: "{{ cpu_ctlplane_namespace }}"
+    changed_when: false
+    failed_when: false
+
+  - name: delete namespace
+    kubernetes.core.k8s:
+      name: "{{ cpu_ctlplane_namespace }}"
+      api_version: v1
+      kind: Namespace
+      state: absent
+    changed_when: false
+    failed_when: false
+
+  - name: remove container image
+    community.docker.docker_image:
+      state: absent
+      name: "{{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}"
+      tag: "{{ cpu_ctlplane_local_tag_name }}"
+    changed_when: false
+    failed_when: false
+
+  - name: remove container image
+    containers.podman.podman_image:
+      state: absent
+      name: "{{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}"
+      tag: "{{ cpu_ctlplane_local_tag_name }}"
+    changed_when: false
+    failed_when: false
+
+  - name: Remove Intel CPU Control Plane folder from the controller
+    ansible.builtin.file:
+      state: absent
+      path: "{{ (project_root_dir, 'intel-cpu-controlplane') | path_join }}"
+
+  - name: Remove Intel CPU Control Plane Helm Chart folder from the controller
+    ansible.builtin.file:
+      state: absent
+      path: "{{ (project_root_dir, 'charts', 'intel-cpu-controlplane') | path_join }}"
+
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+  tags:
+    - cpu_ctlplane

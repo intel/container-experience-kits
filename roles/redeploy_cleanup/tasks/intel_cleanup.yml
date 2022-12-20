@@ -53,20 +53,19 @@
       with_items:
         - "{{ intel_services_to_stop + (ddp_i40e_service.stdout | ternary([ddp_i40e_service.stdout], [])) }}"
 
-- name: remove custom kernel build files
-  make:
-    dest: "{{ project_root_dir }}/kernels/gpu_kernel/"
-    target: "{{ item }}"
-  with_items:
-    - clean"
-    - mrproper
-    - distclean
-  changed_when: false
-  failed_when: false
-  when: configure_gpu | default(false)
-
-- name: block required only in case when update_kernel is true in group_vars
+- name: block for GPU configuration
   block:
+    - name: remove custom kernel build files
+      make:
+        dest: "{{ project_root_dir }}/kernels/gpu_kernel/"
+        target: "{{ item }}"
+      with_items:
+        - clean"
+        - mrproper
+        - distclean
+      changed_when: false
+      failed_when: false
+
     - name: find files in /boot to remove
       find:
         paths: /boot
@@ -122,21 +121,18 @@
       changed_when: true
       failed_when: false
       become: yes
-  when:
-    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "20.04" and update_kernel) or
-      (ansible_os_family == "RedHat" and ansible_distribution_version < "9.0" and update_kernel) or
-      configure_gpu | default(false)
 
-- include_role:
-    name: bootstrap/update_grub
+    - include_role:
+        name: bootstrap/update_grub
+  when: configure_gpu | default(false)
 
 # All QAT settings need to be uninstalled / reverted if re-configuration is required
 - name: revert QAT setup
   block:
-    - name: make sure qat_service is stopped and disabled
+    - name: make sure {{ enabled_qat_service }} service is stopped and disabled - cleanup
       service:
         state: stopped
-        name: qat_service
+        name: "{{ enabled_qat_service }}"
         enabled: no
       failed_when: false
 
@@ -163,29 +159,6 @@
   when:
     - update_qat_drivers is defined and update_qat_drivers
     - qat_devices is defined and qat_devices != []
-
-- name: cleanup /usr/local/*
-  # ansible find module too slow
-  # noqa 305 - shell is used intentionally here
-  shell:
-    cmd: |
-          find /usr/local/ \
-          -not -wholename "/usr/local/" \
-          -and -not -wholename "/usr/local/share/ca-certificates*" \
-          -and -not -wholename "/usr/local/bin" \
-          -and -not -wholename "/usr/local/etc" \
-          -and -not -wholename "/usr/local/games" \
-          -and -not -wholename "/usr/local/include" \
-          -and -not -wholename "/usr/local/lib" \
-          -and -not -wholename "/usr/local/lib64" \
-          -and -not -wholename "/usr/local/libexec" \
-          -and -not -wholename "/usr/local/sbin" \
-          -and -not -wholename "/usr/local/share" \
-          -and -not -wholename "/usr/local/src" \
-          -and -not -name "man" \
-          -delete
-  changed_when: false
-  failed_when: false
 
 - name: remove files
   import_tasks: remove_files.yml
@@ -222,6 +195,7 @@
   when:
     - ansible_os_family == "RedHat"
     - ansible_distribution_version >= "9.0"
+    - configure_sgx | default(false)
 
 - debug:
     msg: "Intel Container Experience Kit features have been removed ..."

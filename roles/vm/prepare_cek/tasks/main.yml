@@ -52,6 +52,11 @@
     delay: 1
   with_items: "{{ vm_ips | dict2items }}"
 
+- name: Register known_hosts on remote machine
+  stat:
+    path: ~/.ssh/known_hosts
+  register: known_hosts_file
+
 - name: Remove old ECDSA key fingerprint
   command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.value }}"
   with_items: "{{ vm_ips | dict2items }}"
@@ -59,6 +64,7 @@
   when:
     - (not item.key in current_vms.stdout) or
       vm_recreate_existing | default(true)
+    - known_hosts_file.stat.exists
 
 - name: Store ECDSA key fingerprint
   command: ssh -o StrictHostKeyChecking=No {{ item.value }} hostname

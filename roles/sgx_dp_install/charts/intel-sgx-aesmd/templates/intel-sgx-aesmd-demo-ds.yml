@@ -33,7 +33,6 @@ spec:
         - name: qplconf
           mountPath: /etc/sgx_default_qcnl.conf
           subPath: sgx_default_qcnl.conf
-      serviceAccountName: intel-sgx-aesmd-demo
       volumes:
       - name: aesmdconf
         configMap:

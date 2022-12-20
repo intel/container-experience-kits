@@ -14,8 +14,86 @@
 ##   limitations under the License.
 ##
 ---
-- name: install opentelemetry
-  import_tasks: install.yml
+- block:
+    - name: create monitoring namespace
+      kubernetes.core.k8s:
+        name: "monitoring"
+        kind: Namespace
+        state: present
+
+    - name: create opentelemetry folder
+      ansible.builtin.file:
+        state: directory
+        dest: "{{ (project_root_dir, 'opentelemetry') | path_join }}"
+        mode: 0755
+
+    - name: copy opentelemetry files
+      ansible.builtin.copy:
+        src: "files/"
+        dest: "{{ (project_root_dir, 'opentelemetry') | path_join }}"
+        mode: 0644
+
+    - name: deploy opentelemetry operator
+      kubernetes.core.helm:
+        chart_repo_url: "{{ opentelemetry_repo }}"
+        chart_ref: "{{ opentelemetry_operator_chart_name }}"
+        chart_version: "{{ opentelemetry_operator_chart_version }}"
+        create_namespace: true
+        release_name: "{{ opentelemetry_operator_chart_name }}"
+        release_namespace: "{{ opentelemetry_operator_namespace }}"
+        wait: true
+        values:
+          kubeRBACProxy:
+            enabled: true
+            image:
+              repository: "{{ kube_rbac_proxy_image_repo }}"
+              tag: "{{ kube_rbac_proxy_image_tag }}"
+              extraArgs:
+                - --tls-cipher-suites="{{ kube_rbac_proxy_tls_ciphers }}"
+
+    - name: wait for opentelemetry pod
+      ansible.builtin.pause:
+        minutes: 2
+
+    - name: get Elasticsearch credentials
+      ansible.builtin.shell: >-
+        kubectl get secrets --namespace=monitoring
+        elasticsearch-master-credentials -ojsonpath='{.data.password}' | base64 -d
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: es_otel_credentials
+
+    - name: template opentelemetry deployment file
+      ansible.builtin.template:
+        src: "otel-gateway.yml.j2"
+        dest: "{{ (project_root_dir, 'opentelemetry', 'otel-gateway.yml') | path_join }}"
+        mode: '0644'
+
+    - name: create opentelemetry certs
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'opentelemetry', item) | path_join }}"
+      loop:
+        - otel-agent-telegraf-certs.yml
+        - otel-gateway-certs.yml
+        - otel-elasticsearch-certs.yml
+
+    - name: wait for certs creation
+      ansible.builtin.pause:
+        minutes: 1
+
+    - name: create opentelemetry resources
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'opentelemetry', item) | path_join }}"
+      loop:
+        - otel-gateway-log-rbac.yml
+        - otel-gateway.yml
+        - otel-agent-telegraf.yml
+        - otel-telegraf-servicemonitor.yml
+        - otel-sidecar.yml
+
   when:
     - opentelemetry_enabled is defined and opentelemetry_enabled
     - inventory_hostname == groups['kube_control_plane'][0]

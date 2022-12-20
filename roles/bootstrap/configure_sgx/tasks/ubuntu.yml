@@ -56,6 +56,7 @@
   when:
     - not update_kernel
     - '"intel_sgx" not in lsmod_output.stdout'
+    - "not configure_gpu | default(false) | bool"
     - ansible_distribution_version < '21.04'
 
 # WA: sgx packages are available only in the 'focal' repo

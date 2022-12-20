@@ -8,7 +8,7 @@ pccs:
     image:
       repo: "{{ kmra.pccs.image_repo }}"
       name: "{{ kmra.pccs.image_name }}"
-      tag: "{{ kmra.pccs.image_tag }}"
+      tag: "{{ kmra.pccs.image_tag | default(kmra.image_tag) }}"
       pullPolicy: "IfNotPresent"
     port: "{{ kmra.pccs.upstream_port }}"
     sgx_provisioning_api_url: "{{ kmra.pccs.sgx_provisioning_api_url }}"

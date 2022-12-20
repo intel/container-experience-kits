@@ -15,4 +15,5 @@
 ##
 ---
 dependencies: # noqa 701
-  - role: container_engine/containerd_common
+  - role: container_engine/runc
+  - role: container_engine/crictl

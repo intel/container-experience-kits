@@ -20,6 +20,16 @@
     - versions_output_file: "{{ playbook_dir }}/../versions_output.csv"
     - versions_parsing_errors_file: "{{ playbook_dir }}/../versions_parsing_errors"
   tasks:
+    - name: Check if required source files exist
+      stat:
+        path: '../examples/k8s/full_nfv/host_vars/node1.yml'
+      register: examples
+      
+    - name: Create required source files
+      make:
+        chdir: "{{ playbook_dir }}/.."
+      when: not examples.stat.exists
+    
     - name: Show versions_output_file name
       debug:
         msg: "versions_output_file is: {{ versions_output_file }}"
@@ -29,327 +39,428 @@
 
     - name: Show variable values
       block:
-      - shell: "echo -n '{{ item.description }}', && scripts/yaml_version_reader {{ item.var_file_path }} {{ item.shortname }}"
-        args:
-          chdir: ".."
-        register: item_value
-        loop:
-        - { 'description'   : 'Telegraf',
-            'shortname'     : 'telegraf_image_tag',
-            'var_file_path' : 'roles/telegraf_install/defaults/main.yml'
-          }
-        - { 'description'   : 'k8s node-exporter',
-            'var_file_path' : 'playbooks/infra/roles/kube_prometheus/files/kube-prometheus/node-exporter-clusterRoleBinding.yaml',
-            'shortname'     : "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
-          }
-        - { 'description'   : 'k8s prometheus-operator',
-            'var_file_path' : 'playbooks/infra/roles/kube_prometheus/files/kube-prometheus/setup/prometheus-operator-clusterRole.yaml',
-            'shortname'     : "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
-          }
-        - { 'description'   : 'k8s kube-rbac-proxy',	
-            'var_file_path' : 'playbooks/infra/roles/collectd_install/defaults/main.yml',
-            'shortname'     : "image_rbac_proxy\\'\\]\\[\\'version"
-          }
-        - { 'description'   : 'Node Feature Discovery',
-            'var_file_path' : 'roles/nfd_install/charts/node-feature-discovery/Chart.yaml',
-            'shortname'     : 'appVersion'
-          }
-        - { 'description'   : 'Vector Packet Processing',
-            'var_file_path' : 'playbooks/infra/roles/userspace_cni_install/defaults/main.yml',	
-            'shortname'     : 'vpp_version'
-          }
-        - { 'description'   : 'SR-IOV CNI',
-            'var_file_path' : 'roles/sriov_cni_install/defaults/main.yml',
-            'shortname'     : 'sriov_cni_version',
-          }
-        - { 'description'   : 'SR-IOV network device plugin',
-            'var_file_path' : 'roles/sriov_dp_install/defaults/main.yml',	
-            'shortname'     : 'sriov_net_dp_tag'
-          }
-        - { 'description'   : 'sriov network operator',
-            'var_file_path' : 'roles/sriov_network_operator_install/defaults/main.yml',
-            'shortname'     : "sriov_network_operator_images\\'\\]\\[\\'operator"
-          }
-        - { 'description'   : 'whereabouts service',
-            'var_file_path' : 'roles/whereabouts_install/defaults/main.yml',
-            'shortname'     : 'whereabouts_commit_hash'
-          }
-        - { 'description'   : 'intel dp operator',
-            'var_file_path' : 'roles/intel_dp_operator/defaults/main.yml',
-            'shortname'     : 'intel_dp_operator_version'
-          }
-        - { 'description'   : 'QAT device plugin',
-            'var_file_path' : 'roles/qat_dp_install/defaults/main.yml',
-            'shortname'     : 'intel_qat_dp_version'
-          }
-        - { 'description'   : 'GPU device plugin',
-            'var_file_path' : 'roles/gpu_dp_install/defaults/main.yml',
-            'shortname'     : 'intel_gpu_dp_version'
-          }
-        - { 'description'   : 'SGX device plugin',
-            'var_file_path' : 'roles/sgx_dp_install/defaults/main.yaml',
-            'shortname'     : 'intel_sgx_dp_version'
-          }
-        - { 'description'   : 'DLB device plugin (internal for RA 22.05)',
-            'var_file_path' : 'roles/dlb_dp_install/defaults/main.yml',
-            'shortname'     : 'intel_dlb_dp_version'
-          }
-        - { 'description'   : 'DSA device plugin (internal for RA 22.05)',
-            'var_file_path' : 'roles/dsa_dp_install/defaults/main.yml',
-            'shortname'     : 'intel_dsa_dp_version'
-          }
-        - { 'description'   : 'Userspace CNI',
-            'var_file_path' : 'roles/userspace_cni_install/defaults/main.yml',
-            'shortname'     : 'userspace_cni_version'
-          }
-        - { 'description'   : 'Bond CNI plugin',
-            'var_file_path' : 'roles/bond_cni_install/defaults/main.yml',
-            'shortname'     : 'bond_cni_version'
-          }
-        - { 'description'   : 'Intel® Ethernet Drivers i40e',
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/update_nic_drivers/defaults/main.yml',
-            'shortname'     : 'i40e_driver_version'
-          }
-        - { 'description'   : 'Intel® Ethernet Drivers ice',
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/update_nic_drivers/defaults/main.yml',
-            'shortname'     : 'ice_driver_version'
-          }
-        - { 'description'   : 'Intel® Ethernet Drivers iavf',
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/update_nic_drivers/defaults/main.yml',
-            'shortname'     : 'iavf_driver_version'
-          }
-        - { 'description'   : 'Intel Ethernet Operator',
-            'var_file_path' : 'playbooks/infra/roles/intel_ethernet_operator/defaults/main.yml',
-            'shortname'     : 'intel_ethernet_operator_git_ref'
-          }
-        - { 'description'   : 'Intel Ethernet UFT',
-            'var_file_path' : 'playbooks/infra/roles/intel_ethernet_operator/defaults/main.yml',
-            'shortname'     : 'uft_git_ref'
-          }
-        - { 'description'   : 'OpenSSL QAT Engine',
-            'var_file_path' : 'playbooks/infra/roles/openssl_engine_install/defaults/main.yml',
-            'shortname'     : 'openssl_engine_version'
-          }
-        - { 'description'   : 'Intel(R) ipsec-mb',
-            'var_file_path' : 'playbooks/infra/roles/openssl_engine_install/defaults/main.yml',
-            'shortname'     : 'intel_ipsec_version'
-          }
-        - { 'description'   : 'Intel® SGX DCAP Drivers (ubuntu)',	
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/configure_sgx/defaults/main.yml',
-            'shortname'     : 'dcap_driver_series_ubuntu_20'
-          }
-        - { 'description'   : 'Intel® SGX DCAP Drivers (rhel)',	
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/configure_sgx/defaults/main.yml',
-            'shortname'     : 'dcap_driver_series_rhel'
-          }
-        - { 'description'   : 'Intel® SGX SDK (ubuntu)',
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/configure_sgx/defaults/main.yml',
-            'shortname'     : 'sgx_sdk_version_ubuntu_20'
-          }
-        - { 'description'   : 'Intel® SGX SDK (rhel)',
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/configure_sgx/defaults/main.yml',
-            'shortname'     : 'sgx_sdk_version_rhel'
-          }
-        - { 'description'   : 'Intel® KMRA AppHSM',
-            'var_file_path' : 'playbooks/intel/roles/kmra_install/defaults/main.yml',
-            'shortname'     : "kmra_defaults\\'\\]\\[\\'apphsm\\'\\]\\[\\'image_tag"
-          }
-        - { 'description'   : 'Intel® KMRA CTK',
-            'var_file_path' : 'playbooks/intel/roles/kmra_install/defaults/main.yml',
-            'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'image_tag"
-          }
-        - { 'description'   : 'Intel® KMRA PCCS',
-            'var_file_path' : 'playbooks/intel/roles/kmra_install/defaults/main.yml',
-            'shortname'     : "kmra_defaults\\'\\]\\[\\'pccs\\'\\]\\[\\'image_tag"
-          }
-        - { 'description'   : 'istio operator',
-            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/charts/istioctl/values.yaml',
-            'shortname'     : "image\\'\\]\\[\\'tag"
-          }
-#        - { 'description'   : 'istio-intel/pilot-cryptomb (internal)',
-#            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
-#            'shortname'     : "spec\\'\\]\\[\\'values\\'\\]\\[\\'pilot\\'\\]\\[\\'image"
-#          }
-        - { 'description'   : 'istio-intel/pilot-cryptomb (internal)',
-            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
-            'shortname'     : "spec\\'\\]\\[\\'tag"
-          }
-#        - { 'description'   : 'istio-intel/pilot-cryptomb (internal)',
-#            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
-#            'shortname'     : "spec\\'\\]\\[\\'values\\'\\]\\[\\'global\\'\\]\\[\\'proxy\\'\\]\\[\\'image"
-#          }
-        - { 'description'   : 'istio-intel/proxyv2-cryptomb (internal)',
-            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
-            'shortname'     : "spec\\'\\]\\[\\'tag"
-          }
-#        - { 'description'   : 'istio-intel/proxyv2-openssl (internal)',
-#            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/files/profiles/intel-qat-sw.yaml',
-#            'shortname'     : "spec\\'\\]\\[\\'values\\'\\]\\[\\'global\\'\\]\\[\\'proxy\\'\\]\\[\\'image"
-#          }
-        - { 'description'   : 'istio-intel/proxyv2-openssl (internal)',
-            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/files/profiles/intel-qat-sw.yaml',
-            'shortname'     : "spec\\'\\]\\[\\'tag"
-          }
-        - { 'description'   : 'istio-intel/tcpip-bypass-ebpf',
-            'var_file_path' : 'playbooks/infra/roles/istio_service_mesh/vars/main.yml',
-            'shortname'     : "istio_service_mesh_defaults\\'\\]\\[\\'tcpip_bypass_ebpf\\'\\]\\[\\'version"
-          }
-        - { 'description'   : 'Intel Trusted Attestation Controller',
-            'var_file_path' : 'playbooks/infra/roles/tca_install/defaults/main.yml',	
-            'shortname'     : 'tca_git_version'
-          }
-        - { 'description'   : 'Intel Trusted Certificate Issuer',
-            'var_file_path' : 'playbooks/intel/roles/tcs_install/defaults/main.yml',
-            'shortname'     : 'tcs_git_version'
-          }
-        - { 'description'   : 'CNDP DP',
-            'var_file_path' : 'playbooks/infra/roles/cndp_dp_install/defaults/main.yml',
-            'shortname'     : 'intel_cndp_dp_version'
-          }
-        - { 'description'   : 'CNDP CNI',
-            'var_file_path' : 'playbooks/infra/roles/cndp_install/defaults/main.yml',
-            'shortname'     : 'intel_cndp_version'
-          }
-        - { 'description'   : 'MinIO operator',
-            'var_file_path' : 'playbooks/infra/roles/minio_install/charts/operator/values.yaml',
-            'shortname'     : "operator\\'\\]\\[\\'image\\'\\]\\[\\'tag"
-          }
-        - { 'description'   : 'MinIO console',
-            'var_file_path' : 'playbooks/infra/roles/minio_install/charts/operator/values.yaml',
-            'shortname'     : "console\\'\\]\\[\\'image\\'\\]\\[\\'tag"
-          }
-        - { 'description'   : 'Power Manager Operator',
-            'var_file_path' : 'playbooks/infra/roles/intel_power_manager/defaults/main.yml',
-            'shortname'     : 'intel_power_manager_git_ref'
-          }
-        - { 'description'   : 'Intel® RDT telemetry plugin',
-            'var_file_path' : 'playbooks/infra/roles/intel_power_manager/defaults/main.yml',
-            'shortname'     : 'intel_appqos_git_ref'
-          }
-        - { 'description'   : 'FEC Operator',
-            'var_file_path' : 'playbooks/infra/roles/intel_sriov_fec_operator/defaults/main.yml',
-            'shortname'     : 'intel_sriov_fec_operator_img_ver'
-          }
-        - { 'description'   : 'FEC Operator SDK',
-            'var_file_path' : 'playbooks/infra/roles/operator_framework/defaults/main.yml',
-            'shortname'     : 'operator_sdk_git_ref'
-          }
-        - { 'description'   : 'Operator Package Manager',
-            'var_file_path' : 'playbooks/infra/roles/intel_sriov_fec_operator/defaults/main.yml',
-            'shortname'     : 'opm_ver'
-          }
-        - { 'description'   : 'Data Plane Development Kit',
-            'var_file_path' : 'host_vars/host-for-vms-1.yml',
-            'shortname'     : 'dpdk_version'
-          }
-        - { 'description'   : 'Open vSwitch with DPDK',
-            'var_file_path' : 'host_vars/host-for-vms-1.yml',
-            'shortname'     : 'ovs_version'
-          }
-        - { 'description'   : 'Comms DDP Profiles',
-            'var_file_path' : 'host_vars/host-for-vms-1.yml',
-            'shortname'     : "dataplane_interfaces\\'\\]\\[0\\]\\[\\'ddp_profile"
-          }
-        - { 'description'   : 'Intel® QAT Drivers',
-            'var_file_path' : 'playbooks/infra/roles/bootstrap/install_qat_drivers_services/defaults/main.yml',
-            'shortname'     : 'qat_drivers_version'
-          }
-        - { 'description'   : 'OpenSSL',
-            'var_file_path' : 'roles/bootstrap/configure_openssl/defaults/main.yml',
-            'shortname'     : 'openssl_version'
-          }
-        - { 'description'   : 'kube_version',
-            'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/kubespray-defaults/defaults/main.yaml',
-            'shortname'     : 'kube_version'
-          }
-        - {
-            'description'   : 'linkerd_version',
-            'var_file_path' : 'roles/linkerd_service_mesh/defaults/main.yml',
-            'shortname'     : 'linkerd_version'
-          }
-        - {
-            'description'   : 'cadvisor_helm_charts',
-            'var_file_path' : 'roles/cadvisor_install/defaults/main.yaml',
-            'shortname'     : 'cadvisor_helm_charts_version'
-          }
-        - {
-            'description'   : 'intel_adq_dp_version',
-            'var_file_path' : 'roles/adq_dp_install/defaults/main.yml',
-            'shortname'     : 'intel_adq_dp_version'
-          }
-        - {
-            'description'   : 'adq_ice_fw_required_version',
-            'var_file_path' : 'roles/bootstrap/update_nic_firmware/defaults/main.yml',
-            'shortname'     : 'adq_ice_fw_required_version'
-          }
-        - {
-            'description'   : 'cilium_version',
-            'var_file_path' : 'roles/cilium/defaults/main.yml',
-            'shortname'     : 'cilium_version'
-          }  
-        - {
-            'description'   : 'cert_manager_version',
-            'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml',
-            'shortname'     : 'cert_manager_version'
-          }
-        - {
-            'description'   : 'telemetry aware scheduling',
-            'var_file_path' : 'roles/platform_aware_scheduling_install/defaults/main.yml',
-            'shortname'     : 'tas_extender_image_tag_default'
-          }
-        - {
-            'description'   : 'gpu aware scheduling',
-            'var_file_path' : 'roles/platform_aware_scheduling_install/defaults/main.yml',
-            'shortname'     : 'gas_extender_image_tag_default'
-          }
-        - {
-            'description'   : 'jaeger version',
-            'var_file_path' : 'roles/jaeger_install/defaults/main.yml',
-            'shortname'     : "jaeger_defaults\\'\\]\\[\\'image"
-          }
-        - { 'description'   : 'crio_version',
-            'var_file_path' : 'playbooks/infra/roles/container_engine/crio/defaults/main.yml',
-            'shortname'     : 'crio_version'
-          }
-        - { 'description'   : 'cluster_name',
-            'var_file_path' : 'playbooks/k8s/kubespray/roles/kubespray-defaults/defaults/main.yaml',
-            'shortname'     : 'cluster_name'
-          }
-        - { 'description'   : 'containerd_version',
-            'var_file_path' : 'roles/container_engine/containerd_common/defaults/main.yml',
-            'shortname'     : 'containerd_version'
-          }
-        - { 'description'   : 'multus_version',
-            'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml',
-            'shortname'     : 'multus_version'
-          }
-        - { 'description'   : 'nfd_version',
-            'var_file_path' : 'playbooks/infra/roles/nfd_install/defaults/main.yml',
-            'shortname'     : 'nfd_image_tag'
-          }
-        - { 'description'   : 'cndp_version',
-            'var_file_path' : 'playbooks/intel/roles/cndp_install/defaults/main.yml',
-            'shortname'     : 'intel_cndp_version'
-          }
-        - { 'description'   : 'nginx_version',
-            'var_file_path' : 'playbooks/infra/roles/kmra_install/defaults/main.yml',
-            'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'nginx_image_tag"
-          }
-      - name: remove old version parsing results
-        file:
-          path: "{{ item }}"
-          state: absent
-        failed_when: false
-        with_items:
-          - "{{ versions_output_file }}"
-          - "{{ versions_parsing_errors_file }}"
-      - lineinfile:
-          path: "{{ versions_output_file }}"
-          line: "{{ item.stdout }}"
-          create: yes
-        loop: "{{ item_value.results }}"
-      - lineinfile:
-          path: '{{ versions_parsing_errors_file }}'
-          line: "{{ item.stderr }}"
-          create: yes
-        loop: "{{ item_value.results }}"
+        - shell: "echo -n '{{ item.description }}', && scripts/yaml_version_reader {{ item.var_file_path }} {{ item.shortname }}"
+          args:
+            chdir: ".."
+          register: item_value
+          loop:
+            - { 'description'   : 'Telegraf',
+                'shortname'     : 'telegraf_image_tag',
+                'var_file_path' : 'roles/telegraf_install/defaults/main.yml'
+              }
+            - { 'description'   : 'Prometheus',
+                'shortname'     : 'prometheus_stack_version',
+                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml'
+              }
+            - { 'description'   : 'Grafana',
+                'shortname'     : 'grafana_version',
+                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml'
+              }
+            - { 'description'   : 'CollectD',
+                'shortname'     : "image_collectd\\'\\]\\[\\'digest",
+                'var_file_path' : 'playbooks/k8s/roles/collectd_install/defaults/main.yml'
+              }
+            - { 'description'   : 'Docker',
+                'shortname'     : 'docker_version',
+                'var_file_path' : 'roles/container_engine/docker/defaults/main.yml'
+              }
+            - { 'description'   : 'Kubernetes',
+                'shortname'     : 'kube_version',
+                'var_file_path' : 'examples/vm/full_nfv/group_vars/all.yml'
+              }
+            - { 'description'   : 'k8s node-exporter',
+                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml',
+                'shortname'     : 'node_exporter_version'
+              }
+            - { 'description'   : 'k8s prometheus-operator',
+                'var_file_path' : 'roles/kube_prometheus/files/kube-prometheus-stack/prometheusOperator-clusterRole.yaml',
+                'shortname'     : "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
+              }
+            - { 'description'   : 'k8s prometheus-adapter',
+                'var_file_path' : 'roles/kube_prometheus/files/kube-prometheus-stack/prometheusAdapter-clusterRole.yaml',
+                'shortname'     :  "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
+              }  
+            - { 'description'   : 'k8s kube-rbac-proxy',
+                'var_file_path' : 'roles/cluster_defaults/defaults/main.yml',
+                'shortname'     : 'kube_rbac_proxy_image_tag'
+              }
+            - { 'description'   : 'Node Feature Discovery',
+                'var_file_path' : 'roles/nfd_install/defaults/main.yml',
+                'shortname'     : 'nfd_image_tag'
+              }
+            - { 'description'   : 'Vector Packet Processing',
+                'var_file_path' : 'roles/userspace_cni_install/defaults/main.yml',
+                'shortname'     : 'vpp_version'
+              }
+            - { 'description'   : 'CNI plugins',
+                'shortname'     : 'cni_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'calico',
+                'shortname'     : 'calico_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'flannel',
+                'shortname'     : 'flannel_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'coredns',
+                'shortname'     : 'coredns_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'krew',
+                'shortname'     : 'krew_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'helm',
+                'shortname'     : 'helm_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'SR-IOV CNI',
+                'var_file_path' : 'roles/sriov_cni_install/defaults/main.yml',
+                'shortname'     : 'sriov_cni_version',
+              }
+            - { 'description'   : 'SR-IOV network device plugin',
+                'var_file_path' : 'roles/sriov_dp_install/defaults/main.yml',
+                'shortname'     : 'sriov_net_dp_tag'
+              }
+            - { 'description'   : 'SR-IOV network operator',
+                'var_file_path' : 'roles/sriov_network_operator_install/defaults/main.yml',
+                'shortname'     : "sriov_network_operator_images\\'\\]\\[\\'operator"
+              }
+            - { 'description'   : 'whereabouts service',
+                'var_file_path' : 'roles/whereabouts_install/defaults/main.yml',
+                'shortname'     : 'whereabouts_commit_hash'
+              }
+            - { 'description'   : 'Intel® dp operator',
+                'var_file_path' : 'roles/intel_dp_operator/defaults/main.yml',
+                'shortname'     : 'intel_dp_version'
+              }
+            - { 'description'   : 'QAT device plugin',
+                'var_file_path' : 'roles/intel_dp_operator/defaults/main.yml',
+                'shortname'     : 'intel_dp_version'
+              }
+            - { 'description'   : 'GPU device plugin',
+                'var_file_path' : 'roles/intel_dp_operator/defaults/main.yml',
+                'shortname'     : 'intel_dp_version'
+              }
+            - { 'description'   : 'SGX device plugin',
+                'var_file_path' : 'roles/intel_dp_operator/defaults/main.yml',
+                'shortname'     : 'intel_dp_version'
+              }
+            - { 'description'   : 'DLB device plugin (internal for RA 22.05)',
+                'var_file_path' : 'roles/intel_dp_operator/defaults/main.yml',
+                'shortname'     : 'intel_dp_version'
+              }
+            - { 'description'   : 'DLB driver',
+                'var_file_path' : 'roles/bootstrap/configure_dlb/defaults/main.yml',
+                'shortname'      : 'intel_dlb_driver_ver'
+              }
+            - { 'description'   : 'DSA device plugin (internal for RA 22.05)',
+                'var_file_path' : 'roles/intel_dp_operator/defaults/main.yml',
+                'shortname'     : 'intel_dp_version'
+              }
+            - { 'description'   : 'Userspace CNI',
+                'var_file_path' : 'roles/userspace_cni_install/defaults/main.yml',
+                'shortname'     : 'userspace_cni_version'
+              }
+            - { 'description'   : 'Bond CNI plugin',
+                'var_file_path' : 'roles/bond_cni_install/defaults/main.yml',
+                'shortname'     : 'bond_cni_version'
+              }
+            - { 'description'   : 'Intel® Ethernet Drivers i40e',
+                'var_file_path' : 'roles/bootstrap/update_nic_drivers/defaults/main.yml',
+                'shortname'     : 'i40e_driver_version'
+              }
+            - { 'description'   : 'Intel® Ethernet Drivers ice',
+                'var_file_path' : 'roles/bootstrap/update_nic_drivers/defaults/main.yml',
+                'shortname'     : 'ice_driver_version'
+              }
+            - { 'description'   : 'Intel® Ethernet Drivers iavf',
+                'var_file_path' : 'roles/bootstrap/update_nic_drivers/defaults/main.yml',
+                'shortname'     : 'iavf_driver_version'
+              }
+            - { 'description'   : 'Intel® Ethernet Operator',
+                'var_file_path' : 'roles/intel_ethernet_operator/defaults/main.yml',
+                'shortname'     : 'intel_ethernet_operator_git_ref'
+              }
+            - { 'description'   : 'Intel® Ethernet Operator image',
+                'var_file_path' : 'roles/intel_ethernet_operator/defaults/main.yml',
+                'shortname'     : 'intel_ethernet_operator_img_ver'
+              }
+            - { 'description'   : 'Intel® Ethernet UFT',
+                'var_file_path' : 'roles/intel_ethernet_operator/defaults/main.yml',
+                'shortname'     : 'uft_git_ref'
+              }
+            - { 'description'   : 'Intel® QATlib',
+                'shortname'     : 'intel_qatlib_download_url_version',
+                'var_file_path' : 'roles/bootstrap/configure_openssl/defaults/main.yml' 
+              }
+            - { 'description'   : 'OpenSSL QAT Engine',
+                'var_file_path' : 'roles/openssl_engine_install/defaults/main.yml',
+                'shortname'     : 'openssl_engine_version'
+              }
+            - { 'description'   : 'Intel® ipsec-mb',
+                'var_file_path' : 'roles/openssl_engine_install/defaults/main.yml',
+                'shortname'     : 'intel_ipsec_version'
+              }
+            - { 'description'   : 'Intel® SGX DCAP Drivers (ubuntu)',
+                'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
+                'shortname'     : 'dcap_driver_series_ubuntu_20'
+              }
+            - { 'description'   : 'Intel® SGX DCAP Drivers (rhel)',
+                'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
+                'shortname'     : 'dcap_driver_series_rhel'
+              }
+            - { 'description'   : 'Intel® SGX SDK (ubuntu)',
+                'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
+                'shortname'     : 'sgx_sdk_version_ubuntu_20'
+              }
+            - { 'description'   : 'Intel® SGX SDK (rhel)',
+                'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
+                'shortname'     : 'sgx_sdk_version_rhel'
+              }
+            - { 'description'   : 'Intel® KMRA AppHSM',
+                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'apphsm\\'\\]\\[\\'image_tag"
+              }
+            - { 'description'   : 'Intel® KMRA CTK',
+                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'image_tag"
+              }
+            - { 'description'   : 'Intel® KMRA PCCS',
+                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'pccs\\'\\]\\[\\'image_tag"
+              }
+            - { 'description'   : 'TADK',
+                'shortname'     : 'tadk_version',
+                'var_file_path' : 'roles/tadk_install/defaults/main.yml'
+              }
+            - { 'description'   : 'IstIO operator',
+                'var_file_path' : 'roles/istio_service_mesh/charts/istioctl/values.yaml',
+                'shortname'     : "image\\'\\]\\[\\'tag"
+              }
+            - { 'description'   : 'IstIO pilot-cryptomb (internal)',
+                'var_file_path' : 'roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
+                'shortname'     : "spec\\'\\]\\[\\'tag"
+              }
+            - { 'description'   : 'IstIO proxyv2-cryptomb (internal)',
+                'var_file_path' : 'roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
+                'shortname'     : "spec\\'\\]\\[\\'tag"
+              }
+            - { 'description'   : 'IstIO proxyv2-openssl (internal)',
+                'var_file_path' : 'roles/istio_service_mesh/files/profiles/intel-qat-sw.yaml',
+                'shortname'     : "spec\\'\\]\\[\\'tag"
+              }
+            - { 'description'   : 'IstIO tcpip-bypass-ebpf',
+                'var_file_path' : 'roles/istio_service_mesh/vars/main.yml',
+                'shortname'     : "istio_service_mesh_defaults\\'\\]\\[\\'tcpip_bypass_ebpf\\'\\]\\[\\'version"
+              }
+            - { 'description'   : 'Intel® Trusted Attestation Controller',
+                'var_file_path' : 'roles/tac_install/defaults/main.yml',
+                'shortname'     : 'tac_git_version'
+              }
+            - { 'description'   : 'Intel® Trusted Certificate Issuer',
+                'var_file_path' : 'roles/tcs_install/defaults/main.yml',
+                'shortname'     : 'tcs_git_version'
+              }
+            - { 'description'   : 'Intel® CNDP DP',
+                'var_file_path' : 'roles/cndp_dp_install/defaults/main.yml',
+                'shortname'     : 'intel_cndp_dp_version'
+              }
+            - { 'description'   : 'Intel® CNDP CNI',
+                'var_file_path' : 'roles/cndp_install/defaults/main.yml',
+                'shortname'     : 'intel_cndp_version'
+              }
+            - { 'description'   : 'MinIO operator',
+                'var_file_path' : 'roles/minio_install/charts/operator/values.yaml',
+                'shortname'     : "operator\\'\\]\\[\\'image\\'\\]\\[\\'tag"
+              }
+            - { 'description'   : 'MinIO console',
+                'var_file_path' : 'roles/minio_install/charts/operator/values.yaml',
+                'shortname'     : "console\\'\\]\\[\\'image\\'\\]\\[\\'tag"
+              }
+            - { 'description'   : 'Power Manager Operator',
+                'var_file_path' : 'roles/intel_power_manager/defaults/main.yml',
+                'shortname'     : 'intel_power_manager_git_ref'
+              }
+            - { 'description'   : 'Intel® RDT telemetry plugin',
+                'var_file_path' : 'roles/intel_power_manager/defaults/main.yml',
+                'shortname'     : 'intel_appqos_git_ref'
+              }
+            - { 'description'   : 'Intel SR-IOV FEC Operator',
+                'var_file_path' : 'roles/intel_sriov_fec_operator/defaults/main.yml',
+                'shortname'     : 'intel_sriov_fec_operator_git_ref'
+              }
+            - { 'description'   : 'Intel SR-IOV FEC Operator image',
+                'var_file_path' : 'roles/intel_sriov_fec_operator/defaults/main.yml',
+                'shortname'     : 'intel_sriov_fec_operator_img_ver'
+              }
+            - { 'description'   : 'FEC Operator SDK',
+                'var_file_path' : 'roles/operator_framework/defaults/main.yml',
+                'shortname'     : 'operator_sdk_git_ref'
+              }
+            - { 'description'   : 'Operator Lifecycle Manager',
+                'shortname'     : 'operator_lm_version',
+                'var_file_path' : 'roles/operator_framework/defaults/main.yml'
+              }
+            - { 'description'   : 'Operator Package Manager',
+                'var_file_path' : 'roles/intel_sriov_fec_operator/defaults/main.yml',
+                'shortname'     : 'opm_ver'
+              }
+            - { 'description'   : 'Data Plane Development Kit',
+                'var_file_path' : 'examples/k8s/full_nfv/host_vars/node1.yml',
+                'shortname'     : 'dpdk_version'
+              }
+            - { 'description'   : 'Open vSwitch with DPDK',
+                'var_file_path' : 'examples/k8s/full_nfv/host_vars/node1.yml',
+                'shortname'     : 'ovs_version'
+              }
+            - { 'description'   : 'Intel® QAT Drivers',
+                'var_file_path' : 'roles/bootstrap/install_qat_drivers_services/defaults/main.yml',
+                'shortname'     : 'qat_drivers_version'
+              }
+            - { 'description'   : 'OpenSSL',
+                'var_file_path' : 'roles/bootstrap/configure_openssl/defaults/main.yml',
+                'shortname'     : 'openssl_version'
+              }
+            - { 'description'   : 'Kubernetes',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/kubespray-defaults/defaults/main.yaml',
+                'shortname'     : 'kube_version'
+              }
+            - { 'description'   : 'LinkerD',
+                'var_file_path' : 'roles/linkerd_service_mesh/defaults/main.yml',
+                'shortname'     : 'linkerd_version'
+              }
+            - { 'description'   : 'cadvisor helm charts',
+                'var_file_path' : 'roles/cadvisor_install/defaults/main.yaml',
+                'shortname'     : 'cadvisor_helm_charts_version'
+              }
+            - { 'description'   : 'Intel® adq dp',
+                'var_file_path' : 'roles/adq_dp_install/defaults/main.yml',
+                'shortname'     : 'intel_adq_dp_version'
+              }
+            - { 'description'   : 'adq ice fw',
+                'var_file_path' : 'roles/bootstrap/update_nic_firmware/defaults/main.yml',
+                'shortname'     : 'adq_ice_fw_required_version'
+              }
+            - { 'description'   : 'cilium',
+                'var_file_path' : 'roles/cilium/defaults/main.yml',
+                'shortname'     : 'cilium_version'
+              }
+            - { 'description'   : 'cert manager',
+                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml',
+                'shortname'     : 'cert_manager_version'
+              }
+            - { 'description'   : 'Telemetry aware scheduling',
+                'var_file_path' : 'roles/platform_aware_scheduling_install/defaults/main.yml',
+                'shortname'     : 'tas_extender_image_tag_default'
+              }
+            - { 'description'   : 'GPU aware scheduling',
+                'var_file_path' : 'roles/platform_aware_scheduling_install/defaults/main.yml',
+                'shortname'     : 'gas_extender_image_tag_default'
+              }
+            - { 'description'   : 'crio',
+                'var_file_path' : 'roles/container_engine/crio/defaults/main.yml',
+                'shortname'     : 'crio_version'
+              }
+            - { 'description'   : 'registry',
+                'shortname'     : 'registry_image',
+                'var_file_path' : 'roles/container_registry/defaults/main.yml'
+              }
+            - { 'description'   : 'nginx',
+                'shortname'     : 'nginx_image',
+                'var_file_path' : 'roles/container_registry/defaults/main.yml'
+              }
+            - { 'description'   : 'Open Telemetry Operator',
+                'shortname'     : 'opentelemetry_operator_chart_version',
+                'var_file_path' : 'roles/opentelemetry_install/defaults/main.yml'
+              }
+            - { 'description'   : 'Intel® FlexRAN',
+                'shortname'     : 'intel_flexran_ver',
+                'var_file_path' : 'roles/intel_flexran/defaults/main.yml'
+              }
+            - { 'description'   : 'golang',
+                'shortname'     : 'golang_version',
+                'var_file_path' : 'roles/bootstrap/golang_install/defaults/main.yml'              
+              }
+            - { 'description'   : 'cluster_name',
+                'var_file_path' : 'playbooks/k8s/kubespray/roles/kubespray-defaults/defaults/main.yaml',
+                'shortname'     : 'cluster_name'
+              }
+            - { 'description'   : 'containerd',
+                'var_file_path' : 'roles/container_engine/containerd/defaults/main.yml',
+                'shortname'     : 'containerd_version'
+              }
+            - { 'description'   : 'multus',
+                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml',
+                'shortname'     : 'multus_version'
+              }
+            - { 'description'   : 'nfd',
+                'var_file_path' : 'roles/nfd_install/defaults/main.yml',
+                'shortname'     : 'nfd_image_tag'
+              }
+            - { 'description'   : 'cndp',
+                'var_file_path' : 'roles/cndp_install/defaults/main.yml',
+                'shortname'     : 'intel_cndp_version'
+              }
+            - { 'description'   : 'nginx',
+                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'nginx_image_tag"
+              }
+            - { 'description'   : 'weave',
+                'shortname'     : 'weave_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'kube-vip',
+                'shortname'     : 'kube_vip_image_tag',
+                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'nginx-ingress',
+                'shortname'     : 'kubernetes_ingress_helm_chart_version',
+                'var_file_path' : 'roles/kubernetes_ingress_install/defaults/main.yml'
+              }
+            - { 'description'   : 'argocd',
+                'shortname'     : 'argocd_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/roles/kubernetes-apps/argocd/defaults/main.yml'
+              }
+            - { 'description'   : 'metallb',
+                'shortname'     : 'metallb_version',
+                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'kibana',
+                'shortname'     : 'kibana_chart_version',
+                'var_file_path' : 'roles/kibana_install/defaults/main.yml'
+              }
+        - name: remove old version parsing results
+          file:
+            path: "{{ item }}"
+            state: absent
+          failed_when: false
+          with_items:
+            - "{{ versions_output_file }}"
+            - "{{ versions_parsing_errors_file }}"
+        - lineinfile:
+            path: "{{ versions_output_file }}"
+            line: "{{ item.stdout }}"
+            create: yes
+          loop: "{{ item_value.results }}"
+        - lineinfile:
+            path: '{{ versions_parsing_errors_file }}'
+            line: "{{ item.stderr }}"
+            create: yes
+          loop: "{{ item_value.results }}"
+    - name: Add ddp_profile variable
+      shell: grep ddp_profile ../examples/k8s/full_nfv/host_vars/node1.yml |head -n1| awk '{print $3}'
+      register: ddp_profile
+    - name: Add ddp_profile variable
+      lineinfile:
+        path: "{{ versions_output_file }}"
+        line: "ddp_profile,{{ ddp_profile.stdout }}"
+    - name: Add jaeger_version variable
+      shell: grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' roles/jaeger_install/defaults/main.yml
+      register: jaeger_version
+    - name: Add jaeger version variable
+      lineinfile:
+        path: "{{ versions_output_file }}"
+        line: "jaeger,{{ jaeger_version.stdout }}"

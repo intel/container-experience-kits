@@ -14,10 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-intel_qat_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_qat_dp_git_ref: "v0.24.0"
-intel_qat_dp_version: "0.24.0"
-intel_qat_dp_dir: "{{ (project_root_dir, 'intel-qat-dp') | path_join }}"
+intel_qat_dp_image: "docker.io/intel/intel-qat-plugin:{{ intel_dp_version }}"
 
 qat_dp_namespace: "kube-system"
 qat_dp_dpdk_drivers: "vfio-pci"

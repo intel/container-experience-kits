@@ -6,6 +6,9 @@ import subprocess
 import paramiko
 import sys
 import fnmatch
+import yaml
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
+from ssh_connector import SSHConnector
 
 qat_pf_ids = ['0435', '37c8', '19e2', '18ee', '6f54', '18a0', '4940', '4942']
 qat_vf_ids = ['0443', '37c9', '19e3', '18ef', '6f55', '18a1', '4941', '4943']
@@ -19,24 +22,10 @@ class Remote:
         self.session = None
 
     def connect(self):
-        try:
-            self.session = paramiko.SSHClient()
-            self.session.load_system_host_keys
-            self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            #if self.pkey is not None:
-            #    pkey_file=os.path.expanduser(self.pkey)
-            #    print("PKEY: ",pkey_file)
-            #else:
-            #    pkey_file=os.path.expanduser("~/.ssh/id_rsa")
-            #priv_key = paramiko.RSAKey.from_private_key_file(pkey_file)
-            #self.session.connect(self.ip_addr, pkey=priv_key)
-            self.session.connect(self.ip_addr, username=self.username, key_filename=self.key_filename)
-        except paramiko.AuthenticationException as e:
-            print("Auth failed: ",e)
-            sys.exit()
-        except paramiko.SSHException as e:
-            print("SSH Connection failed: ",e)
-            sys.exit()
+        self.session = SSHConnector(ip_address=self.ip_addr,
+                                    username=self.username,
+                                    port=22,
+                                    priv_key=self.key_filename)
 
     def exec(self, cmd, split=False):
         try:
@@ -346,6 +335,20 @@ def get_host_info():
     if not hostinfo_out["Host"].keys(): return None
     return hostinfo_out
 
+def get_cpu_arch_codename(cpu_model):
+    cpu_codename_arch = ''
+    with open("cpu_arch.yml", "r") as stream:
+        try:
+            cpu_models = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+    if cpu_models is not None:
+        for arch, obj in cpu_models['architectures'].items():
+            for model in cpu_models['architectures'][arch]['models']:
+                if model in cpu_model:
+                    cpu_codename_arch = arch
+    return cpu_codename_arch
+
 def get_summary(info: dict):
     summary = {}
     # summarize existing object
@@ -363,6 +366,7 @@ def get_summary(info: dict):
     if "lscpu" in info.keys():
         if "Model name" in info["lscpu"]:
             summary["Cpu_Model"] = info["lscpu"]["Model name"]
+            summary["Codename"] = get_cpu_arch_codename(summary["Cpu_Model"])
         if "CPU(s)" in info["lscpu"]:
             summary["Cpu_Count"] = info["lscpu"]["CPU(s)"]
         if "Socket(s)" in info["lscpu"]:
@@ -443,5 +447,6 @@ def main(ip_addr, username, key_filename):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        main(sys.argv[1], sys.argv[2], sys.argv[3])
+    get_cpu_arch_codename(cpu_model='Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz')
+    #if len(sys.argv) > 1:
+    #    main(sys.argv[1], sys.argv[2], sys.argv[3])

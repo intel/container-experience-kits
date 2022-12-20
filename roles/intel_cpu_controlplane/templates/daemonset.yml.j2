@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ctlplane-daemonset
+  namespace: ctlplane
+spec:
+  selector:
+    matchLabels:
+      app: ctlplane-daemonset
+  template:
+    metadata:
+      labels:
+        app: ctlplane-daemonset
+    spec:
+      initContainers:
+        - name: delete-old-state
+          image: busybox:1.28
+          command: ['rm', '-f', '/daemonstate/daemon.state']
+          volumeMounts:
+          - name: state
+            mountPath: /daemonstate
+      containers:
+        - name: ctlplane-daemonset
+          image: {{registry_local_address}}/{{ cpu_ctlplane_release_name }}:{{ cpu_ctlplane_local_tag_name }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 31000
+          securityContext:
+            privileged: true
+          args: ["-cpath", "/cgroup", "-spath", "/daemonstate/daemon.state", "-runtime", "{{ container_runtime }}", "-allocator", "{{ intel_cpu_controlplane.allocator }}"]
+          volumeMounts:
+          - name: host
+            mountPath: /cgroup
+          - name: state
+            mountPath: /daemonstate
+          readinessProbe:
+            tcpSocket:
+              port: 31000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 31000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+        - name: ctlplane-agent
+          image: {{registry_local_address}}/{{ cpu_ctlplane_release_name }}:{{ cpu_ctlplane_local_tag_name }}
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          args: ["-a", "-namespace-prefix", "{{ intel_cpu_controlplane.agent_namespace_prefix }}"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+      volumes:
+        - name: host
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: state
+          hostPath:
+            path: /usr/local/daemonstate/

@@ -13,28 +13,19 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-crictl_version: "v1.21.0"
+crictl_version: "v1.25.0"
 
-image_arch: "amd64"
-
-crictl_download_url: "{{ crictl_repo_url }}{{ crictl_version }}/crictl-{{ crictl_version }}-{{ ansible_system | lower }}-{{ image_arch }}.tar.gz"
+crictl_download_url: "{{ crictl_repo_url }}{{ crictl_version }}/crictl-{{ crictl_version }}-{{ ansible_system | lower }}-amd64.tar.gz"
 crictl_repo_url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/"
 
-crictl_checksums:
-  amd64:
-    v1.22.0: 45e0556c42616af60ebe93bf4691056338b3ea0001c0201a6a8ff8b1dbc0652a
-    v1.21.0: 85c78a35584971625bf1c3bcd46e5404a90396f979d7586f18b11119cb623e24
-    v1.20.0: 44d5f550ef3f41f9b53155906e0229ffdbee4b19452b4df540265e29572b899c
-    v1.19.0: 87d8ef70b61f2fe3d8b4a48f6f712fd798c6e293ed3723c1e4bbb5052098f0ae
-
-crictl_binary_checksum: "{{ crictl_checksums[image_arch][crictl_version] }}"
+crictl_binary_checksum: "86ab210c007f521ac4cdcbcf0ae3fb2e10923e65f16de83e0e1db191a07f0235"
 
 local_release_dir: "/tmp/releases"
 bin_dir: /usr/local/bin
 
 crictl:
   version: "{{ crictl_version }}"
-  dest: "{{ local_release_dir }}/crictl-{{ crictl_version }}-linux-{{ image_arch }}.tar.gz"
+  dest: "{{ local_release_dir }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
   sha256: "{{ crictl_binary_checksum }}"
   url: "{{ crictl_download_url }}"
   owner: "root"

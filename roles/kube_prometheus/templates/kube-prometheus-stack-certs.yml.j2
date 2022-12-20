@@ -1,0 +1,159 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-kube-prometheus-stack-tls-issuer-ca
+  namespace: monitoring
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-prometheus-stack-tls-ca
+  namespace: monitoring
+spec:
+  isCA: true
+  commonName: kube-prometheus-stack-tls-ca
+  secretName: kube-prometheus-stack-tls-ca
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: selfsigned-kube-prometheus-stack-tls-issuer-ca
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kube-prometheus-stack-tls-ca-issuer
+  namespace: monitoring
+spec:
+  ca:
+    secretName: kube-prometheus-stack-tls-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: node-exporter-tls-rbac
+  namespace: monitoring
+spec:
+  secretName: node-exporter-tls-rbac
+  ipAddresses:
+{% for host in groups['k8s_cluster'] %}
+    - {{ hostvars[host].ip }}
+{% endfor %}
+    - 127.0.0.1
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: kube-prometheus-stack-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - server auth
+  - digital signature
+  - key encipherment
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: node-exporter-tls
+  namespace: monitoring
+spec:
+  secretName: node-exporter-tls
+  ipAddresses:
+{% for host in groups['k8s_cluster'] %}
+    - {{ hostvars[host].ip }}
+{% endfor %}
+    - 127.0.0.1
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: kube-prometheus-stack-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - server auth
+  - digital signature
+  - key encipherment
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: node-exporter-tls-prometheus-scrapper
+  namespace: monitoring
+spec:
+  secretName: node-exporter-tls-prometheus-scrapper
+  commonName: "system:serviceaccount:monitoring:prometheus-k8s"
+  ipAddresses:
+{% for host in groups['k8s_cluster'] %}
+    - {{ hostvars[host].ip }}
+{% endfor %}
+    - 127.0.0.1
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: kube-prometheus-stack-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - client auth
+  - digital signature
+  - key encipherment
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-tls
+  namespace: monitoring
+spec:
+  secretName: grafana-tls
+  dnsNames:
+  - grafana.monitoring.svc.cluster.local
+  - grafana.monitoring.svc
+  - grafana.monitoring
+  - grafana
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: kube-prometheus-stack-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - server auth
+  - digital signature
+  - key encipherment
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-adapter-tls
+  namespace: monitoring
+spec:
+  secretName: prometheus-adapter-tls
+  dnsNames:
+  - prometheus-adapter.monitoring.svc.cluster.local
+  - prometheus-adapter.monitoring.svc
+  - prometheus-adapter
+  - prometheus-adapter
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: kube-prometheus-stack-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - server auth
+  - digital signature
+  - key encipherment

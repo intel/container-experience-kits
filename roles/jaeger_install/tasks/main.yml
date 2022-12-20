@@ -14,39 +14,67 @@
 ##   limitations under the License.
 ##
 - block:
-    - name: Create observability namespace
-      k8s:
-        name: "observability"
+    - name: create monitoring and observability namespace
+      kubernetes.core.k8s:
+        name: "{{ item }}"
         kind: Namespace
         state: present
+      loop:
+        - monitoring
+        - observability
 
-    - name: Create Jaeger folder
-      file:
+    - name: create jaeger folder
+      ansible.builtin.file:
         state: directory
-        dest: "{{ (project_root_dir, 'Jaeger') | path_join }}"
+        dest: "{{ (project_root_dir, 'jaeger') | path_join }}"
         mode: 0755
 
-    - name: Download jaeger operator CRD
-      get_url:
-        url: "{{ jaeger_defaults.jaeger_crd_url }}"
-        dest: "{{ (project_root_dir, 'Jaeger', 'jaeger-operator.yaml') | path_join }}"
-        mode: 0755
-
-    - name: Deploy jaeger-operator CRD
-      command: "kubectl apply -f {{ (project_root_dir, 'Jaeger', 'jaeger-operator.yaml') | path_join }}"
-      changed_when: true
-
-    - name: Wait for jaeger-operator to be ready
-      pause:
-        seconds: 30
-
-    - name: Generate Jaeger deployment file
-      template:
-        src: "{{ (role_path, 'templates', 'jaeger_deployment.yaml.j2') | path_join }}"
-        dest: "{{ (project_root_dir, 'Jaeger', 'jaeger_deployment.yaml') | path_join }}"
+    - name: copy jaeger files
+      ansible.builtin.copy:
+        src: "files/"
+        dest: "{{ (project_root_dir, 'jaeger') | path_join }}"
         mode: 0644
 
-    - name: Create instance of jaeger-operator
-      command: "kubectl apply -f {{ (project_root_dir, 'Jaeger', 'jaeger_deployment.yaml') | path_join }}"
+    - name: download jaeger operator CRD
+      ansible.builtin.get_url:
+        url: "{{ jaeger_crd_url }}"
+        dest: "{{ (project_root_dir, 'jaeger', 'jaeger_operator.yml') | path_join }}"
+        mode: 0755
+
+    - name: create jaeger resources
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'jaeger', item) | path_join }}"
+      loop:
+        - jaeger_certs.yml
+        - jaeger_operator.yml
+        - jaeger_rolebinding.yml
+
+    - name: create secret with Elasticsearch credentials
+      ansible.builtin.shell: >-
+          kubectl create secret generic jaeger-secret
+          --from-literal=ES_PASSWORD=$(kubectl get secrets --namespace=monitoring
+          elasticsearch-master-credentials -ojsonpath='{.data.password}' | base64 -d)
+          --from-literal=ES_USERNAME=elastic
+          -n monitoring
+      changed_when: true
+      args:
+        executable: /bin/bash
+
+    - name: wait for jaeger pods
+      ansible.builtin.pause:
+        minutes: 3
+
+    - name: create instance of jaeger-operator
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'jaeger', 'jaeger_deployment.yml') | path_join }}"
+
+    - name: wait for jaeger pods
+      ansible.builtin.pause:
+        minutes: 3
+
+    - name: remove annotation from jaeger-query
+      ansible.builtin.command: "kubectl patch deployment jaeger-query -n monitoring --type=json {{ jaeger_query_remove }}"
       changed_when: true
   when: inventory_hostname == groups['kube_control_plane'][0]

@@ -25,10 +25,10 @@
         daemon_reload: yes
       vars:
         firewall_svc:
-          CentOS: firewalld
           RedHat: firewalld
           Rocky: firewalld
           Ubuntu: ufw
+          Amazon: firewalld
       become: yes
 
     - name: configure firewall on RedHat distributions
@@ -49,10 +49,10 @@
     daemon_reload: yes
   vars:
     firewall_svc:
-      CentOS: firewalld
       RedHat: firewalld
       Rocky: firewalld
       Ubuntu: ufw
+      Amazon: firewalld
   become: yes
   failed_when: false
   when: not firewall_enabled | default(false) | bool

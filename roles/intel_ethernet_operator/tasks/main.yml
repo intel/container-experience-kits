@@ -15,15 +15,19 @@
 ##
 ---
 - name: install dependencies for Intel Ethernet Operator
-  include_role:
+  ansible.builtin.include_role:
     name: install_dependencies
 
 - name: install Intel Ethernet Operator
-  include_tasks: ethernet_operator.yml
+  ansible.builtin.include_tasks: ethernet_operator.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: install cache webserver
+  ansible.builtin.include_tasks: cache_server.yml
   when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: perform FW update
-  include_tasks: fw.yml
+  ansible.builtin.include_tasks: fw.yml
   loop: "{{ groups['kube_node'] }}"
   loop_control:
     loop_var: node_name
@@ -31,7 +35,7 @@
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: perform DDP update
-  include_tasks: ddp.yml
+  ansible.builtin.include_tasks: ddp.yml
   loop: "{{ groups['kube_node'] }}"
   loop_control:
     loop_var: node_name

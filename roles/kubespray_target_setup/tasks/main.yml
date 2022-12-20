@@ -48,33 +48,7 @@
     mode: 0644
   when: kube_network_plugin_multus | default(true) | bool
 
-- name: create Kubernetes admission control config dir
-  file:
-    path: "{{ kube_config_dir }}/admission-control"
-    state: directory
-    mode: 0755
-  when: inventory_hostname in groups['kube_control_plane']
-
-- name: copy admission control configuration file
-  template:
-    dest: "{{ kube_config_dir }}/admission-control/config.yaml"
-    src: config.yaml.j2
-    owner: root
-    group: root
-    mode: 0644
-    force: yes
-  when: inventory_hostname in groups['kube_control_plane']
-
-- name: copy admission controller configuration files
-  copy:
-    src: "{{ item }}"
-    dest: "{{ kube_config_dir }}/admission-control/"
-    owner: root
-    group: root
-    mode: 0644
-  with_fileglob: '*.yaml'
-  when: inventory_hostname in groups['kube_control_plane']
-
+# workaround for https://github.com/cilium/cilium/issues/18706
 - block:
     - name: networkd | disable managing of foreign routes
       lineinfile:
@@ -92,4 +66,4 @@
       systemd:
         name: systemd-networkd.service
         state: restarted
-  when: kube_network_plugin == "cni"
+  when: kube_network_plugin in ["cilium", "cni"] and ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"

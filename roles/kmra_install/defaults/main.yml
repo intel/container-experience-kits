@@ -23,6 +23,7 @@ kmra_defaults:
     OU: "root"
     CN: "localhost"
   certs_validity_period_days: 365
+  image_tag: "v2.2.2" # can be overriden in each component section if needed
   apphsm:
     enabled: false
     release_name: "kmra-apphsm"
@@ -30,7 +31,7 @@ kmra_defaults:
     chart_path: "{{ (project_root_dir, 'charts', 'kmra-apphsm') |  path_join }}"
     image_repo: "docker.io"
     image_name: "intel/apphsm"
-    image_tag: "v2.2.1"
+    # image_tag: ""
     init_image_repo: "docker.io"
     init_image_name: "busybox"
     init_image_tag: "1.35"
@@ -88,7 +89,7 @@ kmra_defaults:
     sgx_provisioning_api_url: "https://api.trustedservices.intel.com/sgx/certification/v3/"
     image_repo: "docker.io"
     image_name: "intel/pccs"
-    image_tag: "v2.2.1"
+    # image_tag: ""
     upstream_port: 8081
     hostname: "localhost"
     crt_subj:
@@ -104,7 +105,7 @@ kmra_defaults:
     chart_path: "{{ (project_root_dir, 'charts', 'kmra-ctk') | path_join }}"
     image_repo: "docker.io"
     image_name: "intel/ctk_loadkey"
-    image_tag: "v2.2.1"
+    # image_tag: ""
     init_image_repo: "docker.io"
     init_image_name: "busybox"
     init_image_tag: "1.35"
@@ -117,7 +118,7 @@ kmra_defaults:
     use_secure_cert: false
     nginx_image_repo: "docker.io"
     nginx_image_name: "intel/nginx"
-    nginx_image_tag: "v2.2.1"
+    # nginx_image_tag: ""
     nginx_demo_port: 8083
     nginx_demo_server_name: "127.0.0.1"
     pkcs11_proxy_tls_psk: "test:e9622c85018998993fcc16f5ce9c15e9"

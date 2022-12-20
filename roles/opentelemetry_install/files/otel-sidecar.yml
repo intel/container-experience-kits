@@ -1,0 +1,41 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-sidecar
+  namespace: monitoring
+spec:
+  mode: sidecar
+  volumeMounts:
+    - name: otel-gateway-collector-tls
+      mountPath: "/var/run/secrets/otel-gateway-collector-tls"
+  volumes:
+    - name: otel-gateway-collector-tls
+      secret:
+        secretName: otel-gateway-collector
+  config: |
+    receivers:
+      jaeger:
+        protocols:
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+
+    processors:
+
+    exporters:
+      logging:
+        loglevel: info
+
+      otlp:
+        endpoint: otel-gateway-collector-headless.monitoring.svc:4317
+        tls:
+          insecure: false
+          ca_file: "/var/run/secrets/otel-gateway-collector-tls/ca.crt"
+          cert_file: "/var/run/secrets/otel-gateway-collector-tls/tls.crt"
+          key_file: "/var/run/secrets/otel-gateway-collector-tls/tls.key"
+
+    service:
+      pipelines:
+        traces:
+          receivers: [jaeger]
+          processors: []
+          exporters: [logging,otlp]

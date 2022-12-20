@@ -15,7 +15,7 @@
 ##
 ---
 - name: clone UFT repository
-  git:
+  ansible.builtin.git:
     repo: "{{ uft_git }}"
     version: "{{ uft_git_ref }}"
     dest: "{{ uft_dir }}"
@@ -24,25 +24,30 @@
 - name: prepare UFT image
   block:
     - name: build UFT image
-      command: podman build -f images/Dockerfile.uft . -t {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }} --build-arg DPDK_TAG={{ dpdk_tag }}
+      ansible.builtin.command: >-
+        podman build -f images/Dockerfile.uft . -t
+        {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
+        --build-arg DPDK_TAG={{ dpdk_tag }}
       changed_when: true
       args:
         chdir: "{{ uft_dir }}"
 
     - name: push UFT image
-      command: podman push {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
+      ansible.builtin.command: podman push {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
       changed_when: true
   when: container_runtime != "docker"
 
 - name: prepare UFT image
   block:
     - name: build UFT image
-      command: docker build --build-arg DPDK_TAG={{ dpdk_tag }} -f images/Dockerfile.uft . -t {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
+      ansible.builtin.command: >-
+        docker build --build-arg DPDK_TAG={{ dpdk_tag }}
+        -f images/Dockerfile.uft . -t {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
       changed_when: true
       args:
         chdir: "{{ uft_dir }}"
 
     - name: push UFT image
-      command: docker push {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
+      ansible.builtin.command: docker push {{ registry_local_address }}/{{ uft_image }}:{{ uft_image_ver }}
       changed_when: true
   when: container_runtime == "docker"

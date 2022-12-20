@@ -14,7 +14,7 @@ apphsm:
     image:
       repo: "{{ kmra.apphsm.image_repo }}"
       name: "{{ kmra.apphsm.image_name }}"
-      tag: "{{ kmra.apphsm.image_tag }}"
+      tag: "{{ kmra.apphsm.image_tag | default(kmra.image_tag) }}"
       pullPolicy: IfNotPresent
     port: "{{ kmra.apphsm.upstream_port }}"
     hostname: "{{ kmra.apphsm.hostname | trim}}"

@@ -63,6 +63,18 @@
     - vfio-pci
     - uio
 
+- name: make loading of userspace modules persistent
+  ansible.builtin.lineinfile:
+    path: "/etc/modules-load.d/{{ item }}.conf"
+    line: "{{ item }}"
+    regexp: "^{{ item }}"
+    create: yes
+    mode: '0644'
+    state: present
+  with_items:
+    - vfio-pci
+    - uio
+
 - name: install dpdk-devbind.py in /usr/local/bin
   copy:
     remote_src: yes

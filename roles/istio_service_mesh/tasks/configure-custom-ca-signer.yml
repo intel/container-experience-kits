@@ -31,11 +31,11 @@
   command: "kubectl apply -f {{ (istio_service_mesh_charts_dir, 'tcs-cluster-issuer.yaml') | path_join }}"
   changed_when: true
 
-- name: wait for secret creation
+- name: wait for TCSIssuer secret creation
   pause:
     seconds: 30
 
-- name: read tls cert from the secret
+- name: read CA cert of the TCSIssuer
   shell: |-
     set -o pipefail && \
     kubectl get secret -n {{ istio_service_mesh.sgx_signer.tcs_namespace }} {{ istio_service_mesh.sgx_signer.name }}-secret -o jsonpath='{.data.tls\.crt}' | \
@@ -45,6 +45,11 @@
   changed_when: true
   register: tcs_issuer_secret
   no_log: true
+
+- name: create external CA secret for istio deployment
+  kubernetes.core.k8s:
+    state: present
+    template: "external-ca-cert.yaml.j2"
 
 - name: configure Istio custom profile template
   template:

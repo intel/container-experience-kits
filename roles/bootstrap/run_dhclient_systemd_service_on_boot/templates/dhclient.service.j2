@@ -1,0 +1,11 @@
+[Unit]
+Description=cek dhclient start on boot
+AssertPathExists=/usr/sbin/dhclient
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/dhclient -r {{ ansible_default_ipv4.interface }}
+ExecStart=/usr/sbin/dhclient {{ ansible_default_ipv4.interface }}
+
+[Install]
+WantedBy=multi-user.target

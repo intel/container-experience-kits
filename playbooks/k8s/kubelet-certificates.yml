@@ -141,7 +141,7 @@
 - hosts: k8s_cluster
   gather_facts: false
   tasks:
-  - name: restart kubelet on nodes
-    service:
-      name: kubelet
-      state: restarted
+    - name: restart kubelet on nodes
+      service:
+        name: kubelet
+        state: restarted

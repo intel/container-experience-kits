@@ -1,0 +1,65 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+    - name: remove elasticsearch chart
+      kubernetes.core.helm:
+        release_name: "{{ elasticsearch_release_name }}"
+        release_namespace: "{{ elasticsearch_namespace }}"
+        state: absent
+      failed_when: false
+
+    - name: remove elasticsearch PVC
+      command: kubectl delete pvc elasticsearch-master-elasticsearch-master-0 -n monitoring
+      changed_when: false
+      failed_when: false
+
+    - name: remove elasticsearch resources
+      command: kubectl delete -f ./
+      args:
+        chdir: "{{ (project_root_dir, 'elasticsearch') | path_join }}"
+      failed_when: false
+      changed_when: false
+
+    - name: get elasticsearch secrets
+      ansible.builtin.shell:
+        cmd: kubectl get secrets -n monitoring | grep 'elasticsearch' | awk '{ print $1 }'
+      args:
+        executable: /bin/bash
+      register: elasticsearch_secrets
+      failed_when: false
+      changed_when: false
+
+    - name: remove elasticsearch secrets
+      kubernetes.core.k8s:
+        kind: secret
+        name: "{{ item }}"
+        namespace: monitoring
+        state: absent
+      loop: "{{ elasticsearch_secrets.stdout_lines }}"
+      failed_when: false
+
+    - name: remove elasticsearch storage directory
+      ansible.builtin.file:
+        path: "/etc/elasticsearch"
+        state: absent
+      failed_when: false
+      delegate_to: "{{ groups['kube_node'][0] }}"
+
+  tags:
+    - elasticsearch
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]

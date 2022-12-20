@@ -1,10 +1,10 @@
 ---
 image:
-  repository: {{ nfd_image |d("k8s.gcr.io/nfd/node-feature-discovery") }}
+  repository: {{ nfd_image }}
   # This should be set to 'IfNotPresent' for released version
   pullPolicy: IfNotPresent
   # tag, if defined will use the given image tag, else Chart.AppVersion will be used
-  tag: {{ nfd_image_tag |d("v0.11.1") }}
+  tag: {{ nfd_image_tag }}
 imagePullSecrets: []
 
 gpu_dp:

@@ -11,7 +11,11 @@ configured_arch: {{ arch }}
 # The CPU models in unconfirmed_cpu_models list can be used for the CEK installation,
 # nevertheless they haven't been tested, so installation process may fail
 # or some features may not work properly.
+{%- if cloud_mode == 'on' %}
+unconfirmed_cpu_models: ['8259C', '8175M', '8259CL', '8171M', '2673'] # update list if required such as, unconfirmed_cpu_models: ['$0000%@'] or unconfirmed_cpu_models: ['$0000%@', '8490H']
+{%- else %}
 unconfirmed_cpu_models: [] # update list if required such as, unconfirmed_cpu_models: ['$0000%@'] or unconfirmed_cpu_models: ['$0000%@', '8490H']
+{%- endif %}
 
 # CEK project directory on all nodes
 project_root_dir: /opt/cek/
@@ -27,6 +31,12 @@ vm_enabled: {% if vm_mode == 'on' %}true{% else %}false{% endif %}
 vm_recreate_existing: false
 {%- endif %}
 
+{%- if cloud_mode == 'on' %}
+
+# on_cloud is used when deploying Cloud RA
+on_cloud: true
+{%- endif %}
+
 #POST DEPLOYMENT HOOKS: hooks_local dir will run .py, .sh and .yaml files (it will find inside this dir) on ansible host
 #hooks_remote dir will run .py and .sh scripts (it will find inside this dir) on kube_control_plane;
 post_deployment_hook_enabled: false
@@ -35,9 +45,9 @@ hooks_remote: /root/hooks/remote
 
 # Kubernetes version
 kubernetes: true
-kube_version: v1.24.3
+kube_version: v1.25.3
+#kube_version: v1.24.7
 #kube_version: v1.23.4
-#kube_version: v1.22.3
 # To deploy only container runtime set this variable as "true", and kubernetes as "false"
 # Set both variables as "false" to perform only host configuration
 container_runtime_only_deployment: false
@@ -48,6 +58,18 @@ audit_policy_custom_rules: ""
 # Kubernetes container runtime: docker, containerd, crio
 # When "crio" is set, please enable "crio_registries" section
 container_runtime: docker
+
+{% if intel_cpu_controlplane in ['on', 'optional'] %}
+# Resource management control plane component provides CPU Management funtionality within k8s,
+# enables fine-granular control of pinning, NUMA, ...
+intel_cpu_controlplane:
+  enabled: false
+  allocator: default            # ['default', 'numa', 'numa-namespace', 'numa-namespace-exclusive']
+  agent_namespace_prefix: test- # control plane agent namespace
+{% endif %}
+# The local volume static provisioner
+# https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner
+local_volume_provisioner_enabled: false
 
 # cAdvisor
 cadvisor_enabled: false
@@ -94,6 +116,11 @@ topology_manager_enabled: {% if topology_manager == 'on' %}true{% else %}false{%
 topology_manager_policy: "best-effort"
 {% endif %}
 
+{%- if cloud_mode == 'on' %}
+# OpenShift SRIOV Network Operator
+# Do not change the value of sriov_network_operator_enabled, as it will cause Cloud RA to fail
+sriov_network_operator_enabled: false
+{% else %}
 {%- if sriov_operator in ['on', 'optional'] %}
 # OpenShift SRIOV Network Operator
 sriov_network_operator_enabled: {% if sriov_operator == 'on' %}true{% else %}false{% endif %}
@@ -102,6 +129,7 @@ sriov_network_operator_enabled: {% if sriov_operator == 'on' %}true{% else %}fal
 # are not created before VM creation
 {%- endif %}
 sriov_network_operator_namespace: "sriov-network-operator"
+{%- endif %}
 {% endif %}
 
 {%- if sriov_network_dp in ['on', 'optional'] %}
@@ -164,7 +192,7 @@ intel_power_manager:
   power_nodes: []                                                         # list of nodes that should be considered during Operator work and profiles deployment
     # - node1
     # - node2
-  build_image_locally: false
+  build_image_locally: false                                      # build Intel Power Manager image locally
   deploy_example_pods: false                                      # deploy example Pods that will utilize special resources
   global_shared_profile_enabled: false                            # deploy custom Power Profile with user defined frequencies that can be applied to all power nodes
                                                                   # to make use of Shared Profile fill Shared Workload settings in host vars
@@ -172,11 +200,11 @@ intel_power_manager:
   min_shared_frequency: 1000                                      # min frequency that will be applied for cores by Shared Workload
 {% endif %}
 
-{%- if sgx_dp in ['on', 'optional'] and arch in ['icx'] or
+{%- if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr'] or
     gpu_dp in ['on', 'optional'] or
     qat_dp in ['on', 'optional'] or
     dsa_dp in ['on', 'optional'] and arch in ['spr'] or
-    dlb_dp in ['on', 'optional'] and arch in ['spr'] %} 
+    dlb_dp in ['on', 'optional'] and arch in ['spr'] %}
 # Intel Device Plugin Operator
 intel_dp_namespace: kube-system # namespace will be applied for SGX DP, GPU DP and QAT DP
 {% endif %}
@@ -199,6 +227,7 @@ dsa_shared_devices: 10 # number of containers that can share the same DSA device
 {%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
 # Intel Ethernet Operator for Intel E810 Series network interface cards
 intel_ethernet_operator_enabled: {% if intel_ethernet_operator.enabled == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}
+# Use together with flow_configuration set in hostvars
 intel_ethernet_operator_flow_config_enabled: {% if intel_ethernet_operator.flow_config == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}
 {% endif %}
 
@@ -250,7 +279,6 @@ openssl_engine_enabled: {% if openssl == 'on' and qat == 'on' %}true{% else %}fa
 {%- if gpu_dp in ['on', 'optional'] %}
 # Intel GPU Device Plugin for Kubernetes
 gpu_dp_enabled: {% if gpu == 'on' %}true{% else %}false{% endif %}
-gpu_dp_kernel_version: "5.4.48+"
 gpu_dp_verbosity: 4
 gpu_dp_build_image_locally: false
 
@@ -260,15 +288,9 @@ gpu_dp_shared_devices: 10  # number of containers (min. 1) that can share the sa
 gpu_dp_monitor_resources: false  # enable monitoring all GPU resources on the node
 gpu_dp_fractional_manager: false  # enable handling of fractional resources for multi-GPU nodes
 gpu_dp_prefered_allocation: 'none'  # available policies are: ['balanced', 'packed', 'none']
-
-# For systems with older kernel drivers or GPUs which do not support reading the GPU memory amount,
-# the gpu_dp_max_memory variable value is turned into a GPU memory amount label instead of a read value.
-# Please set carefully as this will be set as the maximum available memory of GPU on the nodes!
-# If GPU will be capable of manifest its size via the driver this variable will be ignored.
-gpu_dp_max_memory: "8 GB" # max memory per card - for Intel SG1 single card has 8 GB of memory
 {% endif %}
 
-{%- if sgx_dp in ['on', 'optional'] and arch in ['icx'] %}
+{%- if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr'] %}
 # Intel SGX Device Plugin for Kubernetes
 sgx_dp_enabled: {% if sgx_dp == 'on' %}true{% else %}false{% endif %}
 sgx_dp_verbosity: 4
@@ -320,14 +342,14 @@ kmra:
 # for all available options, please, refer to the 'roles/istio_service_mesh/vars/main.yml;
 # for the options dependencies and compatibility, please, refer to the official CEK documentation;
 istio_service_mesh:
-  enabled: {% if istio_service_mesh.enabled == 'on' %}true{% else %}false{% endif %}   # enable Service Mesh
+  enabled: {% if istio_service_mesh.enabled == 'on' %}true{% else %}false{% endif %}   # enable Istio Service Mesh
   # available profiles are: 'default', 'demo', 'minimal', 'external', 'empty', 'preview',
   # 'sgx-mtls', 'intel-qat-hw', 'intel-qat-sw', 'intel-cryptomb'
   # if custom profile needs to be deployed, please, place the file named '<profile_name>.yaml'
   # into the directory 'roles/istio_service_mesh/files/profiles/'
   # 'custom-ca' profile name is reserved for usage by sgx_signer if sgx_signer option is enabled
   # any profile name provided will be overwritten in this case
-  profile: {% if istio_service_mesh.sgx_signer == 'on' and arch in ['icx'] %}custom-ca{% else %}default{% endif %}
+  profile: {% if istio_service_mesh.sgx_signer == 'on' and arch in ['icx'] %}custom-ca{% else %}default{% endif %}  # Istio profile
   intel_preview:
     enabled: {% if istio_service_mesh.intel_preview == 'on' %}true{% else %}false{% endif %}  # enable intel istio preview
   {%- if istio_service_mesh.tcpip_bypass_ebpf in ['on', 'optional'] %}
@@ -345,11 +367,11 @@ istio_service_mesh:
   {%- endif %}
   {%- if istio_service_mesh.intel_preview in ['on', 'optional'] and arch not in ['spr']%}
   # uncomment following section and enable intel_preview if sgx-mtls profile is selected
-  {% if istio_service_mesh.intel_preview == 'optional' %}#{% endif %}set:
-  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.global.proxy.sgx.enabled=true
-  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.global.proxy.sgx.certExtensionValidationEnabled=true
-  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.gateways.sgx.enabled=true
-  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.gateways.sgx.certExtensionValidationEnabled=true
+  {% if istio_service_mesh.intel_preview == 'optional' %}#{% endif %}set:   # istio intel preview with sgx-mtls
+  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.global.proxy.sgx.enabled=true   # istio intel preview with sgx-mtls
+  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.global.proxy.sgx.certExtensionValidationEnabled=true   # istio intel preview with sgx-mtls
+  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.gateways.sgx.enabled=true   # istio intel preview with sgx-mtls
+  {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.gateways.sgx.certExtensionValidationEnabled=true   # istio intel preview with sgx-mtls
   {%- endif %}
 {% endif %}
 
@@ -358,7 +380,7 @@ istio_service_mesh:
 # https://linkerd.io/
 #
 linkerd_service_mesh:
-  enabled: {% if linkerd_service_mesh.enabled == 'on' %}true{% else %}false{% endif %}
+  enabled: {% if linkerd_service_mesh.enabled == 'on' %}true{% else %}false{% endif %}   # enable LinkerD Service Mesh
 {% endif %}
 
 {%- if tcs in ['on', 'optional'] and
@@ -367,16 +389,16 @@ linkerd_service_mesh:
 # https://github.com/intel/trusted-certificate-issuer
 tcs:
   enabled: {% if tcs == 'on' %}true{% else %}false{% endif %}   # enable Trusted Certificate Issuer
-  build_image_locally: false
+  build_image_locally: false   # build Trusted Certificate Issuer image locally
 {% endif %}
 
-{%- if tca in ['on', 'optional'] and
+{%- if tac in ['on', 'optional'] and
     arch in ['icx'] %}
-# Trusted Certificate Attestation controller deployment
-# https://github.com/intel/trusted-certificate-attestation
-tca:
-  enabled: {% if tca == 'on' %}true{% else %}false{% endif %}   # enable Trusted Certificate Attestation Controller
-  build_image_locally: false
+# Trusted Attestation Controller deployment
+# https://github.com/intel/trusted-attestation-controller
+tac:
+  enabled: {% if tac == 'on' %}true{% else %}false{% endif %}   # enable Trusted Attestation Controller
+  build_image_locally: false   # build Trusted Attestation Controller image locally
 {% endif %}
 
 {%- if tas in ['on', 'optional'] or gas in ['on', 'optional'] %}
@@ -398,7 +420,11 @@ gas_build_image_locally: false
 {%- endif %}
 {%- endif %}
 
-# Telemetry configuration. Collectd and Telegraf variables are mutually exclusive.
+# Telemetry configuration. There are two options, Telegraf and Collectd, which are mutually exclusive.
+# Default option is Telegraf.
+# If Telegraf is enabled then the following parts of the stack need to be enabled as well: elasticsearch,
+# jaeger, opentelemetry, kibana. Collectd has to be disabled in that case.
+# If Collectd is enabled then all Telegraf stack components need to be disabled.
 {%- if telemetry.prometheus in  ['on', 'optional'] %}
 prometheus_operator: {% if telemetry.prometheus == 'on'%}true{% else %}false{% endif %}
 {%- endif %}
@@ -408,15 +434,20 @@ collectd_enabled: {% if telemetry.collectd == 'on'%}true{% else %}false{% endif 
 {%- if telemetry.telegraf in ['on', 'optional'] %}
 telegraf_enabled: {% if telemetry.telegraf == 'on'%}true{% else %}false{% endif %}
 {%- endif %}
+{%- if telemetry.jaeger in  ['on', 'optional'] %}
+jaeger_operator: {% if telemetry.jaeger == 'on'%}true{% else %}false{% endif %}
+{%- endif %}
 {%- if telemetry.opentelemetry in ['on', 'optional'] %}
 opentelemetry_enabled: {% if telemetry.opentelemetry == 'on'%}true{% else %}false{% endif %}
 {%- endif %}
+{%- if telemetry.elasticsearch in ['on', 'optional'] %}
+elasticsearch_enabled: {% if telemetry.elasticsearch == 'on'%}true{% else %}false{% endif %}
+{%- endif %}
+{%- if telemetry.kibana in ['on', 'optional'] %}
+kibana_enabled: {% if telemetry.kibana == 'on'%}true{% else %}false{% endif %}
+{%- endif %}
 collectd_scrap_interval: 30
 telegraf_scrap_interval: 30
-
-{%- if jaeger in  ['on', 'optional'] %}
-jaeger_operator: {% if jaeger == 'on'%}true{% else %}false{% endif %}
-{%- endif %}
 
 {% if sriov_network_dp in ["on", "optional"] or network_userspace in ["on", "optional"] -%}
 # Create reference net-attach-def objects
@@ -442,20 +473,23 @@ firewall_enabled: {% if firewall == "on" %}true{% else %}false{% endif %}
 dns_disable_stub_listener: true
 
 # Remove the block between ansible markers set by kubespray in dhclient & hosts files to avoid DNS & LDAP issues (connection loss) after K8s setup after reboot
-remove_kubespray_host_dns_settings: true
+remove_kubespray_host_dns_settings: {% if remove_kubespray_host_dns_settings == "on" %}true{% else %}false{% endif %}
 
 # Kubernetes cluster name, also will be used as DNS domain
 cluster_name: cluster.local
 
 ## Kubespray variables ##
+
+# Improve deployment stability by increased wait between retries of failed ops like pushing/downloading
+retry_stagger: 20
+
 {% if cert_manager in ['on', 'optional']%}
 # Cert manager deployment
 cert_manager_enabled: {% if cert_manager == "on"%}true{% else %}false{% endif%}
 {%- endif %}
-# Supported network plugins(calico, flannel) and kube-proxy configuration
+# Supported network plugins(calico, flannel, cilium) and kube-proxy configuration
 kube_controller_manager_bind_address: 127.0.0.1
 kube_proxy_metrics_bind_address: 127.0.0.1
-# supported network plugins(calico, flannel) and kube-proxy configuration
 kube_network_plugin: calico
 # Supported calico backend: [vxlan, bird]
 {%- if vm_mode in ['on'] %}
@@ -535,7 +569,9 @@ minio_tenant_volume_size: 5
 minio_deploy_test_mode: true                          # true (Test Mode) - use a file as loop device when creating storage
                                                       # called "virtual block device" which is useful for test or automation purpose
                                                       # false (Performance Mode) - use an actual NVME or SSD device when creating storage
-minio_build_image_locally: true 
+minio_build_image_locally: true                       # build custom MinIO image locally
+minio_awsclient_pods_enabled: true                    # run AWS client pods for MinIO Tenant service
+minio_ingress_enabled: false                          # enable MinIO tenant ingress
 {%- endif %}
 {%- if cndp in ['on', 'optional'] or cndp_dp in ['on', 'optional'] %}
 

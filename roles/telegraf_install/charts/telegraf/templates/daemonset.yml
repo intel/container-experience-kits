@@ -73,6 +73,7 @@ spec:
             - name: hostkdebug
               mountPath: /sys/kernel/debug
               readOnly: true
+            {{- if not .Values.on_cloud }}
             - name: hostresctrl
             {{- if .Values.on_vms }}
               mountPath: /root/resctrl
@@ -80,6 +81,7 @@ spec:
               mountPath: /sys/fs/resctrl
             {{- end }}
               readOnly: false
+            {{- end }}
             - name: hostudev
               mountPath: /run/udev
               readOnly: true
@@ -89,11 +91,7 @@ spec:
               readOnly: true
             {{- end }}
         - name: rbac-proxy
-          {{- if .Values.rbacproxy.image.sha256 }}
-          image: "{{ .Values.rbacproxy.image.repository }}@sha256:{{ .Values.rbacproxy.image.sha256 }}"
-          {{- else }}
           image: "{{ .Values.rbacproxy.image.repository }}:{{ .Values.rbacproxy.image.tag }}"
-          {{- end }}
           imagePullPolicy: "{{ .Values.rbacproxy.image.pullPolicy }}"
           volumeMounts:
             - name: tls
@@ -105,7 +103,7 @@ spec:
           args:
             - "--tls-cert-file=/etc/ssl/rbac-proxy/tls.crt"
             - "--tls-private-key-file=/etc/ssl/rbac-proxy/tls.key"
-            - "--tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305"
+            - "--tls-cipher-suites={{ .Values.rbacproxy.image.tls_ciphers }}"
             - "--secure-listen-address=0.0.0.0:{{ .Values.prometheusMetricsEndpointPort }}"
             - "--upstream=http://127.0.0.1:9272/"
             - "--v={{ .Values.rbacproxy.logLevel }}"
@@ -145,12 +143,14 @@ spec:
         - name: hostkdebug
           hostPath:
             path: /sys/kernel/debug
+        {{- if not .Values.on_cloud }}
         - name: hostresctrl
           hostPath:
         {{- if .Values.on_vms }}
             path: /root/resctrl
         {{- else }}
             path: /sys/fs/resctrl
+        {{- end }}
         {{- end }}
         - name: hostudev
           hostPath:

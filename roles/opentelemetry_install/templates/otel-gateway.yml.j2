@@ -1,0 +1,78 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-gateway
+  namespace: monitoring
+spec:
+  mode: deployment
+  serviceAccount: otel-gateway
+  ports:
+    - name: prometheus
+      port: 9778
+      targetPort: prometheus
+      protocol: TCP
+  volumeMounts:
+    - name: otel-gateway-collector-tls
+      mountPath: "/var/run/secrets/otel-gateway-collector-tls"
+    - name: otel-elasticsearch-tls
+      mountPath: "/var/run/secrets/otel-elasticsearch-tls"
+      readOnly: true
+  volumes:
+    - name: otel-gateway-collector-tls
+      secret:
+        secretName: otel-gateway-collector
+    - name: otel-elasticsearch-tls
+      secret:
+        secretName: otel-elasticsearch-tls
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            tls:
+              cert_file: /var/run/secrets/otel-gateway-collector-tls/tls.crt
+              key_file: /var/run/secrets/otel-gateway-collector-tls/tls.key
+
+    processors:
+      batch:
+        send_batch_size: 10000
+        timeout: 5s
+
+    exporters:
+      logging:
+        loglevel: info
+
+      elasticsearch/log:
+        endpoints: [https://elasticsearch-master.monitoring.svc:9200]
+        tls:
+          cert_file: /var/run/secrets/otel-elasticsearch-tls/tls.crt
+          key_file: /var/run/secrets/otel-elasticsearch-tls/tls.key
+          ca_file: /var/run/secrets/otel-elasticsearch-tls/ca.crt
+        logs_index: telegraf-logs
+        user: elastic
+        password: {{ es_otel_credentials.stdout }}
+
+      jaeger:
+        endpoint: jaeger-collector-headless.monitoring.svc:14250
+        tls:
+          insecure: true
+
+      prometheus:
+        endpoint: "0.0.0.0:9778"
+        send_timestamps: true
+        metric_expiration: 180m
+
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors: []
+          exporters: [logging,elasticsearch/log]
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [logging,jaeger]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [logging,prometheus]

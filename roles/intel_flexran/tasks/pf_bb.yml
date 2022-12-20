@@ -75,7 +75,7 @@
 - name: clone inih repository
   git:
     repo: "https://github.com/benhoyt/inih"
-    version: "r44"
+    version: "{{ inih_version }}"
     dest: "{{ (intel_flexran_dir, 'source/inih') | path_join }}"
     force: yes
 
@@ -94,7 +94,7 @@
 - name: clone pf-bb-config repository
   git:
     repo: "https://github.com/intel/pf-bb-config.git"
-    version: "v22.03" # may need to lock on tag or commit
+    version: "{{ intel_pfbb_version }}"
     dest: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
     force: yes
 

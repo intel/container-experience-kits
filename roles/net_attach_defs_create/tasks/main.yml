@@ -14,19 +14,46 @@
 ##   limitations under the License.
 ##
 ---
+- name: create Userspace CNI net-attach-def directory
+  file:
+    path: "{{ userspace_cni_dir }}"
+    state: directory
+    mode: "644"
+  when:
+    - example_net_attach_defs is defined
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - (example_net_attach_defs.userspace_ovs_dpdk | default(false) | bool) or
+      (example_net_attach_defs.userspace_vpp | default(false) | bool)
+
 - name: create Userspace CNI net-attach-def object to be used with OVS-DPDK
-  k8s:
-    state: present
-    definition: "{{ lookup('file', '../templates/userspace-ovs.yaml') | from_yaml }}"
+  block:
+    - name: create manifest from template
+      template:
+        src: "userspace-ovs.j2"
+        dest: "{{ userspace_cni_dir }}/userspace-ovs.yaml"
+        mode: '0664'
+
+    - name: apply manifest for OVS-DPDK net-attach-def
+      k8s:
+        state: present
+        src: "{{ userspace_cni_dir }}/userspace-ovs.yaml"
   when:
     - example_net_attach_defs is defined
     - example_net_attach_defs.userspace_ovs_dpdk | default(false) | bool
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create Userspace CNI net-attach-def object to be used with VPP
-  k8s:
-    state: present
-    definition: "{{ lookup('file', '../templates/userspace-vpp.yaml') | from_yaml }}"
+  block:
+    - name: create manifest from template
+      template:
+        src: "userspace-vpp.j2"
+        dest: "{{ userspace_cni_dir }}/userspace-vpp.yaml"
+        mode: '0664'
+
+    - name: apply manifest for VPP net-attach-def
+      k8s:
+        state: present
+        src: "{{ userspace_cni_dir }}/userspace-vpp.yaml"
   when:
     - example_net_attach_defs is defined
     - example_net_attach_defs.userspace_vpp | default(false) | bool
@@ -42,8 +69,6 @@
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create net-attach-def object to be used with CNDP device plugin
-  vars:
-    cndp_k8s_manifest_dir: "{{ (project_root_dir, 'cndp_k8s_manifest') |  path_join }}"
   block:
     - name: create directory for CNDP k8s manifest files
       file:

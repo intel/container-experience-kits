@@ -14,10 +14,15 @@
 ##   limitations under the License.
 ##
 ---
-intel_gpu_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_gpu_dp_git_ref: "v0.24.0"
-intel_gpu_dp_version: "0.24.0"
-intel_gpu_dp_dir: "{{ (project_root_dir, 'intel-gpu-dp') | path_join }}"
+gpu_models:
+  "4907": DG1
+  "56C0": ATSM
+  "56C1": ATSM
+
+gpu_pciids: "{{ gpu_models.keys()|list }}"
+
+intel_gpu_dp_image: "docker.io/intel/intel-gpu-plugin:{{ intel_dp_version }}"
+intel_gpu_dp_init_image: "docker.io/intel/intel-gpu-initcontainer:{{ intel_dp_version }}"
 
 gpu_dp_shared_devices: 10
 gpu_dp_verbosity: 4

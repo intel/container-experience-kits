@@ -170,13 +170,7 @@ telegraf_helm_values_file: "{{ telegraf_chart_path }}/values.yaml"
 
 telegraf_scrap_interval: 30
 telegraf_prometheus_metrics_endpoint_port: 9273
-telegraf_prometheus_service_monitor: yes
 
 telegraf_image_name: "docker.io/intel/observability-telegraf"
-telegraf_image_tag: "1.1"
+telegraf_image_tag: "1.2.0"
 telegraf_image_pullpolicy: IfNotPresent
-
-rbac_proxy_image_name: "quay.io/brancz/kube-rbac-proxy"
-rbac_proxy_image_tag: "v0.11.0"
-rbac_proxy_image_hash: ""
-rbac_proxy_image_pullpolicy: IfNotPresent

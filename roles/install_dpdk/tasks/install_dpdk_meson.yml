@@ -26,7 +26,7 @@
         name:
           - selinux
           - meson>=0.53.2,<0.60.0
-          - ninja>=1.10.0
+          - ninja>=1.10.0,<1.11.1 # for RHEL 8.6RT: DPDK [install_dpdk : meson build for ease...] ERROR: Could not detect Ninja v1.8.2 or newer
           - pyelftools>=0.26
         state: present
       register: pip_result
@@ -60,7 +60,7 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
 
-- name: Ensure dpdk libs is in loader search path on RHEL/CentOS
+- name: Ensure dpdk libs is in loader search path on RHEL / Rocky
   copy:
     dest: "/etc/ld.so.conf.d/libdpdk-x86_64.conf"
     content: "/usr/local/lib64/"
@@ -84,6 +84,18 @@
 - name: load userspace modules
   modprobe:
     name: "{{ item }}"
+    state: present
+  with_items:
+    - vfio-pci
+    - uio
+
+- name: make loading of userspace modules persistent
+  ansible.builtin.lineinfile:
+    path: "/etc/modules-load.d/{{ item }}.conf"
+    line: "{{ item }}"
+    regexp: "^{{ item }}"
+    create: yes
+    mode: '0644'
     state: present
   with_items:
     - vfio-pci

@@ -1,0 +1,14 @@
+ansible_host_ip: xxx.xxx.xxx.xxx
+cloud_settings:
+  provider: azure
+  region: "West Europe"
+controller_ips:
+  - 127.0.0.1
+exec_containers: []
+replicate_from_container_registry: https://registry.hub.docker.com
+replicate_to_container_registry: xxxxx
+ssh_key: ../deployment/ssh/id_rsa
+worker_ips:
+  - xxx.xxx.xxx.xxx
+  - xxx.xxx.xxx.xxx
+  - xxx.xxx.xxx.xxx

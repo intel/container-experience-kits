@@ -75,6 +75,7 @@ resource "aws_security_group" "default" {
     to_port          = 22
     protocol         = "tcp"
     cidr_blocks      = [{% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}]
+    self             = true
   }
 
   ingress {
@@ -83,6 +84,7 @@ resource "aws_security_group" "default" {
     to_port          = 0
     protocol         = "icmp"
     cidr_blocks      = [{% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}]
+    self             = true
   }
 
   egress {
@@ -113,4 +115,8 @@ resource "aws_key_pair" "default" {
       JobId = "{{ job_id }}"
     }
   )
+}
+
+output "cloud_provider" {
+  value = "aws"
 }

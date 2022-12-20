@@ -14,17 +14,22 @@
 ##   limitations under the License.
 ##
 ---
-- name: clone Intel Smart Edge Open (SEO) FEC Operator
+- name: clone Intel Smart Edge Open (SEO) SRIOV-FEC Operator
   git:
     repo: "{{ intel_sriov_fec_operator_git }}"
     version: "{{ intel_sriov_fec_operator_git_ref }}"
     dest: "{{ intel_sriov_fec_operator_dir }}"
     force: yes
 
-- name: build Intel Smart Edge Open (SEO) FEC Operator
+- name: get GOPATH
+  command: go env GOPATH
+  register: gopath
+  changed_when: false
+
+- name: build Intel Smart Edge Open (SEO) SRIOV-FEC Operator
   make:
     target: "{{ item }}"
-    chdir: "{{ (intel_sriov_fec_operator_dir, 'sriov-fec') | path_join }}"
+    chdir: "{{ intel_sriov_fec_operator_dir }}"
     params:
       IMAGE_REGISTRY: "{{ registry_local_address }}"
       CONTAINER_TOOL: "{{ intel_sriov_fec_operator_tool }}"
@@ -35,13 +40,13 @@
     - build_all
     - build_index
 
-- name: create FEC Operator files directory on controller
+- name: create SRIOV-FEC Operator files directory on controller
   file:
     path: "{{ intel_sriov_fec_operator_files_dir }}"
     state: directory
     mode: '0644'
 
-- name: generate FEC Operator CR files
+- name: generate SRIOV-FEC Operator CR files
   template:
     src: "{{ item.src }}"
     dest: "{{ (intel_sriov_fec_operator_files_dir, item.dst) | path_join }}"
@@ -49,11 +54,12 @@
     mode: preserve
   loop:
     - {src: 'acc100-cr.yaml.j2', dst: 'acc100-cr.yaml'}
+    - {src: 'acc200-cr.yaml.j2', dst: 'acc200-cr.yaml'}
     - {src: 'catalog.yml.j2', dst: 'catalog.yml'}
     - {src: 'operator-group.yml.j2', dst: 'operator-group.yml'}
     - {src: 'subscription.yml.j2', dst: 'subscription.yml'}
 
-- name: create FEC Operator namespace
+- name: create SRIOV-FEC Operator namespace
   k8s:
     name: "{{ intel_sriov_fec_operator_namespace }}"
     kind: Namespace

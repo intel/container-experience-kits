@@ -1,0 +1,66 @@
+{{- with .Values.intel_cpu_controlplane }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ctlplane-daemonset
+  namespace: {{ dig "namespace" "ctlplane" . }}
+spec:
+  selector:
+    matchLabels:
+      app: ctlplane-daemonset
+  template:
+    metadata:
+      labels:
+        app: ctlplane-daemonset
+    spec:
+      initContainers:
+        - name: delete-old-state
+          image: busybox:1.28
+          command: ['rm', '-f', '/daemonstate/daemon.state']
+          volumeMounts:
+          - name: state
+            mountPath: /daemonstate
+      containers:
+        - name: ctlplane-daemonset
+          image: {{ dig "image" "repository" "intel.io/intel_cpu_controlplane" . }}:{{ dig "image" "tag" "v0.1" . }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 31000
+          securityContext:
+            privileged: true
+          args: ["-cpath", "/cgroup", "-spath", "/daemonstate/daemon.state", "-runtime", {{ dig "runtime" "containerd" .| quote }}, "-allocator", {{ dig "allocator" "default" . | quote }}]
+          volumeMounts:
+          - name: host
+            mountPath: /cgroup
+          - name: state
+            mountPath: /daemonstate
+          readinessProbe:
+            tcpSocket:
+              port: 31000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 31000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+        - name: ctlplane-agent
+          image: {{ dig "image" "repository" "intel.io/intel_cpu_controlplane" . }}:{{ dig "image" "tag" "v0.1" . }}
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          args: ["-a", "-namespace-prefix", {{ dig "agent_namespace_prefix" "" .| quote }}]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+      volumes:
+        - name: host
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: state
+          hostPath:
+            path: /usr/local/daemonstate/
+{{- end }}

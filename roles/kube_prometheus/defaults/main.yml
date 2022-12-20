@@ -13,14 +13,17 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-collectd_scrap_interval: 30
+kube_prometheus_stack_directory: "{{ (project_root_dir, 'kube-prometheus-stack') | path_join }}"
+kube_prometheus_stack_namespace: monitoring
 
-tas_enable_demo_policy: false
-tas_enabled: false
+prometheus_stack_version: 2.39.1
+grafana_version: 9.1.8
+node_exporter_version: 1.5.0
 
-prometheus_srv_expose: false
+tas_demo_policy_dir: "{{ ('/tmp', 'node-metrics') | path_join }}"
 
 # expose prometheus server API
+prometheus_srv_expose: false
 prometheus_srv_proxy_port: 9443
 prometheus_srv_node_port: 30443
 prometheus_srv_address: 127.0.0.1
@@ -32,9 +35,3 @@ prometheus_srv_nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
 prometheus_srv_location_exposed: "/prometheus/"
 prometheus_srv_user: prometheus
 prometheus_srv_password: prometheus
-
-install_dependencies:
-  Debian:
-    - apache2-utils
-  RedHat:
-    - httpd-tools

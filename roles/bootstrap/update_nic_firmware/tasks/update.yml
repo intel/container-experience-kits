@@ -41,13 +41,13 @@
     # Only major.minor "mm" part are relevant because e.g. on E800 series FW shows as 2.00 on C0 (rev 02) and 2.02 on B0 (rev 01)
     - name: set fw_current_mm
       set_fact:
-        fw_current_mm: "{{ fw_short_version[0:3] }}"
+        fw_current_mm: "{{ fw_short_version }}"
     - name: set fw_min_req
       set_fact:
         fw_min_req: "{{ nvmupdate[nic_module].required_fw_version }}"
     - name: set fw_min_mm
       set_fact:
-        fw_min_mm: "{{ fw_min_req[0:3] }}"
+        fw_min_mm: "{{ fw_min_req }}"
     - debug:
         msg: "On {{ interface_name }} (driver {{ nic_module }}) the firmware version is {{ fw_full_version }}"
 

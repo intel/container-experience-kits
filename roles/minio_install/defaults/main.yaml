@@ -43,3 +43,8 @@ minio_log_postgres_image_download_url: "library/postgres:13"  # MinIO Log DB ima
 minio_log_postgres_local_image_name: "postgres"               # MinIO Log DB local build image name
 minio_log_postgres_local_image_tag: "minio"                   # MinIO Log DB local build tag
 minio_log_huge_pages: "off"                                   # MinIO Log DB huge_pages settings: try, on, and off
+
+aws_local_build_dir: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'awscli') | path_join }}"
+aws_build_image_locally: true
+aws_local_build_name: awscli
+aws_image_tag: test

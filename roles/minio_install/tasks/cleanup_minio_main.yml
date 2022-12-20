@@ -15,6 +15,11 @@
 ##
 ---
 - block:
+  - name: cleanup MinIO AWS client pods
+    include_role:
+      name: minio_install
+      tasks_from: cleanup_minio_awsclient
+
   - name: cleanup MinIO operator/console helmchart
     include_role:
       name: minio_install

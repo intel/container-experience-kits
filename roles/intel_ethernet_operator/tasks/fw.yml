@@ -17,23 +17,23 @@
 - name: firmware update
   block:
     - name: populate Intel Ethernet Operator yaml files and push to controller node
-      template:
+      ansible.builtin.template:
         src: "firmware-update.yml.j2"
         dest: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: apply FW update on {{ node_name }}
-      k8s:
+      kubernetes.core.k8s:
         state: present
         src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
 
     - name: wait for FW update
-      pause:
+      ansible.builtin.pause:
         minutes: 2
 
     - name: check status of FW update
-      command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
+      ansible.builtin.command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
       register: fw_update_info
       until: "'InProgress' not in fw_update_info.stdout"
       retries: 60
@@ -44,14 +44,14 @@
     - name: check node after reboot
       block:
         - name: wait for node after reboot
-          wait_for:
+          ansible.builtin.wait_for:
             host: "{{ hostvars[node_name]['ansible_host'] }}"
             port: 22
             connect_timeout: 5
             timeout: 1200
 
         - name: check if node is ready
-          command: "kubectl get nodes {{ hostvars[node_name]['ansible_hostname'] }}"
+          ansible.builtin.command: "kubectl get nodes {{ hostvars[node_name]['ansible_hostname'] }}"
           register: fw_node_readiness
           retries: 30
           delay: 10
@@ -61,11 +61,11 @@
           changed_when: false
 
         - name: wait for pods to be up and running
-          pause:
+          ansible.builtin.pause:
             minutes: 1
 
         - name: check if all pods are running
-          shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
+          ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
           args:
             executable: /bin/bash
           register: fw_pods_status
@@ -80,7 +80,7 @@
           changed_when: false
 
         - name: check if all containers are running
-          shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
+          ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
           args:
             executable: /bin/bash
           register: fw_containers_readiness
@@ -90,24 +90,24 @@
           changed_when: false
 
         - name: check status of FW update
-          command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
+          ansible.builtin.command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
           register: after_fw_update_info
           until:
             - "'PostUpdateReboot' not in after_fw_update_info.stdout"
             - "'InProgress' not in after_fw_update_info.stdout"
           retries: 30
           delay: 10
-          failed_when: "'Failed' in after_fw_update_info.stdout or 'PostUpdateReboot' in after_fw_update_info.stdout or 'InProgress' in after_fw_update_info.stdout" # noqa yaml[line-length]
+          failed_when: "'Failed' in after_fw_update_info.stdout or 'PostUpdateReboot' in after_fw_update_info.stdout or 'InProgress' in after_fw_update_info.stdout" # noqa line-length
           changed_when: false
       when: "'PostUpdateReboot' in fw_update_info.stdout"
 
     - name: remove FW CR after update
-      k8s:
+      kubernetes.core.k8s:
         state: absent
         src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
 
     - name: remove EthernetNodeConfig after update
-      command: kubectl delete enc {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}
+      ansible.builtin.command: kubectl delete enc {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}
       changed_when: true
 
   when: hostvars[node_name]['intel_ethernet_operator']['fw_update'] |d(false)

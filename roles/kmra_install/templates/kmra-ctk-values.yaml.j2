@@ -14,7 +14,7 @@ ctk_loadkey:
     image:
       repo: "{{ kmra.ctk_loadkey_demo.image_repo }}"
       name: "{{ kmra.ctk_loadkey_demo.image_name }}"
-      tag: "{{ kmra.ctk_loadkey_demo.image_tag }}"
+      tag: "{{ kmra.ctk_loadkey_demo.image_tag | default(kmra.image_tag) }}"
       pullPolicy: IfNotPresent
   init:
     image:
@@ -26,7 +26,7 @@ ctk_loadkey:
     image:
       repo: "{{ kmra.ctk_loadkey_demo.nginx_image_repo }}"
       name: "{{ kmra.ctk_loadkey_demo.nginx_image_name }}"
-      tag: "{{ kmra.ctk_loadkey_demo.nginx_image_tag }}"
+      tag: "{{ kmra.ctk_loadkey_demo.nginx_image_tag | default(kmra.image_tag) }}"
       pullPolicy: IfNotPresent
     port:  "{{ kmra.ctk_loadkey_demo.nginx_demo_port }}"
     hostname: "{{ kmra.ctk_loadkey_demo.nginx_demo_server_name | default('0.0.0.0')}}"

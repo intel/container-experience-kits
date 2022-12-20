@@ -15,7 +15,7 @@
 ##
 ---
 # probe CPU
-- debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa yaml[line-length]
+- debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa line-length
 
 - name: include Intel FlexRAN role vars
   include_vars: ../../intel_flexran/defaults/main.yml
@@ -51,7 +51,7 @@
 
 - name: set Intel FlexRAN kernel flags for Host-16c-single
   set_fact:
-    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=30 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=1-15,17-31 irqaffinity=0,16 isolcpus=managed_irq,domain,1-15,17-31 kthread_cpus=0,16 nohz_full=1-15,17-31 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa yaml[line-length]
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=30 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=1-15,17-31 irqaffinity=0,16 isolcpus=managed_irq,domain,1-15,17-31 kthread_cpus=0,16 nohz_full=1-15,17-31 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa line-length
     intel_flexran_isol_cores: "1-15,17-31"
     intel_flexran_cpu_supported: true
   when:
@@ -60,7 +60,7 @@
 
 - name: set Intel FlexRAN kernel flags for Host-20c-single
   set_fact:
-    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=40 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=1-19,21-39 irqaffinity=0,20 isolcpus=managed_irq,domain,1-19,21-39 kthread_cpus=0,20 nohz_full=1-19,21-39 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa yaml[line-length]
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=40 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=1-19,21-39 irqaffinity=0,20 isolcpus=managed_irq,domain,1-19,21-39 kthread_cpus=0,20 nohz_full=1-19,21-39 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa line-length
     intel_flexran_isol_cores: "1-19,21-39"
     intel_flexran_cpu_supported: true
   when:
@@ -69,7 +69,7 @@
 
 - name: set Intel FlexRAN kernel flags for Host-32c-single
   set_fact:
-    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-31,36-63 irqaffinity=0-3,32-35 isolcpus=managed_irq,domain,4-31,36-63 kthread_cpus=0-3,32-35 nohz_full=4-31,36-63 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa yaml[line-length]
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-31,36-63 irqaffinity=0-3,32-35 isolcpus=managed_irq,domain,4-31,36-63 kthread_cpus=0-3,32-35 nohz_full=4-31,36-63 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa line-length
     intel_flexran_isol_cores: "4-31,36-63"
     intel_flexran_cpu_supported: true
   when:
@@ -78,7 +78,7 @@
 
 - name: set Intel FlexRAN kernel flags for Host-32c-dual
   set_fact:
-    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-59,68-123 irqaffinity=0-3,60-63,64-67,124-127 isolcpus=managed_irq,domain,4-59,68-123 kthread_cpus=0-3,60-63,64-67,124-127 nohz_full=4-59,68-123 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa yaml[line-length]
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-59,68-123 irqaffinity=0-3,60-63,64-67,124-127 isolcpus=managed_irq,domain,4-59,68-123 kthread_cpus=0-3,60-63,64-67,124-127 nohz_full=4-59,68-123 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa line-length
     intel_flexran_isol_cores: "4-59,68-123"
     intel_flexran_cpu_supported: true
   when:
@@ -87,7 +87,7 @@
 
 - name: set Intel FlexRAN kernel flags for Host-52c-dual
   set_fact:
-    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-99,108-203 irqaffinity=0-3,100-103,104-107,204-207 isolcpus=managed_irq,domain,4-99,108-203 kthread_cpus=0-3,100-103,104-107,204-207 nohz_full=4-99,108-203 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa yaml[line-length]
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-99,108-203 irqaffinity=0-3,100-103,104-107,204-207 isolcpus=managed_irq,domain,4-99,108-203 kthread_cpus=0-3,100-103,104-107,204-207 nohz_full=4-99,108-203 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa line-length
     intel_flexran_isol_cores: "4-99,108-203"
     intel_flexran_cpu_supported: true
   when:
@@ -96,7 +96,7 @@
 
 - name: set Intel FlexRAN kernel flags for Host-56c-dual
   set_fact:
-    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-107,116-219 irqaffinity=0-3,108-111,112-115,220-223 isolcpus=managed_irq,domain,4-107,116-219 kthread_cpus=0-3,108-111,112-115,220-223 nohz_full=4-107,116-219 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa yaml[line-length]
+    intel_flexran_cmdline: 'GRUB_CMDLINE_LINUX="default_hugepagesz=1G hugepages=60 hugepagesz=1G nmi_watchdog=0 softlockup_panic=0 intel_iommu=on iommu=pt rcu_nocbs=4-107,116-219 irqaffinity=0-3,108-111,112-115,220-223 isolcpus=managed_irq,domain,4-107,116-219 kthread_cpus=0-3,108-111,112-115,220-223 nohz_full=4-107,116-219 crashkernel=auto enforcing=0 quiet rcu_nocb_poll rhgb selinux=0 mce=off audit=0 pci=realloc pci=assign-busses rdt=l3cat skew_tick=1 nosoftlockup nohz=on" {{ intel_flexran_marker }}' # noqa line-length
     intel_flexran_isol_cores: "4-99,108-203"
     intel_flexran_cpu_supported: true
   when:

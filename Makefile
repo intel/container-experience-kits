@@ -7,7 +7,7 @@ PLAYBOOK_NAMES = access basic full_nfv on_prem regional_dc remote_fp storage bui
 # set default target available with simple 'make' command
 .DEFAULT_GOAL := examples
 
-.PHONY: shellcheck ansible-lint all-profiles clean clean-playbooks help k8s-profiles vm-profiles
+.PHONY: shellcheck ansible-lint all-profiles clean clean-playbooks help k8s-profiles vm-profiles cloud-profiles
 
 shellcheck:
 	find $(CEK_DIRECTORIES_WITH_SHELL_FILES) -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.ksh' -o -name '*.bashrc' -o -name '*.bash_profile' -o -name '*.bash_login' -o -name '*.bash_logout' \) \
@@ -23,12 +23,12 @@ endif
 
 # make sure PROFILE is defined for mode-related targets
 ifndef PROFILE
-ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),k8s-profile vm-profile))
+ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),k8s-profile vm-profile cloud-profile))
 $(error please specify which profile should be generated, e.g. PROFILE=basic. Run 'make help' for more information.)
 endif
 endif
 
-examples: k8s-profile vm-profile
+examples: k8s-profile vm-profile cloud-profile
 
 k8s-profile: clean-playbooks
 	python3 generate/render.py \
@@ -51,6 +51,18 @@ vm-profile: clean-playbooks
 	--inventory generate/profiles_templates/vm/inventory.j2 \
 	--output examples/vm \
 	--mode vm \
+	-p $(PROFILE) \
+	-a $(ARCH) \
+	-n ${NIC}
+
+cloud-profile: clean-playbooks
+	python3 generate/render.py \
+	--config generate/profiles_templates/cloud/profiles.yml \
+	--host generate/profiles_templates/common/host_vars.j2 \
+	--group generate/profiles_templates/common/group_vars.j2 \
+	--inventory generate/profiles_templates/cloud/inventory.j2 \
+	--output examples/cloud \
+	--mode cloud \
 	-p $(PROFILE) \
 	-a $(ARCH) \
 	-n ${NIC}
@@ -82,6 +94,9 @@ help:
 	@echo ""
 	@echo "Generating VM profile:"
 	@echo "    vm-profile PROFILE=<profile_name>       - generate files required for deployment of specific profile in vm mode."
+	@echo ""
+	@echo "Generating Cloud profile:"
+	@echo "    cloud-profile PROFILE=<profile_name>    - generate files required for deployment of specific profile in cloud mode."
 	@echo ""
 	@echo "For more information about:"
 	@echo "		- profiles generation"

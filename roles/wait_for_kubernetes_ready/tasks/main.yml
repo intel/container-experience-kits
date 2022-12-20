@@ -1,0 +1,53 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: wait for kubernetes
+  command: kubectl get nodes
+  register: kubernetes_ready
+  retries: 10
+  delay: 2
+  until: kubernetes_ready.rc == 0
+  changed_when: false
+  delegate_to: "{{ groups['kube_control_plane'][0] }}"
+  run_once: true
+
+- name: show all pods/containers which we are waiting for
+  command: kubectl get pods -A -o wide
+  changed_when: false
+  delegate_to: "{{ groups['kube_control_plane'][0] }}"
+  run_once: true
+
+# this workaround is added because kmra-ctk deployment crash after restart and it need to be redepoyed
+# it should be removed when KMRA team deliver version that can be restarted
+- name: kmra workaround
+  include_role:
+    name: kmra_workaround
+  when:
+    - kmra.pccs.enabled | default(false) | bool or
+      kmra.apphsm.enabled  | default(false) | bool or
+      kmra.ctk_loadkey_demo.enabled  | default(false) | bool
+
+- name: wait for pods ready status
+  shell: set -o pipefail && kubectl describe pods -A | grep -A 5 "Conditions:"
+  args:
+    executable: /bin/bash
+  register: pods_status
+  retries: 30
+  delay: 10
+  until: "'False' not in pods_status.stdout"
+  changed_when: false
+  delegate_to: "{{ groups['kube_control_plane'][0] }}"
+  run_once: true

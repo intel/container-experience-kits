@@ -14,28 +14,58 @@
 ##   limitations under the License.
 ##
 ---
-- name: load a variable file based on the OS type
-  include_vars: "{{ lookup('first_found', params) }}"
-  vars:
-    params:
-      files:
-        - "{{ ansible_distribution|lower }}.yml"
-        - "{{ ansible_os_family|lower }}.yml"
-      paths:
-        - ../vars
+- block:
+    - name: create dest directory on node
+      file:
+        path: "{{ containerd_archive.dest | dirname }}"
+        owner: "{{ containerd_archive.owner }}"
+        mode: 0755
+        state: directory
+        recurse: yes
 
-- name: set containerd version on Ubuntu >= 21.10
-  set_fact:
-    containerd_version: "{{ '1.4.13' if ansible_distribution_version == '21.10' else '1.5.11' }}"
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.10"
+    - name: download containerd archive
+      get_url:
+        url: "{{ containerd_archive.url }}"
+        dest: "{{ containerd_archive.dest }}"
+        owner: "{{ containerd_archive.owner }}"
+        mode: "{{ containerd_archive.mode }}"
+        checksum: "{{ 'sha256:' + containerd_archive.sha256 }}"
+      delegate_to: "{{ inventory_hostname }}"
+      register: get_url_result
+      until: "'OK' in get_url_result.msg or 'file already exists' in get_url_result.msg"
+      retries: 4
+      delay: 5
+      no_log: true
 
-- include_tasks: containerd_repo.yml
+    - name: unpack containerd archive
+      unarchive:
+        src: "{{ containerd_archive.dest }}"
+        dest: "{{ containerd_bin_dir }}"
+        mode: 0755
+        remote_src: yes
+        extra_opts:
+          - --strip-components=1
+      notify: restart containerd
 
-- name: create containerd service systemd directory if it doesn't exist
+- name: ensure containerd directories exist
   file:
-    path: /etc/systemd/system/containerd.service.d
+    dest: "{{ item }}"
     state: directory
     mode: 0755
+    owner: root
+    group: root
+  with_items:
+    - "{{ containerd_systemd_dir }}"
+    - "{{ containerd_cfg_dir }}"
+    - "{{ containerd_storage_dir }}"
+    - "{{ containerd_state_dir }}"
+
+- name: generate systemd service for containerd
+  template:
+    src: containerd.service.j2
+    dest: /etc/systemd/system/containerd.service
+    mode: 0644
+  notify: restart containerd
 
 - name: write containerd proxy drop-in
   template:
@@ -45,13 +75,14 @@
   notify: restart containerd
   when: http_proxy is defined or https_proxy is defined
 
-- name: ensure containerd config directory
-  file:
-    dest: "{{ containerd_cfg_dir }}"
-    state: directory
-    mode: 0755
-    owner: root
-    group: root
+- name: write base_runtime_specs
+  copy:
+    content: "{{ item.value }}"
+    dest: "{{ containerd_cfg_dir }}/{{ item.key }}"
+    owner: "root"
+    mode: 0644
+  with_dict: "{{ containerd_base_runtime_specs | default({}) }}"
+  notify: restart containerd
 
 - name: copy containerd config file
   template:
@@ -60,27 +91,6 @@
     owner: "root"
     mode: 0640
   notify: restart containerd
-
-- name: ensure containerd packages are installed
-  package:
-    name: "{{ containerd_package_info.pkgs }}"
-    state: present
-  module_defaults:
-    apt:
-      update_cache: true
-    yum:
-      enablerepo: "{{ containerd_package_info.enablerepo | default(omit) }}"
-    dnf:
-      enablerepo: "{{ containerd_package_info.enablerepo | default(omit) }}"
-  register: containerd_task_result
-  until: containerd_task_result is succeeded
-  retries: 4
-  delay: 3
-  notify: restart containerd
-  when: containerd_package_info.pkgs|length > 0
-
-- include_role:  # noqa unnamed-task
-    name: container_engine/crictl
 
 - name: flush handlers
   meta: flush_handlers

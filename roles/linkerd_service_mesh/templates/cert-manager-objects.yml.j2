@@ -1,0 +1,35 @@
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: linkerd-selfsigned-issuer
+  namespace: "{{ linkerd_namespace }}"
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: linkerd-selfsigned-ca
+  namespace: "{{ linkerd_namespace }}"
+spec:
+  isCA: true
+  secretName: linkerd-ca-secret
+  dnsNames:
+    - root.{{ linkerd_namespace }}.svc.cluster.local
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: linkerd-selfsigned-issuer 
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: linkerd-ca-issuer
+  namespace: "{{ linkerd_namespace }}"
+spec:
+  ca:
+    secretName: linkerd-ca-secret

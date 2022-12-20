@@ -32,7 +32,7 @@
         that: fec_acc is defined # and PCIID is present in the host and its DevID in supported list
         msg: "Intel FlexRAN requires the FEC Accelerator Device '{{ fec_acc }}' to be present in the host. Please correct the host h/w configuration"
 
-    - name: check FEC Acc devices on worker node (expected 1 PF + 16 VFs)
+    - name: check FEC Acc devices on worker node
       shell: "set -o pipefail && lspci | grep -i acc"
       args:
         executable: /bin/bash
@@ -50,10 +50,10 @@
       when: intel_flexran_mode == 'xran'
 
     # check network for FlexRAN
-    - debug: msg="BBU_FH={{ intel_flexran_bbu_front_haul }} BBU_PS={{ intel_flexran_bbu_ptp_sync }} oRU_FH={{ intel_flexran_oru_front_haul }} oRU_PS={{ intel_flexran_oru_ptp_sync }}" # noqa yaml[line-length]
+    - debug: msg="BBU_FH={{ intel_flexran_bbu_front_haul }} BBU_PS={{ intel_flexran_bbu_ptp_sync }} oRU_FH={{ intel_flexran_oru_front_haul }} oRU_PS={{ intel_flexran_oru_ptp_sync }}" # noqa line-length
     - name: check network for FlexRAN
       assert:
-        that: "intel_flexran_bbu_front_haul is defined and intel_flexran_bbu_ptp_sync is defined and intel_flexran_oru_front_haul is defined and intel_flexran_oru_ptp_sync is defined" # noqa yaml[line-length]
+        that: "intel_flexran_bbu_front_haul is defined and intel_flexran_bbu_ptp_sync is defined and intel_flexran_oru_front_haul is defined and intel_flexran_oru_ptp_sync is defined" # noqa line-length
         msg: "Intel FlexRAN mode xRAN requires defining the network devices for 'Front Haul' and 'PTP Sync'. See docs/flexran_guide.md"
       when: intel_flexran_mode == 'xran'
 
@@ -70,12 +70,43 @@
     # {{ hostvars[inventory_hostname]['ansible_default_ipv4']['interface'] }} | grep driver | sed 's/^driver: //'"
 
     # check CPU for FlexRAN
-    - debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa yaml[line-length]
+    - debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa line-length
     - name: check CPU for FlexRAN
       assert:
         that: "ansible_processor_count == 1 and ansible_processor_cores == 32"
         msg: "Intel FlexRAN proper configuration requires worker with single 32-cores SPR CPU. Deployment may proceed but is unsupported"
       failed_when: false
+
+    # check patch when FlexRAN xx.yy.z
+    - name: check FlexRAN PATCH Release
+      block:
+        - debug: msg="Expecting file {{ (intel_flexran_staging_location, intel_flexran_patch) | path_join }} on local ansible host"
+
+        - name: probe for FlexRAN xx.yy.z patch
+          delegate_to: localhost
+          stat:
+            path: "{{ (intel_flexran_staging_location, intel_flexran_patch) | path_join }}"
+            checksum_algorithm: sha256
+          register: provided_flexran_patch
+
+        - debug: msg="{{ intel_flexran_patch }} exists is {{ provided_flexran_patch.stat.exists }}"
+
+        - name: check the FlexRAN xx.yy.z patch name
+          assert:
+            that: "provided_flexran_patch.stat.exists"
+            msg:
+              - Mandatory file {{ (intel_flexran_staging_location, intel_flexran_patch) | path_join }} does NOT exist on localhost.
+              - Please acquire the zip file and place it in the location indicated above in order to deploy FlexRAN. See docs/flexran_guide.md
+
+        - debug: msg="{{ intel_flexran_patch }} checksum is {{ provided_flexran_patch.stat.checksum }}"
+
+        - name: check the FlexRAN xx.yy.z patch integrity
+          assert:
+            that: "provided_flexran_patch.stat.checksum == '{{ intel_flexran_patch_chk }}'"
+            msg:
+              - File {{ (intel_flexran_staging_location, intel_flexran_patch) | path_join }} on localhost is NOT the expected one.
+              - Please provide the correct file. See docs/flexran_guide.md
+      when: intel_flexran_ver | length > 5
 
     # check DPDK patch for FlexRAN
     - debug: msg="Expecting file {{ (dpdk_local_patches_dir, 'dpdk-' + dpdk_version, intel_flexran_dpdk_patch) | path_join }} on local ansible host"
@@ -125,7 +156,7 @@
 - name: verify gNB (BBU) node and oRU
   block: # repeat for gNB (node) and oRU
     # check o/s for FlexRAN
-    - debug: msg="Linux distribution on target is {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }}) with {{ ansible_kernel }} kernel" # noqa yaml[line-length]
+    - debug: msg="Linux distribution on target is {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }}) with {{ ansible_kernel }} kernel" # noqa line-length
     - name: check linux distro version and kernel for FlexRAN
       assert:
         that: >

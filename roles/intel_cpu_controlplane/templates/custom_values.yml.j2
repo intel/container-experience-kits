@@ -1,0 +1,19 @@
+# Default values for intel_cpu_controlplane.
+
+intel_cpu_controlplane:
+  image:
+    repository: "{{ registry_local_address}}/{{cpu_ctlplane_local_build_name}}"
+    tag: "{{ cpu_ctlplane_local_tag_name }}"
+    pullPolicy: IfNotPresent
+
+  # container runtime: one of ['contianerd', 'docker']
+  runtime : "{{ container_runtime }}"
+
+  # NUMA allocator: one of ['default', 'numa', 'numa-namespace', 'numa-namespace-exclusive']
+  # https://github.com/intel-innersource/libraries.orchestrators.resourcemanagement.controlplane.daemon/blob/master/README.md
+  allocator: "{{ intel_cpu_controlplane.allocator }}"
+
+  # control plane agent namespace
+  agent_namespace_prefix: "{{ intel_cpu_controlplane.agent_namespace_prefix }}"
+
+  imagePullSecrets: []

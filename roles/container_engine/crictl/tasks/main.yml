@@ -19,8 +19,8 @@
   vars:
     cri_socket: >-
       {%- if container_runtime == 'crio' -%}
-      /var/run/crio/crio.sock
+      unix:///var/run/crio/crio.sock
       {%- else -%}
-      /var/run/containerd/containerd.sock
+      unix:///var/run/containerd/containerd.sock
       {%- endif -%}
   when: not crictl_installed | default(false)

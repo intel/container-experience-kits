@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: otel-gateway-collector
+  namespace: monitoring
+spec:
+  secretName: otel-gateway-collector
+  dnsNames:
+  - otel-gateway-collector-headless.monitoring.svc.cluster.local
+  - otel-gateway-collector-headless.monitoring.svc
+  - otel-gateway-collector-headless.monitoring
+  - otel-gateway-collector-headless
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: elasticsearch-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - server auth
+  - digital signature
+  - key encipherment

@@ -20,5 +20,5 @@ clx_sst_bf_dir: "{{ project_root_dir }}/CommsPowerManagement"
 clx_sst_bf_exec: "/usr/local/bin/sst_bf.py"
 
 isst_tool_git_url: "https://github.com/torvalds/linux.git"
-isst_tool_git_version: "v5.19"
+isst_tool_git_version: "v6.0"
 isst_tool_src_dir: "{{ (project_root_dir, 'speedselect') | path_join }}"

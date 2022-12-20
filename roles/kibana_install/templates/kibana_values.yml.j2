@@ -1,0 +1,95 @@
+---
+elasticsearchHosts: "https://elasticsearch-master.monitoring.svc:9200"
+elasticsearchCertificateSecret: elasticsearch-tls
+elasticsearchCertificateAuthoritiesFile: ca.crt
+elasticsearchCredentialSecret: elasticsearch-master-credentials
+
+replicas: 1
+
+image: "docker.elastic.co/kibana/kibana"
+imageTag: "{{ kibana_chart_version }}"
+imagePullPolicy: "IfNotPresent"
+
+resources:
+  requests:
+    cpu: "1000m"
+    memory: "2Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+protocol: https
+
+serverHost: "0.0.0.0"
+
+healthCheckPath: "/app/kibana"
+
+# Allows you to add any config files in /usr/share/kibana/config/
+# such as kibana.yml
+kibanaConfig:
+  kibana.yml: |
+{% if http_proxy or https_proxy is defined %}
+    xpack.fleet.registryProxyUrl: {% if https_proxy is defined %}{{ https_proxy }}{% else %}{{ http_proxy }}{% endif %}
+{% endif %}
+
+    server.ssl.certificate: /usr/share/kibana/config/certs/tls.crt
+    server.ssl.enabled: true
+    server.ssl.key: /usr/share/kibana/config/certs/tls.key
+
+# If Pod Security Policy in use it may be required to specify security context as well as service account
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  # readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+serviceAccount: ""
+
+# Whether or not to automount the service account token in the pod. Normally, Kibana does not need this
+automountToken: true
+
+# This is the PriorityClass settings as defined in
+# https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#priorityclass
+priorityClassName: ""
+
+httpPort: 5601
+
+updateStrategy:
+  type: "Recreate"
+
+service:
+  type: NodePort
+  loadBalancerIP: ""
+  port: 5601
+  nodePort: 30001
+  labels: {}
+  annotations: {}
+  # cloud.google.com/load-balancer-type: "Internal"
+  # service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
+  # service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+  # service.beta.kubernetes.io/openstack-internal-load-balancer: "true"
+  # service.beta.kubernetes.io/cce-load-balancer-internal-vpc: "true"
+  loadBalancerSourceRanges: []
+  # 0.0.0.0/0
+  httpPortName: kibana-http
+
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  successThreshold: 3
+  timeoutSeconds: 5
+
+imagePullSecrets: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+nameOverride: ""
+fullnameOverride: ""

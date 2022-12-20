@@ -17,28 +17,31 @@
 # References: WIKI, RDC
 # FEC = Forward Error Correction
 # CR = Custom Resource
-# ACC100 = Intel vRAN Dedicated H/W Accelerator Card
+# ACC100/ACC200 = Intel vRAN Dedicated H/W SRIOV-FEC Accelerator Devices
 
 # - include_role: dpdk
 #   when: dpdk_dir is not defined # to allow tagged execution
 
 # Intel FlexRAN
-# intel_flexran_repo: "not public"
-# intel_flexran_token: "pkg requires private access from Intel’s Developer Zone Portal"
-# intel_flexran_staging_location: "/tmp/flexran/" # a directory on localhost (ansible host)
-intel_flexran_ver: "22.07" # "22.03" (since RA22.06)
+# intel_flexran_repo: "Intel’s Developer Zone Portal aka RDC"
+# intel_flexran_token: "not public. pkg access requires NDA. see docs/flexran_guide.md"
+intel_flexran_staging_location: "/tmp/flexran/" # a directory on localhost (ansible host)
+intel_flexran_ver: "22.07.3" # "22.03" (RA22.06) "22.07" (RA22.08) "22.07.3" (RA22.11)
 # intel_flexran_tarball: "FlexRAN-22.03.tar.gz"
 # intel_flexran_tar_chk: "65e59ac1295ef392f54b80047db2efe458962fc78e5d84c5d54703439a364cda" # SHA256
 intel_flexran_dir: "{{ (project_root_dir, 'intel-flexran') | path_join }}"
-intel_flexran_files_dir: "{{ (project_root_dir, 'intel-flexran-files') | path_join }}" # for ACC100 CRs, kernel cmdline, etc
-intel_flexran_dpdk_ver: "21.11" # for both, FlexRAN 22.07 and 22.03
-# intel_flexran_dpdk_dir: "{{ dpdk_dir }}" # as defined in host_vars
+intel_flexran_files_dir: "{{ (project_root_dir, 'intel-flexran-files') | path_join }}" # for FEC ACC CRs, kernel cmdline, etc
+intel_flexran_dpdk_ver: "21.11" # for FlexRAN 22.03, 22.07, 22.07.3
 intel_flexran_dpdk_dir: "{{ (project_root_dir, 'dpdk-' + intel_flexran_dpdk_ver) | path_join }}"
-# intel_flexran_dpdk_zip: "dpdk_patch-{{ intel_flexran_ver }}.patch.zip"
-# intel_flexran_dpdk_zip_chk: "8870b139a3f7fbbd2f0bee1aeaeeb5e0a08fb4745b4e183bf4c9119e5d2dcdaa" # SHA256
-intel_flexran_dpdk_patch: "dpdk_patch-22.07.patch" # "dpdk_patch-22.03.patch"
-# intel_flexran_dpdk_patch_chk: "4556ba6e5ac32d0360c0e5c71ba7fa22a6065f9e608a35e1c945691f7dfd7fe4" # SHA256 dpdk_patch-22.03.patch
-intel_flexran_dpdk_patch_chk: "d50b513a0e2a018937af643b06e55c569627614d06a5ec298ce504a68b943be8" # SHA256 dpdk_patch-22.07.patch
+
+intel_flexran_dpdk_zip: "dpdk_patch-{{ intel_flexran_ver }}.patch.zip"
+intel_flexran_dpdk_zip_chk: "dab1a0c3a0530be9904d62d3c3f4f88166b73360dcc11402500070237000f468" # SHA256 for dpdk_patch-22.07.3.patch.zip
+
+intel_flexran_dpdk_patch: "dpdk_patch-{{ intel_flexran_ver }}.patch"
+intel_flexran_dpdk_patch_chk: "bd136f939609545d70e4d6a8dca83a1550d6a28a0b6b70fdfb10d8283922f4c5" # SHA256 for dpdk_patch-22.07.3.patch
+
+intel_flexran_patch: "FlexRAN-R{{ intel_flexran_ver }}.zip"
+intel_flexran_patch_chk: "1089d1bd3d86fe2f2198c497fa26e6f9322fd867f5f6ece087190499ff427593" # SHA256 for FlexRAN-R22.07.3.zip
 
 # Intel oneAPI Base Toolkit
 # Reference: https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
@@ -52,7 +55,6 @@ intel_oneapi_ver: "2022.2"
 intel_oneapi_url: "https://registrationcenter-download.intel.com/akdlm/irc_nas/18673/l_BaseKit_p_2022.2.0.262_offline.sh"
 intel_oneapi_chk: "e508b0a64f048d9518cc3706e1fa3f400dbb0a07fdc0f91e02b371b18a35715fa0fad7a960dbb7fc04595f77ae65a333" # SHA384
 
-# Intel ACC100 FEC CR (Mount Bryce)
-# intel_acc100_cr: "acc100-cr.yaml"
-# fec_acc_node: "{{ groups['kube_node'][0] }}"
-# fec_acc_dev: "0000:49:00.0"  # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
+intel_pfbb_version: "v22.07"
+
+inih_version: "r44"

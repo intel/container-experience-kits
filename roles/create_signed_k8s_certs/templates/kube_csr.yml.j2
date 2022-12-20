@@ -4,7 +4,11 @@ metadata:
   name: {{ secret_name }}.{{ k8s_namespace }}
   namespace: {{ k8s_namespace }}
 spec:
+{% if hostvars[groups['kube_node'][0]]['ansible_system_vendor'] == "Amazon EC2" %}
+  signerName: beta.eks.amazonaws.com/app-serving
+{% else %}
   signerName: kubernetes.io/kubelet-serving
+{% endif %}
   request: {{ csr }}
   usages:
   - digital signature

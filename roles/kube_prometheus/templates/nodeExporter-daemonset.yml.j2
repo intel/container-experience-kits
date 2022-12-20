@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: {{ node_exporter_version }}
+  name: node-exporter
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: exporter
+      app.kubernetes.io/name: node-exporter
+      app.kubernetes.io/part-of: kube-prometheus
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: node-exporter
+      labels:
+        app.kubernetes.io/component: exporter
+        app.kubernetes.io/name: node-exporter
+        app.kubernetes.io/part-of: kube-prometheus
+        app.kubernetes.io/version: {{ node_exporter_version }}
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - args:
+        - --web.listen-address=127.0.0.1:9100
+        - --web.config.file=/etc/node-exporter/config/web.yml
+        # - --log.level=debug
+        - --path.sysfs=/host/sys
+        - --path.rootfs=/host/root
+        - --no-collector.wifi
+        - --no-collector.hwmon
+{% if tas_enable_demo_policy |d(false) %}
+        - --collector.textfile.directory=/host/tas-demo-policy
+{% endif %}
+        - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/k3s/containerd/.+|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+        - --collector.netclass.ignored-devices=^(veth.*|[a-f0-9]{15})$
+        - --collector.netdev.device-exclude=^(veth.*|[a-f0-9]{15})$
+        image: quay.io/prometheus/node-exporter:v{{ node_exporter_version }}
+        name: node-exporter
+        resources:
+          limits:
+            cpu: 250m
+            memory: 180Mi
+          requests:
+            cpu: 102m
+            memory: 180Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - SYS_TIME
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /host/sys
+          mountPropagation: HostToContainer
+          name: sys
+          readOnly: true
+        - mountPath: /host/root
+          mountPropagation: HostToContainer
+          name: root
+          readOnly: true
+        - mountPath: /etc/node-exporter/tls/
+          name: node-exporter-tls
+          readOnly: true
+        - mountPath: /etc/node-exporter/config
+          name: node-exporter-config
+{% if tas_enable_demo_policy |d(false) %}
+        - name: tas-demo-policy
+          mountPath: /host/tas-demo-policy
+          readOnly: true
+{% endif %}
+      - args:
+        - --logtostderr
+        - --secure-listen-address=[$(IP)]:9100
+        - --tls-cipher-suites={{ kube_rbac_proxy_tls_ciphers }}
+        - --upstream=https://127.0.0.1:9100/
+        - --tls-cert-file=/etc/node-exporter-tls-rbac/tls.crt
+        - --tls-private-key-file=/etc/node-exporter-tls-rbac/tls.key
+        - --upstream-ca-file=/etc/node-exporter-tls-rbac/ca.crt
+        - --client-ca-file=/etc/node-exporter-tls-rbac/ca.crt
+        - --v=10
+        env:
+        - name: IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: {{ kube_rbac_proxy_image_repo }}:{{ kube_rbac_proxy_image_tag }}
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 9100
+          hostPort: 9100
+          name: https
+        resources:
+          limits:
+            cpu: 20m
+            memory: 40Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsGroup: 65532
+          runAsNonRoot: true
+          runAsUser: 65532
+        volumeMounts:
+        - mountPath: /etc/node-exporter-tls-rbac
+          name: node-exporter-tls-rbac
+          readOnly: true
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      serviceAccountName: node-exporter
+      tolerations:
+      - operator: Exists
+      volumes:
+      - hostPath:
+          path: /sys
+        name: sys
+      - hostPath:
+          path: /
+        name: root
+      - name: node-exporter-tls
+        secret:
+          secretName: node-exporter-tls
+      - name: node-exporter-tls-rbac
+        secret:
+          secretName: node-exporter-tls-rbac
+      - name: node-exporter-config
+        configMap:
+          name: node-exporter-config
+{% if tas_enable_demo_policy |d(false) %}
+      - hostPath:
+          path: /tmp/node-metrics
+        name: tas-demo-policy
+{% endif %}
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 10%
+    type: RollingUpdate

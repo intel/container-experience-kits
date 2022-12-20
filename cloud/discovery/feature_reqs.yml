@@ -1,46 +1,46 @@
 features:
   sgx:
     arch:
-    - icelake
-    - sapphirerapids
+      - icelake
+      - sapphirerapids
   sgx_dp:
     arch:
-    - icelake
-    - sapphirerapids
+      - icelake
+      - sapphirerapids
   kmra:
     arch:
-    - icelake
-    - sapphirerapids
+      - icelake
+      - sapphirerapids
   tcs:
     arch:
-    - icelake
-    - sapphirerapids
-  tca:
+      - icelake
+      - sapphirerapids
+  tac:
     arch:
-    - icelake
-    - sapphirerapids
+      - icelake
+      - sapphirerapids
   pstate:
     arch:
-    - cascadelake
-    - icelake
-    - sapphirerapids
+      - cascadelake
+      - icelake
+      - sapphirerapids
   sst:
     arch:
-    - cascadelake
-    - icelake
-    - sapphirerapids
+      - cascadelake
+      - icelake
+      - sapphirerapids
   power_manager:
     arch:
-    - cascadelake
-    - icelake
-    - sapphirerapids
+      - cascadelake
+      - icelake
+      - sapphirerapids
   intel_ethernet_operator:
     nic:
-    - cvl
+      - cvl
 
 sub_features:
   service_mesh:
     sgx_signer:
       arch:
-      - icelake
-      - sapphirerapids
+        - icelake
+        - sapphirerapids

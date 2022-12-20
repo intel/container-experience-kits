@@ -38,6 +38,14 @@
 - name: deploy Intel FlexRAN
   include_tasks: flexran.yml
 
+- name: set FEC Acc for Intel FlexRAN
+  include_role:
+    name: intel_sriov_fec_operator
+    tasks_from: fec_dev
+  when: not intel_sriov_fec_operator_enabled
+
+- debug: msg="FEC Accelerator device at {{ fec_acc }} is {{ fec_dev }}"
+
 - name: deploy Intel pf_bb (Physical Function Baseband) device config app
   include_tasks: pf_bb.yml
   when: inventory_hostname == groups['kube_node'][0]

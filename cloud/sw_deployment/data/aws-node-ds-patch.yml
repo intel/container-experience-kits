@@ -1,0 +1,13 @@
+spec:
+  template:
+    spec:
+      containers:
+        - name: aws-node
+          volumeMounts:
+          - mountPath: /var/run/cri.sock
+            name: dockershim
+      volumes:
+      - hostPath:
+          path: /run/containerd/containerd.sock
+          type: ""
+        name: dockershim

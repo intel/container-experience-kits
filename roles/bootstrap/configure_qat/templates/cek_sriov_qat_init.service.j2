@@ -1,14 +1,16 @@
 [Unit]
 Description=Intel Container Experience Kits SR-IOV configuration for QAT devices
 AssertPathExists=/usr/local/bin/cek_sriov_qat_init
-After=qat.service
-Requires=qat.service
+After={{ enabled_qat_service }}.service
+Requires={{ enabled_qat_service }}.service
+PartOf={{ enabled_qat_service }}.service
 
 [Service]
 Environment=QAT_SRIOV_NUMVFS_MAPPINGS={{ sriov_config_path }}/cek_sriov_qat_numvfs
 Environment=QAT_DEVICE_DRIVER_MAPPINGS={{ sriov_config_path }}/cek_qat_vfs
 Environment=DEVBIND_TOOL=/usr/local/bin/dpdk-devbind.py
 Type=oneshot
+RemainAfterExit=true
 ExecStartPre=/bin/sleep 10
 ExecStart=/usr/local/bin/cek_sriov_qat_init
 

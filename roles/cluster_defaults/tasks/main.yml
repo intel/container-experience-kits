@@ -18,8 +18,29 @@
   debug:
     msg: "Setting defaults from roles/cluster_defaults/defaults/main.yml"
 
+- name: set proxy_env fact
+  set_fact:
+    proxy_env: "{{ proxy_env | default({}) | combine ({ item.key : item.value }) }}"
+  with_items:
+    - { key: 'http_proxy', value: "{{ http_proxy | default('') }}" }
+    - { key: 'https_proxy', value: "{{ https_proxy | default('') }}" }
+    - { key: 'no_proxy', value: "{{ no_proxy | default('') }}" }
+  when: item.value | length > 0
+
+- name: print proxy_env
+  debug:
+    msg: "proxy_env: {{ proxy_env }}"
+
 - name: Create Container Experience Kit directory if needed
   file:
     state: directory
     path: "{{ project_root_dir }}"
     mode: 0644
+
+- name: Increase number of inotify instances
+  ansible.posix.sysctl:
+    name: fs.inotify.max_user_instances
+    value: '65536'
+    sysctl_set: yes
+    state: present
+    reload: yes

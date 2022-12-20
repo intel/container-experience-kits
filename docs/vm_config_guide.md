@@ -10,6 +10,7 @@ vm_enabled: true
 
 ## vm-host specific options
 
+
 There's also a set of configuration options that are applied in per-node manner.
 
 First set of variables enables SRIOV for selected network adapters and QAT devices. It requires setting `iommu_enabled` as `true`.
@@ -20,6 +21,7 @@ First set of variables enables SRIOV for selected network adapters and QAT devic
 **_NOTE:_** Some QAT drivers ignore requested number of VFs and create maximum number of VFs allowed by current QAT device. Where: "0" means no VFs, number between "1" and "max num of VFs" creates max number of VFs and number above "max num of VFs" cause an error.
 
 This setting will also add IOMMU kernel flags, and as a result will reboot the target vm-host during deployment.
+
 ```
 dataplane_interfaces:
   - bus_info: "18:00.0"
@@ -46,7 +48,6 @@ qat_devices:
 
   - qat_id: "0000:da:00.0"
     qat_sriov_numvfs: 10
-
 ```
 
 Next section provides VM related configuration options.
@@ -84,7 +85,7 @@ To create hashed password use e.g.: openssl passwd -6 -salt SaltSalt <your_passw
 vm_hashed_passwd: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 ```
 
-vxlan_device parameter specify network interface, which will be used to setup vxlan network.
+vxlan_device parameter specifies network interface, which will be used to setup vxlan network.
 It has to be interface connected to physical network, which is available on all VM hosts.
 Interface has to have IP address assigned on all VM hosts from the same IP subnet.
 
@@ -99,8 +100,7 @@ Parameter is commented out by default, which means that default value 16 is used
 #cpu_host_os: 8
 ```
 
-
-Next section provides definition of VMs, which will be created during deployment process and which will be used as control and worker nodes there.
+Next section provides definition of VMs, which will be created during deployment process, and which will be used as control and worker nodes there.
 
 vms option defines the list of VMs. Each VM is defined by following parameters:
 `type` defines type of VM and following types are supported: "ctrl" and "work"
@@ -116,34 +116,40 @@ To be able to configure PCI ids for VFs we need to know their "naming convention
 **For SRIOV NIC VFs:**  
 To check if VFs exist there run following command:  
 for the first PF interface 18:00.0 from `dataplane_interfaces` above:
+
 ```
 cat /sys/bus/pci/devices/0000\:18\:00.0/sriov_numvfs
 ```
 
 for the second PF interface 18:00.1 from `dataplane_interfaces` above:
+
 ```
 cat /sys/bus/pci/devices/0000\:18\:00.1/sriov_numvfs
 ```
 If the commands return "0" then there are no VFs created there and we need to create them temporary.  
 To create them you need to run following command:  
 for the first PF interface 18:00.0 from `dataplane_interfaces` above:
+
 ```
 echo "8" > /sys/bus/pci/devices/0000\:18\:00.0/sriov_numvfs
 ```
 
 for the second PF interface 18:00.1 from `dataplane_interfaces` above:
+
 ```
 echo "2" > /sys/bus/pci/devices/0000\:18\:00.1/sriov_numvfs
 ```
-Number used in those command is number of VFs to be created and it was taken from interface configuration above. Nevertheless we can use higher number as well to see naming convention.
+Number used in those command is number of VFs to be created and it was taken from interface configuration above. Nevertheless, we can use higher number as well to see naming convention.
 
 Now we can check number of created VFs using cat command as before:
 for the first PF interface 18:00.0 from `dataplane_interfaces` above:
+
 ```
 cat /sys/bus/pci/devices/0000\:18\:00.0/sriov_numvfs
 ```
 
 for the second PF interface 18:00.1 from `dataplane_interfaces` above:
+
 ```
 cat /sys/bus/pci/devices/0000\:18\:00.1/sriov_numvfs
 ```
@@ -151,6 +157,7 @@ The commands return number of created VFs. It should be the same number as numbe
 **_NOTE:_** for some drivers the received number of created VFs can be limited to "max number of VFs"
 
 To see PCI ids for NICs and created VFs run following command:
+
 ```
 lspci |grep -i Ether
 ```
@@ -176,24 +183,31 @@ Select PCI ids for VFs to be assigned to VM. In example configuration bellow we'
 
 If we created VFs in steps above then we can delete them again via following command:  
 for the first PF interface 18:00.0 from `dataplane_interfaces` above:
+
 ```
 echo "0" > /sys/bus/pci/devices/0000\:18\:00.0/sriov_numvfs
 ```
 
 for the second PF interface 18:00.1 from `dataplane_interfaces` above:
+
 ```
 echo "0" > /sys/bus/pci/devices/0000\:18\:00.1/sriov_numvfs
 ```
 
+
 **For SRIOV QAT VFs:**  
+
+
 To check if VFs exist there run following command:  
 for the first PF device 0000:3d:00.0 from `qat_devices` above. For other PF devices use the same commands with updated PCI id and VF number.
+
 ```
 cat /sys/bus/pci/devices/0000\:3d\:00.0/sriov_numvfs
 ```
 
 If the commands return "0" then there are no VFs created there and we need to create them temporary.  
 To create them you need to run following command:
+
 ```
 echo "12" > /sys/bus/pci/devices/0000\:3d\:00.0/sriov_numvfs
 ```
@@ -201,6 +215,7 @@ echo "12" > /sys/bus/pci/devices/0000\:3d\:00.0/sriov_numvfs
 Number used in this command is number of VFs to be created and it was taken from `qat_devices` configuration above. Nevertheless we can use higher number as well to see naming convention.
 
 Now we can check number of created VFs using cat command as before:
+
 ```
 cat /sys/bus/pci/devices/0000\:3d\:00.0/sriov_numvfs
 ```
@@ -209,6 +224,7 @@ The commands return number of created VFs. It should be the same number as numbe
 **_NOTE:_** for some drivers the received number of created VFs can be limited to "max number of VFs"
 
 To see PCI ids for QAT devices run following command:
+
 ```
 lspci -nn |grep -i Quick
 ```
@@ -266,6 +282,7 @@ Select PCI ids for VFs to be assigned to VM. In example configuration bellow we'
 
 
 If we created VFs in steps above then we can delete them again via following command:
+
 ```
 echo "0" > /sys/bus/pci/devices/0000\:3d\:00.0/sriov_numvfs
 ```
@@ -290,13 +307,13 @@ NUMA node1 CPU(s):               28-55,84-111
 ```
 
 In current case we have machine with 112 CPUs. It has 2 sockets with 28 cores. Each core has two threads. It has 2 NUMA nodes one per socket.
-The first few cores from NUMA node0 we reserve for system. By default it is 8. It means 16 CPUs. Specifically CPUs 0-7 (the first threads from selected cores) and CPUs 56-63 (the corresponding second threads from selected cores)
+The first few cores from NUMA node0 we reserve for system. By default, it is 8. It means 16 CPUs. Specifically, CPUs 0-7 (the first threads from selected cores) and CPUs 56-63 (the corresponding second threads from selected cores)
 If we want to assign 8 CPUs to vm-ctrl-1 then we can select next 4 cores, which means CPUs 8-11 and 64-67. We need to ensure that all CPUs comes from single NUMA node.
 If we want to assign 16 CPUs to vm-work-1 then we can select next 8 cores from NUMA node0 or select 8 cores from NUMA node1. In expert mode example configuration below we've selected 8 cores from NUMA node1, which means CPUs 28-35 and 84-91.
 
 `emu_cpus` parameter is DEPRECATED and should not be used. If it is used then it is ignored and has no effect. Emulators CPUs are picked-up automatically. The first CPU and the first CPU thread are taken.
 
-`alloc_all` parameter defines if all available CPUs from VM host will be assigned to current VM. Default value is `false`, which means that all unallocated CPUs from single NUMA node will be assigned to current VM. If we set parameter value to `true` then NUMA allignment is switched off and all available CPUs from all NUMA nodes on VM host will be assigned to current VM. The alloc_all parameter is used only when 'cpu_total' parameter value is set to '0'
+`alloc_all` parameter defines if all available CPUs from VM host will be assigned to current VM. Default value is `false`, which means that all unallocated CPUs from single NUMA node will be assigned to current VM. If we set parameter value to `true` then NUMA alignment is switched off and all available CPUs from all NUMA nodes on VM host will be assigned to current VM. The alloc_all parameter is used only when 'cpu_total' parameter value is set to '0'
 That option was added to enable full CPU utilization on VM host during performance tests.
 
 
@@ -321,7 +338,6 @@ vms:
       - "18:02.5"
       - "3d:02.3"
       - "3f:02.3"
-
 ```
 
 Example expert mode configuration contains 2 VMs, 1 control and 1 work node.
@@ -349,7 +365,6 @@ vms:
       - "18:02.5"
       - "3d:02.3"
       - "3f:02.3"
-
 ```
 
 In case of multi node setup we need to create host_vars file for each VM host and properly configure VMs which will be created on that VM host.
@@ -358,8 +373,8 @@ VM names have to be unique across all VM hosts.
 **_NOTE:_** If the same VM name is used then ssh config is overwritten. It causes that original VM (the one, which was created first) become unreachable.
 
 
-
 ## Worker node specific options
+
 
 There's also a set of configuration options that are applied in per-node manner in current case for VM type `work`.
 
@@ -374,7 +389,8 @@ In our example configuration we've assigned 4 NIC VFs, so we have 4 interfaces d
 The number of QAT devices defined here in `qat_devices` has to be the same as number of QAT VFs assigned to this VM!
 In our example configuration we've assigned 2 QAT VFs, so we have 2 devices defined here.
 
-This setting will add `vfio-pci.disable_denylist=1` kernel flags for kernel >=5.9 or specific RHEL/CentOS versions, and as a result will reboot the target vm-work VM during deployment.
+This setting will add `vfio-pci.disable_denylist=1` kernel flags for Ubuntu/RHEL/Rocky specific versions, and as a result will reboot the target vm-work VM during deployment.
+
 ```
 dataplane_interfaces:
   - bus_info: "06:00.0"
@@ -401,12 +417,14 @@ qat_devices:
 
   - qat_id: "0000:0b:00.0"
     qat_sriov_numvfs: 0
-
 ```
 
-**For SGX** currently it's in experimental phase - it's compiling libvirt from custom repository. Beacause of that it's not supported on all operating system, but only for: Ubuntu 22.04 for host and Ubuntu 20.04 for VMs.
+**For SGX** currently it's in experimental phase - it's compiling libvirt from custom repository. Because of that, it's not supported on all operating systems. The only supported OS on VM host for SGX is Ubuntu 22.04. As VM image for SGX, we can use any VMRA supported VM image.
+
 
 ### Once the deployment is finished we can access VMs from ansible_host via VM name:
+
+
 ```
 ssh vm-ctrl-1
 ssh vm-work-1

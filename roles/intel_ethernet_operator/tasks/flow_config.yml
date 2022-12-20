@@ -14,11 +14,11 @@
 ##   limitations under the License.
 ##
 - name: build Unified Flow Tool image
-  include_tasks: uft.yml
+  ansible.builtin.include_tasks: uft.yml
   when:
     - inventory_hostname == groups['kube_node'][0]
 
 - name: flow configuration
-  include_tasks: flow_config_deployment.yml
+  ansible.builtin.include_tasks: flow_config_deployment.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

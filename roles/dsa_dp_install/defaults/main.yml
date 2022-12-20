@@ -14,9 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-intel_dsa_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_dsa_dp_git_ref: "v0.24.0"
-intel_dsa_dp_version: "0.24.0"
-intel_dsa_dp_dir: "{{ (project_root_dir, 'intel-dsa-dp') | path_join }}"
+intel_dsa_dp_image: "docker.io/intel/intel-dsa-plugin:{{ intel_dp_version }}"
+
 dsa_shared_devices: 10  # SharedDevNum is a number of containers that can share the same DSA device.
 dsa_log_level: 4

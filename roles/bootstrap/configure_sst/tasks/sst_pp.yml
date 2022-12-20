@@ -40,10 +40,10 @@
   become: yes
   when: ansible_distribution == "Ubuntu"
 
-- name: install stress required for checking runs of busy workload in CentOS / RHEL
+- name: install stress required for checking runs of busy workload in Rocky / RHEL
   dnf:
     name: stress
-  when: ansible_distribution in ['RedHat', 'Rocky', 'CentOS']
+  when: ansible_os_family == "RedHat"
 
 - name: get ISST settings before SST-PP configuration
   set_fact:

@@ -1,0 +1,140 @@
+resource "azurerm_kubernetes_cluster" "default" {
+  name                = "cwdf-infra-{{ job_id }}-aks"
+  location            = azurerm_resource_group.default.location
+  resource_group_name = azurerm_resource_group.default.name
+  dns_prefix          = "cwdf"
+
+  kubernetes_version  = "{{ aks.kubernetes_version }}"
+  azure_policy_enabled = true
+
+  api_server_authorized_ip_ranges   = [
+    {% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}
+    {% if will_create_ansible_instance %}"${azurerm_public_ip.ansible_instance.ip_address}/32"{% endif %}
+  ]
+  role_based_access_control_enabled = true
+
+  default_node_pool {
+    name           = "default"
+    node_count     = {{ aks.default_node_pool.vm_count }}
+    vm_size        = "{{ aks.default_node_pool.vm_size }}"
+    vnet_subnet_id = azurerm_subnet.{{ aks.default_node_pool.subnet_name }}.id
+    {% if enable_proximity_placement == true %}
+    proximity_placement_group_id = azurerm_proximity_placement_group.default.id
+    {% endif %}
+  }
+
+  network_profile {
+    network_plugin = "{% if aks.cni in ['cilium', 'cilium-ebpf'] %}none{% else %}{{aks.cni}}{% endif %}"
+    {% if aks.cni == "kubenet" %}
+    network_policy = "calico"
+    {% endif %}
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.default.id
+  }
+
+  linux_profile {
+    admin_username = "ubuntu"
+    ssh_key {
+      key_data = "{{ ssh_pub_key }}"
+    }
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-aks"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+{% if 'additional_node_pools' in aks %}
+{% for node_pool in aks.additional_node_pools %}
+resource "azurerm_kubernetes_cluster_node_pool" "{{ node_pool.name }}" {
+  name                  = "{{ node_pool.name }}"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.default.id
+  vm_size               = "{{ node_pool.vm_size }}"
+  node_count            = {{ node_pool.vm_count }}
+  vnet_subnet_id        = azurerm_subnet.{{ node_pool.subnet_name }}.id
+
+  {% if enable_proximity_placement == true %}
+  proximity_placement_group_id = azurerm_proximity_placement_group.default.id
+  {% endif %}
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-aks-node-pool-{{ node_pool.name }}"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+{% endfor %}
+{% endif %}
+
+{% if aks.cni in ["cilium", "cilium-ebpf"] %}
+resource "helm_release" "cilium_cni" {
+  name       = "cilium"
+  repository = "https://helm.cilium.io/"
+  chart      = "cilium"
+  namespace  = "kube-system"
+
+  set {
+    name  = "aksbyocni.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "nodeinit.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "hubble.relay.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "hubble.ui.enabled"
+    value = "true"
+  }
+
+  {% if aks.cni == "cilium-ebpf" %}
+  set {
+    name  = "kubeProxyReplacement"
+    value = "strict"
+  }
+
+  set {
+    name  = "k8sServiceHost"
+    value = azurerm_kubernetes_cluster.default.fqdn
+  }
+
+  set {
+    name  = "k8sServicePort"
+    value = "443"
+  }
+  {% endif %}
+  
+  timeout = 600
+  depends_on = [azurerm_kubernetes_cluster.default]
+}
+{% endif %}
+
+output "aks_scale_sets_rg" {
+  value = azurerm_kubernetes_cluster.default.node_resource_group
+}
+
+output "aks_cluster_name" {
+  value = azurerm_kubernetes_cluster.default.name
+}
+
+output "k8s_worker_username" {
+  value = "ubuntu"
+}

@@ -12,7 +12,7 @@ spec:
   deviceSelector:
     pciAddress: "0000:{{ iface.bus_info }}"
   deviceConfig:
-    fwURL: "{{ intel_ethernet_operator_fw_url }}"
+    fwURL: "http://{{ cache_server_clusterip.stdout }}/E810_NVMUpdatePackage_v4_10_Linux.tar.gz"
     fwChecksum: "{{ intel_ethernet_operator_fw_sum }}"
 {% endif %}
 {% endfor %}

@@ -14,6 +14,13 @@
 ##   limitations under the License.
 ##
 ---
+- name: uninstall elasticsearch
+  include_role:
+    name: elasticsearch_install
+    tasks_from: cleanup
+  tags:
+    - elasticsearch
+
 - name: uninstall opentelemetry
   include_role:
     name: opentelemetry_install
@@ -27,6 +34,20 @@
     tasks_from: cleanup_cadvisor
   tags:
     - cadvisor
+
+- name: uninstall LinkerD
+  include_role:
+    name: linkerd_service_mesh
+    tasks_from: uninstall
+  tags:
+    - linkerd_service_mesh
+
+- name: cleanup cpu_ctlplane
+  include_role:
+    name: intel_cpu_controlplane
+    tasks_from: cleanup_cpu_controlplane
+  tags:
+    - cpu_ctlplane
 
 - name: reset and remove Kubernetes cluster
   import_tasks: k8s_cleanup.yml

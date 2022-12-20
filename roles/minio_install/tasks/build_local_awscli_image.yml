@@ -1,0 +1,111 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+
+- name: create MinIO Tenant Helm charts directory if needed
+  file:
+    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
+    state: directory
+    mode: 0755
+
+- name: create the temp folder for MinIO Tenant custom values
+  file:
+    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
+    state: directory
+    mode: 0755
+
+- debug:
+    msg: AWS directory - "{{ aws_local_build_dir }}"
+
+- name: create AWS client docker directory
+  file:
+    path: "{{ aws_local_build_dir }}"
+    state: directory
+    mode: 0755
+
+- name: create a Dockerfile for AWS client
+  copy:
+    content: |
+      FROM ubuntu:22.04
+      RUN apt-get update && apt-get install -y --no-install-recommends \
+                  apt-transport-https \
+                  bash \
+                  bmon \
+                  bwm-ng \
+                  ca-certificates \
+                  curl \
+                  gnupg \
+                  iperf \
+                  iproute2 \
+                  iptables \
+                  iputils-ping \
+                  net-tools \
+                  slurm \
+                  tar \
+                  tcpdump \
+                  tcptrack \
+                  unzip \
+              && rm -rf /var/lib/apt/lists/*
+
+      RUN mkdir -p /tmp/awscli \
+        && cd /tmp/awscli \
+        && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+        && unzip awscliv2.zip \
+        && ./aws/install
+
+      WORKDIR /aws
+      ENTRYPOINT ["/usr/local/bin/aws"]
+    dest: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'awscli', 'Dockerfile') | path_join }}"
+    mode: 0644
+
+- debug:
+    msg: Container Runtime - "{{ container_runtime }}"
+
+# docker is used as container runtime:
+- name: prepare containers images
+  block:
+    - name: build local AWS custom image
+      command: >-
+        docker build -f Dockerfile -t {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }} ./
+      args:
+        chdir: "{{ aws_local_build_dir }}"
+      changed_when: true
+      when: aws_build_image_locally
+
+    - name: push the local AWS custom images to local registry
+      command: >-
+        docker push {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }}
+      when: aws_build_image_locally
+  when:
+    - container_runtime == "docker"
+
+# containerd/cri-o is used as container runtime:
+- name: prepare containers images
+  block:
+    - name: build local AWS custom image
+      command: >-
+        podman build -f Dockerfile -t {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }} ./
+      args:
+        chdir: "{{ aws_local_build_dir }}"
+      changed_when: true
+      when: aws_build_image_locally
+
+    - name: push the local AWS custom images to local registry
+      command: >-
+        podman push {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }}
+      when: aws_build_image_locally
+  when:
+    - container_runtime is in ['containerd', 'crio']

@@ -15,7 +15,7 @@
 ##
 ---
 nfd_image: "k8s.gcr.io/nfd/node-feature-discovery"
-nfd_image_tag: "v0.11.1"
+nfd_image_tag: "v0.11.3-minimal"
 
 nfd_namespace: "kube-system"
 

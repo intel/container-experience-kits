@@ -1,0 +1,31 @@
+cloudProvider: azure
+azureConfig:
+  location: "West Europe"
+  vpc_cidr_block: "10.21.0.0/16"
+  extra_tags:
+    Owner: "some_user"
+  subnets:
+    - name: "subnet_a"
+      cidr_block: "10.21.1.0/24"
+    - name: "subnet_b"
+      cidr_block: "10.21.2.0/24"
+    - name: "subnet_c"
+      cidr_block: "10.21.3.0/24"
+  sg_whitelist_cidr_blocks: []
+  enable_proximity_placement: true
+  aks:
+    kubernetes_version: "1.23"
+    cni: "kubenet" # Comment out this line to deploy with Cilium CNI
+    default_node_pool:
+      subnet_name: "subnet_a"
+      vm_count: 1
+      vm_size: "Standard_D2_v3"
+    additional_node_pools:
+      - name: "large"
+        subnet_name: "subnet_b"
+        vm_count: 1
+        vm_size: "Standard_D4_v3"
+      - name: "burstable"
+        subnet_name: "subnet_c"
+        vm_count: 1
+        vm_size: "Standard_B2ms"

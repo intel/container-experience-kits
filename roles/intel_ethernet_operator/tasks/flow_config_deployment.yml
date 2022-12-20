@@ -15,7 +15,7 @@
 ##
 ---
 - name: flow config files
-  include_tasks: flow_config_files.yml
+  ansible.builtin.include_tasks: flow_config_files.yml
   loop: "{{ groups['kube_node'] }}"
   loop_control:
     loop_var: node_name
@@ -23,7 +23,7 @@
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate Flow Config yaml files and push to controller node
-  template:
+  ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ (intel_ethernet_operator_flow_config_files_dir, item.dst) | path_join }}"
     force: yes
@@ -33,27 +33,41 @@
     - {src: 'flow-config-node-agent.yml.j2', dst: 'flow-config-node-agent.yml'}
 
 - name: create SRIOV network attachment definition for the DCF VF pool
-  k8s:
+  kubernetes.core.k8s:
     state: present
     src: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow-config-sriov-network.yml') | path_join }}"
 
 - name: create FlowConfig Node Agent deployment CR
-  k8s:
+  kubernetes.core.k8s:
     state: present
     src: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow-config-node-agent.yml') | path_join }}"
 
 - name: wait for FlowConfig Daemon
-  pause:
+  ansible.builtin.pause:
     seconds: 40
 
+- name: check if NodeFlowConfig is enabled on any node
+  ansible.builtin.debug:
+    msg: |
+      "{{ hostvars[node_name]['intel_ethernet_operator']['node_flow_config_enabled'] }}"
+  register: is_nodeflowconfig
+  loop: "{{ groups['kube_node'] }}"
+  loop_control:
+    loop_var: node_name
+
+- name: set_fact for NodeFlowConfig update
+  ansible.builtin.set_fact:
+    is_nodeflowconfig_enabled: "{{ is_nodeflowconfig | json_query('results[*].msg') | replace('\"', '') | replace('\\n', '') }}"
+
 - name: create NodeFlowConfig CR
-  shell: set -o pipefail && kubectl apply $( ls *node-flow.yml | awk ' { print " -f " $1 } ') # noqa 301
+  ansible.builtin.shell: set -o pipefail && kubectl apply $( ls *node-flow.yml | awk ' { print " -f " $1 } ') # noqa 301
   args:
     chdir: "{{ intel_ethernet_operator_flow_config_files_dir }}"
     executable: /bin/bash
+  when: '"True" in is_nodeflowconfig_enabled'
 
-- name: prepare NodeFlowConfig manifests if provided
-  include: flow_config_rules.yml
+- name: prepare Flow Configuration manifests if provided
+  ansible.builtin.include_tasks: flow_config_rules.yml
   loop: "{{ groups['kube_node'] }}"
   loop_control:
     loop_var: node_name

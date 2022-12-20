@@ -1,0 +1,13 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: elasticsearch
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/component: elasticsearch
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/version: {{ elasticsearch_chart_version }}
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: Retain
+allowVolumeExpansion: false

@@ -20,7 +20,6 @@
     - reload systemd
     - reload docker
     - wait for docker
-    - wait for kubernetes
 
 - name: reload systemd
   systemd:
@@ -38,20 +37,10 @@
   delay: 1
   until: docker_ready.rc == 0
 
-- name: wait for kubernetes
-  command: kubectl get nodes
-  register: kubernetes_ready
-  retries: 10
-  delay: 2
-  until: kubernetes_ready.rc == 0
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-
 - name: restart containerd
   command: /bin/true
   notify:
     - containerd | restart containerd
-    - containerd | wait for containerd
 
 - name: containerd | restart containerd
   systemd:
@@ -59,15 +48,6 @@
     state: restarted
     enabled: yes
     daemon-reload: yes
-
-- name: containerd | wait for containerd
-  command: "ctr images ls -q"
-  register: containerd_ready
-  retries: 8
-  delay: 4
-  until: containerd_ready.rc == 0
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: restart crio
   command: /bin/true

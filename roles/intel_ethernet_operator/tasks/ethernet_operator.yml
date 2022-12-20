@@ -15,14 +15,19 @@
 ##
 ---
 - name: clone Intel Ethernet Operator repository
-  git:
+  ansible.builtin.git:
     repo: "{{ intel_ethernet_operator_git }}"
     version: "{{ intel_ethernet_operator_git_ref }}"
     dest: "{{ intel_ethernet_operator_dir }}"
     force: yes
 
+- name: get GOPATH
+  ansible.builtin.command: go env GOPATH
+  register: gopath
+  changed_when: false
+
 - name: build Intel Ethernet Operator
-  make:
+  ansible.builtin.make:
     target: "{{ item }}"
     chdir: "{{ intel_ethernet_operator_dir }}"
     params:
@@ -31,6 +36,11 @@
       IMGTOOL: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
       TLS_VERIFY: "{{ intel_ethernet_operator_make_tls }}"
       TARGET_PLATFORM: "{{ intel_ethernet_operator_target_platform }}"
+  register: ieo_build_status
+  retries: 5
+  delay: 120
+  until:
+    - "'Github rate-limiter failed the request.' not in ieo_build_status.stdout"
   environment:
     PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   loop:
@@ -40,25 +50,26 @@
     - catalog-push
 
 - name: create Intel Ethernet Operator directory to store yaml files
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: '0644'
   loop:
     - "{{ intel_ethernet_operator_files_dir }}"
+    - "{{ intel_ethernet_operator_packages_dir }}"
     - "{{ intel_ethernet_operator_fw_files_dir }}"
     - "{{ intel_ethernet_operator_ddp_files_dir }}"
     - "{{ intel_ethernet_operator_flow_config_files_dir }}"
-    - "{{ intel_ethernet_operator_node_flow_config_files_dir }}"
+    - "{{ intel_ethernet_operator_flow_config_rules_dir }}"
 
 - name: create Intel Ethernet Operator namespace
-  k8s:
+  kubernetes.core.k8s:
     name: "{{ intel_ethernet_operator_namespace }}"
     kind: Namespace
     state: present
 
 - name: populate Intel Ethernet Operator yaml files and push to controller node
-  template:
+  ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ (intel_ethernet_operator_files_dir, item.dst) | path_join }}"
     force: yes
@@ -69,7 +80,7 @@
     - {src: 'subscription.yml.j2', dst: 'subscription.yml'}
 
 - name: Catalog and OperatorGroup
-  k8s:
+  kubernetes.core.k8s:
     state: present
     src: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
   loop:
@@ -77,24 +88,24 @@
     - operator-group.yml
 
 - name: wait for catalog pod
-  pause:
+  ansible.builtin.pause:
     seconds: 30
 
 - name: create Subscription
-  k8s:
+  kubernetes.core.k8s:
     state: present
     src: "{{ (intel_ethernet_operator_files_dir, 'subscription.yml') | path_join }}"
 
 - name: wait for Ethernet Operator deployment
-  pause:
+  ansible.builtin.pause:
     seconds: 100
 
 - name: check if all pods are running
-  shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
+  ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
   args:
     executable: /bin/bash
   register: ieo_pods_status
-  retries: 30
+  retries: 50
   delay: 10
   until:
     - "'Error' not in ieo_pods_status.stdout"
@@ -105,11 +116,11 @@
   changed_when: false
 
 - name: check if all containers are running
-  shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
+  ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
   args:
     executable: /bin/bash
   register: ieo_containers_readiness
-  retries: 30
+  retries: 50
   delay: 10
   until: "'0' not in ieo_containers_readiness.stdout"
   changed_when: false

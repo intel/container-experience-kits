@@ -8,6 +8,8 @@ import validators
 import click
 import docker
 import boto3
+import subprocess
+import json
 
 
 class DockerManagement:
@@ -25,9 +27,9 @@ class DockerManagement:
     AWS_ACCESS_KEY_ID = None
     AWS_ACCESS_SECRET_KEY = None
     AWS_REGION = None
-    ECR_PASSWORD = None
-    ECR_USERNAME = 'AWS'
-    ECR_URL = None
+    CR_PASSWORD = None
+    CR_USERNAME = None
+    CR_URL = None
 
     def __init__(self, from_registry, to_registry, images_to_replicate, region, cloud=None, show_log=False):
         """
@@ -62,6 +64,8 @@ class DockerManagement:
 
         if self.CLOUD == "aws":
             self.initialize_ecr()
+        elif self.CLOUD == "azure":
+            self.initialize_acr()
 
     def copy_images(self):
         """
@@ -82,16 +86,11 @@ class DockerManagement:
                                        registry_old= self.from_registry,
                                        registry_new=self.to_registry)
             self.tagged_images.append(new_image)
-            if self.CLOUD == 'aws':
-                self.push_image(image=new_image['repository'],
-                                tag=new_image['tag'],
-                                registry=self.ECR_URL,
-                                username=self.ECR_USERNAME,
-                                password=self.ECR_PASSWORD)
-            else:
-                self.push_image(image=new_image['repository'],
-                                tag=new_image['tag'],
-                                registry=self.to_registry)
+            self.push_image(image=new_image['repository'],
+                            tag=new_image['tag'],
+                            registry=self.CR_URL,
+                            username=self.CR_USERNAME,
+                            password=self.CR_PASSWORD)
 
     def initialize_ecr(self):
         """
@@ -122,9 +121,19 @@ class DockerManagement:
                                         region_name=self.AWS_REGION)
 
         ecr_credentials = (ecr_client.get_authorization_token()['authorizationData'][0])
-        self.ECR_PASSWORD = (base64.b64decode(ecr_credentials['authorizationToken'])
+        self.CR_USERNAME = "AWS"
+        self.CR_PASSWORD = (base64.b64decode(ecr_credentials['authorizationToken'])
                             .replace(b'AWS:', b'').decode('utf-8'))
-        self.ECR_URL = self.to_registry
+        self.CR_URL = self.to_registry
+
+    def initialize_acr(self):
+        acr_name = self.to_registry.split(".")[0]
+        command = f'az acr login --name {acr_name} --expose-token'
+        result = subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+        access_token = json.loads(result.stdout)["accessToken"]
+        self.CR_PASSWORD = access_token
+        self.CR_USERNAME = "00000000-0000-0000-0000-000000000000"
+        self.CR_URL = self.to_registry
 
     def pull_image(self, registry_url, image_name, username=None, password=None):
         """

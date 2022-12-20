@@ -31,9 +31,10 @@ no_proxy: >-
   127.0.0.1,localhost,.svc,{{ kube_service_addresses }},{{ kube_pods_subnet }},.{{ cluster_name | default("cluster.local") }}
   {%- endif %}
 
-proxy_env:
-  http_proxy: "{{ http_proxy | d('') }}"
-  https_proxy: "{{ https_proxy | d ('') }}"
-  no_proxy: "{{ no_proxy | d('') }}"
+proxy_env: {}
 
 registry_containerd: "/var/lib/kubelet/config.json"
+
+kube_rbac_proxy_image_repo: "quay.io/brancz/kube-rbac-proxy"
+kube_rbac_proxy_image_tag: "v0.13.1"
+kube_rbac_proxy_tls_ciphers: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305" # noqa line-length

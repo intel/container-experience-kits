@@ -25,7 +25,7 @@
 #     apphsm
 #     ctk_demo
 # - tcs
-# - tca
+# - tac
 # - qat
 # - gpu
 # - gpu_dp
@@ -97,7 +97,7 @@ access:
     apphsm: off
     ctk_demo: off
   tcs: off
-  tca: off
+  tac: off
   tas: off
   gas: off
   ddp: off
@@ -195,7 +195,7 @@ full_nfv:
     apphsm: on
     ctk_demo: on
   tcs: on
-  tca: on
+  tac: on
   tas: on
   gas: optional
   ddp: on
@@ -253,7 +253,7 @@ on_prem:
     apphsm: on
     ctk_demo: on
   tcs: on
-  tca: on
+  tac: on
   qat: on
   qat_dp: on
   openssl: on
@@ -350,7 +350,7 @@ remote_fp:
     apphsm: optional
     ctk_demo: optional
   tcs: optional
-  tca: optional
+  tac: optional
   qat: on
   qat_dp: optional
   openssl: on
@@ -450,7 +450,7 @@ build_your_own:
     apphsm: optional
     ctk_demo: optional
   tcs: optional
-  tca: optional
+  tac: optional
   tas: optional
   gas: optional
   ddp: optional

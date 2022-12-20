@@ -4,8 +4,8 @@ kind: GpuDevicePlugin
 metadata:
   name: intel-gpu-plugin
 spec:
-  image: {{ gpu_dp_image | default("docker.io/intel/intel-gpu-plugin") }}:{{ gpu_dp_version | default("0.24.0") }}
-  initImage: {{ gpu_dp_init_image | default("docker.io/intel/intel-gpu-initcontainer") }}:{{ gpu_dp_version | default("0.24.0") }}
+  image: {{ intel_gpu_dp_image }}
+  initImage: {{ intel_gpu_dp_init_image }}
   sharedDevNum: {{ gpu_dp_shared_devices | default(10) }}
   logLevel: {{ gpu_dp_verbosity | default(4) }}
   enableMonitoring: {{ gpu_dp_monitor_resources | default(false) }}
@@ -14,6 +14,6 @@ spec:
   nodeSelector:
     intel.feature.node.kubernetes.io/gpu: "true"
     # check if node has required PCI IDs
-    feature.node.kubernetes.io/pci-0300_8086.present: 'true'
+    feature.node.kubernetes.io/pci-0380_8086.present: 'true'
     # check if node custom gpu kernel installed
-    feature.node.kubernetes.io/kernel-version.full: '{{ gpu_dp_kernel_version[:-1] }}'
+    feature.node.kubernetes.io/kernel-version.full: '{{ gpu_oem_kernel_version }}'

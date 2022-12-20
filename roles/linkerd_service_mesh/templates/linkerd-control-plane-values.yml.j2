@@ -1,0 +1,19 @@
+# -- Trust root certificate (ECDSA). It must be provided during install.
+identityTrustAnchorsPEM: |
+{{ linkerd_tls_ca_crt | indent(width=2, first=true) }}
+# proxy-init configuration
+proxyInit:
+  runAsRoot: true
+{% if ansible_os_family == "RedHat" %}
+  iptablesMode: "nft"
+{% endif %}
+identity:
+  issuer:
+    tls:
+      # -- Issuer certificate (ECDSA). It must be provided during install.
+      crtPEM: |
+        {{ linkerd_tls_crt | indent(width=8, first=false) }}
+      # -- Key for the issuer certificate (ECDSA). It must be provided during
+      # install
+      keyPEM: |
+        {{ linkerd_tls_key | indent(width=8, first=false) }}

@@ -40,3 +40,4 @@ install_dependencies:
     - make
     - libudev-devel
     - perl
+    - nasm

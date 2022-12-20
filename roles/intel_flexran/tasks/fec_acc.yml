@@ -14,11 +14,26 @@
 ##   limitations under the License.
 ##
 ---
-- name: configure vRAN FEC Acc H/W with pf_bb tool
-  shell: "./pf_bb_config ACC100 -c ./acc100/acc100_config_pf_4g5g.cfg" # noqa 305
-  args:
-    chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
-  register: pf_bb_config
-  changed_when: false
+- name: configure ACC100 FEC device with pf_bb tool
+  block:
+    - name: configure ACC100 FEC device with pf_bb tool
+      command: "./pf_bb_config acc100 -c ./acc100/acc100_config_pf_4g5g.cfg" # select .cfg file as desired
+      args:
+        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
+      register: pf_bb_config
+      changed_when: false
 
-- debug: msg="{{ pf_bb_config.stdout }}"
+    - debug: msg="{{ pf_bb_config.stdout }}"
+  when: fec_dev == "acc100"
+
+- name: configure ACC200 FEC device with pf_bb tool
+  block:
+    - name: configure ACC200 FEC device with pf_bb tool
+      command: "./pf_bb_config acc200 -c ./acc200/acc200_config_pf_5g.cfg" # select .cfg file as desired
+      args:
+        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
+      register: pf_bb_config
+      changed_when: false
+
+    - debug: msg="{{ pf_bb_config.stdout }}"
+  when: fec_dev == "acc200"

@@ -1,0 +1,20 @@
+resource "aws_ecr_repository" "default" {
+  name                 = "cwdf-infra-{{ job_id }}-ecr-repository"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ecr-repository"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+output "cr_url" {
+  value = aws_ecr_repository.default.repository_url
+}

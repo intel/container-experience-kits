@@ -25,6 +25,12 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
+- name: local build enabled
+  include: local_build.yml
+  when:
+    - inventory_hostname in groups['kube_node']
+    - tcs.build_image_locally | default(false)
+
 - name: install TCS
   include: tcs_install.yml
   when:

@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: flexran-nr-pod
+  name: flexran-nr-pod
+  annotations:
+    k8s.v1.cni.cncf.io/networks: '[
+               ]'
+spec:
+  containers:
+    - name: flexran-container
+      securityContext:
+        privileged: true
+        capabilities:
+          add:
+            - SYS_ADMIN
+            - IPC_LOCK
+            - SYS_NICE
+      image: localhost/flexran-builder:latest
+      imagePullPolicy: Never
+      command:
+        - sleep
+        - infinity
+      tty: true
+      stdin: true
+      env:
+        - name: SRIOV_FEC_VFIO_TOKEN
+          value: "eb09e62c-a911-44c1-b94f-e974f3c935c6"
+      resources:
+        requests:
+          memory: "8Gi"
+          hugepages-1Gi: 8Gi
+          intel.com/intel_fec_acc200: '1'
+        limits:
+          memory: "8Gi"
+          hugepages-1Gi: 8Gi
+          intel.com/intel_fec_acc200: '1'
+      volumeMounts:
+        - name: hugepage
+          mountPath: /hugepages
+        - name: varrun
+          mountPath: /var/run/dpdk
+          readOnly: false
+        - name: sys
+          mountPath: /sys/
+          readOnly: false
+        - name: test-bbdev-app
+          mountPath: /opt/backups/wireless-dpdk-ae
+          readOnly: false
+  volumes:
+    - name: test-bbdev-app
+      hostPath:
+        path: "/opt/backups/wireless-dpdk-ae"
+      mountPath:
+    - name: sys
+      hostPath:
+        path: "/sys"
+    - name: hugepage
+      emptyDir:
+        medium: HugePages
+    - name: varrun
+      emptyDir: {}

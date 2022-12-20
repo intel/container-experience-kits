@@ -42,6 +42,15 @@
   command: kubectl create namespace {{ collectd_namespace }}
   when: '"NotFound" in ns_exists.stderr'
 
+- name: template collectd-serviceMonitor
+  template:
+    src: "collectd-serviceMonitor.yml.j2"
+    dest: "{{ (collectd_deployment_dir, 'collectd-serviceMonitor.yml') | path_join }}"
+    owner: root
+    group: root
+    force: yes
+    mode: preserve
+
 - name: fill in k8s deployment files
   template:
     src: "{{ item }}"

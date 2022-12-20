@@ -43,7 +43,7 @@
   with_items: "{{ docker_repo_info.repos }}"
   when: ansible_distribution == 'Ubuntu'
 
-- name: Configure docker repository on RedHat/CentOS
+- name: Configure docker repository on RedHat / Rocky
   template:
     src: "rh_docker.repo.j2"
     dest: "{{ yum_repo_dir }}/docker-ce.repo"
@@ -62,13 +62,16 @@
     - docker-ce
     - docker-ce-cli
 
+- name: manually update cache
+  changed_when: false
+  command: apt update
+  when: ansible_distribution == 'Ubuntu'
+
 - name: ensure docker packages are installed
   package:
     name: "{{ docker_package_info.pkgs }}"
     state: "{{ docker_package_info.state | default('present') }}"
   module_defaults:
-    apt:
-      update_cache: true
     dnf:
       enablerepo: "{{ docker_package_info.enablerepo | default(omit) }}"
     yum:

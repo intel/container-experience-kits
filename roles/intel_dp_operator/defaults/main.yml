@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-intel_dp_operator_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
-intel_dp_operator_git_ref: "v0.24.0"
-intel_dp_operator_version: "0.24.0"
-intel_dp_operator_dir: "{{ (project_root_dir, 'intel-dp-operator') | path_join }}"
+intel_dp_git_url: "https://github.com/intel/intel-device-plugins-for-kubernetes.git"
+intel_dp_version: "0.25.1"
+intel_dp_dir: "{{ (project_root_dir, 'intel-device-plugins') | path_join }}"
+intel_dp_templates_dir: "{{ (project_root_dir, 'intel-device-plugins-templates') | path_join }}"
 intel_dp_namespace: kube-system

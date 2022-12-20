@@ -1,0 +1,24 @@
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: userspace-ovs
+  namespace: default
+spec:
+  config: |
+    {
+      "cniVersion": "0.4.0",
+      "type": "userspace",
+{% if hostvars[groups['kube_node'][0]]['ansible_system_vendor'] == "Amazon EC2" %}
+      "kubeconfig": "/root/.kube/config",
+{% elif hostvars[groups['kube_node'][0]]['ansible_system_vendor'] == "Microsoft Corporation" %}
+      "kubeconfig": "/var/lib/kubelet/kubeconfig",
+{% else %}
+      "kubeconfig": "/etc/kubernetes/kubelet.conf",
+{% endif %}
+      "LogLevel": "debug",
+      "LogFile": "/var/log/userspace.log",
+      "host": {
+        "engine": "ovs-dpdk",
+        "iftype": "vhostuser"
+      }
+    }

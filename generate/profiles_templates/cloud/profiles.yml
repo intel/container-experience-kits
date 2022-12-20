@@ -1,0 +1,566 @@
+# How to use this file:
+# --------------------
+# <feature> can be:
+# - on (included and enabled)
+# - optional (included in vars but disabled)
+# - off (not included, might as well drop it from the profile section)
+#
+# features:
+# - vm_mode             - is 'optional(false)' on k8s and is 'on(true)' on vm_host and on VMs
+# - on_vms              - is 'optional(false)' on k8s and on vm_host and is 'on(true)' on VMs
+# - cloud_mode
+# - nfd
+# - kube_dashboard
+# - isolcpu
+# - cpusets
+# - native_cpu_manager
+# - bond_cni
+# - topology_manager
+# - sriov_operator
+# - sriov_network_dp
+# - nic_drivers
+# - sgx
+# - sgx_dp
+# - kmra:
+#     pccs
+#     apphsm
+#     ctk_demo
+# - tcs
+# - tac
+# - qat
+# - dsa
+# - gpu
+# - gpu_dp
+# - openssl
+# - tas
+# - gas
+# - ddp
+# - network_userspace
+# - dpdk
+# - ovs_dpdk
+# - pstate
+# - cstate
+# - ufs - uncore frequency scaling
+# - sst
+# - power_manager
+# - telemetry:
+#     prometheus
+#     collectd
+#     telegraf
+#     opentelemetry
+# - jaeger
+# - wireguard
+# - multus
+# - cndp
+# - cndp_dp
+# - minio
+# - cert_manager
+# - registry
+# - hugepages
+# - istio_service_mesh
+#     enabled
+#     tcpip_bypass_ebpf
+#     tls_splicing
+#     sgx_signer
+#     intel_preview
+# - linkerd_service_mesh
+#     enabled
+# - intel_ethernet_operator
+#     enabled
+#     flow_config
+#     ddp
+#     fw_update
+# - intel_sriov_fec_operator
+# - intel_flexran
+# - tadk
+
+---
+access:
+  name: access
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: on
+  kube_dashboard: off
+  isolcpu: optional
+  cpusets: optional
+  native_cpu_manager: off
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  bond_cni: off
+  qat: off
+  qat_dp: off
+  openssl: off
+  dsa: off
+  dsa_dp: off
+  dlb: off
+  dlb_dp: off
+  gpu: off
+  gpu_dp: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  tas: off
+  gas: off
+  ddp: off
+  network_userspace: off
+  dpdk: on
+  ovs_dpdk: off
+  pstate: off
+  cstate: off
+  ufs: off
+  sst: off
+  power_manager: off
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: on
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
+    enabled: off
+    tcpip_bypass_ebpf: off
+    tls_splicing: off
+    sgx_signer: off
+    intel_preview: off
+  linkerd_service_mesh:
+    enabled: off
+  wireguard: off
+  multus: on
+  firewall: off
+  cndp: off
+  cndp_dp: off
+  minio: off
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    ddp: off
+    fw_update: off
+  intel_sriov_fec_operator: off
+  intel_flexran: off
+  adq_dp: off
+
+basic:
+  name: basic
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: on
+  kube_dashboard: off
+  isolcpu: optional
+  cpusets: optional
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  dpdk: optional
+  cstate: optional
+  ufs: off
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: on
+    opentelemetry: on
+  jaeger: optional
+  wireguard: off
+  multus: on
+  firewall: off
+  cndp: off
+  cndp_dp: off
+  cert_manager: on
+  registry: on
+  hugepages: optional
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    fw_update: off
+  adq_dp: off
+
+full_nfv:
+  name: full_nfv
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: on
+  kube_dashboard: off
+  isolcpu: optional
+  cpusets: optional
+  native_cpu_manager: off
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  bond_cni: off
+  qat: off
+  qat_dp: off
+  openssl: off
+  dsa: off
+  dsa_dp: off
+  dlb: off
+  dlb_dp: off
+  gpu: off
+  gpu_dp: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  tas: off
+  gas: off
+  ddp: off
+  network_userspace: on
+  dpdk: on
+  ovs_dpdk: on
+  pstate: optional
+  cstate: optional
+  ufs: off
+  sst: off
+  power_manager: off
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: on
+    opentelemetry: on
+  jaeger: on
+  istio_service_mesh:
+    enabled: on
+    tcpip_bypass_ebpf: on
+    tls_splicing: on
+    sgx_signer: off
+    intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: off
+  multus: on
+  firewall: off
+  cndp: off
+  cndp_dp: off
+  minio: off
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    ddp: off
+    fw_update: off
+  intel_sriov_fec_operator: off
+  intel_flexran: off
+  tadk: on
+  adq_dp: off
+
+on_prem:
+  name: on_prem
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: on
+  kube_dashboard: off
+  isolcpu: optional
+  cpusets: optional
+  native_cpu_manager: off
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  qat: off
+  qat_dp: off
+  dsa: off
+  dsa_dp: off
+  dlb: off
+  dlb_dp: off
+  openssl: off
+  tas: off
+  dpdk: on
+  bond_cni: off
+  pstate: off
+  cstate: optional
+  ufs: off
+  sst: off
+  power_manager: off
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: on
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
+    enabled: on
+    tcpip_bypass_ebpf: on
+    tls_splicing: on
+    sgx_signer: off
+    intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: off
+  multus: on
+  firewall: off
+  cndp: off
+  cndp_dp: off
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    fw_update: off
+  adq_dp: off
+
+regional_dc:
+  name: regional_dc
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: on
+  kube_dashboard: off
+  isolcpu: optional
+  cpusets: optional
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  native_cpu_manager: off
+  gpu: off
+  gpu_dp: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  tas: off
+  gas: off
+  dpdk: optional
+  cstate: optional
+  ufs: off
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: on
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
+    enabled: on
+    tcpip_bypass_ebpf: on
+    tls_splicing: on
+    sgx_signer: off
+    intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: off
+  multus: on
+  firewall: off
+  cndp: off
+  cndp_dp: off
+  cert_manager: on
+  registry: on
+  hugepages: optional
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    fw_update: off
+  adq_dp: off
+
+remote_fp:
+  name: remote_fp
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: on
+  kube_dashboard: off
+  isolcpu: optional
+  cpusets: optional
+  native_cpu_manager: off
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  qat: off
+  qat_dp: off
+  dsa: off
+  dsa_dp: off
+  dlb: off
+  dlb_dp: off
+  openssl: off
+  tas: off
+  ddp: off
+  bond_cni: off
+  network_userspace: optional
+  dpdk: on
+  pstate: off
+  cstate: optional
+  ufs: off
+  sst: off
+  power_manager: off
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: optional
+    opentelemetry: on
+  jaeger: optional
+  istio_service_mesh:
+    enabled: optional
+    tcpip_bypass_ebpf: optional
+    tls_splicing: optional
+    sgx_signer: off
+    intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: off
+  multus: on
+  firewall: off
+  cndp: off
+  cndp_dp: off
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    ddp: off
+    fw_update: off
+  adq_dp: off
+
+storage:
+  name: storage
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: on
+  kube_dashboard: off
+  native_cpu_manager: off
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  qat: off
+  qat_dp: off
+  tas: off
+  ddp: off
+  dpdk: on
+  cstate: optional
+  ufs: off
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: on
+    opentelemetry: on
+  jaeger: optional
+  wireguard: off
+  multus: on
+  firewall: off
+  minio: off
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    ddp: off
+    fw_update: off
+  adq_dp: off
+
+build_your_own:
+  name: build_your_own
+  cloud_mode: on
+  vm_mode: off
+  on_vms: off
+  nfd: optional
+  kube_dashboard: off
+  isolcpu: optional
+  cpusets: optional
+  native_cpu_manager: off
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  bond_cni: off
+  qat: off
+  qat_dp: off
+  openssl: off
+  dsa: off
+  dsa_dp: off
+  gpu: off
+  gpu_dp: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  tas: off
+  gas: off
+  ddp: off
+  network_userspace: optional
+  dpdk: optional
+  ovs_dpdk: optional
+  pstate: off
+  cstate: optional
+  ufs: off
+  sst: off
+  power_manager: off
+  telemetry:
+    prometheus: optional
+    collectd: off
+    telegraf: optional
+    opentelemetry: optional
+  jaeger: optional
+  istio_service_mesh:
+    enabled: optional
+    tcpip_bypass_ebpf: optional
+    tls_splicing: optional
+    sgx_signer: off
+    intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: off
+  multus: optional
+  firewall: off
+  cndp: off
+  cndp_dp: off
+  minio: off
+  cert_manager: optional
+  registry: optional
+  hugepages: optional
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    ddp: off
+    fw_update: off
+  intel_sriov_fec_operator: off
+  intel_flexran: off
+  tadk: optional
+  adq_dp: off

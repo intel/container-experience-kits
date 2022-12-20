@@ -21,5 +21,5 @@ perf_events_config_filename: "sample-perf-event.json"
 cadvisor_helm_repo_url: "https://ckotzbauer.github.io/helm-charts"  # cAdvisor Helm Repo URL
 cadvisor_helm_chart_repo_name: "ckotzbauer"         # cAdvisor Repo Name
 cadvisor_helm_charts_ref: "ckotzbauer/cadvisor"     # cAdvisor Helm Chart Reference
-cadvisor_helm_charts_version: "2.2.1"               # cAdvisor Version
+cadvisor_helm_charts_version: "2.2.2"               # cAdvisor Version
 cadvisor_helm_release_namespace: "kube-system"      # cAdvisor Namespace

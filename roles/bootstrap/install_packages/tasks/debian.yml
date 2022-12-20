@@ -92,10 +92,13 @@
   apt: update_cache=yes
   when: ansible_distribution == "Ubuntu"
 
-- name: install zip
+- name: install zip and unzip
   apt:
-    name: zip
+    name: "{{ item }}"
     update_cache: yes
+  with_items:
+    - zip
+    - unzip
   when: ansible_os_family == "Debian"
 
 - name: install pip
@@ -133,6 +136,12 @@
   when:
     - ansible_os_family == "Debian"
     - update_all_packages | default(false)
+
+- name: ensure git is installed
+  apt:
+    name: git
+    state: present
+  when: ansible_os_family == "Debian"
 
 - name: install command line tools to collect hardware details
   apt:

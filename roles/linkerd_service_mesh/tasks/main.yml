@@ -23,68 +23,39 @@
     mode: "0755"
   become: true
 
-- name: Fetch information about namespaces
-  ansible.builtin.command: "{{ kubectl_cli_bin }} get namespaces"
-  register: k8s_namespaces
-  changed_when: false
+- name: Create LinkerD namespace
+  kubernetes.core.k8s:
+    name: "{{ linkerd_namespace }}"
+    kind: Namespace
+    api_version: v1
+    state: present
 
-- name: Debug list of namespaces
-  ansible.builtin.debug:
-    var: k8s_namespaces.stdout
+- name: Generate TLS Certificate
+  ansible.builtin.import_tasks: generate_tls_certificate.yml
 
-- name: Fetch list of ClusterRoleBindings
-  ansible.builtin.command: "{{ kubectl_cli_bin }} get ClusterRoleBindings"
-  register: k8s_cluster_role_bindings
-  changed_when: false
+- name: Add LinkerD Helm repository
+  kubernetes.core.helm_repository:
+    name: linkerd
+    repo_url: "{{ linkerd_helm_repo }}"
 
-- name: Debug list of ClusterRoleBindings
-  ansible.builtin.debug:
-    var: k8s_cluster_role_bindings.stdout
+- name: Install LinkerD CRDs
+  kubernetes.core.helm:
+    name: linkerd-crds
+    chart_ref: "linkerd/linkerd-crds"
+    release_namespace: "{{ linkerd_namespace }}"
+    wait: true
 
-- name: Install LinkerD
-  block:
-    - name: Get linkerd pre-check
-      ansible.builtin.command: "{{ linkerd_cli_bin }} check --pre"
-      register: linkerd_pre_check
-      changed_when: false
+- name: Install LinkerD control plane
+  kubernetes.core.helm:
+    name: linkerd-control-plane
+    chart_ref: "linkerd/linkerd-control-plane"
+    release_namespace: "{{ linkerd_namespace }}"
+    values: "{{ lookup('template', 'linkerd-control-plane-values.yml.j2') | from_yaml }}"
+    wait: true
 
-    - name: Debug linkerd pre-check
-      ansible.builtin.debug:
-        msg: "{{ linkerd_pre_check.stdout_lines }}"
-
-    - name: Install linkerd crds
-      ansible.builtin.shell: "set -o pipefail && {{ linkerd_cli_bin }} install --crds | {{ kubectl_cli_bin }} apply -f -"
-      args:
-        executable: /bin/bash
-      register: linkerd_crds_installation
-      changed_when: true
-
-    - name: Debug linkerd crds installation
-      ansible.builtin.debug:
-        msg: "{{ linkerd_crds_installation }}"
-
-    - name: Install linkerd
-      ansible.builtin.shell: "set -o pipefail && {{ linkerd_cli_bin }} install --set proxyInit.runAsRoot=true | {{ kubectl_cli_bin }} apply -f -"
-      args:
-        executable: /bin/bash
-        warn: false
-      register: linkerd_installation
-      become: true
-      changed_when: true
-
-    - name: Debug linkerd installation
-      ansible.builtin.debug:
-        msg: "{{ linkerd_installation.stdout_lines }}"
-
-    - name: Delete LinkerD Heartbeat CronJob if http_proxy is enabled
-      ansible.builtin.shell: "set -o pipefail && {{ kubectl_cli_bin }} delete cronjob linkerd-heartbeat -n linkerd"
-      args:
-        executable: /bin/bash
-        warn: false
-      when:
-        - (http_proxy is defined and https_proxy is defined) or
-          (http_proxy is defined and https_proxy is not defined) or
-          (http_proxy is not defined and https_proxy is defined)
-  when:
-    - not k8s_namespaces.stdout is search('linkerd')
-    - not k8s_cluster_role_bindings.stdout is search('linkerd-linkerd-proxy-injector')
+- name: Delete LinkerD Heartbeat CronJob if http_proxy is enabled
+  ansible.builtin.shell: "set -o pipefail && {{ kubectl_cli_bin }} delete cronjob linkerd-heartbeat -n linkerd"
+  args:
+    executable: /bin/bash
+    warn: false
+  when: http_proxy is defined or https_proxy is defined

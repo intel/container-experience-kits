@@ -121,7 +121,7 @@ data "aws_ami" "ubuntu2004" {
 
 resource "aws_instance" "ansible" {
   ami                    = data.aws_ami.ubuntu2004.id
-  instance_type          = "t3.medium"
+  instance_type          = "{{ ansible_instance_type }}"
 
   vpc_security_group_ids = [aws_security_group.default.id]
   subnet_id              = aws_subnet.{{ subnets[0].name }}.id
@@ -138,7 +138,7 @@ resource "aws_instance" "ansible" {
 apt-get -qq -y update
 apt-get -qq -y upgrade
 apt-get -qq -y install python3-pip
-apt-get -qq -y install zip unzip net-tools
+apt-get -qq -y install zip unzip net-tools apache2-utils
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
 unzip /tmp/awscliv2.zip -d /tmp/
 /tmp/aws/install
@@ -147,6 +147,11 @@ rm -rf /tmp/awscliv2.zip
 curl -o /usr/local/bin/kubectl https://s3.us-west-2.amazonaws.com/amazon-eks/1.22.6/2022-03-09/bin/linux/amd64/kubectl
 chmod +x /usr/local/bin/kubectl
 sudo -H -u ubuntu bash -c 'aws eks --region {{ region }} update-kubeconfig --name ${aws_eks_cluster.default.name}'
+sudo cp -r /home/ubuntu/.kube /root/
+curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 /tmp/get_helm.sh
+/bin/bash /tmp/get_helm.sh
+rm /tmp/get_helm.sh
 mkdir /home/ubuntu/cwdf_deployment
 mkdir /home/ubuntu/cwdf_deployment/ssh
 echo "{{ ssh_pub_key }}" >> /home/ubuntu/cwdf_deployment/ssh/id_rsa.pub

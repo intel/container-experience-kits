@@ -47,17 +47,17 @@
     dpdk_build: "static"
   when: dpdk_version is version("20.08", ">=")
 
-- name: install dpdk-devel to prepare OVS-DPDK build in RHEL / CentOS >= 8.2
+- name: install dpdk-devel to prepare OVS-DPDK build in RHEL / Rocky >= 8.2
   dnf:
     name: dpdk-devel
   when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
 
-- name: update the dynamic linker cache in RHEL / CentOS >= 8.2
+- name: update the dynamic linker cache in RHEL / Rocky >= 8.2
   command: "ldconfig"
   when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
   changed_when: true
 
-- name: prepare OVS-DPDK build in RHEL / CentOS >= 8.2
+- name: prepare OVS-DPDK build in RHEL / Rocky >= 8.2
   command: ./configure --with-dpdk=yes CFLAGS="-g -O2 -Wno-cast-align"
   args:
     chdir: "{{ ovs_dir }}"

@@ -1,0 +1,128 @@
+resource "azurerm_public_ip" "ansible_instance" {
+  name                = "cwdf-infra-{{ job_id }}-ansible-instance-public-ip"
+  location            = azurerm_resource_group.default.location
+  resource_group_name = azurerm_resource_group.default.name
+  allocation_method   = "Static"
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ansible-instance-public-ip"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_network_interface" "ansible_instance" {
+  name                = "cwdf-infra-{{ job_id }}-ansible-instance-ni"
+  location            = azurerm_resource_group.default.location
+  resource_group_name = azurerm_resource_group.default.name
+
+  ip_configuration {
+    name                          = "default"
+    subnet_id                     = azurerm_subnet.{{ subnets[0].name }}.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.ansible_instance.id
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ansible-instance-ni"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_network_interface_security_group_association" "ansible_instance" {
+  network_interface_id      = azurerm_network_interface.ansible_instance.id
+  network_security_group_id = azurerm_network_security_group.default.id
+}
+
+resource "azurerm_linux_virtual_machine" "ansible_instance" {
+  name                = "cwdf-infra-{{ job_id }}-ansible-instance"
+  resource_group_name = azurerm_resource_group.default.name
+  location            = azurerm_resource_group.default.location
+
+  size                = "{{ ansible_instance_size }}"
+  admin_username      = "ubuntu"
+
+  {% if enable_proximity_placement == true %}
+  proximity_placement_group_id = azurerm_proximity_placement_group.default.id
+  {% endif %}
+
+  network_interface_ids = [
+    azurerm_network_interface.ansible_instance.id,
+  ]
+
+  admin_ssh_key {
+    username   = "ubuntu"
+    public_key = "{{ ssh_pub_key }}"
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "StandardSSD_LRS"
+    disk_size_gb         = 64
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  custom_data = base64encode(<<EOF
+#!/bin/bash
+apt-get -qq -y update
+apt-get -qq -y upgrade
+apt-get -qq -y install python3-pip
+apt-get -qq -y install zip unzip net-tools apache2-utils
+curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+az aks install-cli
+sudo -H -u ubuntu bash -c 'az login --identity'
+sudo -H -u ubuntu bash -c 'az aks get-credentials --resource-group ${azurerm_resource_group.default.name} --name ${azurerm_kubernetes_cluster.default.name}'
+cp -r /home/ubuntu/.kube /root/
+curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 /tmp/get_helm.sh
+/bin/bash /tmp/get_helm.sh
+rm /tmp/get_helm.sh
+mkdir /home/ubuntu/cwdf_deployment
+mkdir /home/ubuntu/cwdf_deployment/ssh
+echo "{{ ssh_pub_key }}" >> /home/ubuntu/cwdf_deployment/ssh/id_rsa.pub
+chown ubuntu /home/ubuntu/cwdf_deployment -R
+sudo -H -u ubuntu bash -c 'pip install --user paramiko'
+EOF
+  )
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ansible-instance"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_role_assignment" "ansible_acr" {
+  principal_id                     = azurerm_linux_virtual_machine.ansible_instance.identity[0].principal_id
+  role_definition_name             = "AcrPush"
+  scope                            = azurerm_container_registry.default.id
+  skip_service_principal_aad_check = true
+}
+
+resource "azurerm_role_assignment" "ansible_aks" {
+  principal_id                     = azurerm_linux_virtual_machine.ansible_instance.identity[0].principal_id
+  role_definition_name             = "Owner"
+  scope                            = azurerm_kubernetes_cluster.default.id
+  skip_service_principal_aad_check = true
+}
+
+output "ansible_host_public_ip" {
+  value = azurerm_public_ip.ansible_instance.ip_address
+}

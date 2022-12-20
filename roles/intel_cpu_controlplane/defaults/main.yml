@@ -1,0 +1,25 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+cpu_ctlplane_namespace: "ctlplane"                    # CPU control plane namespace
+cpu_ctlplane_release_name: "intel-cpu-controlplane"   # CPU control plane release name
+cpu_ctlplane_golang_version: "1.19.1"                 # CPU control plane golang version
+
+cpu_ctlplane_git_url: "https://github.com/intel/cpu-control-plane-plugin-for-kubernetes.git"
+cpu_ctlplane_commit_hash: "a2b5f286cfa0ae05b0504fa0085023ea0e1fbdea" # "7e843ea8742d93759fe34a1a7d1d00293c58efd0"
+cpu_ctlplane_local_build_dir: "{{ (project_root_dir, 'intel-cpu-controlplane') | path_join }}"
+cpu_ctlplane_local_build_name: "intel-cpu-controlplane"
+cpu_ctlplane_local_tag_name: "v0.1"

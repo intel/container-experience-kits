@@ -25,24 +25,30 @@
     loop_var: node_name
   when: inventory_hostname == groups['kube_control_plane'][0]
 
+- name: create directory for Intel Device Plugins templates
+  file:
+    state: directory
+    path: "{{ intel_dp_templates_dir }}"
+    mode: 0644
+
 - name: clone Intel Device Plugins repository
   git:
-    repo: "{{ intel_dp_operator_git_url }}"
-    version: "{{ intel_dp_operator_git_ref }}"
-    dest: "{{ intel_dp_operator_dir }}"
+    repo: "{{ intel_dp_git_url }}"
+    version: "{{ ( 'v' + intel_dp_version ) | path_join }}"
+    dest: "{{ intel_dp_dir }}"
     force: yes
 
 - name: prepare and deploy Intel Device Plugins Operator
   block:
     - name: set namespace for Intel Device Plugin Operator to {{ intel_dp_namespace }}
       lineinfile:
-        path: "{{ intel_dp_operator_dir }}/deployments/operator/default/kustomization.yaml"
+        path: "{{ (intel_dp_dir, 'deployments', 'operator', 'default', 'kustomization.yaml') | path_join }}"
         regex: 'namespace: inteldeviceplugins-system'
         line: "namespace: {{ intel_dp_namespace }}"
         mode: 0644
 
     - name: install Intel Device Plugins Operator
-      command: kubectl apply -k {{ intel_dp_operator_dir }}/deployments/operator/default
+      command: kubectl apply -k "{{ (intel_dp_dir, 'deployments', 'operator', 'default') | path_join }}"
       changed_when: true
       register: result
       retries: 10

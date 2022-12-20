@@ -1,0 +1,106 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+gpu_repo_key_url: https://repositories.intel.com/graphics/intel-graphics.key
+gpu_key_text_path: /tmp/intel-graphic-key.txt
+gpu_usr_key_path: /usr/share/keyrings/intel-graphics.gpg
+gpu_oem_kernel_image: linux-image-{{ gpu_oem_kernel_version }}
+
+gpu_tool_packages:
+  - hwinfo
+  - vainfo
+  - clinfo
+
+# Variables for Ubuntu 20.04
+gpu_repo_list_path_focal: /etc/apt/sources.list.d/intel.gpu.focal.list
+gpu_repo_spec_focal: "focal main"
+gpu_repo_focal_url: https://repositories.intel.com/graphics/ubuntu
+
+gpu_dkms_packages_focal:
+  - gawk
+  - dkms
+  - linux-headers-{{ gpu_oem_kernel_version }}
+  - libc-dev
+  - intel-i915-dkms
+  - intel-platform-cse-dkms
+  - pmt
+
+gpu_runtime_packages_focal:
+  - intel-opencl-icd
+  - intel-level-zero-gpu
+  - level-zero
+  - intel-media-va-driver-non-free
+  - libmfx1
+  - libmfxgen1
+  - libvpl2
+  - libegl-mesa0
+  - libegl1-mesa
+  - libegl1-mesa-dev
+  - libgbm1
+  - libgl1-mesa-dev
+  - libgl1-mesa-dri
+  - libglapi-mesa
+  - libgles2-mesa-dev
+  - libglx-mesa0
+  - libigdgmm11
+  - libxatracker2
+  - mesa-va-drivers
+  - mesa-vdpau-drivers
+  - mesa-vulkan-drivers
+  - va-driver-all
+
+# Variables for Ubuntu 22.04
+gpu_repo_list_path_jammy: /etc/apt/sources.list.d/intel.gpu.jammy.list
+gpu_repo_spec_jammy: "jammy flex"
+
+gpu_dkms_packages_jammy:
+  - gawk
+  - dkms
+  - linux-headers-{{ gpu_oem_kernel_version }}
+  - libc6-dev
+  - intel-platform-vsec-dkms
+  - intel-platform-cse-dkms
+  - intel-i915-dkms
+  - intel-fw-gpu
+
+gpu_runtime_packages_jammy:
+  - intel-opencl-icd
+  - intel-level-zero-gpu
+  - level-zero
+  - intel-media-va-driver-non-free
+  - libmfx1
+  - libmfxgen1
+  - libvpl2
+  - libegl-mesa0
+  - libegl1-mesa
+  - libegl1-mesa-dev
+  - libgbm1
+  - libgl1-mesa-dev
+  - libgl1-mesa-dri
+  - libglapi-mesa
+  - libgles2-mesa-dev
+  - libglx-mesa0
+  - libigdgmm12
+  - libxatracker2
+  - mesa-va-drivers
+  - mesa-vdpau-drivers
+  - mesa-vulkan-drivers
+  - va-driver-all
+  - libigc-dev
+  - intel-igc-cm
+  - libigdfcl-dev
+  - libigfxcmrt-dev
+  - level-zero-dev

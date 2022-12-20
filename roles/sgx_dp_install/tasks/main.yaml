@@ -20,42 +20,27 @@
   when:
     - inventory_hostname == groups['kube_node'][0]
 
-- name: clone Intel Device Plugins repository
-  git:
-    repo: "{{ intel_sgx_dp_git_url }}"
-    version: "{{ intel_sgx_dp_git_ref }}"
-    dest: "{{ intel_sgx_dp_dir }}"
-    force: yes
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-
 # docker is used as container runtime:
 - name: prepare containers images
   block:
-    - name: build SGX Plugin before Intel SGX Device Plugin images
-      make:
-        target: sgx_plugin
-        chdir: "{{ intel_sgx_dp_dir }}"
-      when: sgx_dp_build_image_locally
-
     - name: build Intel SGX Device Plugin images
       make:
         target: "{{ item }}"
-        chdir: "{{ intel_sgx_dp_dir }}"
+        chdir: "{{ intel_dp_dir }}"
       loop:
         - intel-sgx-plugin
         - intel-sgx-initcontainer
       when: sgx_dp_build_image_locally
 
     - name: tag Intel SGX Device Plugin images
-      command: docker tag intel/{{ item }}:{{ intel_sgx_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
+      command: docker tag intel/{{ item }}:{{ intel_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
       loop:
         - intel-sgx-plugin
         - intel-sgx-initcontainer
       when: sgx_dp_build_image_locally
 
     - name: push Intel SGX Device Plugin images to local registry
-      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
+      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
       loop:
         - intel-sgx-plugin
         - intel-sgx-initcontainer
@@ -68,9 +53,9 @@
 - name: prepare containers images
   block:
     - name: build and tag Intel SGX Device Plugin images
-      command: podman build -f build/docker/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_sgx_dp_version }}
+      command: podman build -f build/docker/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_dp_version }}
       args:
-        chdir: "{{ intel_sgx_dp_dir }}"
+        chdir: "{{ intel_dp_dir }}"
       changed_when: true
       with_items:
         - {file: intel-sgx-initcontainer.Dockerfile, name: intel-sgx-initcontainer}
@@ -78,7 +63,7 @@
       when: sgx_dp_build_image_locally
 
     - name: push Intel SGX Device Plugin images to local registry
-      command: podman push {{ registry_local_address }}/{{ item }}:{{ intel_sgx_dp_version }}
+      command: podman push {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
       changed_when: true
       loop:
         - intel-sgx-initcontainer
@@ -92,22 +77,21 @@
   block:
     - name: set values
       set_fact:
-        sgx_dp_image: "{{ registry_local_address }}/intel-sgx-plugin"
-        sgx_dp_init_image: "{{ registry_local_address }}/intel-sgx-initcontainer"
-        sgx_dp_version: "{{ intel_sgx_dp_version }}"
+        intel_sgx_dp_image: "{{ registry_local_address }}/intel-sgx-plugin:{{ intel_dp_version }}"
+        intel_sgx_dp_init_image: "{{ registry_local_address }}/intel-sgx-initcontainer:{{ intel_dp_version }}"
       when: sgx_dp_build_image_locally
 
     - name: populate Intel SGX Plugin yaml file and push to controller node
       template:
         src: "intel-sgx-plugin.yml.j2"
-        dest: "{{ (project_root_dir, 'intel-sgx-plugin.yml') | path_join }}"
+        dest: "{{ (intel_dp_templates_dir, 'intel-sgx-plugin.yml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: deploy Intel SGX Device Plugin with the Intel Device Plugin Operator
       k8s:
         state: present
-        src: "{{ (project_root_dir, 'intel-sgx-plugin.yml') | path_join  }}"
+        src: "{{ (intel_dp_templates_dir, 'intel-sgx-plugin.yml') | path_join  }}"
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
@@ -120,18 +104,18 @@
     - name: build Intel sgx-aesmd image
       make:
         target: sgx-aesmd-demo
-        chdir: "{{ intel_sgx_dp_dir }}"
+        chdir: "{{ intel_dp_dir }}"
       retries: 5
       delay: 10
       register: build_aesmd
       until: build_aesmd is not failed
 
     - name: tag Intel sgx-aesmd image
-      command: docker tag intel/sgx-aesmd-demo:{{ intel_sgx_dp_version }} {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      command: docker tag intel/sgx-aesmd-demo:{{ intel_dp_version }} {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
       changed_when: true
 
     - name: push Intel sgx-aesmd image to local registry
-      command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
       changed_when: true
   when:
     - sgx_aesmd_demo_enable | default(false) | bool
@@ -141,13 +125,13 @@
 - name: build Intel sgx-aesmd demo image non-Docker engine
   block:
     - name: build and tag Intel sgx-aesmd image
-      command: podman build -f demo/sgx-aesmd-demo/Dockerfile -t {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      command: podman build -f demo/sgx-aesmd-demo/Dockerfile -t {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
       args:
-        chdir: "{{ intel_sgx_dp_dir }}"
+        chdir: "{{ intel_dp_dir }}"
       changed_when: true
 
     - name: push Intel sgx-aesmd image to local registry
-      command: podman push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_sgx_dp_version }}
+      command: podman push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
       changed_when: true
   when:
     - sgx_aesmd_demo_enable | default(false) | bool

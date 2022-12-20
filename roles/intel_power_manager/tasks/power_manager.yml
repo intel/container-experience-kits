@@ -14,6 +14,47 @@
 ##   limitations under the License.
 ##
 ---
+# workaround to be removed once component will be updated to version, which supports higher golang version
+# Required golang version here is 1.17.8
+- name: check current golang version
+  shell: "set -o pipefail && /usr/local/go/bin/go version|sed -e 's/go version go//g'|cut -d' ' -f1"
+  args:
+    executable: /bin/bash
+  failed_when: false
+  changed_when: false
+  register: go_version
+
+- name: set intel_power_manager - 'ipm' go version
+  set_fact:
+    ipm_go_version: 1.17.8
+
+- name: install ipm specific golang version
+  block:
+    - name: workaround for old golang version needed for IPM
+      vars:
+        golang_version: "{{ ipm_go_version }}"
+        golang_download_checksum: "sha256:980e65a863377e69fd9b67df9d8395fd8e93858e7a24c9f55803421e453f4f99"
+        additional_go_version: "go_{{ ipm_go_version }}"
+      include_role:
+        name: bootstrap/golang_install
+
+    - name: set gopath for ipm go version
+      set_fact:
+        ipm_go_root_path: "/usr/local/go_{{ ipm_go_version }}/go"
+        ipm_go_path: "/root/go_{{ ipm_go_version }}/go"
+  when: go_version.stdout > ipm_go_version
+
+- name: set gopath for ipm go version
+  set_fact:
+    ipm_go_root_path: "/usr/local/go"
+    ipm_go_path: "/root/go"
+  when: go_version.stdout == ipm_go_version
+
+- name: show remote PATH variable
+  command: echo $PATH
+  changed_when: false
+  register: remote_path
+
 # NOTE(pklimowx): repo must be cloned to the controller and, if we want to build
 # images locally, to the first node as well.
 - name: clone Intel Kubernetes Power Manager repository
@@ -84,6 +125,10 @@
     - container_runtime == "docker"
     - intel_power_manager.build_image_locally | default(false) | bool
     - inventory_hostname == groups['kube_node'][0]
+  environment:
+    GOROOT: "{{ ipm_go_root_path }}"
+    GOPATH: "{{ ipm_go_path }}"
+    PATH: "{{ ipm_go_root_path }}/bin:{{ remote_path.stdout }}"
 
 # crio/containerd runtime is in use
 - name: prepare images for Intel Kubernetes Power Manager
@@ -107,6 +152,10 @@
     - container_runtime in ["crio", "containerd"]
     - intel_power_manager.build_image_locally | default(false) | bool
     - inventory_hostname == groups['kube_node'][0]
+  environment:
+    GOROOT: "{{ ipm_go_root_path }}"
+    GOPATH: "{{ ipm_go_path }}"
+    PATH: "{{ ipm_go_root_path }}/bin:{{ remote_path.stdout }}"
 
 - name: prepare and deploy Intel Power Manager
   block:
@@ -153,3 +202,7 @@
         state: present
         src: "{{ (intel_power_manager_dir, 'power_config.yml') | path_join }}"
   when: inventory_hostname == groups['kube_control_plane'][0]
+  environment:
+    GOROOT: "{{ ipm_go_root_path }}"
+    GOPATH: "{{ ipm_go_path }}"
+    PATH: "{{ ipm_go_root_path }}/bin:{{ remote_path.stdout }}"

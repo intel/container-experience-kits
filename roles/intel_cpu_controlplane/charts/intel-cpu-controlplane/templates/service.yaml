@@ -1,0 +1,15 @@
+{{- with .Values.intel_cpu_controlplane }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctlplane-daemonset
+  namespace:  {{ dig "namespace" "ctlplane" . }}
+spec:
+  selector:
+    app: ctlplane-daemonset
+  ports:
+    - name: service
+      port: 31000
+      targetPort: 31000
+{{- end }}

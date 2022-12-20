@@ -18,11 +18,23 @@
   include_role:
     name: install_dependencies
 
+- name: show all pods/containers status before proceeding
+  command: kubectl get pods -A -o wide
+  changed_when: false
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
 - name: copy NFD Helm chart to the controller node
   copy:
     src: "{{ (role_path, 'charts', 'node-feature-discovery') | path_join }}"
     dest: "{{ (project_root_dir, 'charts') | path_join }}"
     mode: 0755
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: add correct appVersion to Chart.yml
+  replace:
+    path: "{{ (project_root_dir, 'charts', 'node-feature-discovery', 'Chart') | path_join }}.yaml"
+    regexp: '^appVersion: (.*)$'
+    replace: 'appVersion: "{{ nfd_image_tag }}"'
   when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate NFD Helm chart values template and push to controller node
@@ -32,6 +44,20 @@
     force: yes
     mode: preserve
   when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: wait for cert-manager-webhook to be available
+  k8s_info:
+    kind: Deployment
+    name: cert-manager-webhook
+    namespace: cert-manager
+    wait: yes
+    wait_condition:
+      reason: MinimumReplicasAvailable
+      type: Available
+    wait_timeout: 240
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - on_cloud is defined and on_cloud
 
 - name: Deploy NFD chart using values files on target
   kubernetes.core.helm:
@@ -47,7 +73,9 @@
   wait_for:
     port: 6443
     delay: 10
-  when: inventory_hostname == groups['kube_control_plane'][0]
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - on_cloud is not defined or not on_cloud
 
 - name: NodeFeatureRules for DPs
   block:

@@ -18,36 +18,26 @@
   include_role:
     name: install_dependencies
 
-- name: clone Intel Device Plugins repository
-  git:
-    repo: "{{ intel_gpu_dp_git_url }}"
-    version: "{{ intel_gpu_dp_git_ref }}"
-    dest: "{{ intel_gpu_dp_dir }}"
-    force: yes
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - gpu_dp_build_image_locally
-
 # docker is used as container runtime:
 - name: prepare image for Intel GPU Device Plugin
   block:
     - name: build Intel GPU Device Plugin images
       make:
         target: "{{ item }}"
-        chdir: "{{ intel_gpu_dp_dir }}"
+        chdir: "{{ intel_dp_dir }}"
       loop:
         - intel-gpu-plugin
         - intel-gpu-initcontainer
 
     - name: tag Intel GPU Device Plugin images
-      command: docker tag intel/{{ item }}:{{ intel_gpu_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_gpu_dp_version }}
+      command: docker tag intel/{{ item }}:{{ intel_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
       changed_when: true
       loop:
         - intel-gpu-plugin
         - intel-gpu-initcontainer
 
     - name: push Intel GPU Device Plugin image to local registry
-      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_gpu_dp_version }}
+      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
       changed_when: true
       loop:
         - intel-gpu-plugin
@@ -61,16 +51,16 @@
 - name: prepare image for Intel GPU Device Plugin
   block:
     - name: build and tag Intel GPU Device Plugin image
-      command: podman build -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      command: podman build -f build/docker/{{ item.file }} . -t {{ registry_local_address }}/{{ item.name }}:{{ intel_dp_version }}
       args:
-        chdir: "{{ intel_gpu_dp_dir }}"
+        chdir: "{{ intel_dp_dir }}"
       changed_when: true
       with_items:
         - {file: intel-gpu-initcontainer.Dockerfile, name: intel-gpu-initcontainer}
         - {file: intel-gpu-plugin.Dockerfile, name: intel-gpu-plugin}
 
     - name: push Intel GPU Device Plugin image to local registry
-      command: podman push {{ registry_local_address }}/{{ item.name }}:{{ intel_gpu_dp_version }}
+      command: podman push {{ registry_local_address }}/{{ item.name }}:{{ intel_dp_version }}
       changed_when: true
       with_items:
         - {name: intel-gpu-initcontainer}
@@ -85,26 +75,26 @@
   block:
     - name: set values
       set_fact:
-        gpu_dp_image: "{{ registry_local_address }}/intel-gpu-plugin"
-        gpu_dp_init_image: "{{ registry_local_address }}/intel-gpu-initcontainer"
-        gpu_dp_version: "{{ intel_gpu_dp_version }}"
+        intel_gpu_dp_image: "{{ registry_local_address }}/intel-gpu-plugin:{{ intel_dp_version }}"
+        intel_gpu_dp_init_image: "{{ registry_local_address }}/intel-gpu-initcontainer:{{ intel_dp_version }}"
       when: gpu_dp_build_image_locally
 
-    - name: create directory for GPU DP files
-      file:
-        state: directory
-        path: "{{ (project_root_dir, 'gpu_dp') | path_join }}"
-        mode: 0644
+    - name: Set GPU oem kernel version based on OS version
+      include_role:
+        name: bootstrap/install_gpu_driver
+        tasks_from: set_oem_kernel_version
 
     - name: populate Intel GPU Device Plugin yaml file and push to controller node
       template:
         src: "intel-gpu-plugin.yml.j2"
-        dest: "{{ (project_root_dir, 'gpu_dp', 'intel-gpu-plugin.yml') | path_join }}"
+        dest: "{{ (intel_dp_templates_dir, 'intel-gpu-plugin.yml') | path_join }}"
         force: yes
         mode: preserve
+      # vars:
+      #   target_kernel_version: "{{ gpu_oem_kernel_version }}"
 
     - name: deploy Intel GPU Device Plugin with the Intel Device Plugin Operator
       k8s:
         state: present
-        src: "{{ (project_root_dir, 'gpu_dp', 'intel-gpu-plugin.yml') | path_join }}"
+        src: "{{ (intel_dp_templates_dir, 'intel-gpu-plugin.yml') | path_join }}"
   when: inventory_hostname == groups['kube_control_plane'][0]

@@ -1,0 +1,168 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: check if DDP update is enabled on any node
+  ansible.builtin.debug:
+    msg: |
+      "{{ hostvars[node_name]['intel_ethernet_operator']['ddp_update'] }}"
+  register: is_ddp_update
+  loop: "{{ groups['kube_node'] }}"
+  loop_control:
+    loop_var: node_name
+
+- name: check if FW update is enabled on any node
+  ansible.builtin.debug:
+    msg: |
+      "{{ hostvars[node_name]['intel_ethernet_operator']['fw_update'] }}"
+  register: is_fw_update
+  loop: "{{ groups['kube_node'] }}"
+  loop_control:
+    loop_var: node_name
+
+- name: set_fact for DDP update
+  ansible.builtin.set_fact:
+    is_ddp_update_enabled: "{{ is_ddp_update | json_query('results[*].msg') | replace('\"', '') | replace('\\n', '') }}"
+
+- name: set_fact for FW update
+  ansible.builtin.set_fact:
+    is_fw_update_enabled: "{{ is_fw_update | json_query('results[*].msg') | replace('\"', '') | replace('\\n', '') }}"
+
+- block:
+    - block:
+        - name: download DDP archives
+          command: "wget {{ item.value }}" # noqa command-instead-of-module
+          changed_when: true
+          args:
+            chdir: "{{ intel_ethernet_operator_packages_dir }}"
+          loop: "{{ lookup('ansible.builtin.dict', intel_ethernet_operator_ddp_urls) }}"
+
+        - name: find DDP archives
+          ansible.builtin.find:
+            paths: "{{ intel_ethernet_operator_packages_dir }}"
+            use_regex: yes
+            patterns: "800"
+          register: ddp_archives
+
+        - name: unarchive DDP packages
+          ansible.builtin.unarchive:
+            src: "{{ item }}"
+            dest: "{{ intel_ethernet_operator_packages_dir }}"
+            remote_src: true
+          loop: "{{ ddp_archives.files | map(attribute='path') | list }}"
+
+        - name: remove DDP archives
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop: "{{ ddp_archives.files | map(attribute='path') | list }}"
+
+        - name: find DDP files to remove
+          ansible.builtin.find:
+            paths: "{{ intel_ethernet_operator_packages_dir }}"
+            patterns: "*.pdf"
+          register: ddp_pdf
+
+        - name: remove DDP files
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop: "{{ ddp_pdf.files | map(attribute='path') | list }}"
+      when: '"True" in is_ddp_update_enabled'
+
+    - name: download FW package
+      ansible.builtin.get_url:
+        url: "{{ intel_ethernet_operator_fw_url }}"
+        dest: "{{ intel_ethernet_operator_packages_dir }}/E810_NVMUpdatePackage_v4_10_Linux.tar.gz"
+        mode: '0644'
+      when: '"True" in is_fw_update_enabled'
+
+    - name: create Dockerfile
+      ansible.builtin.copy:
+        dest: "{{ (intel_ethernet_operator_files_dir, 'Dockerfile') | path_join }}"
+        mode: '0644'
+        content: |
+          FROM nginx:1.23.2
+          COPY packages /usr/share/nginx/html
+
+    - block:
+        - name: build cache webserver image
+          ansible.builtin.command: docker build -t {{ intel_ethernet_operator_cache_webserver_image }} -f Dockerfile .
+          changed_when: true
+          args:
+            chdir: "{{ intel_ethernet_operator_files_dir }}"
+
+        - name: push cache webserver image
+          ansible.builtin.command: docker push {{ intel_ethernet_operator_cache_webserver_image }}
+          changed_when: true
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+        - '"docker" in container_runtime'
+
+    - block:
+        - name: build cache webserver image
+          ansible.builtin.command: podman build -t {{ intel_ethernet_operator_cache_webserver_image }} -f Dockerfile .
+          changed_when: true
+          args:
+            chdir: "{{ intel_ethernet_operator_files_dir }}"
+
+        - name: push cache webserver image
+          ansible.builtin.command: podman push {{ intel_ethernet_operator_cache_webserver_image }}
+          changed_when: true
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+        - '"docker" not in container_runtime'
+
+    - name: populate cache webserver yaml files and push to controller node
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ (intel_ethernet_operator_files_dir, item.dst) | path_join }}"
+        force: yes
+        mode: preserve
+      loop:
+        - {src: 'cache-server.yml.j2', dst: 'cache-server.yml'}
+        - {src: 'cache-server-svc.yml.j2', dst: 'cache-server-svc.yml'}
+
+    - name: deploy cache webserver
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
+      loop:
+        - cache-server.yml
+        - cache-server-svc.yml
+
+    - name: check if all pods are running
+      ansible.builtin.shell: "set -o pipefail && kubectl get pods -n {{ intel_ethernet_operator_namespace }} | awk 'NR != 1 { print $3 }'"
+      args:
+        executable: /bin/bash
+      register: cache_pod_status
+      retries: 30
+      delay: 10
+      until:
+        - "'Error' not in cache_pod_status.stdout"
+        - "'CrashLoopBackOff' not in cache_pod_status.stdout"
+        - "'Terminating' not in cache_pod_status.stdout"
+        - "'ContainerCreating' not in cache_pod_status.stdout"
+        - "'Pending' not in cache_pod_status.stdout"
+        - "'ImagePullBackOff' not in cache_pod_status.stdout"
+      changed_when: false
+
+    - name: get cache server service IP
+      ansible.builtin.command: >-
+        kubectl get service/{{ intel_ethernet_operator_cache_webserver_name }}
+        -n {{ intel_ethernet_operator_namespace }}
+        -o jsonpath='{.spec.clusterIP}'
+      changed_when: false
+      register: cache_server_clusterip
+  when: '"True" in is_ddp_update_enabled or "True" in is_fw_update_enabled'

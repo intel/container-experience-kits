@@ -13,15 +13,6 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-jaeger_defaults:
-  apiVersion: jaegertracing.io/v1
-  name: jaeger
-  namespace: observability
-  strategy: allInOne
-  image: jaegertracing/all-in-one:1.37
-  log_level: debug
-  storage_type: memory
-  max_traces: 100000
-  ingress_enabled: false
-  agent_strategy: DaemonSet
-  jaeger_crd_url: https://github.com/jaegertracing/jaeger-operator/releases/download/v1.37.0/jaeger-operator.yaml
+jaeger_crd_url: https://github.com/jaegertracing/jaeger-operator/releases/download/v1.39.0/jaeger-operator.yaml
+jaeger_query_remove: >-
+  -p='[{"op": "remove", "path": /metadata/annotations/sidecar.jaegertracing.io~1inject}]'

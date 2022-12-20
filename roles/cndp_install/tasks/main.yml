@@ -162,3 +162,12 @@
   when:
     - cndp_enabled | default(false)
     - container_runtime == "crio"
+
+# this task is created to avoid restarting docker after kmra is deployed
+- name: flush handlers
+  meta: flush_handlers
+
+- name: wait for resources to be ready
+  include_tasks: wait_for_resources.yml
+  when:
+    - cndp_enabled | default(false)

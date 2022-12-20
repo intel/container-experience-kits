@@ -1,0 +1,29 @@
+##
+##   Copyright (c) 2020-2022 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: download runc binary
+  get_url:
+    url: "{{ runc_binary.url }}"
+    dest: "{{ runc_binary.dest }}"
+    owner: "{{ runc_binary.owner }}"
+    mode: "{{ runc_binary.mode }}"
+    checksum: "{{ 'sha256:' + runc_binary.sha256 }}"
+  delegate_to: "{{ inventory_hostname }}"
+  register: get_url_result
+  until: "'OK' in get_url_result.msg or 'file already exists' in get_url_result.msg"
+  retries: 4
+  delay: 5
+  no_log: true
