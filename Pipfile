@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 ansible = "~=5.7.1"
 "ansible-core" = "~=2.12"
-cryptography = "~=3.3"
+cryptography = "~=39.0"
 jinja2 = "~=2.11"
 netaddr = "~=0.7.19"
 pbr = "~=5.4"
