@@ -14,9 +14,16 @@
 ##   limitations under the License.
 ##
 ---
+# QAT 1.x (for QAT add-on cards)
 qat_drivers_version: 'QAT.L.4.20.0-00001'
 qat_drivers_download_url: 'https://downloadmirror.intel.com/761891/{{ qat_drivers_version }}.tar.gz'
 qat_drivers_pkg_checksum: 'sha1:A78B360F33D270A1FBF7BBD60B2BA69253771771'
+
+# QAT 2.x (for QAT embedded into SPR)
+qat_spr_drivers_version: 'QAT20.L.1.0.0-00021'
+qat_spr_drivers_download_url: 'https://downloadmirror.intel.com/765523/{{ qat_spr_drivers_version }}.tar.gz'
+qat_spr_drivers_pkg_checksum: 'sha1:BF74086B364E45E9A7DB305C15CF92C67E9D287A'
+
 # If updating mentioned below folder location kindly update similar in roles/redeploy_cleanup/defaults/main.yml
 qat_drivers_dir: "{{ (project_root_dir, 'qat_drivers') | path_join }}"
 

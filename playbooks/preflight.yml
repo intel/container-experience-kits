@@ -673,14 +673,6 @@
           Please be aware that by using CPU model that is not confirmed, some features may not work properly."
       when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
 
-    - name: check QAT requirements
-      include_role:
-        name: ../roles/bootstrap/install_qat_drivers_services
-        tasks_from: qat_drivers_preflight
-      when:
-        - configured_arch == "spr"
-        - update_qat_drivers is defined and update_qat_drivers
-
     - name: check QAT Devices list is configured properly
       block:
         - debug:

@@ -72,33 +72,49 @@
     - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '8'
 
+- name: obtain RPM-GPG-KEY-EPEL-9
+  rpm_key:
+    state: present
+    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+  when:
+    - ansible_distribution in ["RedHat", "Rocky"]
+    - ansible_distribution_version >= "9"
+
+- name: install RPM-GPG-KEY-EPEL-9
+  package:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+  when:
+    - ansible_distribution in ["RedHat", "Rocky"]
+    - ansible_distribution_version >= "9"
+
 # CPUID package is missing on RHEL 9.0 / Rocky 9.0
 - name: block for downloading CPUID on RHEL / Rocky >= 9.0
   block:
+    - name: get list of packages
+      uri:
+        url: "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/c/"
+        return_content: true
+      register: epel_output
+
+    - name: get CPUID package name
+      set_fact:
+        cpuid_rpm: "{{ epel_output.content|split('\n') | select('match', '.*cpuid.*') |
+                    regex_search('(?=cpuid\\-)(.*?)(rpm?)') }}"
+      failed_when: cpuid_rpm | length==0
+
     - name: download CPUID on Rocky >= 9.0
       get_url:
-        url: "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/c/cpuid-20200427-1.el8.x86_64.rpm"
+        url: "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/c/{{ cpuid_rpm }}"
         dest: "{{ project_root_dir }}"
         mode: 0755
 
     - name: install downloaded CPUID package on RHEL / Rocky >= 9.0
       package:
-        name: "{{ project_root_dir }}/cpuid-20200427-1.el8.x86_64.rpm"
+        name: "{{ project_root_dir }}/{{ cpuid_rpm }}"
         state: present
   when:
     - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '9'
-
-- name: obtain RPM-GPG-KEY-EPEL-9
-  rpm_key:
-    state: present
-    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
-  when: ansible_distribution == "RedHat" and ansible_distribution_version >= "9"
-
-- name: install RPM-GPG-KEY-EPEL-9
-  package:
-    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-  when: ansible_distribution == "RedHat" and ansible_distribution_version >= "9"
 
 - name: get current kernel version
   command: uname -r

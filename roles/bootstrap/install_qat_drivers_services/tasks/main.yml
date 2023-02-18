@@ -49,32 +49,45 @@
     state: directory
     mode: "u=rwx,g=rx,o=rx"
 
-- name: download QAT drivers package {{ qat_drivers_version }}
-  get_url:
-    url: "{{ qat_drivers_download_url }}"
-    checksum: "{{ qat_drivers_pkg_checksum }}"
-    dest: "{{ qat_drivers_dir }}"
-    mode: 0755
-  register: qat_driver
-  until: qat_driver is not failed
-  retries: 5
+- name: block for QAT 1.x
+  block:
+    - name: download QAT drivers package {{ qat_drivers_version }}
+      get_url:
+        url: "{{ qat_drivers_download_url }}"
+        checksum: "{{ qat_drivers_pkg_checksum }}"
+        dest: "{{ qat_drivers_dir }}"
+        mode: 0755
+      register: qat_driver_sw
+      until: qat_driver_sw is not failed
+      retries: 5
+
+    - name: unarchive QAT drivers package
+      unarchive:
+        src: "{{ qat_drivers_dir }}/{{ qat_drivers_version }}.tar.gz"
+        dest: "{{ qat_drivers_dir }}"
+        remote_src: yes
+        mode: 0755
   when: configured_arch != "spr"
 
-- name: copy QAT driver package
-  copy:
-    dest: "{{ qat_drivers_dir }}/{{ qat_drivers_version }}.tar.gz"
-    src: "{{ qat_drivers_folder }}/{{ qat_drivers_version }}.tar.gz"
-    owner: root
-    group: root
-    mode: 0644
-  when: configured_arch == "spr"
+- name: block for QAT 2.x
+  block:
+    - name: download QAT drivers package {{ qat_spr_drivers_version }}
+      get_url:
+        url: "{{ qat_spr_drivers_download_url }}"
+        checksum: "{{ qat_spr_drivers_pkg_checksum }}"
+        dest: "{{ qat_drivers_dir }}"
+        mode: 0755
+      register: qat_driver_sw
+      until: qat_driver_sw is not failed
+      retries: 5
 
-- name: unarchive QAT drivers package
-  unarchive:
-    src: "{{ qat_drivers_dir }}/{{ qat_drivers_version }}.tar.gz"
-    dest: "{{ qat_drivers_dir }}"
-    remote_src: yes
-    mode: 0755
+    - name: unarchive QAT drivers package
+      unarchive:
+        src: "{{ qat_drivers_dir }}/{{ qat_spr_drivers_version }}.tar.gz"
+        dest: "{{ qat_drivers_dir }}"
+        remote_src: yes
+        mode: 0755
+  when: configured_arch == "spr"
 
 - name: check all packages are present for QAT drivers installation
   command: ./configure

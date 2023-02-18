@@ -257,10 +257,6 @@ enabled_qat_service: "qat"
 disabled_qat_service: "qat_service"
 
 {%- if arch in ['spr'] %}
-# SPR platform QAT drivers requirements
-# the folder must exist on the machine that will run Ansible playbooks
-qat_drivers_folder: "/tmp/qat/" # QAT "QAT20.L.0.9.9-00019.tar.gz" driver package is expected to be present in this folder
-qat_drivers_version: "QAT20.L.0.9.9-00019" # CEK has been validated with QAT drivers version "QAT20.L.0.9.9-00019.tar.gz"
 # This package provides user space libraries that allow access to Intel(R) QuickAssist devices and expose the Intel(R) QuickAssist APIs and sample codes.
 enable_intel_qatlibs: {% if qat == "on" %}true{% else %}false{% endif %} # Make sure "openssl_install" is set to "true" else this feature will be skipped in deployment.
 enable_qat_svm: {% if qat == "on" %}true{% else %}false{% endif %} # Enable QAT Shared Virtual Memory (SVM).
