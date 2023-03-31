@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -24,12 +24,20 @@
         name: linkerd-control-plane
         state: absent
         namespace: "{{ linkerd_namespace }}"
+      register: result
+      failed_when:
+        - result.failed
+        - "'cluster unreachable' not in result.stderr"
 
     - name: Uninstall LinkerD CRDs
       kubernetes.core.helm:
         name: linkerd-crds
         state: absent
         namespace: "{{ linkerd_namespace }}"
+      register: result
+      failed_when:
+        - result.failed
+        - "'cluster unreachable' not in result.stderr"
 
     - name: Remove LinkerD namespace
       kubernetes.core.k8s:
@@ -37,3 +45,7 @@
         api_version: v1
         kind: Namespace
         state: absent
+      register: result
+      failed_when:
+        - result.failed
+        - "'No configuration found' not in result.msg"

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 # in Docker containers.
 
 - name: check if systemd-resolved is enabled on the target server
-# noqa 303 - systemctl is called intentionally here
+# noqa command-instead-of-module - systemctl is called intentionally here
   command: systemctl is-enabled systemd-resolved
   register: resolved_enabled
   failed_when: resolved_enabled.rc not in [0, 1]

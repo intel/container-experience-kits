@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 ##
 ---
 - name: Adding SGX memory definition to VM domain
-  include: vm-domain-edit.yml
+  include_tasks: vm-domain-edit.yml
   loop: '{{ vms }}'
   loop_control:
     loop_var: vm

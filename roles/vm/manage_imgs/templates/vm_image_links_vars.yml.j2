@@ -13,15 +13,15 @@ vm_image_checksums: "https://cloud-images.ubuntu.com/releases/{{ vm_image_versio
 {% endif %}
 
 {% elif vm_image_distribution == "rocky" %}
-{% if vm_image_version_rocky == "9.0" %}
+{% if vm_image_version_rocky >= "9.0" %}
 
-vm_image_url: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/x86_64/{{ vm_image }}"
-vm_image_checksums: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/x86_64/CHECKSUM"
+vm_image_url: "https://dl.rockylinux.org/{{ vm_repo_location }}/rocky/{{ vm_image_version_rocky }}/images/x86_64/{{ vm_image }}"
+vm_image_checksums: "https://dl.rockylinux.org/{{ vm_repo_location }}/rocky/{{ vm_image_version_rocky }}/images/x86_64/CHECKSUM"
 
 {% else %}
 
-vm_image_url: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/{{ vm_image }}"
-vm_image_checksums: "https://dl.rockylinux.org/vault/rocky/{{ vm_image_version_rocky }}/images/CHECKSUM"
+vm_image_url: "https://dl.rockylinux.org/{{ vm_repo_location }}/rocky/{{ vm_image_version_rocky }}/images/{{ vm_image }}"
+vm_image_checksums: "https://dl.rockylinux.org/{{ vm_repo_location }}/rocky/{{ vm_image_version_rocky }}/images/CHECKSUM"
 
 {% endif %}
 

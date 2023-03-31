@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,18 +16,21 @@
 ---
 # i40e
 i40e_driver_name: i40e
-i40e_driver_version: 2.21.12
+i40e_driver_version: 2.22.8
 i40e_driver_url: https://sourceforge.net/projects/e1000/files/i40e%20stable/{{ i40e_driver_version }}/i40e-{{ i40e_driver_version }}.tar.gz
-i40e_driver_checksum: sha1:fb103403862d6786ec8f242b6442d01d74a5ff25
+i40e_driver_checksum: sha1:9ae9a51b8d16f5d6ea9a817de5d3f37eb96101a1
 
 # ice
 ice_driver_name: ice
-ice_driver_version: 1.10.1.2
+ice_driver_version: 1.10.1.2.2
 ice_driver_url: https://sourceforge.net/projects/e1000/files/ice%20stable/{{ ice_driver_version }}/ice-{{ ice_driver_version }}.tar.gz
-ice_driver_checksum: sha1:b80fb208510c64fd328af4dbe42a69e5e70ab968
+ice_driver_checksum: sha1:a71d0497307b462059b5819cf8686b2f9361a930
 
 # iavf
 iavf_driver_name: iavf
-iavf_driver_version: 4.6.1
-iavf_driver_url: https://sourceforge.net/projects/e1000/files/iavf%20stable/{{ iavf_driver_version }}/iavf-{{ iavf_driver_version }}.tar.gz
-iavf_driver_checksum: sha1:7102e6fcb6271f6cb14bcd9e64eccc58fcafd788
+# iavf_driver_version: 4.6.1
+# iavf_driver_url: https://sourceforge.net/projects/e1000/files/iavf%20stable/{{ iavf_driver_version }}/iavf-{{ iavf_driver_version }}.tar.gz
+# iavf_driver_checksum: sha1:7102e6fcb6271f6cb14bcd9e64eccc58fcafd788
+iavf_driver_version: 4.7.0
+iavf_driver_url: https://downloadmirror.intel.com/762473/iavf-{{ iavf_driver_version }}.tar.gz
+iavf_driver_checksum: sha1:999897D953B82F36BCD3DA46261AC7E491A3DB9D

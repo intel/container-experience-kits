@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@
 # - Check SST (not on RHEL 8.2 or old OSs)
 # - Check Linux distro for cstates
 # - Warn BIOS VT-d (should be enabled)
+# - Warn BIOS Intel Virtualization Technology (should be enabled)
 # - Warn BIOS Hyper-Threading (should be enabled)
 # - Warn collectd (kernel update needed on old OSs)
 # - Check OVS DPDK Version Compatibility (for OVS support)
@@ -71,6 +72,7 @@
 - hosts: 127.0.0.1
   any_errors_fatal: true
   connection: local
+  become: false
   vars:
     cek_supported_ansible_base: 2.11.8
     cek_supported_python: 3
@@ -131,21 +133,73 @@
       debug:
         msg: "group_vars profile_name is: '{{ group_vars_profile }}'"
 
-    - name: handle the error for check password less access to VM hosts
+    - name: check ip is defined in inventory.ini
+      shell: "set -o pipefail && cat {{ inventory_file }} | grep -v \"^#\""
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: check_ip_status.rc != 0
+      register: check_ip_status
+      when: vm_enabled and (not on_vms | default(false))
+
+    - name: handle the error for check passwordless access to VM hosts
       block:
-        - name: check password less access to VM hosts
-          command: "ssh -o PasswordAuthentication=no {{ hostvars[item]['ip'] }} /bin/true"
+        - name: check passwordless access to VM hosts
+          command: >-
+            ssh -o PasswordAuthentication=no {{ hostvars[item]['ansible_user'] | default(ansible_env.USER, True) }}@{{ hostvars[item]['ip'] }}
+            /bin/true
           with_items: "{{ groups['vm_host'] }}"
           changed_when: false
       rescue:
-        - name: Print when password less authentication failed
+        - name: Print when passwordless authentication failed
           debug:
             msg: >
-              "Password less authentication have to be configured for all VM hosts. Use: 'ssh-copy-id <VM_host_ip>'
+              "Current user: '{{ ansible_env.USER }}' does not have password less access to '{{ (ansible_failed_result.results[0].stderr).split(':')[0] }}'.
+               Password less authentication have to be configured for all VM hosts. Use: 'ssh-copy-id <user>@<VM_host_ip>'
               See above, which one failed"
           failed_when: true
       when:
         - vm_enabled and (not on_vms | default(false))
+        - "'ip=' in check_ip_status.stdout | regex_findall('^' + item + '.*$', multiline=True, ignorecase=True) | join(',')"
+
+    # VMRA FQDN block in case if IP is not defined in inventory.ini
+    - name: handle the error for checking hostname and passwordless access to VM hosts via hostname
+      block:
+        - name: set hostname configuration
+          set_fact:
+            hostname_check: "{{ ansible_hostname }}"
+            hostname_fqdn_check: "{{ ansible_fqdn }}"
+          with_items: "{{ groups['vm_host'] }}"
+
+        - name: verify user defined hostname in inventory with in system hostname configuration
+          assert:
+            that:
+              - (ansible_host == hostname_fqdn_check) or
+                (ansible_host == hostname_check)
+            fail_msg:
+              - "Found hostname configuration in system not equal to user defined hostname in inventory {{ ansible_host }}"
+              - "Please update correct hostname in inventory.ini"
+            success_msg: "{{ ansible_host }} matches with hostname configuration found in system"
+          with_items: "{{ groups['vm_host'] }}"
+
+        - name: check passwordless access to VM hosts via FQDN
+          command: >-
+            ssh -o PasswordAuthentication=no {{ hostvars[item]['ansible_user'] | default(ansible_env.USER, True) }}@{{ hostvars[item]['ansible_host'] }}
+            /bin/true
+          changed_when: false
+          with_items: "{{ groups['vm_host'] }}"
+      rescue:
+        - name: Print when passwordless authentication failed
+          debug:
+            msg: >
+              "Current user: '{{ ansible_env.USER }}' does not have password less access to '{{ (ansible_failed_result.results[0].stderr).split(':')[0] }}'.
+               Password less authentication have to be configured for all VM hosts. Use: 'ssh-copy-id <user>@<VM_host_hostname>'
+              See above, which one failed"
+          failed_when: true
+      when:
+        - vm_enabled and (not on_vms | default(false))
+        - ansible_host is defined
+        - "'ip=' not in check_ip_status.stdout | regex_findall('^' + item + '.*$', multiline=True, ignorecase=True) | join(',')"
 
     - name: check scale variable value
       assert:
@@ -171,7 +225,7 @@
   gather_facts: true
   vars:
     cek_supported_distros: [RedHat, Rocky, Ubuntu]
-    cek_supported_distros_versions: ['8.5', '8.6', '9.0', '20.04', '22.04']
+    cek_supported_distros_versions: ['8.6', '9.0', '9.1', '22.04']
     cpusets_ranges: []
     cpusets_discretes: []
     isolcpus_ranges: []
@@ -201,6 +255,7 @@
       register: vm_host_vars_details
       with_items: "{{ vms }}"
       delegate_to: localhost
+      become: false
       when:
         - vm_enabled and (not on_vms | default(false))
         - item.type == 'work'
@@ -236,6 +291,39 @@
       when:
         - vm_enabled and (not on_vms | default(false))
 
+# VMs multinode setup for VM Hosts
+    - name: Check requirements to enable VMs multinode setup
+      when:
+        - vm_enabled and (not on_vms | default(false))
+        - "groups['vm_host'] | length > 1"
+      block:
+        - name: check if mandatory parameter 'vxlan_physical_network' is present for the first vm_host
+          assert:
+            that:
+              - "hostvars[groups['vm_host'][0]]['vxlan_physical_network'] is defined"
+            msg: |
+              "vxlan_physical_network parameter is not defined for the first vm_host '{{ groups['vm_host'][0] }}'"
+              "Please correct the configuration"
+          run_once: true
+
+        - name: check if mandatory parameter 'vxlan_physical_network' for the first vm_host has valid IP subnet
+          assert:
+            that:
+              - "hostvars[groups['vm_host'][0]]['vxlan_physical_network'] | ansible.utils.ipaddr('net')"
+            msg: |
+              "vxlan_physical_network parameter for the first vm_host '{{ groups['vm_host'][0] }}' does not have valid IP subnet"
+              "Current value is '{{ hostvars[groups['vm_host'][0]]['vxlan_physical_network'] }}'"
+              "Please correct the configuration"
+          run_once: true
+
+        - name: check if VXLAN physical network is available
+          assert:
+            that: "hostvars[inventory_hostname]['ansible_all_ipv4_addresses'] | ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_physical_network']) |
+                   length > 0 "
+            msg: |
+              "vxlan_physical_network '{{ hostvars[groups['vm_host'][0]]['vxlan_physical_network'] }}' is not available on vm_host '{{ inventory_hostname }}'"
+              "Please correct the configuration or update network setup to ensure proper connectivity between vm_hosts"
+
     - name: check for ip and ansible_host mismatch
       assert:
         that: "ansible_host == ip"
@@ -243,7 +331,8 @@
       when:
         - ansible_host is defined
         - ip is defined
-        - ansible_host | ipaddr('bool')
+        - ansible_host | ansible.utils.ipaddr('bool')
+        - not adq_dp['enabled'] | default(false)
 
     - debug: msg="Linux distribution on target is {{ ansible_distribution }} {{ ansible_distribution_version }} {{ ansible_distribution_release }}"
     - name: Check Linux Distro and Version
@@ -472,9 +561,9 @@
         - name: check isolcpus Total
           assert:
             that: "{{ isolcpus_list | length }} <= ansible_processor_vcpus"
-            msg:
-              - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
-              - The number of isolcpus {{ isolcpus_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration # noqa line-length
+            msg: |
+              Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
+              The number of isolcpus {{ isolcpus_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
 
         - name: check isolcpus IDs
           assert:
@@ -506,6 +595,16 @@
       tags:
         - cpu_ctlplane
 
+    - name: check Intel AI configuration
+      import_role:
+        name: intel_ai
+        tasks_from: preflight_intel_ai.yml
+      when:
+        - kubernetes
+        - intel_ai_enabled | default(false)
+      tags:
+        - intel-ai
+
 ####################################
 # Prerequisites for Worker Node(s) #
 ####################################
@@ -532,10 +631,9 @@
 
     - name: assert that (SRIOV Network DP/SRIOV CNI) and (SRIOV Network Operator) are mutually exclusive
       assert:
-        that:
-          - "not sriov_network_operator_enabled"
+        that: "not (sriov_net_dp_enabled and (sriov_network_operator_enabled | default(false)))"
         fail_msg:
-          - "SRIOV Network DP/SRIOV CNI is enabled, SRIOV Network Operator should be disabled !!"
+          - "SRIOV Network DP/SRIOV CNI and SRIOV Network Operator are mutually exclusive. One must be disabled"
       when:
         - (sriov_cni_enabled is defined and sriov_cni_enabled) or
           (sriov_net_dp_enabled is defined and sriov_net_dp_enabled)
@@ -752,6 +850,14 @@
       when:
         - gpu_dp_enabled is defined and gpu_dp_enabled
 
+    - name: Check GPU device plugin state
+      assert:
+        that:
+          - gpu_dp_enabled
+        fail_msg: "GPU device plugin is disabled. Please set gpu_dp_enabled to true in group_vars."
+        success_msg: "GPU device plugin is enabled"
+      when: configure_gpu is defined and configure_gpu
+
 # OpenSSL & OpenSSL*Engine must only be configured / installed when update_qat_drivers is set to 'true' and qat_devices is defined in host vars
 # or auto-detected from the system
     - name: check OpenSSL and OpenSSL*Engine requirements
@@ -768,7 +874,10 @@
           - sgx_dp_enabled
         fail_msg: "KMRA installation requires sgx_dp_enabled set to 'true'"
         success_msg: "KMRA requirements verified"
-      when: kmra.ctk_loadkey_demo.enabled | default(false)
+      when:
+        - kmra.ctk_loadkey_demo.enabled | default(false) or
+          kmra.pccs.enabled | default(false) or
+          kmra.apphsm.enabled | default(false)
 
     - name: check Intel SGX DP configuration
       assert:
@@ -779,6 +888,29 @@
           - "Please set configure_sgx to true in host vars to allow SGX configuration on the system"
       when:
         - sgx_dp_enabled is defined and sgx_dp_enabled
+
+    - name: check if Cert Manager is required
+      assert:
+        that:
+          - cert_manager_enabled | default(false)
+        fail_msg:
+          - "Cert Manager required by following components: Intel Device Plugins, observability stack, NFD, LinkerD."
+          - "Please set cert_manager_enabled to 'true' in group_vars"
+        success_msg: "Cert Manager is enabled as required"
+      when:
+        - nfd_enabled | default(false) or
+          sgx_dp_enabled | default(false) or
+          dlb_dp_enabled | default(false) or
+          qat_dp_enabled | default(false) or
+          gpu_dp_enabled | default(false) or
+          dsa_dp_enabled | default(false) or
+          qat_dp_enabled | default(false) or
+          jaeger_operator | default(false) or
+          telegraf_enabled | default(false) or
+          prometheus_operator | default(false) or
+          opentelemetry_enabled | default(false) or
+          elasticsearch_enabled | default(false) or
+          linkerd_service_mesh.enabled | default(false)
 
     - name: check NFD configuration
       assert:
@@ -855,6 +987,8 @@
     - debug:
         msg:
           - vpp_enabled = {{ vpp_enabled }} (host_vars)
+          - ansible_distribution = {{ ansible_distribution }} (basic facts)
+          - ansible_distribution_version = {{ ansible_distribution_version }} (basic facts)
           - example_net_attach_defs = {{ example_net_attach_defs }} (group_vars/all.yml)
           - userspace_ovs_dpdk = {{ example_net_attach_defs['userspace_ovs_dpdk'] }} (group_vars/all.yml)
           - userspace_vpp = {{ example_net_attach_defs['userspace_vpp'] }} (group_vars/all.yml)
@@ -870,6 +1004,13 @@
           - number_of_hugepages_1G = {{ number_of_hugepages_1G }} (host_vars)
           - number_of_hugepages_2M = {{ number_of_hugepages_2M }} (host_vars)
       when: vpp_enabled is defined and vpp_enabled # host_vars
+
+    - name: check OS for VPP compilation
+      assert:
+        that:
+          - (ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '22.04')
+        msg: "Unsupported configuration. VPP can be only enabled on Ubuntu >= 22.04"
+      when: vpp_enabled is defined and vpp_enabled
 
     - name: check OVS DPDK Dependencies
       assert:
@@ -986,19 +1127,72 @@
 
         - debug: msg="dmesg >> {{ dmesg_dmar_remap.stdout }}"
 
+        - name: Check Intel VT-d via iommu_groups
+          shell: "set -o pipefail && compgen -G \"/sys/kernel/iommu_groups/*/devices/*\" > /dev/null"
+          args:
+            executable: /bin/bash
+          register: iommu_groups_out
+          changed_when: false
+          failed_when: false
+          when:
+            - dmesg_dmar_remap.stdout|length  == 0
+
+        - name: Check intel_iommu on kernel commandline
+          shell: "set -o pipefail && cat /proc/cmdline"
+          args:
+            executable: /bin/bash
+          register: iommu_on_cmdline
+          changed_when: false
+          failed_when: false
+          when:
+            - dmesg_dmar_remap.stdout|length  == 0
+
+        - debug: msg="Result of 'Check Intel VT-d via iommu_groups' is not valid because of missing 'intel_iommu' parameter on kernel commandline"
+          when:
+            - dmesg_dmar_remap.stdout|length  == 0
+            - iommu_groups_out.rc != 0
+            - "'intel_iommu' not in iommu_on_cmdline.stdout"
+
         - name: warn about Intel VT-d
           fail:
             msg: "Warning: Intel VT-d appears DISABLED on target.  Please check BIOS under 'Advanced > Integrated IO Configuration' and Enable if necessary"
           when:
             - dmesg_dmar_remap.stdout|length  == 0
+            - iommu_groups_out.rc != 0
       when:
         - on_vms is not defined or not on_vms
+        - on_cloud is not defined or not on_cloud
+
+# STORY: Intel Virtualization Technology should be enabled in BIOS
+    - name: check Intel Virtualization Technology on BMs
+      block:
+        - name: Check Intel Virtualization Technology
+          shell: "set -o pipefail && lscpu | grep 'Virtualization:'"
+          args:
+            executable: /bin/bash
+          register: virtualization_tech
+          changed_when: false
+          failed_when: false
+
+        - debug: msg="{{ virtualization_tech.stdout }}"
+          when:
+            - virtualization_tech|length > 0
+
+        - name: warn about Intel Virtualization Technology
+          fail:
+            msg: |
+              "Warning: Intel Virtualization Technology is DISABLED on target."
+              "Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
+          when:
+            - "'VT-x' not in virtualization_tech.stdout"
+      when:
+        - vm_enabled | default(false)
         - on_cloud is not defined or not on_cloud
 
 # STORY: CPU Hyper-Threading should be enabled in BIOS
     - name: warn about Hyper-Threading
       fail:
-        msg: "Warning: CPU Hyper-Threading is DISABLED on target.  Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
+        msg: "Warning: Intel Hyper-Threading Tech is DISABLED on target.  Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
       when:
         - ansible_processor_threads_per_core != 2
         - on_cloud is not defined or not on_cloud
@@ -1115,7 +1309,7 @@
     - name: check OVS DPDK compatibility
       assert:
         that:
-          (ovs_version >= 'v2.17.0' and ovs_version <= 'v3.0.1') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
+          (ovs_version >= 'v2.17.0' and ovs_version <= 'v3.0.3') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
           or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
           or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
           or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
@@ -1227,9 +1421,25 @@
         - inventory_hostname in groups['vm_host']
 
 ####################################
+# Prerequisites for FlexRAN BM oRU #
+####################################
+- hosts: oru
+  any_errors_fatal: true
+  tasks:
+    - name: check Intel FlexRAN requirements
+      include_role:
+        name: intel_flexran
+        tasks_from: flexran_preflight
+      when:
+        - intel_flexran_enabled | default(false)
+        - intel_flexran_type == "host"
+        - intel_flexran_mode == "xran"
+
+####################################
 # Prerequisites for Role specific  #
 ####################################
 - hosts: k8s_cluster
+  any_errors_fatal: true
   tasks:
 
 # STORY: "Observability: assert that all required compontents are enabled"
@@ -1272,6 +1482,12 @@
       when:
         - collectd_enabled | default(false)
 
+    - name: check ADQ configuration
+      include_role:
+        name: adq_dp_install
+        tasks_from: preflight_adq
+      when: adq_dp.enabled | default(false)
+
 # STORY: "MinIO requires number of nodes should be more than the minimum number of nodes defined in group_vars/all/minio_tenant_servers"
     - name: display MinIO requirement with multus-service
       fail:
@@ -1285,15 +1501,56 @@
            - host_vars/dataplane_interfaces[*].sriov_vfs[*].vf_0: 'iaxf' on interfaces
            - SRIOV network ports should be connected with VEB/VEPA enabled
       run_once: yes
+      tags: minio
       when:
         - kubernetes
         - minio_enabled is defined and minio_enabled
       failed_when: false
 
+    # When MinIO enabled, container runtime should be set to crio
+    - name: Check requirements for MinIO
+      assert:
+        that:
+          - container_runtime == "crio"
+          - (kube_network_plugin == "flannel") or
+            (kube_network_plugin == "calico" and calico_network_backend == "vxlan")
+          - minio_build_image_locally
+        fail_msg: |
+          Following parameters needs to be set if MinIO is enabled:
+          - group_vars/container_runtime: crio
+          - group_vars/kube_network_plugin: flannel or
+          - group_vars/kube_network_plugin: calico and calico_network_backend: vxlan
+          - group_vars/minio_build_image_locally: true
+          Current values are:
+          - group_vars/container_runtime: {{ container_runtime }}
+          - group_vars/kube_network_plugin: {{ kube_network_plugin }}
+          - group_vars/calico_network_backend: {{ calico_network_backend }}
+          - group_vars/minio_build_image_locally: {{ minio_build_image_locally }}
+      when:
+        - kubernetes
+        - minio_enabled is defined and minio_enabled
+
+    - name: Check that MinIO on additional interfaces with multiple interfaces configuration is not used
+      ansible.builtin.assert:
+        that:
+          - kube_network_plugin != "flannel"
+          - dataplane_interfaces | default([]) | rejectattr('minio_vf', 'defined') | list | length == 0
+          - dataplane_interfaces | default([]) | selectattr('minio_vf', '==', True) | list | length == 0
+        fail_msg: |
+          MinIO on additional interfaces with multiple interfaces configuration is currently not supported.
+          Please set following to configure MinIO only for default interfaces:
+          - uncomment minio_vfs for every dataplane interface in host_vars
+          - set minio_vfs to false for every dataplane interface in host_vars
+          - set kube_netvork_plugin to calico in group_vars
+      when:
+        - kubernetes
+        - minio_enabled is defined and minio_enabled
+
     - name: check MinIO configuration
-      include_role:
+      import_role:
         name: minio_install
         tasks_from: preflight_minio_main
+      tags: minio
       when:
         - kubernetes
         - minio_enabled is defined and minio_enabled

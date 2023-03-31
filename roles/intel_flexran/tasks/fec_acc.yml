@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 ##   limitations under the License.
 ##
 ---
-- name: configure ACC100 FEC device with pf_bb tool
+- name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Host
   block:
-    - name: configure ACC100 FEC device with pf_bb tool
+    - name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Host
       command: "./pf_bb_config acc100 -c ./acc100/acc100_config_pf_4g5g.cfg" # select .cfg file as desired
       args:
         chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
@@ -24,11 +24,27 @@
       changed_when: false
 
     - debug: msg="{{ pf_bb_config.stdout }}"
-  when: fec_dev == "acc100"
+  when:
+    - fec_dev == "acc100"
+    - intel_flexran_type == "host"
 
-- name: configure ACC200 FEC device with pf_bb tool
+- name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Docker POD
   block:
-    - name: configure ACC200 FEC device with pf_bb tool
+    - name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Docker POD
+      command: "./pf_bb_config acc100 -c ./acc100/acc100_config_vf_5g.cfg" # select .cfg file as desired
+      args:
+        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
+      register: pf_bb_config
+      changed_when: false
+
+    - debug: msg="{{ pf_bb_config.stdout }}"
+  when:
+    - fec_dev == "acc100"
+    - intel_flexran_type == "pod"
+
+- name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Host
+  block:
+    - name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Host
       command: "./pf_bb_config acc200 -c ./acc200/acc200_config_pf_5g.cfg" # select .cfg file as desired
       args:
         chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
@@ -36,4 +52,6 @@
       changed_when: false
 
     - debug: msg="{{ pf_bb_config.stdout }}"
-  when: fec_dev == "acc200"
+  when:
+    - fec_dev == "acc200"
+    - intel_flexran_type == "host"

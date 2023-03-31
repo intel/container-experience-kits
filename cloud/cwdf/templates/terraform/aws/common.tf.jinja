@@ -65,8 +65,8 @@ resource "aws_route_table_association" "{{ subnet.name }}" {
 
 {% endfor %}
 
-resource "aws_security_group" "default" {
-  name        = "cwdf-infra-{{ job_id }}-default-sg"
+resource "aws_security_group" "sg-{{ job_id }}" {
+  name        = "cwdf-infra-{{ job_id }}-sg"
   vpc_id      = aws_vpc.default.id
 
   ingress {

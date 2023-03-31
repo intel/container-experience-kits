@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   file:
     path: "{{ sgx_config_dir }}"
     state: directory
-    mode: '0700'
+    mode: 0700
   become: yes
 
 - name: confirm DCAP driver module installed
@@ -36,11 +36,15 @@
       get_url:
         url: "{{ dcap_driver_url_rhel }}"
         dest: "{{ project_root_dir }}"
-        mode: u=rwx,g=rx,o=rx
+        mode: 0755
         checksum: "{{ dcap_driver_checksum_rhel }}"
+      register: get_url_results
+      retries: "{{ number_of_retries | default(5) }}"
+      until: get_url_results is success
+      delay: "{{ retry_delay | default(3) }}"
 
     - name: install DCAP driver
-    # noqa 305 - shell is used intentionally here
+    # noqa command-instead-of-shell - shell is used intentionally here
       shell: "./{{ dcap_driver_version_rhel }}"
       args:
         chdir: "{{ project_root_dir }}"
@@ -62,21 +66,25 @@
   get_url:
     url: "{{ sgx_rpm_local_repo_url_rhel }}"
     dest: "{{ project_root_dir }}"
-    mode: u=rwx,g=rx,o=rx
+    mode: 0755
     checksum: "{{ sgx_rpm_local_repo_checksum_rhel }}"
+  register: get_url_results
+  retries: "{{ number_of_retries | default(5) }}"
+  until: get_url_results is success
+  delay: "{{ retry_delay | default(3) }}"
 
 - name: ensure SGX RPM directory exists
   file:
     path: "{{ sgx_rpm_directory }}"
     state: directory
-    mode: u=rwx,g=rx,o=rx
+    mode: 0755
 
 - name: unpack SGX RPM local repository
   unarchive:
     src: "{{ project_root_dir }}/{{ sgx_rpm_local_repo_version_rhel }}"
     dest: "{{ sgx_rpm_directory }}"
     extra_opts: "--strip-components=1"
-    mode: u=rwx,g=rx,o=rx
+    mode: 0755
     remote_src: yes
 
 - name: add SGX RPM local repository
@@ -88,7 +96,7 @@
     dest: "/etc/yum.repos.d/opt_cek_sgx_rpm_local_repo.repo"
     insertafter: 'EOF'
     line: 'gpgcheck=0'
-    mode: '0644'
+    mode: 0644
 
 - name: install software specific to rocky 8 for sgx platform
   package:
@@ -136,13 +144,17 @@
       file:
         path: "{{ (project_root_dir, 'protobuf') | path_join }}"
         state: directory
-        mode: '0644'
+        mode: 0644
 
     - name: downloading protobuf from rocky 8 repository
       get_url:
         url: "{{ protobuf_repository }}/{{ protobuf_version }}"
         dest: "{{ (project_root_dir, protobuf_dir, protobuf_version) | path_join }}"
-        mode: '0640'
+        mode: 0640
+      register: get_url_results
+      retries: "{{ number_of_retries | default(5) }}"
+      until: get_url_results is success
+      delay: "{{ retry_delay | default(3) }}"
 
     - name: unpack protobuf rpm
       shell: 'rpm2cpio {{ protobuf_version }} | cpio -idmv'
@@ -156,7 +168,7 @@
         remote_src: true
         owner: root
         group: root
-        mode: "0755"
+        mode: 0755
         dest: "{{ ('/', protobuf_library_dir, protobuf_library_version_long) | path_join }}"
   when: ansible_distribution_version >= '9.0'
 
@@ -188,7 +200,7 @@
     name: aesmd
 
 - name: wait for aesmd service to start
-  pause:
+  pause: # there is no smart way how to check if systemd service will stay running
     minutes: 1
   when: ansible_distribution_version >= '9.0'
 
@@ -204,8 +216,12 @@
   get_url:
     url: "{{ sgx_sdk_url_rhel }}"
     dest: "{{ project_root_dir }}"
-    mode: u=rwx,g=rx,o=rx
+    mode: 0755
     checksum: "{{ sgx_sdk_checksum_rhel }}"
+  register: get_url_results
+  retries: "{{ number_of_retries | default(5) }}"
+  until: get_url_results is success
+  delay: "{{ retry_delay | default(3) }}"
 
 - name: install sgx sdk
   shell: "set -o pipefail && echo 'yes' | ./{{ sgx_sdk_version_rhel }}"

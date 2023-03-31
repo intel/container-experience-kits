@@ -20,7 +20,7 @@ This file contains functions needed for profile generation in VM mode
 
 import argparse
 import os
-from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, add_nic_parameter, create_backups
+from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, add_nic_parameter, add_mirrors_parameter, create_backups
 
 def render_vm_profiles(args: argparse.Namespace) -> None:
     """Creates example CEK profiles in VM mode"""
@@ -35,6 +35,9 @@ def render_vm_profiles(args: argparse.Namespace) -> None:
     # add architecture information
     add_arch_parameter(vm_profiles, args)
 
+    # add mirrors information
+    add_mirrors_parameter(vm_profiles, args)
+
     # add nic information
     add_nic_parameter(vm_profiles, args)
 
@@ -46,6 +49,9 @@ def render_vm_profiles(args: argparse.Namespace) -> None:
 
     # add architecture information
     add_arch_parameter(host_vm_profiles, args)
+
+    # add mirrors information
+    add_mirrors_parameter(host_vm_profiles, args)
 
     # add nic information
     add_nic_parameter(host_vm_profiles, args)
@@ -59,9 +65,12 @@ def _create_vm_example(config: dict, vars_path_prefix: str, args: argparse.Names
     """Create one sample file required by the VM"""
     host_vars_dir_path = os.path.join(vars_path_prefix, "host_vars")
     create_dir_idempotent(host_vars_dir_path)
-            
+
     render(args.host, config, os.path.join(host_vars_dir_path, "vm-ctrl-1.yml"))
     render(args.host, config, os.path.join(host_vars_dir_path, "vm-work-1.yml"))
+    # create another set of configuration files for case that vm_cluster_name is enabled
+    render(args.host, config, os.path.join(host_vars_dir_path, "vm-ctrl-1.cluster1.local.yml"))
+    render(args.host, config, os.path.join(host_vars_dir_path, "vm-work-1.cluster1.local.yml"))
 
 def _create_vms_examples(profiles: dict, args: argparse.Namespace) -> None:
     """Creates sample configuration files required by the VMs. If profile is marked as all_examples

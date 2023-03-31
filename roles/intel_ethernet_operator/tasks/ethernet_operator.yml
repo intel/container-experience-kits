@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -19,15 +19,22 @@
     repo: "{{ intel_ethernet_operator_git }}"
     version: "{{ intel_ethernet_operator_git_ref }}"
     dest: "{{ intel_ethernet_operator_dir }}"
-    force: yes
+    force: true
 
 - name: get GOPATH
   ansible.builtin.command: go env GOPATH
   register: gopath
   changed_when: false
 
+# Workaround for IEO labeler build issue
+- name: WA - Fix curl issue
+  lineinfile:
+    path: "{{ intel_ethernet_operator_dir }}/Dockerfile.labeler"
+    regexp: "^RUN apk update && apk add --no-cache curl.*"
+    line: "RUN apk update && apk add --no-cache curl"
+
 - name: build Intel Ethernet Operator
-  ansible.builtin.make:
+  community.general.make:
     target: "{{ item }}"
     chdir: "{{ intel_ethernet_operator_dir }}"
     params:
@@ -36,6 +43,7 @@
       IMGTOOL: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
       TLS_VERIFY: "{{ intel_ethernet_operator_make_tls }}"
       TARGET_PLATFORM: "{{ intel_ethernet_operator_target_platform }}"
+      UFT_IMAGE: "{{ uft_image }}:{{ uft_image_ver }}"
   register: ieo_build_status
   retries: 5
   delay: 120
@@ -72,14 +80,14 @@
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ (intel_ethernet_operator_files_dir, item.dst) | path_join }}"
-    force: yes
+    force: true
     mode: preserve
   loop:
     - {src: 'catalog.yml.j2', dst: 'catalog.yml'}
     - {src: 'operator-group.yml.j2', dst: 'operator-group.yml'}
     - {src: 'subscription.yml.j2', dst: 'subscription.yml'}
 
-- name: Catalog and OperatorGroup
+- name: Deploy Catalog source and OperatorGroup
   kubernetes.core.k8s:
     state: present
     src: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
@@ -87,9 +95,19 @@
     - catalog.yml
     - operator-group.yml
 
-- name: wait for catalog pod
-  ansible.builtin.pause:
-    seconds: 30
+- name: wait for Catalog source to be running
+  kubernetes.core.k8s_info:
+    api_version: "operators.coreos.com/v1alpha1"
+    kind: CatalogSource
+    namespace: "{{ intel_ethernet_operator_namespace }}"
+    name: intel-ethernet-operators
+  register: catalog_info
+  retries: 12
+  delay: 5
+  until: |
+    catalog_info.resources is defined and
+    catalog_info.resources | length != 0 and
+    catalog_info.resources[0].status.connectionState.lastObservedState | default("NOTREADY") == "READY"
 
 - name: create Subscription
   kubernetes.core.k8s:
@@ -97,30 +115,14 @@
     src: "{{ (intel_ethernet_operator_files_dir, 'subscription.yml') | path_join }}"
 
 - name: wait for Ethernet Operator deployment
-  ansible.builtin.pause:
-    seconds: 100
+  kubernetes.core.k8s_info:
+    kind: InstallPlan
+    namespace: "{{ intel_ethernet_operator_namespace }}"
+    wait: true
+    wait_condition:
+      type: Installed
+    wait_timeout: 240
 
-- name: check if all pods are running
-  ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
-  args:
-    executable: /bin/bash
-  register: ieo_pods_status
-  retries: 50
-  delay: 10
-  until:
-    - "'Error' not in ieo_pods_status.stdout"
-    - "'CrashLoopBackOff' not in ieo_pods_status.stdout"
-    - "'Terminating' not in ieo_pods_status.stdout"
-    - "'ContainerCreating' not in ieo_pods_status.stdout"
-    - "'Pending' not in ieo_pods_status.stdout"
-  changed_when: false
-
-- name: check if all containers are running
-  ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
-  args:
-    executable: /bin/bash
-  register: ieo_containers_readiness
-  retries: 50
-  delay: 10
-  until: "'0' not in ieo_containers_readiness.stdout"
-  changed_when: false
+- name: Check if pods are running
+  ansible.builtin.include_role:
+    name: wait_for_kubernetes_ready

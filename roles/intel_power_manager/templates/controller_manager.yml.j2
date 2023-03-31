@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller-manager
-  namespace: intel-power
+  namespace: {{ intel_power_manager_namespace }}
   labels:
     control-plane: controller-manager
 spec:

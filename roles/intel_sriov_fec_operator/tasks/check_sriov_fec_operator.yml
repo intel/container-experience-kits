@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,31 +15,31 @@
 ##
 ---
 - name: check pods in OLM namespace (expected 6 Running)
-  command: kubectl get pod -n olm # noqa 301
+  command: kubectl get pod -n olm # noqa no-changed-when
   register: olm_pods
 
 - debug: msg={{ olm_pods.stdout }}
 
 - name: check pods in FEC Operator namespace (expected 5 Running)
-  command: kubectl get pod -n {{ intel_sriov_fec_operator_namespace }} # noqa 301
+  command: kubectl get pod -n {{ intel_sriov_fec_operator_namespace }} # noqa no-changed-when
   register: fec_operator_pods
 
 - debug: msg={{ fec_operator_pods.stdout }}
 
 - name: check csv in OLM namespace (expected 1 Succeeded)
-  command: kubectl get csv -n olm # noqa 301
+  command: kubectl get csv -n olm # noqa no-changed-when
   register: olm_csv
 
 - debug: msg={{ olm_csv.stdout }}
 
 - name: check csv in FEC Operator namespace (expected 1 Succeeded)
-  command: kubectl get csv -n {{ intel_sriov_fec_operator_namespace }} # noqa 301
+  command: kubectl get csv -n {{ intel_sriov_fec_operator_namespace }} # noqa no-changed-when
   register: fec_operator_csv
 
 - debug: msg={{ fec_operator_csv.stdout }}
 
 - name: check FEC Operator node config (expected 1 Succeeded)
-  command: kubectl get sriovfecnodeconfig -n {{ intel_sriov_fec_operator_namespace }} # noqa 301
+  command: kubectl get sriovfecnodeconfig -n {{ intel_sriov_fec_operator_namespace }} # noqa no-changed-when
   register: fec_operator_node
 
 - debug: msg={{ fec_operator_node.stdout }}

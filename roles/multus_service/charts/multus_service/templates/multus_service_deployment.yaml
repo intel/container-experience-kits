@@ -27,7 +27,7 @@ spec:
       serviceAccountName: multus-service
       containers:
       - name: multus-service-controller
-        image: ghcr.io/k8snetworkplumbingwg/multus-service:latest-nft
+        image: "{{ .Values.multus_proxy.image }}@{{ .Values.multus_proxy.digest }}"
         imagePullPolicy: Always
         command: ["/usr/bin/multus-service-controller"]
         resources:

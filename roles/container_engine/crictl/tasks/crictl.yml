@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,39 +15,39 @@
 ##
 ---
 - block:
-  - name: starting download of file
-    debug:
-      msg: "{{ crictl.url }}"
+    - name: starting download of file
+      debug:
+        msg: "{{ crictl.url }}"
 
-  - name: create dest directory on node
-    file:
-      path: "{{ crictl.dest | dirname }}"
-      owner: "{{ crictl.owner }}"
-      mode: 0755
-      state: directory
-      recurse: yes
+    - name: create dest directory on node
+      file:
+        path: "{{ crictl.dest | dirname }}"
+        owner: "{{ crictl.owner }}"
+        mode: 0755
+        state: directory
+        recurse: yes
 
-  - name: download item
-    get_url:
-      url: "{{ crictl.url }}"
-      dest: "{{ crictl.dest }}"
-      owner: "{{ crictl.owner }}"
-      mode: "{{ crictl.mode }}"
-      checksum: "{{ 'sha256:' + crictl.sha256 }}"
-    delegate_to: "{{ inventory_hostname }}"
-    register: get_url_result
-    until: "'OK' in get_url_result.msg or 'file already exists' in get_url_result.msg"
-    retries: 4
-    delay: 5
-    no_log: true
+    - name: download item
+      get_url:
+        url: "{{ crictl.url }}"
+        dest: "{{ crictl.dest }}"
+        owner: "{{ crictl.owner }}"
+        mode: "{{ crictl.mode }}"
+        checksum: "{{ 'sha256:' + crictl.sha256 }}"
+      delegate_to: "{{ inventory_hostname }}"
+      register: get_url_result
+      until: "'OK' in get_url_result.msg or 'file already exists' in get_url_result.msg"
+      retries: 4
+      delay: 5
+      no_log: true
 
-  - name: unpack archive
-    unarchive:
-      src: "{{ crictl.dest }}"
-      dest: "{{ crictl.dest | dirname }}"
-      owner: "{{ crictl.owner }}"
-      mode: "{{ crictl.mode }}"
-      copy: no
+    - name: unpack archive
+      unarchive:
+        src: "{{ crictl.dest }}"
+        dest: "{{ crictl.dest | dirname }}"
+        owner: "{{ crictl.owner }}"
+        mode: "{{ crictl.mode }}"
+        copy: no
 
 - name: install crictl config
   template:

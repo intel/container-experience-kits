@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ install_dependencies:
     - libnl-genl-3-dev
     - zlib1g
     - zlib1g-dev
+    - libssl-dev
   RedHat:
     - "@Development Tools"
     - pciutils

@@ -7,10 +7,13 @@ resource "azurerm_kubernetes_cluster" "default" {
   kubernetes_version  = "{{ aks.kubernetes_version }}"
   azure_policy_enabled = true
 
-  api_server_authorized_ip_ranges   = [
-    {% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}
-    {% if will_create_ansible_instance %}"${azurerm_public_ip.ansible_instance.ip_address}/32"{% endif %}
-  ]
+  api_server_access_profile {
+    authorized_ip_ranges   = [
+      {% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}
+      {% if will_create_ansible_instance %}"${azurerm_public_ip.ansible_instance.ip_address}/32"{% endif %}
+    ]
+  }
+
   role_based_access_control_enabled = true
 
   default_node_pool {
@@ -21,6 +24,10 @@ resource "azurerm_kubernetes_cluster" "default" {
     {% if enable_proximity_placement == true %}
     proximity_placement_group_id = azurerm_proximity_placement_group.default.id
     {% endif %}
+
+    kubelet_config {
+      cpu_manager_policy = "{{ aks.default_node_pool.kubelet_cpu_manager_policy }}"
+    }
   }
 
   network_profile {
@@ -38,6 +45,10 @@ resource "azurerm_kubernetes_cluster" "default" {
     log_analytics_workspace_id = azurerm_log_analytics_workspace.default.id
   }
 
+  microsoft_defender {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.default.id
+  }
+
   linux_profile {
     admin_username = "ubuntu"
     ssh_key {
@@ -52,6 +63,10 @@ resource "azurerm_kubernetes_cluster" "default" {
       JobId = "{{ job_id }}"
     }
   )
+
+  depends_on = [
+    {% for subnet in subnets %}azurerm_subnet.{{ subnet.name }},{% endfor %}
+  ]
 }
 
 {% if 'additional_node_pools' in aks %}
@@ -67,6 +82,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "{{ node_pool.name }}" {
   proximity_placement_group_id = azurerm_proximity_placement_group.default.id
   {% endif %}
 
+  kubelet_config {
+    cpu_manager_policy = "{{ node_pool.kubelet_cpu_manager_policy }}"
+  }
+
   tags = merge(
     jsondecode("{{ extra_tags_json }}"),
     {
@@ -74,6 +93,8 @@ resource "azurerm_kubernetes_cluster_node_pool" "{{ node_pool.name }}" {
       JobId = "{{ job_id }}"
     }
   )
+
+  depends_on = [azurerm_kubernetes_cluster.default]
 }
 {% endfor %}
 {% endif %}

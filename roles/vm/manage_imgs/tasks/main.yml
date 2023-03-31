@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,12 +14,41 @@
 ##   limitations under the License.
 ##
 ---
+- name: Set login_user fact
+  set_fact:
+    login_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER, True) }}"
+
+- name: Set local_login_user fact
+  set_fact:
+    local_login_user: "{{ lookup('ansible.builtin.env', 'SUDO_USER')|default( lookup('ansible.builtin.env', 'USER'), True) }}"
+
+- name: Get login_user home dir
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ login_user }}"
+
+- name: Set login_user_dir fact
+  set_fact:
+    login_user_dir: "{{ ansible_facts.getent_passwd[login_user][4] }}"
+
+- name: Get local_login_user home dir
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ local_login_user }}"
+  delegate_to: localhost
+  become: false
+
+- name: Set local_login_user_dir fact
+  set_fact:
+    local_login_user_dir: "{{ ansible_facts.getent_passwd[local_login_user][4] }}"
+
 - name: Generate VM image vars
   template:
     src: vm_image_vars.yml.j2
     dest: "vm_image_vars.yml"
     mode: 0644
   delegate_to: localhost
+  become: false
   when: inventory_hostname == groups['vm_host'][0]
 
 - name: Include vars for VM image
@@ -31,22 +60,58 @@
     dest: "vm_image_links_vars.yml"
     mode: 0644
   delegate_to: localhost
+  become: false
   when: inventory_hostname == groups['vm_host'][0]
 
 - name: Include vars for VM image links
   include_vars: "vm_image_links_vars.yml"
 
+- name: Ensure that .ssh directory exist
+  file:
+    path: "{{ login_user_dir }}/.ssh"
+    state: directory
+    owner: "{{ login_user }}"
+    group: "{{ login_user }}"
+    mode: 0700
+  delegate_to: "{{ item }}"
+  become: false
+  loop: "{{ groups['vm_host'] }}"
+
 - name: Generate SSH keypair if not present
   openssh_keypair:
-    path: /root/.ssh/id_rsa
+    path: "{{ login_user_dir }}/.ssh/id_rsa"
+    owner: "{{ login_user }}"
+    group: "{{ login_user }}"
+    regenerate: "never"
   delegate_to: "{{ item }}"
+  become: false
   loop: "{{ groups['vm_host'] }}"
+
+- name: Ensure that .ssh directory exist on localhost
+  file:
+    path: "{{ local_login_user_dir }}/.ssh"
+    state: directory
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
+    mode: 0700
+  delegate_to: localhost
+  become: false
+
+- name: Generate SSH keypair if not present on localhost
+  openssh_keypair:
+    path: "{{ local_login_user_dir }}/.ssh/id_rsa"
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
+    regenerate: "never"
+  delegate_to: localhost
+  become: false
 
 - name: Fetch SSH public key from VM host
   slurp:
-    src: /root/.ssh/id_rsa.pub
+    src: "{{ login_user_dir }}/.ssh/id_rsa.pub"
   register: remote_pub
   delegate_to: "{{ item }}"
+  become: false
   loop: "{{ groups['vm_host'] }}"
 
 - name: check if {{ vm_image_destination_file }} is already downloaded
@@ -66,8 +131,8 @@
       until: result_sum is succeeded
       delay: "{{ retry_delay | default(3) }}"
       environment:
-        http_proxy: "{{ http_proxy }}"
-        https_proxy: "{{ https_proxy }}"
+        http_proxy: "{{ http_proxy | default('') }}"
+        https_proxy: "{{ https_proxy | default('') }}"
 
     - name: extract checksum for requested image
       shell: set -o pipefail && cat "{{ vm_project_root_dir }}/{{ vm_image }}.checksums" | grep "{{ vm_image }}" | cut "{{ vm_image_checksum_cut_line }}" -d' '
@@ -87,8 +152,8 @@
       until: result is succeeded
       delay: "{{ retry_delay | default(3) }}"
       environment:
-        http_proxy: "{{ http_proxy }}"
-        https_proxy: "{{ https_proxy }}"
+        http_proxy: "{{ http_proxy | default('') }}"
+        https_proxy: "{{ https_proxy | default('') }}"
 
   when: not vm_image_downloaded.stat.exists
 

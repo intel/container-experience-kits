@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -30,17 +30,23 @@
 
 - name: copy charts to charts directory
   copy:
-    src: "{{ role_path }}/charts/sriov-network-operator/"
+    src: "{{ (role_path, 'charts', 'sriov-network-operator') | path_join }}/"
     dest: "{{ sriov_network_charts_dir }}"
     owner: root
     group: root
     mode: "0755"
 
+- name: add correct appVersion to sriov-network-operator Chart.yml
+  replace:
+    path: "{{ (sriov_network_charts_dir, 'Chart.yaml') | path_join }}"
+    regexp: '^appVersion: (.*)$'
+    replace: 'appVersion: "{{ sriov_network_operator_version }}"'
+
 - name: populate sriov-network-operator chart values template and push to controller node
   template:
     src: "values.yml.j2"
-    dest: "{{ sriov_network_charts_dir }}/values.yaml"
-    force: yes
+    dest: "{{ (sriov_network_charts_dir, 'values.yaml') | path_join }}"
+    force: true
     mode: preserve
   changed_when: true
 
@@ -64,39 +70,45 @@
     chdir: "{{ sriov_network_charts_dir }}"
   changed_when: true
 
-- name: wait for sriov-network-config-daemon daemonset
-  pause:
-    seconds: 20
+- name: wait for sriov-network-operator deployment to be ready
+  k8s_info:
+    kind: Deployment
+    name: sriov-network-operator
+    namespace: "{{ sriov_network_operator_namespace }}"
+    wait: yes
+    wait_timeout: 240
+    wait_condition:
+      reason: MinimumReplicasAvailable
+      type: Available
 
-- name: wait for sriov-network-config-daemon pods
-  shell: >-
-    set -o pipefail && kubectl get ds sriov-network-config-daemon
-    -n {{ sriov_network_operator_namespace }} -o yaml | grep 'numberReady'
-  args:
-    executable: /bin/bash
-  register: sriov_daemon_wait
-  until: "'0' not in sriov_daemon_wait.stdout"
-  failed_when: "'0' in sriov_daemon_wait.stdout or sriov_daemon_wait.rc != 0"
+- name: wait for sriov-network-config-daemon to be ready
+  k8s_info:
+    kind: DaemonSet
+    name: sriov-network-config-daemon
+    namespace: "{{ sriov_network_operator_namespace }}"
+  register: ds_status
   retries: 30
   delay: 10
-  changed_when: false
+  until: |
+    ds_status.failed or
+    (
+      ds_status.resources | length > 0 and
+      ds_status.resources[0].status.numberReady > 0
+    )
 
-- name: check if SriovNetworkNodeState CR was created
-  command: kubectl get SriovNetworkNodeState -n {{ sriov_network_operator_namespace }}
-  register: sriov_node_state_check
-  until: "'No resources found in {{ sriov_network_operator_namespace }}' not in sriov_node_state_check.stderr"
-  failed_when: "'No resources found in {{ sriov_network_operator_namespace }}' in sriov_node_state_check.stderr"
+- name: wait for SriovNetworkNodeState CR to be created and sync completed
+  k8s_info:
+    kind: SriovNetworkNodeState
+    name: "{{ item }}"
+    namespace: "{{ sriov_network_operator_namespace }}"
+  register: cr_status
   retries: 30
   delay: 10
-  changed_when: false
-
-- name: wait for SriovNetworkNodeState CR sync
-  command: kubectl get SriovNetworkNodeState {{ item }} -n {{ sriov_network_operator_namespace }} -o yaml
-  register: sriov_node_wait
-  until: sriov_node_wait.stdout is not search('InProgress') and sriov_node_wait.stdout is search('syncStatus')
-  failed_when:
-    sriov_node_wait.stdout is search('Failed') or sriov_node_wait.stdout is search('InProgress') or sriov_node_wait.stdout is not search('syncStatus')
-  retries: 30
-  delay: 10
-  changed_when: false
+  until: |
+    cr_status.failed or
+    (
+      cr_status.resources | length > 0 and
+      cr_status.resources[0].status.syncStatus is defined and
+      cr_status.resources[0].status.syncStatus == "Succeeded"
+    )
   loop: "{{ groups['kube_node'] }}"

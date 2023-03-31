@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
     mode: 0755
 
 - name: prepare custom SriovNetworkNodePolicy manifests if provided
-  include: custom_sriov_network_policies_configure.yml
+  include_tasks: custom_sriov_network_policies_configure.yml
   loop: "{{ groups['kube_node'] }}"
   loop_control:
     loop_var: node
@@ -46,7 +46,7 @@
 
 - name: wait for SriovNetworkNodeState CR after sriov network node policy
   shell: >-
-    set -o pipefail && kubectl get SriovNetworkNodeState {{ item }}
+    set -o pipefail && kubectl get SriovNetworkNodeState {{ hostvars[item]['ansible_hostname'] }}
     -n {{ sriov_network_operator_namespace }} -o yaml | grep 'syncStatus'
   args:
     executable: /bin/bash

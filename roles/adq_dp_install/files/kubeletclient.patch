@@ -1,0 +1,13 @@
+diff --git a/pkg/kubeletclient/kubeletclient.go b/pkg/kubeletclient/kubeletclient.go
+index 25a0a7d..f24cce2 100644
+--- a/pkg/kubeletclient/kubeletclient.go
++++ b/pkg/kubeletclient/kubeletclient.go
+@@ -280,7 +280,7 @@ func GetKubeletHTTPClient(ksName, ksPort, caPath string) (*kubeletHTTPClient, er
+ func (khc *kubeletHTTPClient) GetPodList() (*v1.PodList, error) {
+ 	logger := log.WithField("func", "GetPodList").WithField("pkg", "kubeletclient")
+ 
+-	url := khc.kubeletServerAddr + "/pods"
++	url := khc.kubeletServerAddr + "/api/v1/pods"
+ 	req, err := http.NewRequest("GET", url, nil)
+ 	if err != nil {
+ 		logger.Errorf("Unable to create new GET request for %v", url)

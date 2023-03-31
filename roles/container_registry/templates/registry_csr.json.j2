@@ -4,6 +4,9 @@
     "container-registry.kube-system.svc",
     "container-registry.kube-system",
     "localhost",
+{% if hostvars[groups['kube_control_plane'][0]].adq_dp.enabled | default(false) %}
+    "{{ hostvars[groups['kube_control_plane'][0]].adq_dp.interface_address }}",
+{% endif %}
     "127.0.0.1"
   ],
   "CN": "system:node:localhost",

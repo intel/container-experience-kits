@@ -22,7 +22,9 @@
     - role: bootstrap/install_packages
     - role: bootstrap/run_dhclient_systemd_service_on_boot
       tags: run-dhclient-service-on-boot
-      when: enable_dhclient_systemd_service | default(false)
+      when:
+        - ansible_os_family != "RedHat" or ansible_distribution_version <= "9.0"
+        - enable_dhclient_systemd_service | default(false)
     - role: bootstrap/update_grub
       tags:
         - grub-update
@@ -58,6 +60,10 @@
   roles:
     - role: cluster_defaults
       tags: defaults
+    - role: vm/prepare_vm_cluster
+      when:
+        - vm_enabled | default(false) | bool
+        - not on_vms | default(false) | bool
     - role: bootstrap/configure_hugepages
       tags:
         - hugepages
@@ -115,7 +121,7 @@
           sst_pp_configuration_enabled | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
 {%- endif %}
-{%- if playbook_name in ['full_nfv', 'regional_dc', 'build_your_own'] %}
+{%- if playbook_name in ['full_nfv', 'on_prem', 'regional_dc', 'build_your_own'] %}
     - role: bootstrap/install_gpu_driver
       when:
         - configure_gpu | default(false) | bool
@@ -128,7 +134,7 @@
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
-{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'storage', 'build_your_own'] -%}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'build_your_own'] -%}
 # install worker node qat software
 - hosts: kube_node,vm_host
   tasks: []
@@ -182,7 +188,7 @@
     - role: bootstrap/determine_dataplane_interfaces
       tags:
         - determine-dataplane-interfaces
-        - setup-sriov-nic
+        - update-nic-firmware
       when:
         - dataplane_interfaces | default([]) | length > 0
     - role: bootstrap/update_nic_drivers
@@ -208,19 +214,24 @@
   roles:
     - role: cluster_defaults
       tags: defaults
-{%- if playbook_name not in ['storage'] %}
+    # the role is added here again to fix NIC name changes after driver update
+    - role: bootstrap/determine_dataplane_interfaces
+      tags:
+        - determine-dataplane-interfaces
+        - setup-sriov-nic
+        - sriov-network-operator
+      when:
+        - dataplane_interfaces | default([]) | length > 0
     - role: install_dpdk
       tags:
         - dpdk
         - intel-platform-qat-setup
       when:
         - ovs_dpdk_enabled | default(false) | bool or install_dpdk | default(true) | bool
-{%- endif %}
 {%- if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own'] %}
     - role: install_ddp_pkgs
       when: install_ddp_packages | default(true) | bool
 {%- endif %}
-{%- if playbook_name not in ['storage'] %}
     - role: sriov_nic_init
       tags: setup-sriov-nic
       when:
@@ -228,10 +239,9 @@
         - iommu_enabled | default(true) | bool
         - (kubernetes | default(true) | bool
           and not container_runtime_only_deployment | default(false) | bool
-          and not sriov_network_operator_enabled | default(true) | bool
+          and not sriov_network_operator_enabled | default(false) | bool
           or (not kubernetes | default(true) | bool
           and container_runtime_only_deployment | default(false) | bool))
-{%- endif %}
 {%- if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'build_your_own'] %}
     - role: bootstrap/configure_qat
       tags:
@@ -264,7 +274,7 @@
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
-- hosts: kube_control_plane[0]
+- hosts: k8s_cluster
   roles:
     - role: bootstrap/configure_adq
       tags: configure-adq

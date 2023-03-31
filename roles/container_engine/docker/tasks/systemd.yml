@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
   when: http_proxy is defined or https_proxy is defined
 
 - name: get systemd version
-  # noqa 303 - systemctl is called intentionally here
+  # noqa command-instead-of-module - systemctl is called intentionally here
   shell: set -o pipefail && systemctl --version | head -n 1 | cut -d " " -f 2
   args:
     executable: /bin/bash

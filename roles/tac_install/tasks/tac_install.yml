@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -76,11 +76,11 @@
   lineinfile:
     path: "{{ (tac_git_path, 'config', 'plugins', 'kmra', '.key-server.conf') | path_join }}"
     regexp: '^KEY_SERVER=.*$'
-    line: "KEY_SERVER={{ tac.apphsm_hostmane }}:{{ tac.apphsm_port }}"
+    line: "KEY_SERVER={{ tac.apphsm_hostname | trim }}:{{ tac.apphsm_port }}"
     state: present
     mode: 0644
 
-- name: update TAC config - kustomization file
+- name: update TAC config - kustomization plugins file
   lineinfile:
     path: "{{ (tac_git_path, 'config', 'plugins', 'kmra', 'kustomization.yaml') | path_join }}"
     regexp: '^  namespace:.*$'
@@ -88,7 +88,7 @@
     state: present
     mode: 0644
 
-- name: update TAC config - kustomization file
+- name: update TAC config - kustomization  default file
   lineinfile:
     path: "{{ (tac_git_path, 'config', 'default', 'kustomization.yaml') | path_join }}"
     regexp: '^namespace:.*$'

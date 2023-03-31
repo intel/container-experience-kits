@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -47,8 +47,8 @@
       stat:
         path: "{{ dpdk_local_patches_dir }}"
       delegate_to: "localhost"
-      register: dpdk_patches_dir_exists
       become: false
+      register: dpdk_patches_dir_exists
 
     - name: find DPDK patches
       find:
@@ -58,8 +58,8 @@
         - dpdk_patches_dir_exists.stat.exists | bool
         - dpdk_patches_dir_exists.stat.isdir | bool
       delegate_to: "localhost"
-      register: patches_found
       become: false
+      register: patches_found
 
     - name: apply DPDK patches
       patch:
@@ -83,9 +83,9 @@
   when: dpdk_local_patches_dir is defined
 
 - name: include install_dpdk task for DPDK <= 20.08 versions
-  include: "install_dpdk_make.yml"
+  include_tasks: "install_dpdk_make.yml"
   when: dpdk_version is version("19.11", ">=") and dpdk_version is version("20.08", "<")
 
 - name: include install_dpdk task for DPDK >= 20.08 versions
-  include: "install_dpdk_meson.yml"
+  include_tasks: "install_dpdk_meson.yml"
   when: dpdk_version is version("20.08", ">=")

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ kmra_defaults:
     OU: "root"
     CN: "localhost"
   certs_validity_period_days: 365
-  image_tag: "v2.2.2" # can be overriden in each component section if needed
+  image_tag: "v2.3" # can be overriden in each component section if needed
   apphsm:
     enabled: false
     release_name: "kmra-apphsm"
@@ -38,7 +38,10 @@ kmra_defaults:
     upstream_port: 5000
     hostname: |
       {%- if vm_enabled %}
-      {{ hostvars[groups['kube_node'][0]]['ansible_all_ipv4_addresses'] | ipaddr(hostvars[groups['vm_host'][0]]['vxlan_gw_ip']) | join('') | trim }}
+      {{ hostvars[groups['kube_node'][0]]['ansible_all_ipv4_addresses'] |
+      ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_gw_ip']) |
+      join('') |
+      trim }}
       {%- else %}
       {{ hostvars[groups['kube_node'][0]]['ansible_default_ipv4']['address'] }}
       {%- endif %}

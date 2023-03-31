@@ -4,7 +4,7 @@ resource "aws_instance" "{{ profile.name }}_{{ i }}" {
   ami                    = "{{ profile.ami_id }}"
   instance_type          = "{{ profile.instance_type }}"
 
-  vpc_security_group_ids = [aws_security_group.default.id]
+  vpc_security_group_ids = [aws_security_group.sg-{{ job_id }}.id]
   subnet_id              = aws_subnet.{{ profile.subnet }}.id
   key_name               = aws_key_pair.default.key_name
 

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -48,6 +48,20 @@
     tasks_from: cleanup_cpu_controlplane
   tags:
     - cpu_ctlplane
+
+- name: cleanup Rook
+  include_role:
+    name: rook_install
+    tasks_from: cleanup_rook
+  tags:
+    - rook-ceph
+
+- name: cleanup Intel AI
+  include_role:
+    name: intel_ai
+    tasks_from: cleanup_intel_ai
+  tags:
+    - intel-ai
 
 - name: reset and remove Kubernetes cluster
   import_tasks: k8s_cleanup.yml

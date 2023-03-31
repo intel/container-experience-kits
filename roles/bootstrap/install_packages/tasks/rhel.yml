@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
     - "'This system is not yet registered' in check_subscription_status.stderr"
 
 - name: enable powertools repository on Rocky < 9.0
-# noqa 303 - yum is called intenionallly here
+# noqa command-instead-of-module - yum is called intenionallly here
   command: yum config-manager --set-enabled powertools
   when: ansible_distribution == 'Rocky' and ansible_distribution_version < '9.0'
 
@@ -137,7 +137,43 @@
     - ansible_distribution_version == '8.5'
     - not update_kernel
 
-- name: pull matching kernel headers on Rocky 9.0
+- name: get Rocky 9 packages for base o/s
+  block:
+    - name: check Rocky 9 packages location (pub or vault)
+      ansible.builtin.uri:
+        url: "https://dl.rockylinux.org/pub/rocky/{{ ansible_distribution_version }}/AppStream/"
+        method: HEAD
+      register: pub_uri
+      failed_when: pub_uri.status is undefined or pub_uri.status <= 0
+
+    - name: set rocky 9 packages location (pub or vault)
+      block:
+        - ansible.builtin.set_fact:
+            rocky_uri: vault
+        - ansible.builtin.set_fact:
+            rocky_uri: pub
+          when: pub_uri.status == 200
+
+    - debug: msg="Rocky {{ ansible_distribution_version }} packages are in {{ rocky_uri }}"
+
+    - name: pull matching kernel headers for Rocky 9
+      package:
+        name: "{{ item }}"
+        state: present
+      retries: 5
+      delay: 10
+      register: source_status
+      until: source_status is not failed
+      with_items:
+        - "https://dl.rockylinux.org/{{ rocky_uri }}/rocky/{{ ansible_distribution_version }}/AppStream/x86_64/kickstart/Packages/k/kernel-headers-{{ current_kernel_version.stdout }}.rpm" # noqa yaml[line-length]
+        - "https://dl.rockylinux.org/{{ rocky_uri }}/rocky/{{ ansible_distribution_version }}/AppStream/x86_64/kickstart/Packages/k/kernel-devel-{{ current_kernel_version.stdout }}.rpm" # noqa yaml[line-length]
+  when:
+    - ansible_distribution == "Rocky"
+    - ansible_distribution_version >= '9.0'
+    - not update_kernel
+    - not on_vms | default (false)
+
+- name: pull matching kernel headers for Rocky 9 on VMs
   package:
     name: "{{ item }}"
     state: present
@@ -146,13 +182,12 @@
   register: source_status
   until: source_status is not failed
   with_items:
-    - "https://dl.rockylinux.org/vault/rocky/9.0/AppStream/x86_64/kickstart/Packages/k/kernel-headers-5.14.0-70.13.1.el9_0.x86_64.rpm"
-    - "https://dl.rockylinux.org/vault/rocky/9.0/AppStream/x86_64/kickstart/Packages/k/kernel-devel-5.14.0-70.13.1.el9_0.x86_64.rpm"
+    - "https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/kickstart/Packages/k/kernel-headers-{{ current_kernel_version.stdout }}.rpm"
+    - "https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/kickstart/Packages/k/kernel-devel-{{ current_kernel_version.stdout }}.rpm"
   when:
     - ansible_distribution == "Rocky"
-    - ansible_distribution_version == '9.0'
-    - not update_kernel
-    - current_kernel_version.stdout == '5.14.0-70.13.1.el9_0.x86_64'
+    - ansible_distribution_version >= '9.0'
+    - on_vms | default (false)
 
 - name: install epel-next-release on Rocky >= 9.0
   package:
@@ -173,7 +208,7 @@
 
 # pull the matching kernel headers if kernel is not updated
 - name: pull matching kernel headers from configured repos
-# noqa 503 - more than one condition, can't be a handler
+# noqa no-handler - more than one condition, can't be a handler
   package:
     name:
       - kernel-headers-{{ ansible_kernel }}
@@ -222,7 +257,7 @@
 - name: update all packages
   package:
     name: '*'
-    state: latest # noqa 403
+    state: latest # noqa package-latest
     exclude: kernel*
   when:
     - ansible_os_family == "RedHat"
@@ -233,7 +268,7 @@
     name:
       - kernel
       - kernel-devel
-    state: latest # noqa 403
+    state: latest # noqa package-latest
   notify:
     - reboot server
   when:

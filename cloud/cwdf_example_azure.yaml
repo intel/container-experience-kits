@@ -14,8 +14,9 @@ azureConfig:
   sg_whitelist_cidr_blocks: []
   enable_proximity_placement: true
   aks:
-    kubernetes_version: "1.23"
-    cni: "kubenet" # Comment out this line to deploy with Cilium CNI
+    kubernetes_version: "1.25"
+    cni: "kubenet" # Possible values are: kubenet, cilium, cilium-ebpf
+    enable_sgx: false # Requires DCsv series instances in one of node pools
     default_node_pool:
       subnet_name: "subnet_a"
       vm_count: 1
@@ -25,6 +26,7 @@ azureConfig:
         subnet_name: "subnet_b"
         vm_count: 1
         vm_size: "Standard_D4_v3"
+        kubelet_cpu_manager_policy: "static"
       - name: "burstable"
         subnet_name: "subnet_c"
         vm_count: 1

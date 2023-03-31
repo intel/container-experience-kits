@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -66,4 +66,4 @@
       systemd:
         name: systemd-networkd.service
         state: restarted
-  when: kube_network_plugin in ["cilium", "cni"] and ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+  when: kube_network_plugin in ["cilium"] and ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"

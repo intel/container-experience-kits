@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ confirmed_spr_cpus:
   - "6438N"
   - "8470N"
   - "8471N"
+  - "8478C"
   - "8480"
   - "8480+"
   - "8487C"

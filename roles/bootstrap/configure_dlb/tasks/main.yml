@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -57,11 +57,20 @@
 
 # Ansible built-in unarchive not working as expected in RHEL / Rocky using shell as alternative
 - name: extract DLB driver package on RHEL / Rocky
-  shell: "tar --xz -xf {{ intel_dlb_driver_ver }}.txz" # noqa command-instead-of-module 305
+  shell: "tar --xz -xf {{ intel_dlb_driver_ver }}.txz" # noqa command-instead-of-module
   args:
     chdir: "{{ project_root_dir }}"
     executable: /bin/bash
   when: ansible_os_family == "RedHat"
+
+# Build workaround on Rocky 9.1
+# Driver's Makefile condition on disabling SIOV on RHEL does not work on Rocky. As a workaround disabling SIOV manually.
+- name: "Disable SIOV on Rocky 9.1 (workaround)"
+  replace:
+    dest: "{{ project_root_dir }}/dlb/driver/dlb2/Makefile"
+    regexp: '^\s*ccflags-y \+= -DCONFIG_INTEL_DLB2_SIOV'
+    replace: '#ccflags-y += -DCONFIG_INTEL_DLB2_SIOV'
+  when: ansible_distribution == 'Rocky' and ansible_distribution_version == '9.1'
 
 - name: build Intel DLB driver
   make:

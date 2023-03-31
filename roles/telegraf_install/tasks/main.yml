@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -27,22 +27,49 @@
     enabled: yes
 
 - name: remove existing telegraf deployment
-  include: cleanup.yml
+  include_tasks: cleanup.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: configure msr
-  include: msr-config.yml
+  include_tasks: msr-config.yml
   when:
     - inventory_hostname in groups['kube_node']
 
 - name: prepare WA for resctrl mountpoint
-  include: resctrl_wa_for_vms.yml
+  include_tasks: resctrl_wa_for_vms.yml
   when:
     - inventory_hostname in groups['kube_node']
     - on_vms is defined and on_vms
 
+# Workaround for sdl purposes. Port is open at host network.
+# There is solution for removing host network, but it can't be implemented with current telegraf version used.
+# Port will still be visible in nmap scap, but as filtered, which means nmap can't reach the port.
+
+# Here we accept just traffic from kube services subnet, pods subnet and localhost.
+- name: Allow pods and services to access port 9273
+  iptables:
+    action: "append"
+    chain: "INPUT"
+    protocol: "tcp"
+    destination_port: "9273"
+    source: "{{ item }}"
+    jump: "ACCEPT"
+  with_items:
+    - "{{ kube_pods_subnet }}"
+    - "{{ kube_service_addresses }}"
+    - "localhost"
+
+# Here we reject all traffic from other sources.
+- name: Close port 9273 to others
+  iptables:
+    action: "append"
+    chain: "INPUT"
+    protocol: "tcp"
+    destination_port: "9273"
+    jump: "REJECT"
+
 - name: install telegraf
-  include: telegraf.yml
+  include_tasks: telegraf.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

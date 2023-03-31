@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@
     name: linkerd-control-plane
     chart_ref: "linkerd/linkerd-control-plane"
     release_namespace: "{{ linkerd_namespace }}"
-    values: "{{ lookup('template', 'linkerd-control-plane-values.yml.j2') | from_yaml }}"
+    release_values: "{{ lookup('template', 'linkerd-control-plane-values.yml.j2') | from_yaml }}"
     wait: true
 
 - name: Delete LinkerD Heartbeat CronJob if http_proxy is enabled

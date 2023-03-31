@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 ##
 ---
 - name: clone Intel CMT CAT repository
-  git:
+  ansible.builtin.git:
     repo: "{{ intel_appqos_git_url }}"
     version: "{{ intel_appqos_git_ref }}"
     dest: "{{ intel_appqos_dir }}"
@@ -31,18 +31,18 @@
 - name: prepare image for Application Quality of Service
   block:
     - name: build image of App QoS
-      command: docker build --no-cache -t appqos -f Dockerfile ../../
+      ansible.builtin.command: docker build --no-cache -t appqos -f Dockerfile ../../
       changed_when: true
       args:
         chdir: "{{ (intel_appqos_dir, 'appqos', 'docker') | path_join }}"
 
     - name: tag App QoS image
-      command: docker tag appqos:latest {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      ansible.builtin.command: docker tag appqos:latest {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
       changed_when: true
       when: inventory_hostname == groups['kube_node'][0]
 
     - name: push App QoS image to local registry
-      command: docker push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      ansible.builtin.command: docker push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
       changed_when: true
       when: inventory_hostname == groups['kube_node'][0]
   when:
@@ -53,13 +53,13 @@
 - name: prepare image for Application Quality of Service
   block:
     - name: build and tag App QoS image
-      command: podman build -f Dockerfile -t {{ registry_local_address }}/appqos:{{ intel_appqos_version }} ../../
+      ansible.builtin.command: podman build -f Dockerfile -t {{ registry_local_address }}/appqos:{{ intel_appqos_version }} ../../
       changed_when: true
       args:
         chdir: "{{ (intel_appqos_dir, 'appqos', 'docker') | path_join }}"
 
     - name: push App QoS image to local registry
-      command: podman push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
+      ansible.builtin.command: podman push {{ registry_local_address }}/appqos:{{ intel_appqos_version }}
       changed_when: true
       when: inventory_hostname == groups['kube_node'][0]
   when:
@@ -69,7 +69,7 @@
 - name: generate App QoS certificates
   block:
     - name: create directory for App QoS certs
-      file:
+      ansible.builtin.file:
         state: directory
         path: "{{ intel_appqos_cert_dir }}"
         owner: "{{ ansible_user | default(ansible_user_id) }}"
@@ -78,7 +78,7 @@
         recurse: yes
 
     - name: generate certificates
-      command: "{{ item }}"
+      ansible.builtin.command: "{{ item }}"
       args:
         chdir: "{{ intel_appqos_cert_dir }}"
       changed_when: true
@@ -88,7 +88,7 @@
         - openssl x509 -req -in appqos.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out appqos.crt
 
     - name: copy example App QoS config to /etc/certs/public
-      copy:
+      ansible.builtin.copy:
         src: appqos.conf
         dest: "{{ intel_appqos_cert_dir }}"
         owner: "{{ ansible_user | default(ansible_user_id) }}"
@@ -96,5 +96,5 @@
         mode: 0644
 
 - name: set facts for Intel App QoS templates
-  set_fact:
+  ansible.builtin.set_fact:
     app_qos_image: "{{ registry_local_address }}/appqos:{{ intel_appqos_version }}"

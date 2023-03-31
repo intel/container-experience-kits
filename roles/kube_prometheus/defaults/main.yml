@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 kube_prometheus_stack_directory: "{{ (project_root_dir, 'kube-prometheus-stack') | path_join }}"
 kube_prometheus_stack_namespace: monitoring
 
-prometheus_stack_version: 2.39.1
-grafana_version: 9.1.8
+prometheus_stack_version: 2.42.0
+prometheus_operator_version: 0.63.0
+grafana_version: 9.3.6
 node_exporter_version: 1.5.0
 
 tas_demo_policy_dir: "{{ ('/tmp', 'node-metrics') | path_join }}"
@@ -35,3 +36,24 @@ prometheus_srv_nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
 prometheus_srv_location_exposed: "/prometheus/"
 prometheus_srv_user: prometheus
 prometheus_srv_password: prometheus
+
+prometheus_stack_version_files:
+  - "{{ kube_prometheus_stack_directory }}/kube-prometheus-storage-class.yml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-clusterRole.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-clusterRoleBinding.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-prometheusRule.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-pvc.yml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleBindingConfig.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleBindingSpecificNamespaces.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleConfig.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleSpecificNamespaces.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-service.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-serviceAccount.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-serviceMonitor.yaml"
+prometheus_operator_version_files:
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-clusterRole.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-clusterRoleBinding.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-prometheusRule.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-service.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-serviceAccount.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-serviceMonitor.yaml"

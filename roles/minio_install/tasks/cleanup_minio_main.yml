@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,67 +15,66 @@
 ##
 ---
 - block:
-  - name: cleanup MinIO AWS client pods
-    include_role:
-      name: minio_install
-      tasks_from: cleanup_minio_awsclient
+    - name: cleanup MinIO AWS client pods
+      include_role:
+        name: minio_install
+        tasks_from: cleanup_minio_awsclient
 
-  - name: cleanup MinIO operator/console helmchart
-    include_role:
-      name: minio_install
-      tasks_from: cleanup_minio_operator_helmchart
+    - name: cleanup MinIO operator/console helmchart
+      include_role:
+        name: minio_install
+        tasks_from: cleanup_minio_operator_helmchart
 
-  - name: cleanup MinIO tenant helmchart
-    include_role:
-      name: minio_install
-      tasks_from: cleanup_minio_tenant_helmchart
+    - name: cleanup MinIO tenant helmchart
+      include_role:
+        name: minio_install
+        tasks_from: cleanup_minio_tenant_helmchart
 
-  - name: cleanup MinIO tenant SriovNetwork
-    include_role:
-      name: minio_install
-      tasks_from: cleanup_minio_sriovnetwork
+    - name: cleanup MinIO tenant SriovNetwork
+      include_role:
+        name: minio_install
+        tasks_from: cleanup_minio_sriovnetwork
 
-  - name: load MinIO tenant multus service variables
-    include_vars: "{{ item }}"
-    with_first_found:
-      - files:
-          - "main.yml"
-        paths:
-          - "{{ (role_path, '..', 'multus_service', 'defaults') | path_join }}"
+    - name: load MinIO tenant multus service variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - files:
+            - "main.yml"
+          paths:
+            - "{{ (role_path, '..', 'multus_service', 'defaults') | path_join }}"
 
-  - name: cleanup MinIO tenant multus helmchart
-    include_role:
-      name: minio_install
-      tasks_from: cleanup_minio_multus_service_helmchart
+    - name: cleanup MinIO tenant multus helmchart
+      include_role:
+        name: minio_install
+        tasks_from: cleanup_minio_multus_service_helmchart
 
-  - name: load MinIO tenant whereabouts service variables
-    include_vars: "{{ item }}"
-    with_first_found:
-      - files:
-          - "main.yml"
-        paths:
-          - "{{ (role_path, '..', 'whereabouts_install', 'defaults') | path_join }}"
+    - name: load MinIO tenant whereabouts service variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - files:
+            - "main.yml"
+          paths:
+            - "{{ (role_path, '..', 'whereabouts_install', 'defaults') | path_join }}"
 
-  - name: cleanup MinIO tenant whereabouts helmchart
-    include_role:
-      name: minio_install
-      tasks_from: cleanup_minio_whereabouts_helmchart
+    - name: cleanup MinIO tenant whereabouts helmchart
+      include_role:
+        name: minio_install
+        tasks_from: cleanup_minio_whereabouts_helmchart
 
-  - name: load MinIO tenant ingress controller variables
-    include_vars: "{{ item }}"
-    with_first_found:
-      - files:
-          - "main.yml"
-        paths:
-          - "{{ (role_path, '..', 'kubernetes_ingress_install', 'defaults') | path_join }}"
+    - name: load MinIO tenant ingress controller variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - files:
+            - "main.yml"
+          paths:
+            - "{{ (role_path, '..', 'kubernetes_ingress_install', 'defaults') | path_join }}"
 
-  - name: cleanup MinIO tenant ingress controller helmchart
-    include_role:
-      name: kubernetes_ingress_install
-      tasks_from: cleanup_kubernetes_ingress
+    - name: cleanup MinIO tenant ingress controller helmchart
+      include_role:
+        name: kubernetes_ingress_install
+        tasks_from: cleanup_kubernetes_ingress
 
-  - name: cleanup MinIO file systems
-    import_tasks: cleanup_minio_filesystems.yml
-
+    - name: cleanup MinIO file systems
+      import_tasks: cleanup_minio_filesystems.yml
   tags:
     - minio

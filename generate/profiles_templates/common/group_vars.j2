@@ -12,7 +12,7 @@ configured_arch: {{ arch }}
 # nevertheless they haven't been tested, so installation process may fail
 # or some features may not work properly.
 {%- if cloud_mode == 'on' %}
-unconfirmed_cpu_models: ['8259C', '8175M', '8259CL', '8171M', '2673'] # update list if required such as, unconfirmed_cpu_models: ['$0000%@'] or unconfirmed_cpu_models: ['$0000%@', '8490H']
+unconfirmed_cpu_models: ['8259C', '8175M', '8259CL', '8171M', '2673', '8370C'] # update list if required such as, unconfirmed_cpu_models: ['$0000%@'] or unconfirmed_cpu_models: ['$0000%@', '8490H']
 {%- else %}
 unconfirmed_cpu_models: [] # update list if required such as, unconfirmed_cpu_models: ['$0000%@'] or unconfirmed_cpu_models: ['$0000%@', '8490H']
 {%- endif %}
@@ -45,9 +45,9 @@ hooks_remote: /root/hooks/remote
 
 # Kubernetes version
 kubernetes: true
-kube_version: v1.25.3
-#kube_version: v1.24.7
-#kube_version: v1.23.4
+kube_version: v1.26.1    # test placeholder: n version
+#kube_version: v1.25.6   # test placeholder: n-1 version
+#kube_version: v1.24.10  # test placeholder: n-2 version
 # To deploy only container runtime set this variable as "true", and kubernetes as "false"
 # Set both variables as "false" to perform only host configuration
 container_runtime_only_deployment: false
@@ -57,7 +57,11 @@ audit_policy_custom_rules: ""
 
 # Kubernetes container runtime: docker, containerd, crio
 # When "crio" is set, please enable "crio_registries" section
+{%- if cloud_mode == 'on' %}
+container_runtime: containerd
+{% else %}
 container_runtime: docker
+{%- endif %}
 
 {% if intel_cpu_controlplane in ['on', 'optional'] %}
 # Resource management control plane component provides CPU Management funtionality within k8s,
@@ -67,9 +71,32 @@ intel_cpu_controlplane:
   allocator: default            # ['default', 'numa', 'numa-namespace', 'numa-namespace-exclusive']
   agent_namespace_prefix: test- # control plane agent namespace
 {% endif %}
-# The local volume static provisioner
+
+{% if lpvsp in ['on', 'optional'] %}
+# The local persistence volume static provisioner
 # https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner
-local_volume_provisioner_enabled: false
+local_volume_provisioner_enabled: {% if lpvsp == 'on' %}true{% else %}false{% endif %}
+{% endif %}
+
+{% if rook_ceph in ['on', 'optional'] %}
+rook_ceph:
+  enabled: {% if rook_ceph == 'on' %}true{% else %}false{% endif %}
+  log_level: "DEBUG"              # The logging level for the operator: ["ERROR", "WARNING", "INFO", "DEBUG"]
+  allow_loop_devices: true        # Allow using loop devices for osds in test clusters
+  enable_nfs: true                # Enable the CSI NFS drivers
+  enable_discovery_daemon: true   # Whether to start the discovery daemon to watch for raw stroage devices on nodes in the cluster
+  cluster:
+    enabled: true                 # Enable sample cluster for a single node
+    number_of_mons: 3             # Set the number of mons to be started. Generally recommended to be 3.
+                                  # For highest availability, an odd number of mons should be specified.
+    allow_multiple_mon_per_node: true
+    # The mons should be on unique nodes. For production, at least 3 nodes are recommended for this reason.
+    # Mons should only be allowed on the same node for test environments where data loss is acceptable.
+    number_of_mgrs: 2             # When higher availability of the mgr is needed, increase the count to 2.
+                                  # In that case, one mgr will be active and one in standby. When Ceph updates which
+                                  # mgr is active, Rook will update the mgr services to match the active mgr.
+    allow_multiple_mgr_per_node: true
+{% endif %}
 
 # cAdvisor
 cadvisor_enabled: false
@@ -140,6 +167,9 @@ sriov_net_dp_namespace: kube-system
 sriov_net_dp_build_image_locally: false
 # SR-IOV network device plugin configuration.
 # For more information on supported configuration refer to: https://github.com/intel/sriov-network-device-plugin#configurations
+{%- if intel_flexran == 'on' %}
+# sriovdp_config_data for Intel FlexRAN is defined in the helm_values for the sriov_dp_install role
+{%- else %}
 sriovdp_config_data: |
     {
         "resourceList": [{
@@ -181,6 +211,7 @@ sriovdp_config_data: |
         ]
     }
 {% endif %}
+{% endif %}
 
 {%- if power_manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] %}
 # Intel Kubernetes Power Manager
@@ -207,6 +238,10 @@ intel_power_manager:
     dlb_dp in ['on', 'optional'] and arch in ['spr'] %}
 # Intel Device Plugin Operator
 intel_dp_namespace: kube-system # namespace will be applied for SGX DP, GPU DP and QAT DP
+{% endif %}
+
+{%- if intel_ai in ['on', 'optional'] %}
+intel_ai_enabled: {% if intel_ai == 'on' %}true{% else %}false{% endif %}
 {% endif %}
 
 {%- if dlb_dp in ['on', 'optional'] and arch in ['spr'] %}
@@ -505,7 +540,7 @@ calico_advanced_options: false
 wireguard_enabled: {% if wireguard == 'on' %}true{% else %}false{% endif %}
 kube_network_plugin_multus: {% if multus == 'on' %}true{% else %}false{% endif %}
 kube_pods_subnet: 10.244.0.0/16
-{%- if name in ['regional_dc', 'full_nfv', 'access', 'storage', 'build_your_own'] -%}
+{%- if name in ['regional_dc', 'full_nfv', 'access', 'build_your_own'] -%}
 {% set mask = 18 %}
 {%- elif name == 'remote_fp' -%}
 {% set mask = 19 %}
@@ -581,7 +616,7 @@ cndp_dp_enabled: {% if cndp_dp == 'on' %}true{% else %}false{% endif %}
 {%- if cndp_dp == 'on' %}
 cndp_net_attach_def_enabled: true         # Whether or not to create NetworkAttachmentDefinition resource.
 cndp_net_attach_def_conf:
-  name: cndp-cni-afxdp0              # (Optional) Name of NetworkAttachmentDefinition resource.
+  name: afxdp-network                # (Optional) Name of NetworkAttachmentDefinition resource.
   ipam:                              # (Optional) ipam configuration section NetworkAttachmentDefinition resource.
     subnet: "192.168.1.0/24"         # (Optional) Default is "192.168.1.0/24".
     rangeStart: "192.168.1.200"      # (Optional) Default is "192.168.1.200".
@@ -601,11 +636,13 @@ tadk_install: {% if tadk == 'on' %}true{% else %}false{% endif %}
 
 {%- if intel_flexran in ['on', 'optional'] %}
 # Intel FlexRAN
-intel_flexran_mode: timer # supported values are 'timer' and 'xran'
-intel_flexran_bbu_front_haul: "0000:43:00.0" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
-intel_flexran_bbu_ptp_sync: "0000:43:00.1" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
-intel_flexran_oru_front_haul: "0000:4b:00.0" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
-intel_flexran_oru_ptp_sync: "0000:4b:00.1" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
+intel_flexran_enabled: {% if intel_flexran == 'on' %}true{% else %}false{% endif %} # if true, deploy FlexRAN
+intel_flexran_type: "pod" # supported values are "host" and "pod"
+intel_flexran_mode: "timer" # supported values are "timer" and "xran"
+intel_flexran_bbu_front_haul: "0000:43:00.0" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format (for 'host' type only)
+intel_flexran_bbu_ptp_sync: "0000:43:00.1" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format (for 'host' type only)
+intel_flexran_oru_front_haul: "0000:4b:00.0" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format (for 'host' type only)
+intel_flexran_oru_ptp_sync: "0000:4b:00.1" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format (for 'host' type only)
 {% endif %}
 
 {%- if adq_dp in ['on', 'optional'] %}
@@ -613,12 +650,37 @@ intel_flexran_oru_ptp_sync: "0000:4b:00.1" # must be string in [a-fA-F0-9]{4}:[a
 # ADQ requires back-to-back connection between control plane and worker node on CVL interfaces.
 # Name of CVL interfaces must be the same on both nodes, IP address must be present.
 # In inventory.ini set "ip=" to IP address of CVL interface.
-# Set kube_network_plugin to "cni", container_runtime to "containerd" and registry_enable to "true".
+# Additional requirements and details can be found in docs/adq.md
 adq_dp:
   enabled: false
   # IP address of CVL interface located on the control plane
   interface_address: "192.168.0.10"
   interface_name: "ens107"
-  # bus_info of the interface located on the control plane
-  control_plane_interface: "a8:00.0"
+{% endif %}
+
+{% if mirrors == 'true' %}
+## Kubespray image repositories mirrors
+gcr_image_repo: "gcr.m.daocloud.io"
+kube_image_repo: "k8s.m.daocloud.io"
+docker_image_repo: "docker.m.daocloud.io"
+quay_image_repo: "quay.m.daocloud.io"
+github_image_repo: "ghcr.m.daocloud.io"
+
+## Kubespray pkg repositories mirrors
+docker_rh_repo_base_url: "https://myinternalyumrepo/docker-ce/$releasever/$basearch"
+docker_rh_repo_gpgkey: "https://myinternalyumrepo//docker-ce/gpg"
+docker_ubuntu_repo_base_url: "https://myinternalubunturepo/docker-ce"
+docker_ubuntu_repo_gpgkey: "https://myinternalubunturepo/docker-ce/gpg"
+containerd_ubuntu_repo_base_url: "https://myinternalubunturepo/containerd"
+containerd_ubuntu_repo_gpgkey: "https://myinternalubunturepo/containerd/gpg"
+containerd_ubuntu_repo_repokey: 'YOURREPOKEY'
+
+## Kubespray url mirrros
+mirror_urls:
+  - original: "https://storage.googleapis.com"
+    mirror: "https://googleapis.daocloud.io" # please set mirror url
+  - original: "https://github.com"
+    mirror: "https://github.daocloud.io" # please set mirror url
+  - original: "https://get.helm.sh"
+    mirror: "https://helm.daocloud.io" # please set mirror url
 {% endif %}

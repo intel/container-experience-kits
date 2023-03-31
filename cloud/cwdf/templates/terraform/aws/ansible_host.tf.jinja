@@ -42,8 +42,43 @@ resource "aws_iam_policy" "eks-cluster-access-policy" {
   )
 }
 
+resource "aws_iam_policy" "ecr-access-policy" {
+  policy = jsonencode({
+    Statement = [
+      {
+        Action = [
+          "ecr:*"
+        ]
+        Effect = "Allow"
+        Resource = [aws_ecr_repository.default.arn,{% for name in ecr_repositories %}aws_ecr_repository.{{ name }}.arn,{% endfor %}]
+      },
+      {
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ]
+        Effect = "Allow"
+        Resource = "*"
+      }
+    ]
+    Version = "2012-10-17"
+  })
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ecr-access-policy"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
 resource "aws_iam_role_policy_attachment" "ansible-instance-role-eks-cluster-access-policy" {
   policy_arn = aws_iam_policy.eks-cluster-access-policy.arn
+  role       = aws_iam_role.ansible-instance-role.name
+}
+
+resource "aws_iam_role_policy_attachment" "ansible-instance-role-ecr-access-policy" {
+  policy_arn = aws_iam_policy.ecr-access-policy.arn
   role       = aws_iam_role.ansible-instance-role.name
 }
 
@@ -58,22 +93,6 @@ resource "aws_iam_instance_profile" "ansible-instance-profile" {
       JobId = "{{ job_id }}"
     }
   )
-}
-
-data "aws_eks_cluster_auth" "default" {
-  name = aws_eks_cluster.default.name
-}
-
-provider "kubernetes" {
-  host                   = aws_eks_cluster.default.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.default.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.default.token
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.default.name]
-    command     = "aws"
-  }
 }
 
 resource "kubernetes_config_map" "aws-auth" {
@@ -103,12 +122,12 @@ resource "kubernetes_config_map" "aws-auth" {
   }
 }
 
-data "aws_ami" "ubuntu2004" {
+data "aws_ami" "ubuntu2204" {
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
 
   filter {
@@ -120,10 +139,10 @@ data "aws_ami" "ubuntu2004" {
 }
 
 resource "aws_instance" "ansible" {
-  ami                    = data.aws_ami.ubuntu2004.id
+  ami                    = data.aws_ami.ubuntu2204.id
   instance_type          = "{{ ansible_instance_type }}"
 
-  vpc_security_group_ids = [aws_security_group.default.id]
+  vpc_security_group_ids = [aws_security_group.sg-{{ job_id }}.id]
   subnet_id              = aws_subnet.{{ subnets[0].name }}.id
   key_name               = aws_key_pair.default.key_name
   iam_instance_profile   = aws_iam_instance_profile.ansible-instance-profile.name
@@ -137,13 +156,17 @@ resource "aws_instance" "ansible" {
 #!/bin/bash
 apt-get -qq -y update
 apt-get -qq -y upgrade
-apt-get -qq -y install python3-pip
+apt-get -qq -y install python3-pip python3-venv
 apt-get -qq -y install zip unzip net-tools apache2-utils
+apt-get -qq -y install podman
+echo -e "unqualified-search-registries = [\"docker.io\"]" | tee -a /etc/containers/registries.conf
+systemctl restart podman
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
 unzip /tmp/awscliv2.zip -d /tmp/
 /tmp/aws/install
 rm -rf /tmp/aws
 rm -rf /tmp/awscliv2.zip
+aws ecr get-login-password --region {{ region }} | REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" podman login -u AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.{{ region }}.amazonaws.com
 curl -o /usr/local/bin/kubectl https://s3.us-west-2.amazonaws.com/amazon-eks/1.22.6/2022-03-09/bin/linux/amd64/kubectl
 chmod +x /usr/local/bin/kubectl
 sudo -H -u ubuntu bash -c 'aws eks --region {{ region }} update-kubeconfig --name ${aws_eks_cluster.default.name}'
@@ -156,7 +179,7 @@ mkdir /home/ubuntu/cwdf_deployment
 mkdir /home/ubuntu/cwdf_deployment/ssh
 echo "{{ ssh_pub_key }}" >> /home/ubuntu/cwdf_deployment/ssh/id_rsa.pub
 chown ubuntu /home/ubuntu/cwdf_deployment -R
-sudo -H -u ubuntu bash -c 'pip install --user paramiko'
+sudo -H -u ubuntu bash -c 'pip install --user paramiko scp'
 EOF
 
   tags = merge(

@@ -1,3 +1,5 @@
+# LinkerD version
+linkerdVersion: "{{ linkerd_release }}-{{ linkerd_version }}"
 # -- Trust root certificate (ECDSA). It must be provided during install.
 identityTrustAnchorsPEM: |
 {{ linkerd_tls_ca_crt | indent(width=2, first=true) }}

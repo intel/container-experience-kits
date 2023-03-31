@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -26,8 +26,6 @@
       file:
         path: "{{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}"
         state: directory
-        owner: root
-        group: root
         mode: 0700
         recurse: yes
 

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@ sigs_k8s_io_dir: "{{ (project_root_dir, 'sigs.k8s.io') | path_join }}"
 # TAS deployment
 tas_enabled: false
 tas_build_image_locally: false
-tas_git_version: "telemetry-aware-scheduling/v0.3.0"
-tas_extender_image_tag_default: "0.3.0"
+tas_extender_image_tag_default: "0.4.0"
+tas_git_version: "telemetry-aware-scheduling/v{{ tas_extender_image_tag_default }}"
 tas_version: |-
   {{ ('telemetry-aware-scheduling' in tas_git_version)
       | ternary(tas_git_version[28:], tas_git_version[1:]) }}
@@ -69,8 +69,8 @@ tas_verbosity: 4
 # GAS deployment
 gas_enabled: false
 gas_build_image_locally: false
-gas_git_version: "gpu-aware-scheduling/v0.4.0"
-gas_extender_image_tag_default: "0.4.0"
+gas_extender_image_tag_default: "0.5.1"
+gas_git_version: "gpu-aware-scheduling/v{{ gas_extender_image_tag_default }}"
 gas_version: |-
   {{ ('gpu-aware-scheduling' in gas_git_version)
       | ternary(gas_git_version[22:], gas_git_version[1:]) }}

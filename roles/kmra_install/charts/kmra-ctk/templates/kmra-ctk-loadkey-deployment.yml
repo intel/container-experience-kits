@@ -63,6 +63,8 @@ spec:
         securityContext:
           runAsUser: 65333
           runAsGroup: {{ .Values.ctk_loadkey.sgx_prv_gid }}
+          supplementalGroups:
+          - {{ .Values.ctk_loadkey.sgx_gid }}
           readOnlyRootFilesystem: true
       - name: {{ .Release.Name }}-nginx
         image: "{{ .Values.ctk_loadkey.nginx.image.repo }}/{{ .Values.ctk_loadkey.nginx.image.name }}:{{ .Values.ctk_loadkey.nginx.image.tag }}"
@@ -126,4 +128,3 @@ spec:
       - name: nginx-env
         configMap:
           name: {{ .Release.Name }}-nginx-env
-

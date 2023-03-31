@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -13,8 +13,10 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-- block:
-    - name: create monitoring and observability namespace
+- name: Deploy Jaeger
+  when: inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: Create monitoring and observability namespace
       kubernetes.core.k8s:
         name: "{{ item }}"
         kind: Namespace
@@ -23,25 +25,25 @@
         - monitoring
         - observability
 
-    - name: create jaeger folder
+    - name: Create jaeger folder
       ansible.builtin.file:
         state: directory
         dest: "{{ (project_root_dir, 'jaeger') | path_join }}"
         mode: 0755
 
-    - name: copy jaeger files
+    - name: Copy jaeger files
       ansible.builtin.copy:
         src: "files/"
         dest: "{{ (project_root_dir, 'jaeger') | path_join }}"
         mode: 0644
 
-    - name: download jaeger operator CRD
+    - name: Download jaeger operator CRD
       ansible.builtin.get_url:
         url: "{{ jaeger_crd_url }}"
         dest: "{{ (project_root_dir, 'jaeger', 'jaeger_operator.yml') | path_join }}"
         mode: 0755
 
-    - name: create jaeger resources
+    - name: Create jaeger resources
       kubernetes.core.k8s:
         state: present
         src: "{{ (project_root_dir, 'jaeger', item) | path_join }}"
@@ -50,7 +52,7 @@
         - jaeger_operator.yml
         - jaeger_rolebinding.yml
 
-    - name: create secret with Elasticsearch credentials
+    - name: Create secret with Elasticsearch credentials
       ansible.builtin.shell: >-
           kubectl create secret generic jaeger-secret
           --from-literal=ES_PASSWORD=$(kubectl get secrets --namespace=monitoring
@@ -61,20 +63,44 @@
       args:
         executable: /bin/bash
 
-    - name: wait for jaeger pods
-      ansible.builtin.pause:
-        minutes: 3
+    - name: Wait for jaeger operator CRD
+      kubernetes.core.k8s_info:
+        kind: CustomResourceDefinition
+        name: jaegers.jaegertracing.io
+        wait: true
+        wait_condition:
+          type: Established
+        wait_timeout: 180
 
-    - name: create instance of jaeger-operator
+    - name: Wait for jaeger operator Deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: jaeger-operator
+        namespace: observability
+        wait: true
+        wait_condition:
+          reason: MinimumReplicasAvailable
+          type: Available
+        wait_timeout: 180
+
+    - name: Create instance of jaeger-operator
       kubernetes.core.k8s:
         state: present
         src: "{{ (project_root_dir, 'jaeger', 'jaeger_deployment.yml') | path_join }}"
 
-    - name: wait for jaeger pods
-      ansible.builtin.pause:
-        minutes: 3
+    - name: Wait for jaeger instance
+      kubernetes.core.k8s_info:
+        kind: Jaeger
+        name: jaeger
+        namespace: monitoring
+      register: jaeger_instance_info
+      until: |
+       jaeger_instance_info.resources is defined and
+       jaeger_instance_info.resources | length != 0 and
+       (jaeger_instance_info.resources[0].status.phase | default("NOTREADY")) == "Running"
+      retries: 30
+      delay: 10
 
-    - name: remove annotation from jaeger-query
+    - name: Remove annotation from jaeger-query
       ansible.builtin.command: "kubectl patch deployment jaeger-query -n monitoring --type=json {{ jaeger_query_remove }}"
       changed_when: true
-  when: inventory_hostname == groups['kube_control_plane'][0]

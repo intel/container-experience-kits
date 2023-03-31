@@ -6,6 +6,8 @@ The software provided here is for reference only and not intended for production
 
 ## Quickstart guide
 
+**_NOTE:_** Instruction provided bellow are prepared for deployment done under root user by default. If you want to do deployment under non-root user then read [this](docs/rootless_deployment.md) file first and then continue with following steps under that non-root user.
+
 1. Initialize git submodules to download Kubespray code.
 
     ```bash
@@ -32,7 +34,7 @@ The software provided here is for reference only and not intended for production
         export PROFILE=regional_dc
         ```
 
-    - For **Kubernetes Remote Forwarding Platform Infrastructure** deployment:
+    - For **Kubernetes Remote Central Office-Forwarding Configuration** deployment:
 
         ```bash
         export PROFILE=remote_fp
@@ -44,27 +46,15 @@ The software provided here is for reference only and not intended for production
         export PROFILE=on_prem
         ```
 
-    - For **Kubernetes Full NFV Infrastructure** deployment:
-
-        ```bash
-        export PROFILE=full_nfv
-        ```
-
-    - For **Kubernetes Storage Infrastructure** deployment:
-
-        ```bash
-        export PROFILE=storage
-        ```
-
     - For **Kubernetes Build-Your-Own Infrastructure** deployment:
 
         ```bash
         export PROFILE=build_your_own
         ```
 
-3. Install dependencies using a) or b)
+3. Install dependencies using one of the following methods
 
-    a) Non-invasive virtual environment method
+    a) Non-invasive virtual environment using pipenv
 
     ```bash
     pip3 install pipenv
@@ -73,11 +63,21 @@ The software provided here is for reference only and not intended for production
     pipenv shell
     ```
 
-    b) System wide installation method
+    b) Non-invasive virtual environment using venv
 
-   ```bash
-   pip3 install -r requirements.txt
-   ```
+    ```bash
+    python3 -m venv venv
+    # Then to activate new virtual environment
+    source venv/bin/activate
+    # Install dependencies in venv
+    pip3 install -r requirements.txt
+    ```
+
+    c) System wide environment (not recommended)
+
+    ```bash
+    pip3 install -r requirements.txt
+    ```
 
 4. Generate example host_vars, group_vars and inventory files for Intel Container Experience Kits profiles.
 
@@ -139,7 +139,9 @@ The software provided here is for reference only and not intended for production
     - update details relevant for vm_host (e.g.: datalane_interfaces, ...)
     - update VMs definition in host_vars/host-for-vms-1.yml - use that template for the first vm_host
     - update VMs definition in host_vars/host-for-vms-2.yml - use that template for the second and all other vm_hosts
-    - update/create host_vars for all defined VMs (e.g.: host_vars/vm-ctrl-1.yml and host_vars/vm-work-1.yml)
+    - update/create host_vars for all defined VMs (e.g.: host_vars/vm-ctrl-1.cluster1.local.yml and host_vars/vm-work-1.cluster1.local.yml)
+      In case that vm_cluster_name is not defined or is empty, short host_vars file names should be used for VMs
+      (e.g.: host_vars/vm-ctrl-1.yml and host_vars/vm-work-1.yml)
       Needed details are at least dataplane_interfaces
       For more details see [VM case configuration guide](docs/vm_config_guide.md)
 
@@ -175,6 +177,7 @@ Refer to the documentation linked below to see configuration details for selecte
 - [VM case configuration guide](docs/vm_config_guide.md)
 - [VM multinode setup guide](docs/vm_multinode_setup_guide.md)
 - [VM cluster expansion guide](docs/vm_cluster_expansion_guide.md)
+- [Non-root deployment guide](docs/rootless_deployment.md)
 ## Prerequisites and Requirements
 
 - Required packages on the target servers: **Python3**.
@@ -199,4 +202,39 @@ Contributors, beside basic set of packages, should also install developer packag
 
 ```bash
 pipenv install --dev
+```
+
+or
+
+```bash
+pip install -r ci-requirements.txt
+```
+
+### Run lint checks locally
+
+Several lint checks are configured for the repository. All of them can be run on local environment using prepared bash scripts or by leveraging pre-commit hooks.
+
+Prerequisite packages:
+
+- developer python packages (ci-requirements.txt/Pipfile)
+- shellcheck
+- pre-commit python package
+
+Required checks in CI:
+
+- ansible-lint
+- bandit
+- pylint
+- shellcheck
+
+Check can be run by following command:
+
+```bash
+./scrits/run_<linter_name>.sh
+```
+
+or alternatively:
+
+```bash
+pre-commit run <linter_name> --all-files
 ```

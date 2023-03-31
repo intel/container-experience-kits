@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,20 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-- name: create the temp folder for MinIO Tenant custom values
-  file:
-    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
-    state: directory
-    mode: 0755
-
 - name: populate MinIO AWS client pods values
   template:
     src: "minio_aws_pods_for_multus_service.yml.j2"
-    dest: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-aws-pods-for-multus-service.yml') | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'minio-aws-pods-for-multus-service.yml') | path_join }}"
     force: yes
     mode: preserve
 
 - name: apply MinIO AWS client pods
   k8s:
     state: present
-    src: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-aws-pods-for-multus-service.yml') | path_join }}"
+    src: "{{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'minio-aws-pods-for-multus-service.yml') | path_join }}"

@@ -1,5 +1,4 @@
 """Class for Docker images management"""
-from dis import show_code
 import os
 from pathlib import Path
 import configparser
@@ -8,7 +7,7 @@ import validators
 import click
 import docker
 import boto3
-import subprocess
+import subprocess # nosec B404 # subrocess is set to shell=False
 import json
 
 
@@ -197,12 +196,14 @@ class DockerManagement:
         None
 
         """
+        auth_config = None
         click.echo("Pushing image:")
         if registry is not None and username is not None and password is not None:
             self.docker_client.login(username=username,
                                      password=password,
                                      registry=registry)
             auth_config = {'username': username, 'password': password}
-        push_log = self.docker_client.images.push(image, tag=tag, auth_config=auth_config)
-        if not self.show_log:
-            click.echo(push_log)
+        if auth_config is not None:
+            push_log = self.docker_client.images.push(image, tag=tag, auth_config=auth_config)
+            if not self.show_log:
+                click.echo(push_log)

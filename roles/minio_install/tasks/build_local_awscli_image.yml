@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,22 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-
-- name: create MinIO Tenant Helm charts directory if needed
-  file:
-    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
-    state: directory
-    mode: 0755
-
-- name: create the temp folder for MinIO Tenant custom values
-  file:
-    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
-    state: directory
-    mode: 0755
-
-- debug:
-    msg: AWS directory - "{{ aws_local_build_dir }}"
-
 - name: create AWS client docker directory
   file:
     path: "{{ aws_local_build_dir }}"
@@ -68,7 +52,7 @@
 
       WORKDIR /aws
       ENTRYPOINT ["/usr/local/bin/aws"]
-    dest: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'awscli', 'Dockerfile') | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'awscli', 'Dockerfile') | path_join }}"
     mode: 0644
 
 - debug:

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -23,13 +23,13 @@
     - name: SRIOV-FEC Operator - check profile
       ansible.builtin.assert:
         that: profile_name in ['access', 'full_nfv', 'bring_your_own']
-        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only in 'access', 'full_nfv', or 'byo' profiles. Please correct the group_vars configuration" # noqa line-length
+        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only in 'access', 'full_nfv', or 'byo' profiles. Please correct the group_vars configuration" # noqa yaml[line-length]
         success_msg: "Assertion passed. Intel SR-IOV FEC Operator is supported and can be deployed on '{{ profile_name }}' profile"
 
     - name: SRIOV-FEC Operator - check distro
       ansible.builtin.assert:
         that: ansible_distribution_version == "22.04" or ansible_distribution_version == "8.6"
-        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04 or RHEL 8.6. Please change the o/s or correct group_vars configuration" # noqa line-length
+        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04 or RHEL 8.6. Please change the o/s or correct group_vars configuration" # noqa yaml[line-length]
         success_msg: "Assertion passed. Intel SR-IOV FEC Operator is supported and can be deployed on '{{ ansible_distribution }}' distro"
 
     - name: SRIOV-FEC Operator - check h/w acc

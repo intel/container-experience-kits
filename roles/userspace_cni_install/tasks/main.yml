@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -24,11 +24,11 @@
   when: ansible_os_family == 'RedHat' and ansible_distribution_version >= '8'
 
 - name: install OVS-DPDK
-  include: ovs_install.yml
+  include_tasks: ovs_install.yml
   when: ovs_dpdk_enabled | default(false)
 
 - name: install userspace cni if supported
-  include: userspace_cni_install.yml
+  include_tasks: userspace_cni_install.yml
   when:
     - userspace_cni_enabled
     - ovs_dpdk_enabled or vpp_supported
@@ -41,7 +41,7 @@
     - not vpp_supported
 
 - name: install VPP
-  include: vpp_install.yml
+  include_tasks: vpp_install.yml
   when:
     - vpp_enabled | default(false)
     - vpp_supported | default(false)

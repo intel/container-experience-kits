@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,19 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: check MinIO Tenant Helm charts temp directory
-  stat:
-    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
-  register: tenant_temp_dir
-
-- name: create the temp folder for MinIO Tenant custom values
-  file:
-    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
-    state: directory
-    mode: 0755
-  when:
-    - not tenant_temp_dir.stat.exists
-
 - name: find the interface name of PF
   shell: >-
     set -o pipefail && lshw -class network -businfo
@@ -52,7 +39,7 @@
     | select(.spec.nodeSelector["kubernetes.io/hostname"] == "{{ hostvars[groups['kube_node'][0]]['minio_interfaces'][ansible_loop.index0]['nodename'] }}"
     and .spec.deviceType == "{{ minio_sriov_network_devicetype }}")
     | select(.spec.nicSelector.pfNames[0] | startswith("{{ hostvars[groups['kube_node'][0]]['minio_interfaces'][ansible_loop.index0]['minio_pf_name'] }}"))
-    | {resourceName: .spec.resourceName}'
+    | {resourceName: .spec.resourceName}' | jq -s '.' | jq first
   args:
     executable: /bin/bash
   when:
@@ -60,10 +47,22 @@
   register: output_vf_resource_name
   changed_when: true
 
+- name: print output_vf_resource_name
+  debug:
+    msg: "{{ output_vf_resource_name }}"
+  when: minio_debug | default(false)
+
 - name: get SRIOV resource name
   set_fact:
     sriov_vf_name: "{{ output_vf_resource_name.stdout | from_yaml }}"
   when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: print sriov_vf_name
+  debug:
+    msg: "{{ sriov_vf_name['resourceName'] }}"
+  when:
+    - minio_debug | default(false)
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: set SRIOV resource name
@@ -72,10 +71,17 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
+- name: print sriov_vf_name
+  debug:
+    msg: "{{ sriov_vf_name }}"
+  when:
+    - minio_debug | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]
+
 - name: build MinIO Tenant SriovNetwork variables
   template:
     src: "minio_storage_networks.yml.j2"
-    dest: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-storage-networks' ~ ansible_loop.index ~ '.yml') | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'minio-storage-networks' ~ ansible_loop.index ~ '.yml') | path_join }}"
     force: yes
     mode: preserve
   when:

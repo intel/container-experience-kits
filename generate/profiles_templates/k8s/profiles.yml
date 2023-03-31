@@ -29,6 +29,8 @@
 # - tac
 # - qat
 # - dsa
+# - dlb
+# - dlb_dp
 # - gpu
 # - gpu_dp
 # - openssl
@@ -56,6 +58,9 @@
 # - cndp
 # - cndp_dp
 # - minio
+# - lpvsp
+# - rook_ceph
+# - intel_ai
 # - cert_manager
 # - registry
 # - hugepages
@@ -88,8 +93,8 @@ access:
   cpusets: optional
   native_cpu_manager: on
   topology_manager: on
-  sriov_operator: on
-  sriov_network_dp: optional
+  sriov_operator: off
+  sriov_network_dp: on
   nic_drivers: on
   bond_cni: off
   qat: optional
@@ -119,7 +124,7 @@ access:
   cstate: off
   ufs: off
   sst: off
-  power_manager: on
+  power_manager: off
   telemetry:
     prometheus: on
     collectd: optional
@@ -142,6 +147,9 @@ access:
   cndp: off
   cndp_dp: off
   minio: off
+  lpvsp: optional
+  rook_ceph: off
+  intel_ai: off
   cert_manager: on
   registry: on
   hugepages: on
@@ -184,6 +192,10 @@ basic:
   firewall: optional
   cndp: optional
   cndp_dp: optional
+  minio: off
+  lpvsp: on
+  rook_ceph: off
+  intel_ai: off
   cert_manager: on
   registry: on
   hugepages: optional
@@ -260,6 +272,9 @@ full_nfv:
   cndp: on
   cndp_dp: on
   minio: optional
+  lpvsp: on
+  rook_ceph: on
+  intel_ai: off
   cert_manager: on
   registry: on
   hugepages: on
@@ -269,7 +284,6 @@ full_nfv:
     ddp: on
     fw_update: optional
   intel_sriov_fec_operator: optional
-  intel_flexran: optional
   tadk: on
   adq_dp: optional
   remove_kubespray_host_dns_settings: on
@@ -288,6 +302,8 @@ on_prem:
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
+  gpu: optional
+  gpu_dp: optional
   sgx: on
   sgx_dp: on
   kmra:
@@ -332,6 +348,10 @@ on_prem:
   firewall: optional
   cndp: optional
   cndp_dp: optional
+  minio: optional
+  lpvsp: on
+  rook_ceph: optional
+  intel_ai: optional
   cert_manager: on
   registry: on
   hugepages: on
@@ -356,8 +376,8 @@ regional_dc:
   sriov_network_dp: optional
   nic_drivers: on
   native_cpu_manager: on
-  gpu: on
-  gpu_dp: on
+  gpu: optional
+  gpu_dp: optional
   sgx: on
   sgx_dp: on
   kmra:
@@ -392,6 +412,10 @@ regional_dc:
   firewall: optional
   cndp: optional
   cndp_dp: optional
+  minio: optional
+  lpvsp: on
+  rook_ceph: optional
+  intel_ai: off
   cert_manager: on
   registry: on
   hugepages: optional
@@ -426,7 +450,7 @@ remote_fp:
   tcs: optional
   tac: optional
   qat: on
-  qat_dp: optional
+  qat_dp: on
   dsa: optional
   dsa_dp: optional
   dlb: optional
@@ -463,6 +487,10 @@ remote_fp:
   firewall: optional
   cndp: optional
   cndp_dp: optional
+  minio: off
+  lpvsp: on
+  rook_ceph: off
+  intel_ai: off
   cert_manager: on
   registry: on
   hugepages: on
@@ -470,48 +498,6 @@ remote_fp:
     enabled: on
     flow_config: optional
     ddp: on
-    fw_update: optional
-  adq_dp: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
-
-storage:
-  name: storage
-  vm_mode: optional
-  on_vms: optional
-  nfd: on
-  kube_dashboard: on
-  native_cpu_manager: on
-  topology_manager: on
-  sriov_operator: on
-  sriov_network_dp: optional
-  nic_drivers: on
-  qat: optional
-  qat_dp: optional
-  tas: on
-  ddp: optional
-  dpdk: on
-  cstate: optional
-  ufs: optional
-  telemetry:
-    prometheus: on
-    collectd: optional
-    telegraf: on
-    jaeger: on
-    opentelemetry: on
-    elasticsearch: on
-    kibana: on
-  wireguard: optional
-  multus: on
-  firewall: optional
-  minio: on
-  cert_manager: on
-  registry: on
-  hugepages: on
-  intel_ethernet_operator:
-    enabled: optional
-    flow_config: optional
-    ddp: optional
     fw_update: optional
   adq_dp: optional
   remove_kubespray_host_dns_settings: on
@@ -526,6 +512,7 @@ build_your_own:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: optional
+  intel_cpu_controlplane: optional
   topology_manager: optional
   sriov_operator: optional
   sriov_network_dp: optional
@@ -536,6 +523,8 @@ build_your_own:
   openssl: optional
   dsa: optional
   dsa_dp: optional
+  dlb: optional
+  dlb_dp: optional
   gpu: optional
   gpu_dp: optional
   sgx: optional
@@ -565,7 +554,6 @@ build_your_own:
     opentelemetry: optional
     elasticsearch: optional
     kibana: optional
-  jaeger: optional
   istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
@@ -580,6 +568,9 @@ build_your_own:
   cndp: optional
   cndp_dp: optional
   minio: optional
+  lpvsp: optional
+  rook_ceph: optional
+  intel_ai: optional
   cert_manager: optional
   registry: optional
   hugepages: optional

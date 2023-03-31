@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@
 
 - name: Create new_qat_devices list
   set_fact:
-    new_qat_devices: "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required, 'qat_default_vf_driver' : qat_vf_driver_required }] }}" # noqa line-length
+    new_qat_devices: "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required, 'qat_default_vf_driver' : qat_vf_driver_required }] }}" # noqa yaml[line-length]
   with_items: "{{ qat_id_values }}"
   changed_when: true
 

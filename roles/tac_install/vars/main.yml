@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,7 +18,14 @@
 # Define respective field in the group_vars/all.yml instead
 tac_defaults:
   enabled: false
-  apphsm_hostmane: "{{ hostvars[groups['kube_node'][0]]['ansible_default_ipv4']['address'] }}"
+  apphsm_hostname: |
+    {%- if vm_enabled %}
+    {{ hostvars[groups['kube_node'][0]]['ansible_all_ipv4_addresses'] |
+    ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_gw_ip']) |
+    join('') }}
+    {%- else %}
+    {{ hostvars[groups['kube_node'][0]]['ansible_default_ipv4']['address'] }}
+    {%- endif %}
   apphsm_port: 5000
   client_mtls_secret_name: "generic-apphsm-client-tls"
   client_mtls_secret_namespace: "kmra"

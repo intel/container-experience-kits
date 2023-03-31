@@ -17,16 +17,19 @@ metadata:
 data:
   config.json: |
     {
-        "mode": "cndp",
         "logLevel": "debug",
-        "logFile": "/var/log/afxdp-k8s-plugins/cndp-dp-e2e.log",
+        "logFile": "afxdp-dp.log",
         "pools": [
           {
-            "name": "e2e",
+            "name": "raPool",
+            "mode": "primary",
             "drivers": [
-{%- for pf_driver in driver_pool|unique -%}
-{{pf_driver|tojson}}{% if not loop.last %}, {% endif %}
-{%- endfor %}]
+{%- for pf_driver in driver_pool|unique %}
+               {
+                 "name":{{pf_driver|tojson}}
+               }{% if not loop.last %},{% endif %}
+{%- endfor %}
+            ]
           }
         ]
     }

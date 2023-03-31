@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -48,13 +48,23 @@
     - inventory_hostname == groups['kube_control_plane'][0]
     - istio_service_mesh.tcpip_bypass_ebpf.enabled | default(false) | bool
 
-- name: configure custom CA signer
+- name: configure custom CA signer for BMRA
   include_tasks: configure-custom-ca-signer.yml
   when:
+    - not vm_enabled | default(false)
     - inventory_hostname == groups['kube_control_plane'][0]
     - istio_service_mesh.sgx_signer.enabled | default(false) | bool
     - hostvars[groups['kube_node'][0]]['is_icx'] or
       hostvars[groups['kube_node'][0]]['is_spr']
+
+- name: configure custom CA signer for VMRA
+  include_tasks: configure-custom-ca-signer.yml
+  when:
+    - on_vms | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - istio_service_mesh.sgx_signer.enabled | default(false) | bool
+    - hostvars[groups['vm_host'][0]]['is_icx'] or
+      hostvars[groups['vm_host'][0]]['is_spr']
 
 - name: install istio service mesh
   include_tasks: istio-install.yml

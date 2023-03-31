@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@
     # make install not working on RHEL / ROCKY >= 9.0 need to build it with meson (ninja install)
     # Ansible builtin module replace / lineinfile not responding as expected so replacing sed command as an alternative
     - name: delete lines from meson.build on RHEL / ROCKY
-      command: "sed -i '201d;202d;203d;204d;205d' meson.build" # noqa command-instead-of-module 305
+      command: "sed -i '201d;202d;203d;204d;205d' meson.build" # noqa command-instead-of-module
       args:
         chdir: "{{ intel_cndp_dir }}"
       changed_when: true
@@ -121,6 +121,13 @@
         - memlock_ulimit_option.changed
         - docker_opts_multiline.changed
       notify: restart docker
+
+    - name: docker daemon.json configuration
+      copy:
+        src: "{{ daemon_conf_file }}"
+        dest: "{{ daemon_conf_file_directory }}"
+        mode: 0644
+      notify: reload docker
   when:
     - cndp_enabled | default(false)
     - container_runtime == "docker"
@@ -162,10 +169,6 @@
   when:
     - cndp_enabled | default(false)
     - container_runtime == "crio"
-
-# this task is created to avoid restarting docker after kmra is deployed
-- name: flush handlers
-  meta: flush_handlers
 
 - name: wait for resources to be ready
   include_tasks: wait_for_resources.yml

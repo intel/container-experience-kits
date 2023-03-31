@@ -10,6 +10,8 @@ data:
     set -eu
     export no_proxy="$no_proxy,localhost,127.0.0.1/8"
 
+    echo "Cleaning up softhsm tokens directory"
+    rm -rf /var/lib/softhsm/tokens/*
     mkdir -p /tmp/apphsm
     cp /opt/intel/ca/{apphsm.crt,apphsm.key,ca.crt} /tmp/apphsm/
     cp /opt/intel/apphsm/apphsm.conf /tmp/apphsm/apphsm.conf

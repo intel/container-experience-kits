@@ -2,11 +2,15 @@ terraform {
   required_providers {
     aws = {
       source = "hashicorp/aws"
-      version = "4.35.0"
+      version = "4.53.0"
     }
     kubernetes = {
       source = "hashicorp/kubernetes"
-      version = "2.14.0"
+      version = "2.17.0"
+    }
+    helm = {
+      source = "hashicorp/helm"
+      version = "2.8.0"
     }
   }
 }
@@ -14,4 +18,30 @@ terraform {
 provider "aws" {
   region = "{{ region }}"
   profile = "{{ profile }}"
+}
+
+data "aws_eks_cluster_auth" "default" {
+  name = aws_eks_cluster.default.name
+}
+
+data "aws_caller_identity" "current" {}
+
+provider "kubernetes" {
+  host                   = aws_eks_cluster.default.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.default.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.default.token
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.default.name]
+    command     = "aws"
+  }
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = aws_eks_cluster.default.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.default.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.default.token
+  }
 }

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 ---
 - name: update grub.cfg
   command: update-grub
-  when:
-    - ansible_os_family == "Debian"
+  when: ansible_os_family == "Debian"
+  changed_when: true
 
 - name: block for Rocky / RHEL < 9.0
   block:
@@ -82,12 +82,10 @@
     - name: create new /etc/machine-id (debian)
       command: dbus-uuidgen --ensure=/etc/machine-id
       changed_when: true
-      when:
-        - ansible_os_family == "Debian"
+      when: ansible_os_family == "Debian"
 
     - name: create new /etc/machine-id (redhat)
       command: systemd-machine-id-setup
       changed_when: true
-      when:
-        - ansible_os_family == "RedHat"
+      when: ansible_os_family == "RedHat"
   when: ( machine_id_list | unique | length < groups['kube_node'] | length )

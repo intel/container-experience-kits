@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@
   changed_when: true
 
 - name: set VFs driver
-  include: bind_vf_driver.yml
+  include_tasks: bind_vf_driver.yml
   when: item.sriov_numvfs | default(0) > 0
   with_items: "{{ dataplane_interfaces }}"
 

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -62,10 +62,10 @@
     line: "ExecStartPre=/bin/sleep 10"
 
 - name: Restart Libvirtd service
-  service:
+  systemd:
     name: libvirtd
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: check if /sys/fs/resctrl is available
   stat:
@@ -92,16 +92,12 @@
   file:
     path: "{{ vm_project_root_dir }}"
     state: directory
-    owner: root
-    group: root
     mode: 0755
 
 - name: Prepare config for vm-default network
   template:
     src: vm-default.xml.j2
     dest: "{{ (vm_project_root_dir, 'vm-default.xml') | path_join }}"
-    owner: root
-    group: root
     mode: '0644'
 
 - name: Check current vm-default network

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,19 +17,19 @@
 # This playbook gathers and displays component versions spread across different roles
 - hosts: localhost
   vars:
-    - versions_output_file: "{{ playbook_dir }}/../versions_output.csv"
-    - versions_parsing_errors_file: "{{ playbook_dir }}/../versions_parsing_errors"
+    versions_output_file: "{{ playbook_dir }}/../versions_output.csv"
+    versions_parsing_errors_file: "{{ playbook_dir }}/../versions_parsing_errors"
   tasks:
     - name: Check if required source files exist
       stat:
         path: '../examples/k8s/full_nfv/host_vars/node1.yml'
       register: examples
-      
+
     - name: Create required source files
       make:
         chdir: "{{ playbook_dir }}/.."
       when: not examples.stat.exists
-    
+
     - name: Show versions_output_file name
       debug:
         msg: "versions_output_file is: {{ versions_output_file }}"
@@ -40,10 +40,11 @@
     - name: Show variable values
       block:
         - shell: "echo -n '{{ item.description }}', && scripts/yaml_version_reader {{ item.var_file_path }} {{ item.shortname }}"
+          changed_when: false
           args:
             chdir: ".."
           register: item_value
-          loop:
+          loop: # noqa yaml[colons] yaml[indentation]
             - { 'description'   : 'Telegraf',
                 'shortname'     : 'telegraf_image_tag',
                 'var_file_path' : 'roles/telegraf_install/defaults/main.yml'
@@ -64,6 +65,10 @@
                 'shortname'     : 'docker_version',
                 'var_file_path' : 'roles/container_engine/docker/defaults/main.yml'
               }
+            - { 'description'   : 'Docker CLI',
+                'shortname'     : 'docker_cli_version',
+                'var_file_path' : 'roles/container_engine/docker/defaults/main.yml'
+              }
             - { 'description'   : 'Kubernetes',
                 'shortname'     : 'kube_version',
                 'var_file_path' : 'examples/vm/full_nfv/group_vars/all.yml'
@@ -79,7 +84,7 @@
             - { 'description'   : 'k8s prometheus-adapter',
                 'var_file_path' : 'roles/kube_prometheus/files/kube-prometheus-stack/prometheusAdapter-clusterRole.yaml',
                 'shortname'     :  "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
-              }  
+              }
             - { 'description'   : 'k8s kube-rbac-proxy',
                 'var_file_path' : 'roles/cluster_defaults/defaults/main.yml',
                 'shortname'     : 'kube_rbac_proxy_image_tag'
@@ -117,16 +122,24 @@
                 'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'SR-IOV CNI',
-                'var_file_path' : 'roles/sriov_cni_install/defaults/main.yml',
+                'var_file_path' : 'roles/sriov_shared_versions/defaults/main.yml',
                 'shortname'     : 'sriov_cni_version',
               }
             - { 'description'   : 'SR-IOV network device plugin',
-                'var_file_path' : 'roles/sriov_dp_install/defaults/main.yml',
+                'var_file_path' : 'roles/sriov_shared_versions/defaults/main.yml',
                 'shortname'     : 'sriov_net_dp_tag'
               }
             - { 'description'   : 'SR-IOV network operator',
                 'var_file_path' : 'roles/sriov_network_operator_install/defaults/main.yml',
-                'shortname'     : "sriov_network_operator_images\\'\\]\\[\\'operator"
+                'shortname'     : 'sriov_network_operator_version'
+              }
+            - { 'description'   : 'InfiniBand SR-IOV CNI plugin',
+                'var_file_path' : 'roles/sriov_network_operator_install/defaults/main.yml',
+                'shortname'     : 'ib_sriov_cni_version'
+              }
+            - { 'description'   : 'Network resources injector',
+                'var_file_path' : 'roles/sriov_network_operator_install/defaults/main.yml',
+                'shortname'     : 'network_resources_injector_version'
               }
             - { 'description'   : 'whereabouts service',
                 'var_file_path' : 'roles/whereabouts_install/defaults/main.yml',
@@ -194,7 +207,7 @@
               }
             - { 'description'   : 'Intel® QATlib',
                 'shortname'     : 'intel_qatlib_download_url_version',
-                'var_file_path' : 'roles/bootstrap/configure_openssl/defaults/main.yml' 
+                'var_file_path' : 'roles/bootstrap/configure_openssl/defaults/main.yml'
               }
             - { 'description'   : 'OpenSSL QAT Engine',
                 'var_file_path' : 'roles/openssl_engine_install/defaults/main.yml',
@@ -220,17 +233,33 @@
                 'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
                 'shortname'     : 'sgx_sdk_version_rhel'
               }
+            - { 'description'   : 'Intel® KMRA',
+                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'image_tag"
+              }
             - { 'description'   : 'Intel® KMRA AppHSM',
                 'var_file_path' : 'roles/kmra_install/defaults/main.yml',
-                'shortname'     : "kmra_defaults\\'\\]\\[\\'apphsm\\'\\]\\[\\'image_tag"
-              }
-            - { 'description'   : 'Intel® KMRA CTK',
-                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
-                'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'image_tag"
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'apphsm\\'\\]\\[\\'image_tag",
+                'optional'      : 'true',
+                'reason'        : 'version is the same as for Intel® KMRA'
               }
             - { 'description'   : 'Intel® KMRA PCCS',
                 'var_file_path' : 'roles/kmra_install/defaults/main.yml',
-                'shortname'     : "kmra_defaults\\'\\]\\[\\'pccs\\'\\]\\[\\'image_tag"
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'pccs\\'\\]\\[\\'image_tag",
+                'optional'      : 'true',
+                'reason'        : 'version is the same as for Intel® KMRA'
+              }
+            - { 'description'   : 'Intel® KMRA CTK',
+                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'image_tag",
+                'optional'      : 'true',
+                'reason'        : 'version is the same as for Intel® KMRA'
+              }
+            - { 'description'   : 'Intel® KMRA CTK nginx',
+                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'nginx_image_tag",
+                'optional'      : 'true',
+                'reason'        : 'version is the same as for Intel® KMRA'
               }
             - { 'description'   : 'TADK',
                 'shortname'     : 'tadk_version',
@@ -272,13 +301,17 @@
                 'var_file_path' : 'roles/cndp_install/defaults/main.yml',
                 'shortname'     : 'intel_cndp_version'
               }
-            - { 'description'   : 'MinIO operator',
-                'var_file_path' : 'roles/minio_install/charts/operator/values.yaml',
-                'shortname'     : "operator\\'\\]\\[\\'image\\'\\]\\[\\'tag"
+            - { 'description'   : 'MinIO Operator',
+                'var_file_path' : 'roles/minio_install/defaults/main.yaml',
+                'shortname'     : "minio_operator_version"
               }
-            - { 'description'   : 'MinIO console',
-                'var_file_path' : 'roles/minio_install/charts/operator/values.yaml',
-                'shortname'     : "console\\'\\]\\[\\'image\\'\\]\\[\\'tag"
+            - { 'description'   : 'MinIO Console',
+                'var_file_path' : 'roles/minio_install/defaults/main.yaml',
+                'shortname'     : "minio_console_version"
+              }
+            - { 'description'   : 'MinIO Tenant',
+                'var_file_path' : 'roles/minio_install/defaults/main.yaml',
+                'shortname'     : "minio_git_tag"
               }
             - { 'description'   : 'Power Manager Operator',
                 'var_file_path' : 'roles/intel_power_manager/defaults/main.yml',
@@ -345,7 +378,7 @@
                 'shortname'     : 'adq_ice_fw_required_version'
               }
             - { 'description'   : 'cilium',
-                'var_file_path' : 'roles/cilium/defaults/main.yml',
+                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml',
                 'shortname'     : 'cilium_version'
               }
             - { 'description'   : 'cert manager',
@@ -382,7 +415,7 @@
               }
             - { 'description'   : 'golang',
                 'shortname'     : 'golang_version',
-                'var_file_path' : 'roles/bootstrap/golang_install/defaults/main.yml'              
+                'var_file_path' : 'roles/bootstrap/golang_install/defaults/main.yml'
               }
             - { 'description'   : 'cluster_name',
                 'var_file_path' : 'playbooks/k8s/kubespray/roles/kubespray-defaults/defaults/main.yaml',
@@ -399,14 +432,6 @@
             - { 'description'   : 'nfd',
                 'var_file_path' : 'roles/nfd_install/defaults/main.yml',
                 'shortname'     : 'nfd_image_tag'
-              }
-            - { 'description'   : 'cndp',
-                'var_file_path' : 'roles/cndp_install/defaults/main.yml',
-                'shortname'     : 'intel_cndp_version'
-              }
-            - { 'description'   : 'nginx',
-                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
-                'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'nginx_image_tag"
               }
             - { 'description'   : 'weave',
                 'shortname'     : 'weave_version',
@@ -432,7 +457,11 @@
                 'shortname'     : 'kibana_chart_version',
                 'var_file_path' : 'roles/kibana_install/defaults/main.yml'
               }
-        - name: remove old version parsing results
+            - { 'description'   : 'Rook/Ceph',
+                'var_file_path' : 'roles/rook_install/defaults/main.yml',
+                'shortname'     : "rook_git_tag"
+              }
+        - name: Remove old version parsing results
           file:
             path: "{{ item }}"
             state: absent
@@ -440,18 +469,26 @@
           with_items:
             - "{{ versions_output_file }}"
             - "{{ versions_parsing_errors_file }}"
-        - lineinfile:
+        - name: Write versions into output file
+          lineinfile:
             path: "{{ versions_output_file }}"
-            line: "{{ item.stdout }}"
+            line: "{{ item.stdout }}{% if item.stderr and item.item.optional | default(false) %} {{ item.item.reason }}{% endif %}"
+            mode: 0644
             create: yes
           loop: "{{ item_value.results }}"
-        - lineinfile:
+        - name: Write version parsing errors into errors file
+          lineinfile:
             path: '{{ versions_parsing_errors_file }}'
-            line: "{{ item.stderr }}"
+            line: "{{ item.stdout }}\nParameter {{ item.item.shortname }} in file {{ item.item.var_file_path }} was not found\n{{ item.stderr }}\n"
+            mode: 0644
             create: yes
           loop: "{{ item_value.results }}"
+          when:
+            - item.stderr
+            - not item.item.optional | default(false)
     - name: Add ddp_profile variable
-      shell: grep ddp_profile ../examples/k8s/full_nfv/host_vars/node1.yml |head -n1| awk '{print $3}'
+      shell: set -o pipefail | grep ddp_profile ../examples/k8s/full_nfv/host_vars/node1.yml |head -n1| awk '{print $3}'
+      changed_when: false
       register: ddp_profile
     - name: Add ddp_profile variable
       lineinfile:
@@ -459,6 +496,7 @@
         line: "ddp_profile,{{ ddp_profile.stdout }}"
     - name: Add jaeger_version variable
       shell: grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' roles/jaeger_install/defaults/main.yml
+      changed_when: false
       register: jaeger_version
     - name: Add jaeger version variable
       lineinfile:

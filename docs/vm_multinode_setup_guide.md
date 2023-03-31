@@ -16,7 +16,7 @@ For the first vm_host we need to configure common parameters for the whole multi
 
 
 The only common VM image for all VMs inside deployment is supported at the moment
-Default VM image version is Ubuntu 20.04 - focal. That version is used when following params are not configured inside host_vars file.
+Default VM image version is Ubuntu 22.04 - focal. That version is used when following params are not configured inside host_vars file.
 
 Supported VM image distributions are ['ubuntu', 'rocky']. VM image distribution can be configured via following parameter:
 
@@ -24,7 +24,7 @@ Supported VM image distributions are ['ubuntu', 'rocky']. VM image distribution 
 vm_image_distribution: "rocky"
 ```
 
-Supported VM image ubuntu versions ['20.04', '22.04']. Default is '20.04'.
+Supported VM image ubuntu versions ['22.04']. Default is '22.04'.
 VM image version for ubuntu can be changed via following parameter:
 
 ```
@@ -59,7 +59,7 @@ vms:
 DHCP will use following IP range to assign IPs for all VMs. Unique IP range should be used for additional deployments on the same physical network.
 
 ```
-vxlan_gw_ip: "40.8.0.1/24"
+vxlan_gw_ip: "172.31.0.1/24"
 ```
 
 ## Other vm_hosts except the first one
@@ -88,17 +88,20 @@ vms:
 ## Common configuration for all vm_hosts
 
 
-### VXLAN device
+### VXLAN physical network
 
 
-vxlan_device parameter have to contain physical network interface, which is connected to network.
-All vm_hosts have to be connected to the same network and corresponding network interfaces have to contain IP address from the same subnet.
+vxlan_physical_network parameter specifies IP subnet. IP from this subnet have to be available on one network interface on every VM hosts.
+Based on that IP address is automatically detected corresponding network interface name, which is used to setup vxlan network for VMs.
+This interface has to be connected to physical network, which is available on all VM hosts.
+This parameter is mandatory for VM multinode setup. For VM single node setup it is optional.
 
 e.g.:
 
 ```
-vxlan_device: ens786f0
+vxlan_physical_network: "10.31.0.0/16"
 ```
+
 
 ### VM password
 

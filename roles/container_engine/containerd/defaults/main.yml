@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
 ##   limitations under the License.
 ##
 ---
-containerd_download_url: "https://github.com/containerd/containerd/releases/download/v{{ containerd_version }}/containerd-{{ containerd_version }}-linux-amd64.tar.gz" # noqa line-length
+containerd_version: 1.6.16
+containerd_archive_checksum: "2415b431a900275c14942f87f751e1e13d513c1c2f062322b5ca5a9a2190f22a"
+
+containerd_download_url: "https://github.com/containerd/containerd/releases/download/v{{ containerd_version }}/containerd-{{ containerd_version }}-linux-amd64.tar.gz" # noqa yaml[line-length]
 containerd_bin_dir: "/usr/local/bin"
 
 local_release_dir: "/tmp/releases"
-
-containerd_version: 1.6.8
-
-containerd_archive_checksum: "3a1322c18ee5ff4b9bd5af6b7b30c923a3eab8af1df05554f530ef8e2b24ac5e"
 
 containerd_archive:
   version: "{{ containerd_version }}"

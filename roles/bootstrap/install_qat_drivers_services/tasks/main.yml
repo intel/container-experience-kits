@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 - name: WA for libudev-dev version issue on Ubuntu
   apt:
     name: 'udev'
-    state: latest # noqa 403 package-latest
+    state: latest # noqa package-latest
   when: ansible_distribution == "Ubuntu"
 
 - name: get current udev package version
@@ -104,23 +104,39 @@
       - "If failure persists, consider setting update_kernel: true in group_vars"
   when: "'error' in qat_requirements.stderr"
 
-- name: make install QAT drivers
-  make:
-    chdir: "{{ qat_drivers_dir }}"
-    target: install
-  register: qat_make_install
-  become: yes
-  notify:
-    - reboot server
+- name: block for QAT 1.x drivers and samples compilation
+  block:
+    - name: make install QAT drivers
+      command: "make -j install"
+      args:
+        chdir: "{{ qat_drivers_dir }}"
+      become: yes
+      changed_when: true
+      notify:
+        - reboot server
+
+    - name: make performance sample application after QAT drivers
+      make:
+        chdir: "{{ qat_drivers_dir }}"
+        target: samples-install
+      become: yes
   when: configured_arch != "spr"
 
 # Reboot with driver ver: QAT20.L.0.8.0-00071 causing issues, there is no need to reboot.
-- name: make install QAT drivers
-  make:
-    chdir: "{{ qat_drivers_dir }}"
-    target: install
-  register: qat_make_install
-  become: yes
+- name: block for QAT 2.x drivers and samples compilation
+  block:
+    - name: make install QAT drivers
+      command: "make -j install"
+      args:
+        chdir: "{{ qat_drivers_dir }}"
+      become: yes
+      changed_when: true
+
+    - name: make performance sample application after QAT drivers
+      make:
+        chdir: "{{ qat_drivers_dir }}"
+        target: samples-install
+      become: yes
   when: configured_arch == "spr"
 
 - name: confirm QAT module installed

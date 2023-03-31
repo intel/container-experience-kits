@@ -20,7 +20,7 @@ This file contains functions needed for profile generation in cloud mode
 
 import argparse
 import os
-from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, add_nic_parameter, create_backups
+from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, add_nic_parameter, add_mirrors_parameter, create_backups
 
 def render_cloud_profiles(args: argparse.Namespace) -> None:
     """Creates example CEK profiles in cloud mode"""
@@ -37,6 +37,9 @@ def render_cloud_profiles(args: argparse.Namespace) -> None:
 
     # add nic information
     add_nic_parameter(cloud_profiles, args)
+
+    # add mirrors information
+    add_mirrors_parameter(cloud_profiles, args)
 
     # create example diretory with all profiles and its files
     _create_cloud_examples(cloud_profiles, args)

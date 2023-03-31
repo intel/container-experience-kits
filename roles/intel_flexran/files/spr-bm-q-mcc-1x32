@@ -1,1 +1,0 @@
-intel_iommu=on iommu=pt usbcore.autosuspend=-1 selinux=0 enforcing=0 nmi_watchdog=0 softlockup_panic=0 audit=0 cgroup_disable=memory mce=off hugepagesz=1G hugepages=40 hugepagesz=2M hugepages=0 default_hugepagesz=1G kthread_cpus=0,30-32,62-63 irqaffinity=0,30-32,62-63 nosoftlockup skew_tick=1 skew_tick=1 isolcpus=1-29,33-61 nohz_full=1-29,33-61 rcu_nocbs=1-29,33-61

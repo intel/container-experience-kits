@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 userspace_cni_git_url: "https://github.com/intel/userspace-cni-network-plugin.git"
 userspace_cni_version: "v1.3"
 
-vpp_version: 2210
+vpp_version: "2302"
 
 ovs_dir: "{{ (project_root_dir, 'ovs') | path_join }}"
 ovs_repo: https://github.com/openvswitch/ovs.git

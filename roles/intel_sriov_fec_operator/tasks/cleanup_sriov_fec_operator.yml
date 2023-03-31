@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
 ##
 ---
 - name: remove csv from FEC Operator namespace
-  command: kubectl delete csv sriov-fec.v{{ intel_sriov_fec_operator_img_ver }} -n {{ intel_sriov_fec_operator_namespace }} # noqa 301
+  command: kubectl delete csv sriov-fec.v{{ intel_sriov_fec_operator_img_ver }} -n {{ intel_sriov_fec_operator_namespace }} # noqa no-changed-when
 
 - name: remove FEC Operator namespace
-  command: kubectl delete ns {{ intel_sriov_fec_operator_namespace }} # noqa 301
+  command: kubectl delete ns {{ intel_sriov_fec_operator_namespace }} # noqa no-changed-when
 
 - name: get GOPATH
   command: go env GOPATH
@@ -26,6 +26,6 @@
   changed_when: false
 
 - name: remove Operator Lifecycle Manager (OLM)
-  command: operator-sdk olm uninstall # noqa 301
+  command: operator-sdk olm uninstall # noqa no-changed-when
   environment:
     PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ operator_sdk_dir }}"

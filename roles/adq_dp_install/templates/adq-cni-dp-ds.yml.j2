@@ -91,7 +91,7 @@ spec:
           readOnlyRootFilesystem: true
         command: ["/adq-netprio"]
         args:
-        - -cni-config-path=/etc/cni/net.d/05-cilium.conflist
+        - -cni-config-path=/etc/cni/net.d/10-calico.conflist
         - -reconcile-period=2s
         volumeMounts:
         - mountPath: /sys/fs/cgroup

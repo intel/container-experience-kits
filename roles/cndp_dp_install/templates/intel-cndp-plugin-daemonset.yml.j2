@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kube-afxdp-device-plugin-e2e
+  name: kube-afxdp-device-plugin
   namespace: kube-system
   labels:
     tier: node
@@ -30,7 +30,7 @@ spec:
           effect: NoSchedule
       serviceAccountName: afxdp-device-plugin
       containers:
-        - name: kube-cndp
+        - name: kube-afxdp
           image: {{ intel_cndp_dp_image }}:{{ intel_cndp_dp_image_version }}
           imagePullPolicy: IfNotPresent
           securityContext:

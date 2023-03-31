@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,64 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: check igb_uio module is loaded
-  shell: "set -o pipefail && lsmod | grep -i igb_uio"
-  args:
-    executable: /bin/bash
-  register: igb_uio_module
-  changed_when: false
-  failed_when: false
-
-- name: insert igb_uio module
-  block:
-    - name: clone DPDK-KMODS repository
-      git:
-        repo: "http://dpdk.org/git/dpdk-kmods"
-        version: "e68a705cc5dc3d1333bbcd722fe4e9a6ba3ee648" # latest as of July 2022
-        dest: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods') | path_join }}"
-        force: yes
-
-#    - name: build igb_uio
-#      make:
-#        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
-
-#    - name: build igb_uio with command
-#      command: make
-#      args:
-#        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
-
-    # Using shell since the make built-in module and command (above) both get errors
-    - name: build igb_uio with shell
-      shell: "make" # noqa 305
-      args:
-        executable: /bin/bash
-        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
-      changed_when: true
-
-    - name: load uio
-      modprobe:
-        name: uio
-        state: present
-
-    - name: load igb_uio
-      command: insmod igb_uio.ko
-      args:
-        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
-      changed_when: false
-      failed_when: false
-
-  when: "'igb_uio' not in igb_uio_module.stdout"
-
-- debug: msg="fec_acc pciid is {{ fec_acc | regex_replace('^ip-', '') }}"
-
-- name: bind ACC card
-  shell: "./dpdk-devbind.py -b igb_uio {{ fec_acc }} && ./dpdk-devbind.py -s" # noqa 305
-  args:
-    executable: /bin/bash
-    chdir: "{{ (intel_flexran_dpdk_dir, 'usertools') | path_join }}"
-  changed_when: false
-  failed_when: false
-
 - name: clone inih repository
   git:
     repo: "https://github.com/benhoyt/inih"

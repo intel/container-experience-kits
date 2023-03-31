@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -51,7 +51,13 @@
   include_role:
     name: kubernetes_ingress_install
   when:
-    minio_ingress_enabled is defined and minio_ingress_enabled
+    minio_ingress_enabled | default(false)
+
+- name: clone MinIO operator/console/tenant
+  include_tasks: clone_minio_operator.yml
+  when:
+    - minio_enabled | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install MinIO operator/console
   include_tasks: minio_operator.yml
@@ -138,6 +144,9 @@
 - name: install Multus Service Helmchart
   include_role:
     name: multus_service
+  when:
+    - minio_tenant_enabled
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: create MinIO storage Multus Service
   include_tasks: create_minio_multus_service.yml

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
     new_dataplane_interfaces: []
 
 - name: get dataplane interface names
-  include: dataplane-interfaces.yml
+  include_tasks: dataplane-interfaces.yml
   loop: '{{ dataplane_interfaces }}'
   loop_control:
     loop_var: nic

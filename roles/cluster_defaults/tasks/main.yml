@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -42,5 +42,6 @@
     name: fs.inotify.max_user_instances
     value: '65536'
     sysctl_set: yes
+    sysctl_file: "/etc/sysctl.d/99-sysctl.conf"
     state: present
     reload: yes

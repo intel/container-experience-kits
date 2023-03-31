@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   file:
     path: "{{ sgx_config_dir }}"
     state: directory
-    mode: '0700'
+    mode: 0700
   become: yes
 
 - name: confirm DCAP driver module installed
@@ -36,11 +36,15 @@
       get_url:
         url: "{{ dcap_driver_url_ubuntu_20 }}"
         dest: "{{ sgx_config_dir }}"
-        mode: u=rwx,g=rx,o=rx
+        mode: 0755
         checksum: "{{ dcap_driver_checksum_ubuntu_20 }}"
+      register: get_url_results
+      retries: "{{ number_of_retries | default(5) }}"
+      until: get_url_results is success
+      delay: "{{ retry_delay | default(3) }}"
 
     - name: install DCAP driver
-    # noqa 305 - shell is used intentionally here
+    # noqa command-instead-of-shell - shell is used intentionally here
       shell: "./{{ dcap_driver_version_ubuntu_20 }}"
       args:
         chdir: "{{ sgx_config_dir }}"
@@ -59,23 +63,13 @@
     - "not configure_gpu | default(false) | bool"
     - ansible_distribution_version < '21.04'
 
-# WA: sgx packages are available only in the 'focal' repo
-# Remove when https://download.01.org/intel-sgx/sgx_repo/ubuntu repo updated
-- name: set sgx release name
-  set_fact:
-    sgx_release_name: "{{ (ansible_distribution_version < '21.04') | ternary(ansible_distribution_release, 'focal') }}"
-
-# WA: Some sgx packages depend on exact versions of packages available only in 'focal' repo
-# Remove when https://download.01.org/intel-sgx/sgx_repo/ubuntu repo updated
-- name: add 'focal' apt repository
-  apt_repository:
-    repo: "deb http://archive.ubuntu.com/ubuntu focal main"
-  when:
-    - ansible_distribution_version >= '21.04'
-
 - name: add {{ sgx_apt_source_list }} repo key
   apt_key:
     url: "{{ sgx_apt_repo_key }}"
+
+- name: set sgx release name
+  set_fact:
+    sgx_release_name: "{{ ansible_distribution_release }}"
 
 - name: add sgx apt repository
   apt_repository:
@@ -126,8 +120,12 @@
   get_url:
     url: "{{ sgx_sdk_url_ubuntu_20 }}"
     dest: "{{ sgx_config_dir }}"
-    mode: u=rwx,g=rx,o=rx
+    mode: 0755
     checksum: "{{ sgx_sdk_checksum_ubuntu_20 }}"
+  register: get_url_results
+  retries: "{{ number_of_retries | default(5) }}"
+  until: get_url_results is success
+  delay: "{{ retry_delay | default(3) }}"
 
 - name: install sgx sdk
   shell: "set -o pipefail && echo 'yes' | ./{{ sgx_sdk_version_ubuntu_20 }}"

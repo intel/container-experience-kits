@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,10 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-- block:
-    - name: create monitoring namespace
+- name: Deploy opentelemetry
+  when:
+    - opentelemetry_enabled is defined and opentelemetry_enabled
+    - inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: create namespace
       kubernetes.core.k8s:
-        name: "monitoring"
+        name: "{{ opentelemetry_operator_namespace }}"
         kind: Namespace
         state: present
 
@@ -51,9 +55,14 @@
               extraArgs:
                 - --tls-cipher-suites="{{ kube_rbac_proxy_tls_ciphers }}"
 
-    - name: wait for opentelemetry pod
-      ansible.builtin.pause:
-        minutes: 2
+    - name: wait for opentelemetry collector CRD
+      kubernetes.core.k8s_info:
+        kind: CustomResourceDefinition
+        name: opentelemetrycollectors.opentelemetry.io
+        wait: true
+        wait_condition:
+          type: Established
+        wait_timeout: 120
 
     - name: get Elasticsearch credentials
       ansible.builtin.shell: >-
@@ -80,8 +89,18 @@
         - otel-elasticsearch-certs.yml
 
     - name: wait for certs creation
-      ansible.builtin.pause:
-        minutes: 1
+      kubernetes.core.k8s_info:
+        kind: Certificate
+        name: "{{ item }}"
+        namespace: monitoring
+        wait: true
+        wait_condition:
+          type: Ready
+        wait_timeout: 60
+      loop:
+        - otel-gateway-collector
+        - otel-agent-telegraf
+        - otel-elasticsearch-tls
 
     - name: create opentelemetry resources
       kubernetes.core.k8s:
@@ -94,6 +113,6 @@
         - otel-telegraf-servicemonitor.yml
         - otel-sidecar.yml
 
-  when:
-    - opentelemetry_enabled is defined and opentelemetry_enabled
-    - inventory_hostname == groups['kube_control_plane'][0]
+    - name: check for all pods
+      ansible.builtin.include_role:
+        name: wait_for_kubernetes_ready

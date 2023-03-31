@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ intel_ai_sample_pod_name }}"
+  namespace: "{{ intel_ai_namespace }}"
+spec:
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: {{ gpu_stat_gid.stat.gid }}
+  containers:
+  - name: "{{ intel_ai_sample_pod_name }}"
+    image: {{ registry_local_address }}/{{ intel_ai_local_build_name }}:{{ intel_ai_local_build_tag }}
+    command: ['sh', '-c', 'echo "Hello, Media Analytics!" && sleep infinity']
+{%- if gpu_dp_enabled == true %}  
+    resources:
+      limits:
+        gpu.intel.com/i915: 1
+{% endif %}
+    volumeMounts:
+    - mountPath: /tmp
+      name: tmp
+    - mountPath: /dev/dri
+      name: dev-dri
+
+  volumes:
+  - name: tmp
+    hostPath:
+      path: /tmp
+      type: Directory
+  - name: dev-dri
+    hostPath:
+      path: /dev/dri

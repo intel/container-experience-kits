@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,42 +14,10 @@
 ##   limitations under the License.
 ##
 ---
-- name: check MinIO Operator Helm charts directory
-  stat:
-    path: "{{ (project_root_dir, 'charts', 'operator') | path_join }}"
-  register: operator_dir
-
-- name: create MinIO Operator Helm charts directory if needed
-  file:
-    path: "{{ (project_root_dir, 'charts', 'operator') | path_join }}"
-    state: directory
-    mode: 0755
-  when:
-    - operator_dir.stat.exists is defined and not operator_dir.stat.exists
-
-- name: copy MinIO Operator Helm charts to the controller node
-  copy:
-    src: "{{ (role_path, 'charts', 'operator') | path_join }}"
-    dest: "{{ (project_root_dir, 'charts') | path_join }}"
-    mode: 0755
-
-- name: check MinIO Operator Helm charts temp directory
-  stat:
-    path: "{{ (project_root_dir, 'charts', 'operator', 'temp') | path_join }}"
-  register: operator_temp_dir
-
-- name: create the temp folder for MinIO Operator custom values
-  file:
-    path: "{{ (project_root_dir, 'charts', 'operator', 'temp') | path_join }}"
-    state: directory
-    mode: 0755
-  when:
-    - operator_temp_dir.stat.exists is defined and not operator_temp_dir.stat.exists
-
 - name: populate MinIO Operator Helm charts values template and push to controller node
   template:
     src: "minio_operator_custom_values.yml.j2"
-    dest: "{{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-operator-custom-values.yml') | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir, 'operator', 'temp', 'minio-operator-custom-values.yml') | path_join }}"
     force: yes
     mode: preserve
 
@@ -77,7 +45,7 @@
 # https://github.com/minio/operator/blob/master/docs/upgrade.md#upgrade-minio-operator-via-helm-charts
 - name: create CRD (tenants.minio.min.io)
   k8s:
-    src: "{{ (project_root_dir, 'charts', 'operator', 'templates', 'minio.min.io_tenants.yaml') | path_join }}"
+    src: "{{ (minio_operator_helm_local_dir, 'operator', 'templates', 'minio.min.io_tenants.yaml') | path_join }}"
     state: present
     apply: true
 
@@ -97,7 +65,7 @@
   command: >-
     helm upgrade --install
     {{ minio_operator_release_name }}
-    {{ (project_root_dir, 'charts/operator') | path_join }}
+    {{ (minio_operator_helm_local_dir, 'operator') | path_join }}
     --namespace {{ minio_operator_namespace }}
-    -f {{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-operator-custom-values.yml') | path_join }}
+    -f {{ (minio_operator_helm_local_dir, 'operator', 'temp', 'minio-operator-custom-values.yml') | path_join }}
   changed_when: true

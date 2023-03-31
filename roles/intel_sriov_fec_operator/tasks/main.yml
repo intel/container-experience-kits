@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 
 # - name: set FEC Acc for Intel SRIOV FEC Operator
 #   delegate_to: localhost
+#   become: false
 #   include_vars:
 #     file: "{{ (inventory_dir, 'host_vars',  groups['kube_node'][0] + '.yml') | path_join }}"
 

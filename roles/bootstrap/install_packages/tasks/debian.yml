@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@
   when: ansible_os_family == "Debian"
   register: apt_res
   retries: 5
+  environment: "{{ proxy_env | d({}) }}"
   until: apt_res is success
 
 - name: install software-properties-common
@@ -160,7 +161,7 @@
     name:
       - linux-image-generic-hwe-20.04
       - linux-headers-generic-hwe-20.04
-    state: latest # noqa 403
+    state: latest # noqa package-latest
   notify:
     - reboot server
   when:

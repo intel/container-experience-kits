@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,13 +15,13 @@
 ##
 ---
 - block:
-  - name: preflight MinIO configuration
-    include_role:
-      name: minio_install
-      tasks_from: preflight_minio_config
+    - name: preflight MinIO configuration
+      include_role:
+        name: minio_install
+        tasks_from: preflight_minio_config
 
-  - name: preflight MinIO configuration
-    include_role:
-      name: minio_install
-      tasks_from: build_minio_variables
+    - name: preflight MinIO configuration
+      include_role:
+        name: minio_install
+        tasks_from: build_minio_variables
   any_errors_fatal: true

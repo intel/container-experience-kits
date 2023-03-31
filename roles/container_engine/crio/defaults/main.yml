@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ crio_log_level: "info"
 crio_metrics_port: "9090"
 crio_pause_image: "k8s.gcr.io/pause:3.3"
 
-crio_version: "v1.25.1"
+crio_version: "v1.26.0"
 crio_download_url: "https://storage.googleapis.com/cri-o/artifacts/cri-o.amd64.{{ crio_version }}.tar.gz"
-crio_archive_checksums: "49f98a38805740c40266a5bf3badc28e4ca725ccf923327c75c00fccc241f562"
+crio_archive_checksums: "79837d8b7af95547b92dbab105268dd6382ce2a7afbddad93cc168ab0ca766c8"
 
 crio:
   version: "{{ crio_version }}"

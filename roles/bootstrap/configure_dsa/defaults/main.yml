@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,6 +16,6 @@
 ---
 idxd_config_git_url: "https://github.com/intel/idxd-config.git"
 idxd_config_dir: "/usr/src/idxd-config"
-idxd_config_git_ref: "accel-config-v3.4.6.4"
+idxd_config_git_ref: "accel-config-v4.0"
 
 dsa_devices_dir: "/sys/bus/dsa/devices/"

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@
 
     # using shell module instead of comand as it was giving aclocal: warning: causing playbook failure
     - name: run autogen before configure QATLibs
-      shell: './autogen.sh' # noqa 305
+      shell: './autogen.sh'
       args:
         chdir: "{{ intel_qatlib_download_url_dir }}"
         executable: /bin/bash

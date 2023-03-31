@@ -10,4 +10,38 @@ configPath: {{ sriov_net_dp_config_path | default("/etc/pcidp/config.json") }}
 
 log:
   level: 10
+{% if intel_flexran_enabled | default(false) %}
+sriovdp_config_data: '{
+    "resourceList": [
+        {
+          "resourceName": "intel_fec_5g",
+            "deviceType": "accelerator",
+            "selectors": {
+                "vendors": ["8086"],
+                "devices": ["0d5d"]
+            }
+        },
+        {
+          "resourceName": "intel_sriov_odu",
+            "selectors": {
+                "vendors": ["8086"],
+                "devices": {% if dataplane_interfaces[1].pf_driver == "ice" %}["1889"]{% elif dataplane_interfaces[1].pf_driver == "i40e" %}["154c"]{% endif %},
+                "drivers": ["vfio-pci"],
+                "pfNames": ["{{ dataplane_interfaces[1].name }}"]
+            }
+        },
+        {
+          "resourceName": "intel_sriov_oru",
+            "selectors": {
+                "vendors": ["8086"],
+                "devices": {% if dataplane_interfaces[0].pf_driver == "ice" %}["1889"]{% elif dataplane_interfaces[0].pf_driver == "i40e" %}["154c"]{% endif %},
+                "drivers": ["vfio-pci"],
+                "pfNames": ["{{ dataplane_interfaces[0].name }}"]
+            }
+        }
+    ]
+}
+'
+{% else %}
 sriovdp_config_data: '{{ sriovdp_config_data }}'
+{% endif %}

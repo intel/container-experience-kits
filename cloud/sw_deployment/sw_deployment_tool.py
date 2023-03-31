@@ -1,7 +1,6 @@
 """Script for deploying Reference Architecture (RA) on Cloud solutions"""
 import os
 import tarfile
-import shutil
 import click
 import yaml
 import jinja2
@@ -9,9 +8,7 @@ import pathlib
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 from ssh_connector import SSHConnector
-from git_clone import clone_repository, switch_repository_to_tag
 from docker_management import DockerManagement
-from discovery import main as discovery
 
 configuration = {
     'cloud_settings': {
@@ -49,53 +46,26 @@ DEFAULT_CONFIG = os.path.join(ROOT_DIR, '../deployment/sw.yaml')
 nodes_list = []
 
 @click.command()
-@click.option('-p','--provider',
-              type=click.Choice(['aws', 'azure', 'gcp', 'ali', 'tencent']),
-              help='Select cloud provider where RA will be deploy. [aws, azure, gcp, alibaba, tencent])')
-@click.option('--ansible-host-ip', help='IP address of instance where Ansible will be running')
-@click.option('--controller-ips', help='Array of K8s controller IPs')
-@click.option('--worker-ips', help='Array of K8s worker IPs')
-@click.option('--ssh-key', help='SSH key for accessing the cloud instances')
 @click.option('-c', '--config',
               type=click.Path(dir_okay=False),
               default=DEFAULT_CONFIG,
               help="Path to configuration file in yaml format.")
-@click.option('--replicate-from-container-registry', help='URL address of source docker registry')
-@click.option('--replicate-to-container-registry', help='URL address of target docker registry')
-@click.option('--exec-containers', multiple=True, help='List of containers to be executed')
-@click.option('--custom-ami', default=None, type=click.Choice(['ubuntu']), help='Custom AMI for EKS cluster')
-def main(provider, ansible_host_ip, controller_ips, worker_ips, ssh_key,
-         config, replicate_from_container_registry,
-         replicate_to_container_registry, exec_containers, custom_ami):
+def main(config):
     """
     Main function for configuring whole cluster and deploy benchmark pods.
 
     Parameters:
-    provider (string): Cloud provider where RA will be deploy. [aws, azure, gcp, alibaba, tencent]
-    ansible_host_ip (string): IP address of Ansible host
-    controller_ips (list): List of Ansible controller instances
-    worker_ips (list): List of Ansible worker instances
-    ssh_key (string): Path to private SSH key
     config (string): Path to configuration file for sw_deployment_tool
-    skip_git_clonning (bool): Skip clonning repository from Git and use already clonned directory
-    replicate_from_container_registry (string): URL address of source docker registry
-    replicate_to_container_registry (string): URL address of target docker registry
-    exec_containers (list): List of containers to be executed
-    custom_ami (string): Custom AMI for EKS cluster
 
     Return:
     None
 
     """
-    arguments = locals()
-    for argument in arguments:
-        if arguments[argument] is not None:
-            configuration[argument] = arguments[argument]
 
-    start_deploy(config=config, cloud_provider=configuration['provider'])
+    start_deploy(config=config)
 
 
-def start_deploy(config, cloud_provider):
+def start_deploy(config):
     """
     Start deploying SW deployment.
 
@@ -106,6 +76,7 @@ def start_deploy(config, cloud_provider):
     None
 
     """
+    configuration = None
     if os.path.exists(config):
         configuration = _parse_configuration_file(config)
 
@@ -167,6 +138,7 @@ def _parse_configuration_file(config):
     dict:Configuration dictionary
 
     '''
+    file_configuration = None
     if not os.path.exists(config):
         return None
     with open(config, 'r', encoding="UTF-8") as stream:
@@ -385,7 +357,9 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     client.copy_file(file_path=TAR_PATH, destination_path=f"/home/ubuntu/{TAR_NAME}")
     os.remove(TAR_PATH)
 
-    client.exec_command(command=f"tar -zxvf {TAR_NAME}", print_output=True)
+    click.echo("-------------------")
+    click.secho("Extracting RA repo on Ansible instance", fg="yellow")
+    client.exec_command(command=f"tar -zxf {TAR_NAME}", print_output=True)
     client.exec_command(f"rm /home/ubuntu/{TAR_NAME}")
 
     click.secho("\nEnabling root login", fg="yellow")
@@ -436,6 +410,25 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
         client.copy_file(file_path=EKS_PATCH_PATH, destination_path=f"/tmp/{EKS_PATCH_NAME}")
         client.exec_command(f"kubectl patch ds aws-node -n kube-system --patch-file /tmp/{EKS_PATCH_NAME}")
 
+    registry_local_address = ""
+    if provider == 'aws':
+        registry_local_address = "/".join(configuration['replicate_to_container_registry'].split("/")[:-1])
+    else:
+        registry_local_address = configuration['replicate_to_container_registry']
+
+    click.echo("-------------------")
+    click.secho("Update container registry credentials", fg="yellow")
+    if provider == 'aws':
+        region = configuration['cloud_settings']['region']
+        commands = f"""aws ecr get-login-password --region {region} | \
+            REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" podman login -u AWS --password-stdin {registry_local_address}
+        """
+    else:
+        registry_name = registry_local_address.split(".")[0]
+        commands = f"""az acr login --name {registry_name} --expose-token --output tsv --query accessToken | \
+            REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" podman login -u 00000000-0000-0000-0000-000000000000 --password-stdin {registry_local_address}
+        """
+
     click.echo("-------------------")
     click.secho("Creating invenotry file", fg="yellow")
     _create_inventory_file(client, nodes_list)
@@ -443,17 +436,18 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     click.secho("\nInitializing RA repository", fg="yellow")
     commands = f"""cd {RA_REMOTE_PATH} && \
        git submodule update --init && \
-       sudo python3 -m pip install -r requirements.txt
+       python3 -m venv --copies --clear venv && \
+       venv/bin/pip install -r requirements.txt
        """
-
+    
     client.exec_command(command=commands, print_output=True)
 
     click.secho("\nCreating host_var files", fg="yellow")
     _create_host_var_files(client, nodes_list)
 
     commands = f"""cd {RA_REMOTE_PATH} && \
-       ansible -i inventory.ini -m setup all > all_system_facts.txt
-       """
+        venv/bin/ansible -i inventory.ini -m setup all > all_system_facts.txt
+        """
 
     client.exec_command(command=commands)
 
@@ -463,13 +457,18 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     click.secho(configuration['ra_profile'], fg="green")
 
     ansible_playbook_commnads = f"""cd {RA_REMOTE_PATH} && \
-        ansible-playbook -i inventory.ini playbooks/{configuration['ra_profile']}.yml
+        venv/bin/ansible-playbook -i inventory.ini -e registry_local_address={registry_local_address} playbooks/{configuration['ra_profile']}.yml
     """
     client.exec_command(command=ansible_playbook_commnads, print_output=True)
+
+    click.echo("-------------------")
+    click.secho("Remove private SSH key from Ansible instance", fg="yellow")
+    client.exec_command(f"sudo rm /home/ubuntu/cwdf_deployment/ssh/id_rsa")
+
     client.close_connection()
 
-    if (configuration['replicate_from_container_registry'] is not None and 
-        configuration['replicate_to_container_registry'] is not None and 
+    if (configuration['replicate_from_container_registry'] is not None and
+        configuration['replicate_to_container_registry'] is not None and
         configuration['exec_containers']):
         click.echo("-------------------")
         click.secho("Copy Docker images to cloud registry")

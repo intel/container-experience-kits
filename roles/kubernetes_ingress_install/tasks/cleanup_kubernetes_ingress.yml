@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,20 +15,20 @@
 ##
 ---
 - block:
-  - name: delete Kubernetes Ingress Controller Helm Charts
-    command: >-
-      helm delete {{ kubernetes_ingress_release_name }} --namespace {{ kubernetes_ingress_helm_chart_release_namespace }}
-    when:
-      - inventory_hostname == groups['kube_control_plane'][0]
-    changed_when: false
-    failed_when: false
-  - name: delete Kubernetes Ingress Controller Helm Repo
-    command: >-
-      helm repo remove {{ kubernetes_ingress_helm_chart_repo_name }}
-    when:
-      - inventory_hostname == groups['kube_control_plane'][0]
-    changed_when: false
-    failed_when: false
+    - name: delete Kubernetes Ingress Controller Helm Charts
+      command: >-
+        helm delete {{ kubernetes_ingress_release_name }} --namespace {{ kubernetes_ingress_helm_chart_release_namespace }}
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+      changed_when: false
+      failed_when: false
+    - name: delete Kubernetes Ingress Controller Helm Repo
+      command: >-
+        helm repo remove {{ kubernetes_ingress_helm_chart_repo_name }}
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+      changed_when: false
+      failed_when: false
   tags:
     - minio
   when:

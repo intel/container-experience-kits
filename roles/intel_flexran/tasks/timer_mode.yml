@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
     line: "{{ '        <dpdkBasebandDevice>' + fec_acc + '</dpdkBasebandDevice>' }}"
 
 - name: check dpdkBaseband config
-  shell: "grep dpdkBaseband phycfg_timer.xml" # noqa 305
+  shell: "grep dpdkBaseband phycfg_timer.xml" # noqa command-instead-of-shell
   args:
     chdir: "{{ (intel_flexran_dir, 'bin/nr5g/gnb/l1') | path_join }}"
   register: phycfg_timer_mode
@@ -50,7 +50,7 @@
       - "The worker node is ready for L1/L2 Tests to be executed and verified. See docs/flexran_guide.md"
 
 # - name: run L1
-#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/l1') | path_join }} && ./l1.sh -e" # noqa 305
+#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/l1') | path_join }} && ./l1.sh -e" # noqa command-instead-of-shell
 #   args:
 #     executable: /bin/bash
 #     chdir: "{{ intel_flexran_dir }}"
@@ -63,7 +63,7 @@
 #     seconds: 30
 
 # - name: run L2
-#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/testmac') | path_join }} && ./l2.sh --testfile=icelake-sp/icxsp_mu0_10mhz_4x4_hton.cfg" # noqa line-length
+#   shell: "source set_env_var.sh -d && cd {{ (intel_flexran_dir, 'bin/nr5g/gnb/testmac') | path_join }} && ./l2.sh --testfile=icelake-sp/icxsp_mu0_10mhz_4x4_hton.cfg" # noqa yaml[line-length]
 #   args:
 #     executable: /bin/bash
 #     chdir: "{{ intel_flexran_dir }}"

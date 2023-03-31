@@ -30,8 +30,7 @@ spec:
       serviceAccountName: multus-service
       containers:
       - name: multus-proxy
-        # crio support requires multus:latest for now. support 3.3 or later.
-        image: ghcr.io/k8snetworkplumbingwg/multus-service:latest-nft
+        image: "{{ .Values.multus_proxy.image }}@{{ .Values.multus_proxy.digest }}"
         imagePullPolicy: Always
         command: ["/usr/bin/multus-proxy"]
         args:

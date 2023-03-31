@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -100,4 +100,5 @@
         release_namespace: "{{ elasticsearch_namespace }}"
         values_files: "{{ (project_root_dir, 'elasticsearch', 'elasticsearch_values.yml') | path_join }}"
         wait: true
+        timeout: 15m0s
   when: inventory_hostname == groups['kube_control_plane'][0]

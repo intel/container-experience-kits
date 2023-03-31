@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -29,3 +29,4 @@
     on_vms: True
     group_vars_content: "{{ lookup('file', '../group_vars/all.yml') | from_yaml }}"
   import_playbook: "{{ group_vars_content['profile_name'] }}.yml"
+  become: false

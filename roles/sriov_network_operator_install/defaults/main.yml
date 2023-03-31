@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,15 +22,19 @@ sriov_network_policies_dir: "{{ (project_root_dir, 'charts', 'sriov-network-node
 sriov_network_operator_namespace: "sriov-network-operator"
 sriov_network_operator_helm_release_name: "sriov-network-operator"
 
+sriov_network_operator_version: "v1.2.0"
+network_resources_injector_version: "v1.5"
+ib_sriov_cni_version: "v1.0.2"
+
 # helm values defaults
 sriov_network_operator_images:
-  operator: ghcr.io/k8snetworkplumbingwg/sriov-network-operator@sha256:cb125d483afa434b78cc722ace1a3a4e8d768f73c5c7f74960e6f8e5f5bc5660
-  sriovConfigDaemon: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-config-daemon@sha256:018fb75722a5287bcd74c4b6aac27e3480bad1c39465873d2ecc62cd04c92001
-  sriovCni: ghcr.io/k8snetworkplumbingwg/sriov-cni@sha256:99ba2d85c3dbd2ec5ad9c56e1a41d309ad9f773964c7350590619562c420d938
-  ibSriovCni: ghcr.io/k8snetworkplumbingwg/ib-sriov-cni@sha256:2091243e0d6bee15c588f93e9e7b19f35c7170e6a45d7fd7363fa46d114cb09d
-  sriovDevicePlugin: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin@sha256:5b73397cd20ee12c3e823b374fee215fac113601498e16660fad77ea1add78d7
-  resourcesInjector: ghcr.io/k8snetworkplumbingwg/network-resources-injector@sha256:6f3fcc4aa4eead8aae8179c02a6ba0f3c63c17c0a32817634cb7437b6539c2b3
-  webhook: ghcr.io/k8snetworkplumbingwg/sriov-network-operator-webhook@sha256:c091ca374caec31afdb6439a37ac6de724990d385b36951d38d5d535f0b84057
+  operator: "ghcr.io/k8snetworkplumbingwg/sriov-network-operator:{{ sriov_network_operator_version }}"
+  sriovConfigDaemon: "ghcr.io/k8snetworkplumbingwg/sriov-network-operator-config-daemon:{{ sriov_network_operator_version }}"
+  sriovCni: "ghcr.io/k8snetworkplumbingwg/sriov-cni:{{ sriov_cni_version }}"
+  ibSriovCni: "ghcr.io/k8snetworkplumbingwg/ib-sriov-cni:{{ ib_sriov_cni_version }}"
+  sriovDevicePlugin: "{{ sriov_net_dp_image }}:{{ sriov_net_dp_tag }}"
+  resourcesInjector: "ghcr.io/k8snetworkplumbingwg/network-resources-injector:{{ network_resources_injector_version }}"
+  webhook: "ghcr.io/k8snetworkplumbingwg/sriov-network-operator-webhook:{{ sriov_network_operator_version }}"
 
 sriov_resource_name_prefix: "intel.com"
 sriov_network_operator_name_override: ""

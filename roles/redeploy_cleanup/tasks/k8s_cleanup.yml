@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -19,11 +19,35 @@
 
 - name: remove k8s cluster
   block:
-    - name: reset cluster with kubeadm
+    - name: delete all resources on cluster
+      command: >-
+        kubectl delete all --all --all-namespaces --force
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+      register: result
+      changed_when: "'deleted' in result.stdout"
+      failed_when:
+        - result.rc not in [0, 127] # 127 == kubectl not present
+        - "'localhost:8080 was refused' not in result.stderr"
+    - name: reset node configuration with kubeadm
       command: kubeadm reset -f
       changed_when: false
-      failed_when: false
-    - name: reset etcd cluster with etcdctl
+      register: result
+      failed_when:
+        - result.rc not in [0, 127] # 127 == kubeadm not present
+        - "'No kubeadm config' not in result.stderr"
+      when:
+        - container_runtime != "docker"
+    - name: reset node configuration with kubeadm - docker
+      command: "kubeadm reset -f --cri-socket unix:///var/run/cri-dockerd.sock"
+      changed_when: false
+      register: result
+      when:
+        - container_runtime == "docker"
+      failed_when:
+        - result.rc not in [0, 127] # 127 == kubeadm not present
+        - "'No kubeadm config' not in result.stderr"
+    - name: remove node etcd data with etcdctl
       command: etcdctl del "" --prefix
       when:
         - inventory_hostname in groups['etcd']
@@ -67,13 +91,6 @@
         - kubepods_files.files | length > 0
       changed_when: false
       failed_when: false
-
-- name: remove k8s cluster files
-  import_tasks: remove_files.yml
-  vars:
-    files_to_delete: "{{ k8s_dirs_to_remove }}"
-  changed_when: false
-  failed_when: false
 
 - name: remove running or stopped containers
   block:
@@ -173,6 +190,12 @@
   changed_when: false
   failed_when: false
 
+- name: remove cri-dockerd service drop-in
+  file:
+    path: /etc/systemd/system/cri-dockerd.service.d/bind-addr.conf
+    state: absent
+  when: container_runtime == "docker"
+
 - name: restart docker service
   service:
     name: docker
@@ -196,6 +219,20 @@
   changed_when: false
   failed_when: false
   when: container_runtime == "crio"
+
+- name: remove mounts from fstab
+  vars:
+    mount_regex: "/var/lib/kubelet/pods/.*"
+  ansible.posix.mount:
+    path: "{{ item.mount }}"
+    state: absent
+  loop: "{{ ansible_facts.mounts | selectattr('mount', 'search', mount_regex) | list }}"
+
+- name: remove k8s cluster files
+  import_tasks: remove_files.yml
+  vars:
+    files_to_delete: "{{ k8s_dirs_to_remove }}"
+  changed_when: false
 
 - include_role:
     name: remove_kubespray_host_dns_settings

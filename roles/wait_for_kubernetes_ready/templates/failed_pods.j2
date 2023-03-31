@@ -1,0 +1,18 @@
+{% for pod_resource in pod_resources %}
+    {%- set conditions = (pod_resource.status.conditions | default([])) -%}
+    {%- if conditions | length() == 0 or "False" in (conditions | rejectattr('reason', 'defined') | union(conditions | selectattr('reason', 'defined') | selectattr('reason', '!=', 'PodCompleted')) | map(attribute='status') | list) -%}
+    {%- set container_count = (pod_resource.spec.containers | default([]) | length) -%}
+    {%- set ready_container_count = (pod_resource.status.containerStatuses | default([])) | map(attribute='ready') | list | sum() -%}
+Pod name: {{ pod_resource.metadata.name }}
+Namespace: {{ pod_resource.metadata.namespace }}
+Containers Ready: {{ ready_container_count }}/{{ container_count }}
+Pod Status: {{ pod_resource.status.phase }}
+Pod Conditions:
+{% for condition in conditions %}
+   - Type: {{ condition.type }}
+     Status: {{ condition.status }}
+     Reason: {{ condition.reason | default("No reason defined") }}
+{% endfor %}
+
+{% endif -%}
+{% endfor %}

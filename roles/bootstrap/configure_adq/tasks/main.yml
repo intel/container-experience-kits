@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -39,12 +39,12 @@
     gather_subset:
       - network
 
-- name: ADQ - update ICE driver on control plane
+- name: ADQ - update ICE driver
   include_role:
-    name: bootstrap/update_nic_drivers
+    name: bootstrap/update_nic_drivers # noqa role-name[path] - role in bootstrap
     tasks_from: ice.yml
 
-- name: ADQ - update ICE firmware on control plane
+- name: ADQ - update ICE firmware
   include_role:
-    name: bootstrap/update_nic_firmware
+    name: bootstrap/update_nic_firmware # noqa role-name[path] - role in bootstrap
     tasks_from: adq_update.yml

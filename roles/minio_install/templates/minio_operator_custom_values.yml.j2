@@ -5,13 +5,15 @@ operator:
   # env:
   #   - name: MINIO_OPERATOR_TLS_ENABLE
   #     value: "off"
+  #   - name: MINIO_CONSOLE_TLS_ENABLE
+  #     value: "off"
   #   - name: CLUSTER_DOMAIN
   #     value: "cluster.domain"
   #   - name: WATCHED_NAMESPACE
   #     value: ""
   image:
     repository: {{ minio_operator_image | default("minio/operator") }}
-    tag: {{ minio_operator_version | default("v4.4.28")}}
+    tag: {{ minio_operator_version }}
     pullPolicy: IfNotPresent
   imagePullSecrets: []
   initcontainers: []
@@ -21,16 +23,21 @@ operator:
     runAsGroup: 1000
     runAsNonRoot: true
     fsGroup: 1000
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
   nodeSelector: {}
   affinity:
-    nodeAffinity:
+    podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: storage
-            operator: In
-            values:
-            - minio
+        - labelSelector:
+            matchExpressions:
+              - key: name
+                operator: In
+                values:
+                  - minio-operator
+          topologyKey: kubernetes.io/hostname
   tolerations: []
   topologySpreadConstraints: []
   resources:
@@ -42,25 +49,28 @@ operator:
 console:
   image:
     repository: {{ minio_console_image | default("minio/console") }}
-    tag: {{ minio_console_version | default("v0.19.4")}}
+    tag: {{ minio_console_version }}
     pullPolicy: IfNotPresent
   imagePullSecrets: []
   initcontainers: []
   replicaCount: 1
   nodeSelector: {}
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: storage
-            operator: In
-            values:
-            - minio
+  affinity: {}
+    # nodeAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #     - matchExpressions:
+    #       - key: storage
+    #         operator: In
+    #         values:
+    #         - minio
   tolerations: []
   topologySpreadConstraints: []
   resources: {}
   securityContext:
+    runAsUser: 1000
+    runAsNonRoot: true
+  containerSecurityContext:
     runAsUser: 1000
     runAsNonRoot: true
   ingress:

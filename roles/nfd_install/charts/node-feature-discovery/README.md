@@ -1,5 +1,5 @@
 <!--
-  Copyright (c) 2020-2022 Intel Corporation.
+  Copyright (c) 2020-2023 Intel Corporation.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -21,5 +21,5 @@ labels. NFD provides flexible configuration and extension points for a wide
 range of vendor and application specific node labeling needs.
 
 See
-[NFD documentation](https://kubernetes-sigs.github.io/node-feature-discovery/v0.11/get-started/deployment-and-usage.html#deployment-with-helm)
+[NFD documentation](https://kubernetes-sigs.github.io/node-feature-discovery/v0.12/get-started/deployment-and-usage.html#deployment-with-helm)
 for deployment instructions.

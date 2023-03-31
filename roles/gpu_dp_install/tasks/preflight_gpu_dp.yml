@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 
 - name: Preflight--Check OS support
   assert:
-    that: ((ansible_distribution == "Ubuntu") and (ansible_distribution_version == '20.04' or ansible_distribution_version == '22.04'))
+    that: ((ansible_distribution == "Ubuntu") and (ansible_distribution_version == '22.04'))
     msg: >-
-      Currently GPU driver supports Ubuntu 20.04 or 22.04 while Redhat support is under development.
+      Currently GPU driver supports Ubuntu 22.04 while Redhat support is under development.
       Please check https://dgpu-docs.intel.com/index.html for hardware support details
 
 # Check GPU availability and preparation, the pre-defined product PCIID can be found in i915_pciids.h of kernel source tree, only DG1 is available now.
@@ -72,5 +72,5 @@
 
 - name: Set GPU oem kernel version based on OS version
   include_role:
-    name: bootstrap/install_gpu_driver
+    name: bootstrap/install_gpu_driver # noqa role-name[path] - role in bootstrap
     tasks_from: set_oem_kernel_version

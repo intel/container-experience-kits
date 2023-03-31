@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@
   copy:
     remote_src: yes
     src: "{{ basic_profile_file.files[0].path }}"
-    dest: "{{ (ddp_path, 'ice-' + card_id.stdout + '.pkg) | path_join }}"
+    dest: "{{ (ddp_path, 'ice-' + card_id.stdout + '.pkg') | path_join }}"
     owner: root
     group: root
     mode: u+rwx,g-rwx,o-

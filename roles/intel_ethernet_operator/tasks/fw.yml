@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,100 +14,70 @@
 ##   limitations under the License.
 ##
 ---
-- name: firmware update
+- name: Firmware update
+  when: hostvars[node_name]['intel_ethernet_operator']['fw_update'] |d(false)
   block:
-    - name: populate Intel Ethernet Operator yaml files and push to controller node
+    - name: Populate Intel Ethernet Operator yaml files and push to controller node
       ansible.builtin.template:
         src: "firmware-update.yml.j2"
         dest: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
         force: yes
         mode: preserve
 
-    - name: apply FW update on {{ node_name }}
+    - name: Apply FW update on {{ node_name }}
       kubernetes.core.k8s:
         state: present
         src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
 
-    - name: wait for FW update
-      ansible.builtin.pause:
-        minutes: 2
+    - name: Wait for start of node reboot
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[node_name]['ansible_host'] }}"
+        port: 22
+        state: stopped
+        timeout: 60
 
-    - name: check status of FW update
-      ansible.builtin.command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
-      register: fw_update_info
-      until: "'InProgress' not in fw_update_info.stdout"
+    - name: Wait for node reboot
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[node_name]['ansible_host'] }}"
+        port: 22
+        connect_timeout: 5
+        timeout: 1200
+
+    # Update could be started on master node
+    - name: Wait for kube-apiserver to be up
+      ansible.builtin.uri:
+        url: "https://127.0.0.1:6443/healthz"
+        validate_certs: no
+        use_proxy: no
+      register: ddp_update_api_info
+      until: ddp_update_api_info.status == 200
       retries: 60
-      delay: 10
-      failed_when: "'Failed' in fw_update_info.stdout"
-      changed_when: false
+      delay: 5
 
-    - name: check node after reboot
-      block:
-        - name: wait for node after reboot
-          ansible.builtin.wait_for:
-            host: "{{ hostvars[node_name]['ansible_host'] }}"
-            port: 22
-            connect_timeout: 5
-            timeout: 1200
+    - name: Check status of FW update
+      kubernetes.core.k8s_info:
+        kind: EthernetNodeConfig
+        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
+        namespace: "{{ intel_ethernet_operator_namespace }}"
+        wait: true
+        wait_timeout: 1200
+        wait_condition:
+          type: Updated
+          reason: Succeeded
 
-        - name: check if node is ready
-          ansible.builtin.command: "kubectl get nodes {{ hostvars[node_name]['ansible_hostname'] }}"
-          register: fw_node_readiness
-          retries: 30
-          delay: 10
-          until:
-            - "'NotReady' not in fw_node_readiness.stdout"
-            - "'SchedulingDisabled' not in fw_node_readiness.stdout"
-          changed_when: false
+    - name: Check cluster after reboot
+      ansible.builtin.include_role:
+        name: wait_for_kubernetes_ready
 
-        - name: wait for pods to be up and running
-          ansible.builtin.pause:
-            minutes: 1
-
-        - name: check if all pods are running
-          ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
-          args:
-            executable: /bin/bash
-          register: fw_pods_status
-          retries: 30
-          delay: 10
-          until:
-            - "'Error' not in fw_pods_status.stdout"
-            - "'CrashLoopBackOff' not in fw_pods_status.stdout"
-            - "'Terminating' not in fw_pods_status.stdout"
-            - "'ContainerCreating' not in fw_pods_status.stdout"
-            - "'Pending' not in fw_pods_status.stdout"
-          changed_when: false
-
-        - name: check if all containers are running
-          ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
-          args:
-            executable: /bin/bash
-          register: fw_containers_readiness
-          retries: 30
-          delay: 10
-          until: "'0' not in fw_containers_readiness.stdout"
-          changed_when: false
-
-        - name: check status of FW update
-          ansible.builtin.command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
-          register: after_fw_update_info
-          until:
-            - "'PostUpdateReboot' not in after_fw_update_info.stdout"
-            - "'InProgress' not in after_fw_update_info.stdout"
-          retries: 30
-          delay: 10
-          failed_when: "'Failed' in after_fw_update_info.stdout or 'PostUpdateReboot' in after_fw_update_info.stdout or 'InProgress' in after_fw_update_info.stdout" # noqa line-length
-          changed_when: false
-      when: "'PostUpdateReboot' in fw_update_info.stdout"
-
-    - name: remove FW CR after update
+    - name: Remove FW CR after update
       kubernetes.core.k8s:
         state: absent
         src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
 
-    - name: remove EthernetNodeConfig after update
-      ansible.builtin.command: kubectl delete enc {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}
-      changed_when: true
-
-  when: hostvars[node_name]['intel_ethernet_operator']['fw_update'] |d(false)
+    - name: Remove EthernetNodeConfig after update
+      kubernetes.core.k8s:
+        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
+        kind: EthernetNodeConfig
+        namespace: "{{ intel_ethernet_operator_namespace }}"
+        state: absent
+        wait: true

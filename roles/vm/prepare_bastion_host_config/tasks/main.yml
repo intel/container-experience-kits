@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,20 +14,40 @@
 ##   limitations under the License.
 ##
 ---
+- name: Prepare bastion host configuration in ~/.ssh/config for cluster
+  blockinfile:
+    path: "{{ local_login_user_dir }}/.ssh/config"
+    block: |
+      Host *.{{ vm_cluster_name }}
+        ProxyCommand ssh {{ login_user }}@{{ hostvars[groups['vm_host'][0]]['ansible_default_ipv4']['address'] }} -W %h:%p
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ vm_cluster_name }}"
+    create: yes
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
+    mode: '0644'
+  delegate_to: localhost
+  become: false
+  when:
+    - "vm_cluster_name | default('') | length > 0"
+
 - name: Prepare bastion host configuration in ~/.ssh/config
   blockinfile:
-    path: ~/.ssh/config
+    path: "{{ local_login_user_dir }}/.ssh/config"
     block: |
       Host {{ item.key }}
-        ProxyCommand ssh root@{{ ansible_host }} -W %h:%p
+        ProxyCommand ssh {{ login_user }}@{{ ansible_host }} -W %h:%p
       Host {{ item.value }}
-        ProxyCommand ssh root@{{ ansible_host }} -W %h:%p
+        ProxyCommand ssh {{ login_user }}@{{ ansible_host }} -W %h:%p
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }}"
     create: yes
-    owner: "{{ ansible_user_id }}"
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
     mode: '0644'
   with_items: "{{ vm_ips | dict2items }}"
   delegate_to: localhost
+  become: false
+  when:
+    - "vm_cluster_name | default('') | length == 0"
 
 - name: Initialize bastion host usage
   set_fact:
@@ -38,36 +58,53 @@
     used_bastion: "{% if item.key in current_vms.stdout %}{{ used_bastion  or 'true' | bool }}{% else %}{{ used_bastion }}{% endif %}"
   with_items: "{{ vm_ips | dict2items }}"
 
-- name: Remove old ECDSA key fingerprint on for bastion host
-  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ ansible_host }}"
+- name: Register known_hosts on localhost
+  stat:
+    path: "{{ local_login_user_dir }}/.ssh/known_hosts"
+  register: local_known_hosts_file
   delegate_to: localhost
-  changed_when: true
+  become: false
+
+- name: Remove old ECDSA key fingerprint on localhost for bastion host
+  command: ssh-keygen -f "{{ local_login_user_dir }}/.ssh/known_hosts" -R "{{ ansible_host }}"
+  delegate_to: localhost
+  become: false
+  register: ssh_keygen_result
+  changed_when: '" not found in " not in ssh_keygen_result.stderr'
   when:
     - (not used_bastion | bool) or
       vm_recreate_existing | default(true)
+    - local_known_hosts_file.stat.exists
 
-- name: Store ECDSA key fingerprint for bastion host
-  command: ssh -o StrictHostKeyChecking=No {{ ansible_host }} hostname
+- name: Store ECDSA key fingerprint on localhost for bastion host
+  command: ssh -o StrictHostKeyChecking=No {{ login_user }}@{{ ansible_host }} hostname
   delegate_to: localhost
-  changed_when: true
+  become: false
+  register: ssh_result
+  changed_when: '"Warning: Permanently added " in ssh_result.stderr'
   when:
     - (not used_bastion | bool) or
       vm_recreate_existing | default(true)
 
 - name: Remove old ECDSA key fingerprint on localhost
-  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.key }}"
+  command: ssh-keygen -f "{{ local_login_user_dir }}/.ssh/known_hosts" -R "{{ item.key }}"
   with_items: "{{ vm_ips | dict2items }}"
   delegate_to: localhost
-  changed_when: true
+  become: false
+  register: ssh_keygen_result
+  changed_when: '" not found in " not in ssh_keygen_result.stderr'
   when:
     - (not item.key in current_vms.stdout) or
       vm_recreate_existing | default(true)
 
 - name: Store ECDSA key fingerprint on localhost
-  command: ssh -o StrictHostKeyChecking=No {{ item.key }} hostname
+  command: ssh -o StrictHostKeyChecking=No {{ login_user }}@{{ item.key }} hostname
   with_items: "{{ vm_ips | dict2items }}"
   delegate_to: localhost
-  changed_when: true
+  become: false
+  register: ssh_result
+  changed_when: '"Warning: Permanently added " in ssh_result.stderr'
   when:
     - (not item.key in current_vms.stdout) or
       vm_recreate_existing | default(true)
+    - "vm_cluster_name | default('') | length == 0"

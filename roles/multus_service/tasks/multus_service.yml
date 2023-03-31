@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,36 +14,36 @@
 ##   limitations under the License.
 ##
 ---
-- name: check Multus Service Helm charts directory
-  stat:
+- name: Check Multus Service Helm charts directory
+  ansible.builtin.stat:
     path: "{{ (project_root_dir, 'charts', 'multus_service') | path_join }}"
   register: multus_service_path
 
-- name: create Multus Service Helm charts directory if needed
-  file:
+- name: Create Multus Service Helm charts directory if needed
+  ansible.builtin.file:
     path: "{{ (project_root_dir, 'charts', 'multus_service') | path_join }}"
     state: directory
     mode: 0755
   when:
     - multus_service_path.stat.exists is defined and not multus_service_path.stat.exists
 
-- name: copy Multus Service charts to the controller node
-  copy:
+- name: Copy Multus Service charts to the controller node
+  ansible.builtin.copy:
     src: "{{ (role_path, 'charts', 'multus_service') | path_join }}"
     dest: "{{ (project_root_dir, 'charts') | path_join }}"
     mode: 0755
 
-# - name: clone Multus Service repository
-  # git:
-    # repo: "{{ multus_service_git_url }}"
-    # dest: "{{ (project_root_dir, 'charts', 'multus_service') | path_join }}"
-    # version: "{{ multus_service_commit_hash }}"
-    # force: yes
+- name: Template custom values for chart
+  ansible.builtin.template:
+    src: "chart_values.j2"
+    dest: "{{ (project_root_dir, 'charts', 'multus_service', 'custom_values.yaml') | path_join }}"
+    mode: 0644
 
-- name: install Multus Service Helm chart
-  command: >-
-    helm install {{ multus_service_release_name }}
-    {{ (project_root_dir, 'charts', 'multus_service') | path_join }}
-    --namespace {{ multus_service_namespace }}
-    --create-namespace
-  changed_when: true
+- name: Install Multus Service Helm chart
+  kubernetes.core.helm:
+    release_name: "{{ multus_service_release_name }}"
+    release_namespace: "{{ multus_service_namespace }}"
+    chart_ref: "{{ (project_root_dir, 'charts', 'multus_service') | path_join }}"
+    create_namespace: true
+    values_files: "{{ (project_root_dir, 'charts', 'multus_service', 'custom_values.yaml') | path_join }}"
+    wait: true

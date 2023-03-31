@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -28,30 +28,30 @@
 #     mode: '0755'
 
 # - name: extract Intel FlexRAN
-#   shell: "echo | ./extract.sh" # noqa 301
+#   shell: "echo | ./extract.sh" # noqa no-changed-when
 #   args:
 #     chdir: "{{ intel_flexran_dir }}"
 
 - name: patch Intel FlexRAN for xx.yy.z release
   block:
-  - name: copy Intel FlexRAN patch file
-    ansible.builtin.copy:
-      src: "{{ (intel_flexran_staging_location, intel_flexran_patch) | path_join }}"
-      dest: "{{ (intel_flexran_dir, intel_flexran_patch) | path_join }}"
-      mode: '0644'
+    - name: copy Intel FlexRAN patch file
+      ansible.builtin.copy:
+        src: "{{ (intel_flexran_staging_location, intel_flexran_patch) | path_join }}"
+        dest: "{{ (intel_flexran_dir, intel_flexran_patch) | path_join }}"
+        mode: '0644'
 
-  - name: unzip Intel FlexRAN patch
-    ansible.builtin.unarchive:
-      src: "{{ (intel_flexran_dir, intel_flexran_patch) | path_join }}"
-      dest: "{{ intel_flexran_dir }}"
-      remote_src: yes
-      mode: '0755'
+    - name: unzip Intel FlexRAN patch
+      ansible.builtin.unarchive:
+        src: "{{ (intel_flexran_dir, intel_flexran_patch) | path_join }}"
+        dest: "{{ intel_flexran_dir }}"
+        remote_src: yes
+        mode: '0755'
 
-  - name: apply Intel FlexRAN patch
-    ansible.builtin.command: "./FlexRAN-R{{ intel_flexran_ver }}.sh"
-    args:
-      chdir: "{{ intel_flexran_dir }}"
-    changed_when: true
+    - name: apply Intel FlexRAN patch
+      ansible.builtin.command: "./FlexRAN-R{{ intel_flexran_ver }}.sh"
+      args:
+        chdir: "{{ intel_flexran_dir }}"
+      changed_when: true
   when: intel_flexran_ver | length > 5
 
 - name: set DPDK path for Intel FlexRAN
@@ -89,7 +89,7 @@
   changed_when: true
 
 - name: build FlexRAN ALL for 5GNR
-  shell: "ldconfig && export RTE_SDK={{ intel_flexran_dpdk_dir }} && source set_env_var.sh -d && export PKG_CONFIG_PATH=$RTE_SDK/build/meson-uninstalled && ./flexran_build.sh -e -r 5gnr {{ target_isa | default('') }}"  # noqa line-length
+  shell: "ldconfig && export RTE_SDK={{ intel_flexran_dpdk_dir }} && source set_env_var.sh -d && export PKG_CONFIG_PATH=$RTE_SDK/build/meson-uninstalled && ./flexran_build.sh -e -r 5gnr {{ target_isa | default('') }}"  # noqa yaml[line-length]
   args:
     executable: /bin/bash
     chdir: "{{ intel_flexran_dir }}"

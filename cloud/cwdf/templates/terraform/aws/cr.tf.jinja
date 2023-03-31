@@ -15,6 +15,25 @@ resource "aws_ecr_repository" "default" {
   )
 }
 
+{% for name in ecr_repositories %}
+resource "aws_ecr_repository" "{{ name }}" {
+  name                 = "{{ name }}"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "{{ name }}"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+{% endfor %}
+
 output "cr_url" {
   value = aws_ecr_repository.default.repository_url
 }

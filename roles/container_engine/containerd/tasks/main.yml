@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,38 +14,37 @@
 ##   limitations under the License.
 ##
 ---
-- block:
-    - name: create dest directory on node
-      file:
-        path: "{{ containerd_archive.dest | dirname }}"
-        owner: "{{ containerd_archive.owner }}"
-        mode: 0755
-        state: directory
-        recurse: yes
+- name: create dest directory on node
+  file:
+    path: "{{ containerd_archive.dest | dirname }}"
+    owner: "{{ containerd_archive.owner }}"
+    mode: 0755
+    state: directory
+    recurse: yes
 
-    - name: download containerd archive
-      get_url:
-        url: "{{ containerd_archive.url }}"
-        dest: "{{ containerd_archive.dest }}"
-        owner: "{{ containerd_archive.owner }}"
-        mode: "{{ containerd_archive.mode }}"
-        checksum: "{{ 'sha256:' + containerd_archive.sha256 }}"
-      delegate_to: "{{ inventory_hostname }}"
-      register: get_url_result
-      until: "'OK' in get_url_result.msg or 'file already exists' in get_url_result.msg"
-      retries: 4
-      delay: 5
-      no_log: true
+- name: download containerd archive
+  get_url:
+    url: "{{ containerd_archive.url }}"
+    dest: "{{ containerd_archive.dest }}"
+    owner: "{{ containerd_archive.owner }}"
+    mode: "{{ containerd_archive.mode }}"
+    checksum: "{{ 'sha256:' + containerd_archive.sha256 }}"
+  delegate_to: "{{ inventory_hostname }}"
+  register: get_url_result
+  until: "'OK' in get_url_result.msg or 'file already exists' in get_url_result.msg"
+  retries: 4
+  delay: 5
+  no_log: true
 
-    - name: unpack containerd archive
-      unarchive:
-        src: "{{ containerd_archive.dest }}"
-        dest: "{{ containerd_bin_dir }}"
-        mode: 0755
-        remote_src: yes
-        extra_opts:
-          - --strip-components=1
-      notify: restart containerd
+- name: unpack containerd archive
+  unarchive:
+    src: "{{ containerd_archive.dest }}"
+    dest: "{{ containerd_bin_dir }}"
+    mode: 0755
+    remote_src: yes
+    extra_opts:
+      - --strip-components=1
+  notify: restart containerd
 
 - name: ensure containerd directories exist
   file:
@@ -100,3 +99,7 @@
     name: containerd
     enabled: yes
     state: started
+
+- name: install podman
+  include_role:
+    name: container_engine/podman # noqa role-name[path] - role in container_engine

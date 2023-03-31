@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,11 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: apt auto-remove of not-needed packages
-  ansible.builtin.apt:
-    autoremove: true
-  when: ansible_os_family == 'Debian'
-
 - name: refresh apt repository cache
   ansible.builtin.apt:
     update_cache: yes

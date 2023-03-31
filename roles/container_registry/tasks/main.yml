@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@
 - name: clean up temporary files
   file: path=registry_htpasswd state=absent
   delegate_to: localhost
-  become: no
+  become: false
   run_once: yes
   when: inventory_hostname == groups['kube_control_plane'][0]
 
@@ -94,6 +94,7 @@
   register: delete_result
   changed_when: delete_result is not failed
   failed_when: false
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install container registry application
   command: "kubectl apply -f {{ container_registry_path }} --namespace {{ registry_namespace }}"
@@ -118,7 +119,7 @@
 - name: check nodes status
   block:
     - name: check nodes status
-      # noqa 305 - shell is used intentionally here
+      # noqa command-instead-of-shell - shell is used intentionally here
       shell: kubectl get nodes
       register: status
       changed_when: false
@@ -137,7 +138,7 @@
     force_basic_auth: yes
   register: result
   until: result.status == 200
-  retries: 180
+  retries: 600
   delay: 1
 
 - name: install Python docker module

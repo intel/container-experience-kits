@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -55,8 +55,8 @@
   kubernetes.core.helm:
     release_name: "{{ cpu_ctlplane_release_name }}"
     release_namespace: "{{ cpu_ctlplane_namespace }}"
+    release_values: "{{ lookup('template', 'custom_values.yml.j2') | from_yaml }}"
     create_namespace: true
     chart_ref: "{{ (project_root_dir, 'charts', 'intel-cpu-controlplane') | path_join }}"
     chart_version: "{{ cpu_ctlplane_local_tag_name }}"
-    values: "{{ lookup('template', 'custom_values.yml.j2') | from_yaml }}"
     wait: true

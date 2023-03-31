@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -50,3 +50,13 @@
     state: restarted
   when: ansible_os_family == "Debian"
   failed_when: false
+
+  # On Ubuntu restart of systemd-resolved blocks outgoing traffic from vxlanbr
+  # which cause that VMs become unreachable for about 30-40 seconds
+  # It does not happen immediately during/after systemd-resolved restart. It appears
+  # few seconds later so, we can't simply wait for connection.
+  # Real root cause have to be investigated if needed.
+- name: wait for resolver/network to be ready after restart
+  pause:
+    prompt: "Waiting for resolver/network to be ready after restart..."
+    minutes: 1

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -56,7 +56,6 @@
       set_fact:
         calico_vxlan_mode: 'CrossSubnet'
         calico_ipip_mode: 'Never'
-        calico_feature_detect_override: "ChecksumOffloadBroken=true"
       when:
         - kube_network_plugin == "calico"
         - calico_network_backend == "vxlan"
@@ -75,8 +74,14 @@
         - not calico_advanced_options
     - name: prepare ADQ facts
       set_fact:
+        calico_ipv4pool_ipip: "Never"
+        calico_ip_auto_method: "interface={{ adq_dp.interface_name }}"
+        calico_vxlan_mode: "Always"
         kube_proxy_remove: true
-      when: adq_dp.enabled | d(false) | bool
+        calico_endpoint_to_host_action: "ACCEPT"
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+        - adq_dp.enabled | d(false) | bool
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -106,23 +111,33 @@
         skip_downloads: false
         etcd_deployment_type: host
       when: container_runtime == "crio"
+    # this is workaround for crio as 1.25 currently doesn't work with SGX
+    # https://github.com/opencontainers/runtime-tools/issues/759
+    - name: change cri-o version when sgx is enabled
+      set_fact:
+        crio_version: v1.24.3
+      when: sgx_dp_enabled | default(false) and container_runtime == "crio"
 
-- name: run kubespray
-  import_playbook: "{% if scale | default(false) | bool %}kubespray/scale.yml{% else %}kubespray/cluster.yml{% endif %}"
+    # Workaround until kubespray will fix it
+    # Cillium operator has set 2 replicas by default which is not good for single-node deployment
+    - name: Set cillium replicas to 1 in single-node deployment
+      ansible.builtin.set_fact:
+        cilium_operator_replicas: 1
+      when: groups.k8s_cluster | length == 1
+
+# Run kubespray to deploy or scale cluster
+- import_playbook: "{% if scale | default(false) | bool %}kubespray/scale.yml{% else %}kubespray/cluster.yml{% endif %}"
   vars:
+    any_errors_fatal: true
     kubeadm_enabled: true
     helm_enabled: true
     krew_enabled: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
-    multus_image_tag: "v3.9.2-amd64"
-    nginx_image_tag: 1.23.0-alpine
+    multus_image_tag: "v3.9.3-amd64"
+    nginx_image_tag: 1.23.3-alpine
     calico_node_livenessprobe_timeout: 15
     calico_node_readinessprobe_timeout: 15
     enable_network_policy: true
-    cri_dockerd_version: 0.2.6
-    cri_dockerd_archive_checksums:
-      amd64:
-        0.2.6: 5d57b160d5a1f75333149823bec3e291a1a0960383ddc9ddd6e4ff177382c755
     override_system_hostname: false
     kube_proxy_mode: iptables
     enable_nodelocaldns: false
@@ -157,7 +172,7 @@
       topologyManagerPolicy: "{% if topology_manager_enabled | default(true) %}{{ topology_manager_policy | default('none') }}{% else %}none{% endif %}"
       eventRecordQPS: 0
     kube_apiserver_request_timeout: 60s
-    kube_apiserver_enable_admission_plugins: ["EventRateLimit", "DefaultStorageClass", "NodeRestriction", "{% if always_pull_enabled %}AlwaysPullImages,{% endif %}PodSecurity"] # noqa line-length
+    kube_apiserver_enable_admission_plugins: ["EventRateLimit", "DefaultStorageClass", "NodeRestriction", "{% if always_pull_enabled %}AlwaysPullImages,{% endif %}PodSecurity"] # noqa yaml[line-length]
     kube_apiserver_admission_control_config_file: true
     kube_apiserver_admission_event_rate_limits:
       limit_1:
@@ -192,16 +207,9 @@
       - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
     etcd_extra_vars:
       ETCD_CIPHER_SUITES: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
-  any_errors_fatal: true
 
 - hosts: k8s_cluster
   tasks:
-    - name: deploy Cilium
-      include_role:
-        name: cilium
-      when:
-        - inventory_hostname == groups['kube_control_plane'][0]
-        - adq_dp.enabled | d(false) | bool
     - name: restart docker daemon to recreate iptables rules
       systemd: name=docker state=restarted
       become: yes
@@ -260,25 +268,10 @@
       changed_when: true
       failed_when: false
 
-    - name: fix podman dependencies
-      apt:
-        name:
-          - golang-github-containers-common
-          - golang-github-containers-image
-        dpkg_options: 'force-confdef,force-confold'
-        state: latest # noqa package-latest
-      when:
-        - '"crio" in container_runtime'
-        - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
-
-    - name: install podman package
-      package:
-        name: podman
-        state: present
-      register: podman_package
-      retries: 10
-      until: podman_package is success
-      when: '"docker" not in container_runtime'
+    - name: install podman
+      ansible.builtin.include_role:
+        name: container_engine/podman # noqa role-name[path] - role in container_engine
+      when: container_runtime in ["containerd", "crio"]
 
     - name: registries.conf configuration on containerd
       block:
@@ -295,20 +288,40 @@
           when: registries_conf.stat.exists
       when: container_runtime == "containerd"
 
-    - block:
-        - name: check if calico-kube-controller is deployed
-          ansible.builtin.command: kubectl get deployment -n kube-system
-          register: calico_kube_controller_status
-          changed_when: false
+    - name: Get cri-dockerd command line args
+      shell: set -o pipefail && cat /etc/systemd/system/cri-dockerd.service | grep ExecStart
+      args:
+        executable: /bin/bash
+      register: dockerd_cmd
+      failed_when: dockerd_cmd.rc != 0
+      changed_when: false
+      when: container_runtime == "docker"
 
-        - name: remove calico-kube-controller
-          command: kubectl delete -f calico-kube-controllers.yml
-          args:
-            chdir: /etc/kubernetes/
-          when: "'calico-kube-controllers' in calico_kube_controller_status.stdout"
+    - name: Limit cri-dockerd to listen on localhost
+      block:
+        - name: Create cri-dockerd drop-in directory
+          file:
+            path: /etc/systemd/system/cri-dockerd.service.d
+            state: directory
+            mode: 0755
+
+        - name: Create cri-dockerd service drop-in
+          copy:
+            dest: /etc/systemd/system/cri-dockerd.service.d/bind-addr.conf
+            content: |
+              [Service]
+              ExecStart=
+              {{ dockerd_cmd.stdout }} --streaming-bind-addr=127.0.0.1
+            mode: 0644
+
+        - name: Restart cri-dockerd service
+          systemd:
+            name: cri-dockerd
+            state: restarted
+            daemon_reload: yes
       when:
-        - inventory_hostname == groups['kube_control_plane'][0]
-        - kube_network_plugin == "calico"
+        - container_runtime == "docker"
+        - "'streaming-bind-addr' not in dockerd_cmd.stdout"
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -345,6 +358,6 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-- name: run certificate generation for mTLS in kubelet
-  import_playbook: kubelet-certificates.yml
+# Run certificate generation for mTLS in kubelet
+- import_playbook: kubelet-certificates.yml
   when: kubernetes | default(true)

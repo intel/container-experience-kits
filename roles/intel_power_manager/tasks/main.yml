@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,27 +15,22 @@
 ##
 ---
 - name: install dependencies for Power Manager
-  include_role:
+  ansible.builtin.include_role:
     name: install_dependencies
 
 - name: add labels for Power Nodes
-  command: kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} intel.power.node=true --overwrite
+  ansible.builtin.command: kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} intel.power.node=true --overwrite
   loop: "{{ intel_power_manager.power_nodes }}"
   when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: prepare App QoS
-  include_tasks: app_qos.yml
+  ansible.builtin.include_tasks: app_qos.yml
 
 - name: prepare Intel Kubernetes Power Manager
-  include_tasks: power_manager.yml
-
-- name: wait for Power Manager and Power Node Agent to be up and running
-  pause:
-    prompt: "Waiting for Power Manager pods to be up and running..."
-    minutes: 1
+  ansible.builtin.include_tasks: power_manager.yml
 
 - name: deploy example power pods
-  include_tasks: deploy_sample_pods.yml
+  ansible.builtin.include_tasks: deploy_sample_pods.yml
   when:
     - intel_power_manager.deploy_example_pods
     - inventory_hostname == groups['kube_control_plane'][0]
@@ -44,14 +39,14 @@
 - name: prepare and deploy Global Shared Power Profile
   block:
     - name: populate Global Shared Profile template to the controller node
-      template:
+      ansible.builtin.template:
         src: global_shared_profile.yml.j2
         dest: "{{ (intel_power_manager_dir, 'global_shared_profile.yml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: deploy Global Shared Profile
-      k8s:
+      kubernetes.core.k8s:
         src: "{{ (intel_power_manager_dir, 'global_shared_profile.yml') | path_join }}"
         state: present
   when:
@@ -61,7 +56,7 @@
 - name: prepare and deploy Local Shared Power Profiles/Workloads
   block:
     - name: deploy shared resources
-      include_tasks: deploy_shared_resources.yml
+      ansible.builtin.include_tasks: deploy_shared_resources.yml
       loop: "{{ groups['kube_node'] }}"
       loop_control:
         loop_var: node_name

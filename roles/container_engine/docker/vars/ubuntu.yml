@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,12 +15,12 @@
 ##
 ---
 # containerd versions are only relevant for docker
-containerd_versioned_pkg: "{{ containerd_package }}=1.6.4-1"
+containerd_versioned_pkg: "{{ containerd_package }}={{ containerd_version }}-1"
 
 # https://download.docker.com/linux/ubuntu/
-docker_versioned_pkg: "docker-ce=5:20.10.20~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
+docker_versioned_pkg: "docker-ce=5:{{ docker_version }}~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
 
-docker_cli_versioned_pkg: "docker-ce-cli=5:20.10.20~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
+docker_cli_versioned_pkg: "docker-ce-cli=5:{{ docker_cli_version }}~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
 
 docker_package_info:
   pkgs:

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,25 +14,43 @@
 ##   limitations under the License.
 ##
 ---
+- name: Add required CNI configuration - calico
+  ansible.builtin.lineinfile:
+    path: "{{ ( '/etc', 'cni', 'net.d', 'calico.conflist.template' ) | path_join }}"
+    state: present
+    firstmatch: false
+    insertbefore: ']'
+    line: |-
+      ,{
+        "type": "adq-cni",
+        "tunneling": "vxlan",
+        "tunneling-interface": "vxlan.calico",
+        "kubeletServerName": "{{ kube_service_addresses | ipaddr('next_usable') }}",
+        "kubeletPort": "443",
+        "kubeletCAPath": "/etc/kubernetes/pki/ca.crt"
+      }
+
 - block:
-    - name: set_fact for Cilium
-      set_fact:
-        adq_cilium_deploy: true
+    - name: restart Calico pods
+      ansible.builtin.shell: "kubectl delete pod $(kubectl get pods -n kube-system | grep calico | awk '{ print $1 }') -n kube-system"
+      args:
+        executable: /bin/bash
+      changed_when: true
 
     - name: create Intel ADQ Device Plugin directory
-      file:
+      ansible.builtin.file:
         path: "{{ intel_adq_dp_dir }}"
         state: directory
         mode: '0755'
 
     - name: clone Intel ADQ Device Plugin repository
-      git:
+      ansible.builtin.git:
         repo: "{{ intel_adq_dp_git_url }}"
         dest: "{{ (intel_adq_dp_dir, 'adq-k8s-plugins') | path_join }}"
         version: "{{ intel_adq_dp_version }}"
 
     - name: copy Intel ADQ cluster role
-      copy:
+      ansible.builtin.copy:
         src: adq-cluster-role.yml
         dest: "{{ (intel_adq_dp_dir, 'adq-cluster-role.yml') | path_join }}"
         owner: root
@@ -40,7 +58,7 @@
         mode: '0644'
 
     - name: template Intel ADQ files
-      template:
+      ansible.builtin.template:
         src: "{{ item.src }}"
         dest: "{{ (intel_adq_dp_dir, item.dst) | path_join }}"
         force: yes
@@ -52,11 +70,16 @@
         - {src: 'adq-cni-dp-ds.yml.j2', dst: 'adq-cni-dp-ds.yml'}
 
     - name: create Intel ADQ cluster config
-      command: "kubectl apply -f {{ (intel_adq_dp_dir, 'adq-cluster-config.yml') | path_join }}"
+      ansible.builtin.command: "kubectl apply -f {{ (intel_adq_dp_dir, 'adq-cluster-config.yml') | path_join }}"
       changed_when: true
 
+    - name: Patch ADQ kubeletclient
+      ansible.posix.patch:
+        src: "files/kubeletclient.patch"
+        dest: "{{ (intel_adq_dp_dir, 'adq-k8s-plugins', 'pkg', 'kubeletclient', 'kubeletclient.go' ) | path_join }}"
+
     - name: build Intel ADQ Device Plugin images
-      command: "podman build --build-arg=BUILD_VERSION={{ intel_adq_dp_version }} -f {{ item.file }} -t {{ item.tag }} ."
+      ansible.builtin.command: "podman build --build-arg=BUILD_VERSION={{ intel_adq_dp_version }} -f {{ item.file }} -t {{ item.tag }} ."
       changed_when: true
       args:
         chdir: "{{ (intel_adq_dp_dir, 'adq-k8s-plugins') | path_join }}"
@@ -66,25 +89,21 @@
         - {file: 'Dockerfile', tag: "{{ registry_local_address }}/adq-cni-dp:{{ intel_adq_dp_version }}"}
 
     - name: push Intel ADQ Device Plugin images
-      command: "podman push {{ registry_local_address }}/{{ item }}:{{ intel_adq_dp_version }}"
+      ansible.builtin.command: "podman push {{ registry_local_address }}/{{ item }}:{{ intel_adq_dp_version }}"
       changed_when: true
       loop:
         - "adqsetup"
         - "adqexporter"
         - "adq-cni-dp"
 
-    - name: deploy Cilium
-      include_role:
-        name: cilium
-
     - name: create Intel ADQ Device Plugin resources
-      command: kubectl apply -f ./
+      ansible.builtin.command: kubectl apply -f ./
       changed_when: true
       args:
         chdir: "{{ intel_adq_dp_dir }}"
 
     - name: check if ADQ pods are running
-      shell: set -o pipefail && kubectl get pods -n kube-system | grep -i adq | awk '{ print $3 }'
+      ansible.builtin.shell: set -o pipefail && kubectl get pods -n kube-system | grep -i adq | awk '{ print $3 }'
       args:
         executable: /bin/bash
       register: adq_pods_status
@@ -99,28 +118,23 @@
         - "'Init' not in adq_pods_status.stdout"
       changed_when: false
 
-    - name: restart unmanaged pods
-      shell: >-
-        set -o pipefail && kubectl get pods --all-namespaces
-        -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,HOSTNETWORK:.spec.hostNetwork --no-headers=true
-        | grep '<none>' | awk '{print "-n "$1" "$2}' | xargs -L 1 -r kubectl delete pod
-      args:
-        executable: /bin/bash
+    - name: restart pods
+      ansible.builtin.command: kubectl delete pods --all -A
       changed_when: true
 
     - name: check if all pods are running
-      shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
+      ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
       args:
         executable: /bin/bash
-      register: cilium_pods_status
+      register: post_restart_pods_status
       retries: 30
       delay: 15
       until:
-        - "'Error' not in cilium_pods_status.stdout"
-        - "'CrashLoopBackOff' not in cilium_pods_status.stdout"
-        - "'Terminating' not in cilium_pods_status.stdout"
-        - "'ContainerCreating' not in cilium_pods_status.stdout"
-        - "'Pending' not in cilium_pods_status.stdout"
+        - "'Error' not in post_restart_pods_status.stdout"
+        - "'CrashLoopBackOff' not in post_restart_pods_status.stdout"
+        - "'Terminating' not in post_restart_pods_status.stdout"
+        - "'ContainerCreating' not in post_restart_pods_status.stdout"
+        - "'Pending' not in post_restart_pods_status.stdout"
       changed_when: false
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

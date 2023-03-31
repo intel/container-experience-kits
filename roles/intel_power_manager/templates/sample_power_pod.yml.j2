@@ -4,7 +4,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: {{ profile_name }}-power-pod
-  namespace: intel-power
+  namespace: {{ intel_power_manager_namespace }}
 spec:
   containers:
   - name: {{ profile_name }}-container

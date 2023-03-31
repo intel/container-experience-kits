@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
 ##   limitations under the License.
 ##
 ---
+- name: Set VXLAN interface name
+  include_tasks: vxlan_interface_name.yml
+
 - name: Configure VXLAN bridges
   include_tasks: configure_bridges.yml
   loop: "{{ vms }}"
@@ -39,6 +42,7 @@
     - ansible_facts.services['networking.service'] is defined
     - ansible_facts.services['networking.service'].state != "stopped"
     - ansible_facts.services['networking.service'].status != "not-found"
+    - vxlan_interface | length > 0
 
 - name: networkd service
   block:
@@ -55,7 +59,7 @@
 
     - name: Remove duplicates in list
       set_fact:
-        vxlan_list: "{{ vxlan_list | unique }}"
+        vxlan_list: "{{ vxlan_list | list | unique }}"
 
     - name: Configure VXLAN interfaces (systemd networkd)
       include_tasks: intfs_networkd.yml
@@ -67,3 +71,4 @@
       ((ansible_facts.services['networking.service'] is defined) and
       (ansible_facts.services['networking.service'].state == "stopped") and
       (ansible_facts.services['networking.service'].status == "not-found"))
+    - vxlan_interface | length > 0

@@ -56,6 +56,12 @@ def add_nic_parameter(profiles: dict, args: argparse.Namespace) -> None:
     for p in profiles.values():
         p['nic'] = args.nic
 
+def add_mirrors_parameter(profiles: dict, args: argparse.Namespace) -> None:
+    """Add mirrors information to profiles config"""
+    for p in profiles.values():
+        print(args.mirrors)
+        p['mirrors'] = args.mirrors
+
 def create_backups(src: str, dirs: list=[], files: list=[]) -> None:
     """Create backup for given dirs/files"""
     # create specific backup dir

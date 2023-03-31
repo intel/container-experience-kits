@@ -1,14 +1,16 @@
 from asyncio.subprocess import DEVNULL
 import json
 import os
-import pprint
-import subprocess
+import subprocess # nosec B404 # subrocess is set to shell=False
 import paramiko
 import sys
 import fnmatch
+import pathlib
 import yaml
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 from ssh_connector import SSHConnector
+
+ARCH_FILE = os.path.join(pathlib.Path(__file__).absolute().parent.resolve(), "cpu_arch.yml")
 
 qat_pf_ids = ['0435', '37c8', '19e2', '18ee', '6f54', '18a0', '4940', '4942']
 qat_vf_ids = ['0443', '37c9', '19e3', '18ef', '6f55', '18a1', '4941', '4943']
@@ -43,7 +45,6 @@ class Remote:
 
     def close(self):
         self.close
-
 
 def check_output(cmd, split=False):
     if remote is not None:
@@ -337,7 +338,8 @@ def get_host_info():
 
 def get_cpu_arch_codename(cpu_model):
     cpu_codename_arch = ''
-    with open("cpu_arch.yml", "r") as stream:
+    cpu_models = None
+    with open(ARCH_FILE, "r") as stream:
         try:
             cpu_models = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
@@ -447,6 +449,5 @@ def main(ip_addr, username, key_filename):
 
 
 if __name__ == "__main__":
-    get_cpu_arch_codename(cpu_model='Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz')
-    #if len(sys.argv) > 1:
-    #    main(sys.argv[1], sys.argv[2], sys.argv[3])
+    if len(sys.argv) > 1:
+        main(sys.argv[1], sys.argv[2], sys.argv[3])

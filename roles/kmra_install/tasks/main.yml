@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@
           or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
 
     - name: load udev rules
-      # noqa 305 - shell is used intentionally here
+      # noqa command-instead-of-shell - shell is used intentionally here
       shell: udevadm trigger
       when:
         - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
@@ -128,7 +128,7 @@
         name: install_dependencies
 
     - name: cleanup existing artifacts
-      include: cleanup.yml
+      include_tasks: cleanup.yml
 
     - name: label worker node with KMRA label
       command: kubectl label nodes {{ hostvars[groups['kube_node'][0]]['ansible_hostname'] }} app=kmra --overwrite
@@ -141,7 +141,7 @@
         state: present
 
     - name: create k8s tls secrets for apphsm and ctk apps
-      include: create_tls_secrets.yml
+      include_tasks: create_tls_secrets.yml
       vars:
         kmra_apps:
           - {
@@ -242,14 +242,15 @@
         - kmra.apphsm.enabled | default(false)
 
     - name: Wait for apphsm to start
-      shell: "set -o pipefail && kubectl get pods -n kmra | grep 'apphsm.*Running'"
-      args:
-        executable: /bin/bash
-      register: apphsm_status
-      retries: 60
-      delay: 10
-      until: apphsm_status.stdout | length > 0
-      changed_when: true
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: kmra-apphsm
+        namespace: "{{ kmra.namespace }}"
+        wait: true
+        wait_condition:
+          reason: MinimumReplicasAvailable
+          type: Available
+        wait_timeout: 600
 
     - name: install KMRA Ctk loadkey helm chart
       command: >-

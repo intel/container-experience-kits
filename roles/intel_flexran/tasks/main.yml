@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,6 +14,22 @@
 ##   limitations under the License.
 ##
 ---
+- debug: msg="Entering FlexRAN Role"
+
+- name: remove oRU from inventory (if defined) to skip its tasks in 'timer' test mode
+  block:
+    - ansible.builtin.lineinfile:
+        path: "{{ (inventory_dir, 'inventory.ini') | path_join }}"
+        state: absent
+        search_string: "{{ groups['oru'][0] }}"
+      delegate_to: localhost
+      become: false
+    - name: reinitialize inventory
+      meta: refresh_inventory
+  when:
+    - groups['oru'][0] is defined
+    - intel_flexran_type == "pod" or intel_flexran_mode == "timer" # oRU box needed only for type Host and mode xRAN
+
 - name: preflight check for Intel FlexRAN
   include_tasks: flexran_preflight.yml
 
@@ -32,23 +48,43 @@
   changed_when: false
   when: ansible_distribution == 'RedHat'
 
+- name: configure power settings (CPU Frequency and cstate)
+  include_tasks: power.yml
+  when: inventory_hostname == groups['kube_node'][0]
+
 - name: deploy Intel oneAPI
   include_tasks: oneapi.yml
 
 - name: deploy Intel FlexRAN
   include_tasks: flexran.yml
+  when: intel_flexran_type == "host"
 
 - name: set FEC Acc for Intel FlexRAN
   include_role:
     name: intel_sriov_fec_operator
     tasks_from: fec_dev
-  when: not intel_sriov_fec_operator_enabled
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+    - not intel_sriov_fec_operator_enabled
 
 - debug: msg="FEC Accelerator device at {{ fec_acc }} is {{ fec_dev }}"
+  when: inventory_hostname == groups['kube_node'][0]
+
+- name: bind dpdk drivers to FEC ACC device(s)
+  include_tasks: bind_fec.yml
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+
+- name: bind dpdk drivers to DP VF device(s)
+  include_tasks: bind_eth.yml
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+    - intel_flexran_type == "pod"
 
 - name: deploy Intel pf_bb (Physical Function Baseband) device config app
   include_tasks: pf_bb.yml
-  when: inventory_hostname == groups['kube_node'][0]
+  when:
+    - inventory_hostname == groups['kube_node'][0]
 
 - name: configure FEC Accelerator Device
   include_tasks: fec_acc.yml
@@ -58,16 +94,23 @@
   when:
     - inventory_hostname == groups['kube_node'][0]
     - fec_acc is defined
-# TODO: multi-host multi-acc
+
+- name: deploy Intel FlexRAN in Docker POD
+  include_tasks: pod.yml
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+    - intel_flexran_type == "pod"
 
 - name: test Timer Mode
   include_tasks: timer_mode.yml
   when:
     - inventory_hostname == groups['kube_node'][0]
     - intel_flexran_mode == "timer"
+    - intel_flexran_type == "host"
 
 - name: test xRAN Mode
   include_tasks: xran_mode.yml
   when:
     - inventory_hostname == groups['kube_node'][0]
     - intel_flexran_mode == "xran"
+    - intel_flexran_type == "host"

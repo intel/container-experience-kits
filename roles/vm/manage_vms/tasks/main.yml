@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 ---
 - name: Allocate cpus in case it's not done already by isolcpus
   include_role:
-    name: bootstrap/allocate_cpus
+    name: bootstrap/allocate_cpus # noqa role-name[path] - role in bootstrap
   when:
     - isolcpus_cpus_total is not defined and not isolcpus_cpus_total
 
 - name: Start VMs
-  include: start_vm.yml
+  include_tasks: start_vm.yml
   loop: "{{ cpupin_vms | default([]) }}"
   loop_control:
     loop_var: vm

@@ -1,0 +1,138 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check igb_uio module is loaded
+  shell: "set -o pipefail && lsmod | grep -i igb_uio"
+  args:
+    executable: /bin/bash
+  register: igb_uio_module
+  changed_when: false
+  failed_when: igb_uio_module.rc != 0
+
+- name: insert igb_uio module
+  when: "'igb_uio' not in igb_uio_module.stdout"
+  block:
+    - name: clone DPDK-KMODS repository
+      git:
+        repo: "http://dpdk.org/git/dpdk-kmods"
+        version: "e68a705cc5dc3d1333bbcd722fe4e9a6ba3ee648" # latest as of July 2022
+        dest: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods') | path_join }}"
+        force: yes
+
+#    - name: build igb_uio
+#      make:
+#        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
+
+#    - name: build igb_uio with command
+#      command: make
+#      args:
+#        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
+
+    # Using shell since the make built-in module and command (above) both get errors
+    - name: build igb_uio with shell
+      shell: "make" # noqa command-instead-of-shell
+      args:
+        executable: /bin/bash
+        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
+      changed_when: true
+
+    - name: load uio
+      modprobe:
+        name: uio
+        state: present
+
+    - name: load igb_uio
+      command: insmod igb_uio.ko
+      args:
+        chdir: "{{ (intel_flexran_dpdk_dir, 'dpdk-kmods/linux/igb_uio') | path_join }}"
+      changed_when: false
+      failed_when: false
+
+- debug: msg="fec_acc pciid is {{ fec_acc | regex_replace('^ip-', '') }}"
+
+- name: bind FEC ACC physical device
+  ansible.builtin.command: "{{ (intel_flexran_dpdk_dir, 'usertools', 'dpdk-devbind.py -b igb_uio ' + fec_acc) | path_join }}"
+#  ansible.builtin.command: date # "dpdk-devbind.py -b igb_uio {{ fec_acc }}"
+#    chdir: "{{ (intel_flexran_dpdk_dir, 'usertools') | path_join }}"
+  register: fec_bind_set
+  changed_when: fec_bind_set.rc == 0
+
+- name: show DPDK devices binding status
+  ansible.builtin.command: "{{ (intel_flexran_dpdk_dir, 'usertools', 'dpdk-devbind.py -s') | path_join }}"
+  register: fec_bind_show
+  changed_when: false
+
+- debug: msg="{{ fec_bind_show.stdout }}"
+
+- name: set FEC ACC virtual device for FlexRAN in Docker POD
+  block:
+    - name: load vfio-pci
+      modprobe:
+        name: vfio-pci
+        state: present
+
+    - name: reset FEC VFs
+#     ansible.builtin.copy:
+#        dest: "{{ ('/sys/bus/pci/devices/', fec_acc, 'max_vfs') | path_join }}"
+#        content: "0"
+#        force: yes
+# MSG:
+# The destination directory (/sys/bus/pci/devices/0000:51:00.0) is not writable by the current user.
+# Error was: [Errno 13] Permission denied: #b'/sys/bus/pci/devices/0000:51:00.0/.ansible_tmpx26av47dmax_vfs'
+      shell: "echo 0 > {{ ('/sys/bus/pci/devices/', fec_acc, 'max_vfs') | path_join }}" # noqa command-instead-of-shell
+      args:
+        executable: /bin/bash
+      register: set_fec_max_vfs
+      changed_when: set_fec_max_vfs.rc == 0
+      failed_when: set_fec_max_vfs.rc != 0
+
+    - name: instate one FEC VF
+#      ansible.builtin.copy:
+#        dest: "{{ ('/sys/bus/pci/devices/', fec_acc, 'max_vfs') | path_join }}"
+#        content: "1"
+#        force: yes
+      shell: "echo 1 > {{ ('/sys/bus/pci/devices/', fec_acc, 'max_vfs') | path_join }}"
+      args:
+        executable: /bin/bash
+      register: set_fec_max_vfs
+      changed_when: set_fec_max_vfs.rc == 0
+      failed_when: set_fec_max_vfs.rc != 0
+
+    - name: probe for FEC VF
+      shell: "set -o pipefail && lspci | grep -i acc | grep -i 0d5d" # noqa command-instead-of-shell
+      args:
+        executable: /bin/bash
+      register: acc_vf_probe
+      changed_when: false
+      failed_when: acc_vf_probe.rc != 0
+
+    - debug: msg="{{ acc_vf_probe.stdout }}"
+
+    - set_fact:
+        fec_acc_vf: "{{ acc_vf_probe.stdout.split(' ').0 }}"
+
+    - debug: msg="fec_acc_vf is at {{ fec_acc_vf }}"
+
+    - name: bind FEC ACC VF device
+      shell: "./dpdk-devbind.py -b vfio-pci {{ fec_acc_vf }} && ./dpdk-devbind.py -s" # noqa command-instead-of-shell
+      args:
+        executable: /bin/bash
+        chdir: "{{ (intel_flexran_dpdk_dir, 'usertools') | path_join }}"
+      register: fec_bind
+      changed_when: fec_bind.rc == 0
+      failed_when: fec_bind.rc != 0
+
+  when: intel_flexran_type == "pod"

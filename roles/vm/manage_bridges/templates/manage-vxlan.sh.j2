@@ -1,6 +1,6 @@
 #! /bin/bash
 
-interface="{{ vxlan_device }}"
+interface="{{ vxlan_interface }}"
 vxlans="{{ vxlan_list | join(' ') }}"
 mtu_size="{{ vxlan_mtu }}"
 

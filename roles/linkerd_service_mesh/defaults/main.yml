@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 # defaults file for linkerd-cli
 linkerd_cli_arch: "amd64"
 linkerd_release: "stable"
-linkerd_version: "2.12.1"
+linkerd_version: "2.12.4"
 linkerd_cli_version: "{{ linkerd_version }}"
 linkerd_cli_uri:
     "https://github.com/linkerd/linkerd2/releases/download/{{ linkerd_release }}-{{ linkerd_cli_version }}/\

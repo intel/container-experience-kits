@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 operator_sdk_git: "https://github.com/operator-framework/operator-sdk.git"
-operator_sdk_git_ref: "v1.25.1"
+operator_sdk_git_ref: "v1.26.0"
 operator_sdk_dir: "{{ (project_root_dir, 'operator-sdk') | path_join }}"
 
 operator_lm_version: "v0.22.0"

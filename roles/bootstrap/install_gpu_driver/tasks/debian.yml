@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
     url: "{{ gpu_repo_key_url }}"
     dest: "{{ gpu_key_text_path }}"
     force: yes
+    mode: 0644
 
 # TODO: This file will block the gpg command if not removed.
 - name: Remove the key file
@@ -53,6 +54,44 @@
   apt:
     name: "{{ gpu_oem_kernel_image }}"
 
+- name: Fetch kernel fisrt entry
+  shell: "set -o pipefail && cat /boot/grub/grub.cfg | grep submenu | awk -F \"'\" '{print $2}'"
+  args:
+    executable: /bin/bash
+  register: kernel_fisrt_entry
+  failed_when: kernel_fisrt_entry.rc > 1
+  changed_when: false
+
+- debug: msg={{ kernel_fisrt_entry.stdout }}
+
+- name: Fetch kernel second entry
+  shell: "set -o pipefail && cat /boot/grub/grub.cfg | grep menuentry | grep {{ gpu_oem_kernel_version }} | grep -v recovery | awk -F \"'\" '{print $2}'"
+  args:
+    executable: /bin/bash
+  register: kernel_second_entry
+  failed_when: kernel_second_entry.rc > 1
+  changed_when: false
+
+- debug: msg={{ kernel_second_entry.stdout }}
+
+- name: Set OEM kernel(2-level entries) as default boot kernel
+  lineinfile:
+    path: /etc/default/grub
+    regexp: "^GRUB_DEFAULT"
+    line: GRUB_DEFAULT="{{ kernel_fisrt_entry.stdout }}>{{ kernel_second_entry.stdout }}"
+  when: kernel_fisrt_entry.stdout != ""
+
+- name: Set OEM kernel(1-level entry) as default boot kernel
+  lineinfile:
+    path: /etc/default/grub
+    regexp: "^GRUB_DEFAULT"
+    line: GRUB_DEFAULT="{{ kernel_second_entry.stdout }}"
+  when: kernel_fisrt_entry.stdout == ""
+
+- name: Update boot configure
+  command: "update-grub"
+  changed_when: false
+
 - name: Reboot to updated kernel
   reboot:
     reboot_timeout: 1200
@@ -78,6 +117,31 @@
   retries: "{{ number_of_retries | default(5) }}"
   until: update_cache_results is success
   delay: "{{ retry_delay | default(3) }}"
+
+- name: Remove the unused kernel headers before dkms installation
+  block:
+    - name: Fetch the installed kernel headers
+      shell: "set -o pipefail && dpkg --list | grep linux-headers | awk '{ print $2 }' |grep -v {{ gpu_oem_kernel_version }} | grep -v hwe"
+      args:
+        executable: /bin/bash
+      register: installed_kernel_headers
+      failed_when: installed_kernel_headers.rc > 1
+      changed_when: false
+      tags:
+        - atsm
+
+    - debug:
+        msg: "{{ installed_kernel_headers.stdout }}"
+      tags:
+        - atsm
+    - name: Remove the unused linux kernel headers
+      apt:
+        name: "{{ item }}"
+        state: absent
+      with_items: "{{installed_kernel_headers.stdout_lines}}"
+      when: installed_kernel_headers.rc == 0
+      tags:
+        - atsm
 
 - name: Install DKMS(Dynamic Kernel Module Support) and kernel header files
   apt:

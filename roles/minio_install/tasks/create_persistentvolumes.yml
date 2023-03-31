@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 - name: populate MinIO Tenant Helm chart values template and push to controller node
   template:
     src: "minio_tenant_localpersistentvolumes.yml.j2"
-    dest: "{{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-tenant-persistentvolumes' ~ ansible_loop.index ~ '.yml') | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir, 'operator', 'temp', 'minio-tenant-persistentvolumes' ~ ansible_loop.index ~ '.yml') | path_join }}"
     force: yes
     mode: preserve
   when:
@@ -29,7 +29,7 @@
 - name: apply MinIO Tenant persistent volumes
   k8s:
     state: present
-    src: "{{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-tenant-persistentvolumes' ~ ansible_loop.index ~ '.yml') | path_join }}"
+    src: "{{ (minio_operator_helm_local_dir, 'operator', 'temp', 'minio-tenant-persistentvolumes' ~ ansible_loop.index ~ '.yml') | path_join }}"
   when:
     - hostvars[item]['minio_pv'] | default([]) | length > 0
   loop: "{{ groups['kube_node'] }}"

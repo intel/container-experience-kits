@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,44 +17,46 @@
 - name: copy remote hooks dir and execute .sh and .py scripts on k8s_cluster
   hosts: kube_control_plane
   tasks:
-    - name: check if remote hooks dir exists
+    - name: check if remote hooks dir present on ansible host
+      delegate_to: localhost
+      become: false
       stat:
         path: "{{ hooks_remote }}"
       register: remote_hooks_dir
-    - name: delete hooks dir on remote
-      file:
-        state: absent
-        path: "{{ hooks_remote }}"
-      when: remote_hooks_dir.stat.exists
-    - name: copy remote hooks dir to remote
-      become: true
-      copy:
-        src: "{{ hooks_remote }}/"
-        dest: "{{ hooks_remote }}"
-        owner: root
-        group: root
-        mode: 0644
-      ignore_errors: yes
-    - name: read .sh files in remote hooks dir
-      find:
-        paths: "{{ hooks_remote }}"
-        patterns: "*.sh"
-      register: sh_remote_files_found
-    - debug: msg="{{ sh_remote_files_found.files }}"
-    - name: execute .sh scripts from hooks dir
-      command: "sh {{ item.path }}"
-      with_items: "{{ sh_remote_files_found.files }}"
-      when: sh_remote_files_found.files | length > 0
-    - name: read .py files in remote hooks dir
-      find:
-        paths: "{{ hooks_remote }}"
-        patterns: "*.py"
-      register: py_remote_files_found
-    - debug: msg="{{ py_remote_files_found.files }}"
-    - name: execute .py scripts from hooks dir
-      command: "python3 {{ item.path }}"
-      with_items: "{{ py_remote_files_found.files }}"
-      when: py_remote_files_found.files | length > 0
+    - when: remote_hooks_dir.stat.present
+      block:
+        - name: delete hooks dir on remote
+          file:
+            state: absent
+            path: "{{ hooks_remote }}"
+        - name: copy remote hooks dir to remote
+          become: true
+          copy:
+            src: "{{ hooks_remote }}/"
+            dest: "{{ hooks_remote }}"
+            owner: root
+            group: root
+            mode: 0644
+        - name: read .sh files in remote hooks dir
+          find:
+            paths: "{{ hooks_remote }}"
+            patterns: "*.sh"
+          register: sh_remote_files_found
+        - debug: msg="{{ sh_remote_files_found.files }}"
+        - name: execute .sh scripts from hooks dir
+          command: "sh {{ item.path }}"
+          with_items: "{{ sh_remote_files_found.files }}"
+          when: sh_remote_files_found.files | length > 0
+        - name: read .py files in remote hooks dir
+          find:
+            paths: "{{ hooks_remote }}"
+            patterns: "*.py"
+          register: py_remote_files_found
+        - debug: msg="{{ py_remote_files_found.files }}"
+        - name: execute .py scripts from hooks dir
+          command: "python3 {{ item.path }}"
+          with_items: "{{ py_remote_files_found.files }}"
+          when: py_remote_files_found.files | length > 0
 - name: execute .sh, .py scripts and ansible playbooks on localhost
   hosts: localhost
   tasks:

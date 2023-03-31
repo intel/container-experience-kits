@@ -1,4 +1,4 @@
-# Intel Power Manager 
+# Intel Power Manager
 
 1. [Introduction](#introduction)
 2. [Check the existence of sample power pods on the cluster](#check-the-existence-of-sample-power-pods-on-the-cluster)

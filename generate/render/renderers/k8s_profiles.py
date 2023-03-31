@@ -20,7 +20,7 @@ This file contains functions needed for profile generation in k8s mode
 
 import argparse
 import os
-from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, add_nic_parameter, create_backups
+from render.common.common import create_dir_idempotent, render, load_config, add_arch_parameter, add_nic_parameter, add_mirrors_parameter, create_backups
 
 def render_k8s_profiles(args: argparse.Namespace) -> None:
     """Creates example CEK profiles in k8s mode"""
@@ -37,6 +37,9 @@ def render_k8s_profiles(args: argparse.Namespace) -> None:
 
     # add nic information
     add_nic_parameter(k8s_profiles, args)
+
+    # add mirrors information
+    add_mirrors_parameter(k8s_profiles, args)
 
     # create example diretory with all profiles and its files
     _create_k8s_examples(k8s_profiles, args)

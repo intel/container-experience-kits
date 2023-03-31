@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@
   when:
     - additional_grub_parameters_enabled
 
-# noqa 503 - because include_role cannot be used in a handler
-- name: update grub  # noqa 503 - no-handler
+# noqa because include_role cannot be used in a handler
+- name: update grub  # noqa no-handler
   include_role:
-    name: bootstrap/update_grub
+    name: bootstrap/update_grub # noqa role-name[path] - role in bootstrap
   when:
     - grub.changed

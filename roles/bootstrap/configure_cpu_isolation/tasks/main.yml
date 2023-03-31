@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 
     - name: Allocate cpus
       include_role:
-        name: bootstrap/allocate_cpus
+        name: bootstrap/allocate_cpus # noqa role-name[path] - role in bootstrap
 
     - name: Get vms cpus
       include_tasks: get_required_cpus.yml

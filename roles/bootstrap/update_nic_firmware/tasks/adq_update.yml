@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,8 +14,12 @@
 ##   limitations under the License.
 ##
 ---
+- name: get interface name
+  set_fact:
+    adq_interface_name: "{{ hostvars[groups['kube_control_plane'][0]].adq_dp.interface_name }}"
+
 - name: get current FW version
-  shell: "set -o pipefail && ethtool -i {{ adq_dp.interface_name }} | grep -i firmware-version | awk '{ print $2 }'"
+  shell: "set -o pipefail && ethtool -i {{ adq_interface_name }} | grep -i firmware-version | awk '{ print $2 }'"
   changed_when: false
   args:
     executable: /bin/bash
@@ -58,27 +62,27 @@
 
 - block:
     # get device MAC address - this allows to run nvmupdate for the requested device only
-    - debug: var=ansible_facts[adq_dp.interface_name]['macaddress']
+    - debug: var=ansible_facts[adq_interface_name]['macaddress']
       when: continue_nvmupdate | bool
 
-    - name: check ip routing table for interface {{ adq_dp.interface_name }}
+    - name: check ip routing table for interface {{ adq_interface_name }}
       command: ip route list
       register: ip_route
       changed_when: true
       when: continue_nvmupdate | bool
 
 - debug:
-    msg: "interface {{ adq_dp.interface_name }} is not active in ip route list"
+    msg: "interface {{ adq_interface_name }} is not active in ip route list"
   when:
     - continue_nvmupdate | bool
-    - adq_dp.interface_name not in ip_route.stdout
+    - adq_interface_name not in ip_route.stdout
 
 - block:
     - debug:
-        msg: "interface {{ adq_dp.interface_name }} is active in ip route list, will remove interface {{ adq_dp.interface_name }} from list"
+        msg: "interface {{ adq_interface_name }} is active in ip route list, will remove interface {{ adq_interface_name }} from list"
 
-    - name: interface {{ adq_dp.interface_name }} was found active, grep interface before removing it
-      shell: "set -o pipefail && ip route list | grep {{ adq_dp.interface_name }}"
+    - name: interface {{ adq_interface_name }} was found active, grep interface before removing it
+      shell: "set -o pipefail && ip route list | grep {{ adq_interface_name }}"
       args:
         executable: /bin/bash
       register: grep_interface
@@ -87,12 +91,12 @@
     - debug:
         var: grep_interface.stdout_lines
 
-    - name: remove interface {{ adq_dp.interface_name }} from routing table and proceed to firmware upgrade / downgrade
+    - name: remove interface {{ adq_interface_name }} from routing table and proceed to firmware upgrade / downgrade
       command: "ip route del {{ grep_interface.stdout }}"
       changed_when: true
   when:
     - continue_nvmupdate | bool
-    - adq_dp.interface_name in ip_route.stdout
+    - adq_interface_name in ip_route.stdout
 
 - block:
     - debug:
@@ -102,9 +106,9 @@
           reboot or power off the system during this process!
 
     - name: update firmware
-    # noqa 305 - shell is used intentionally here
+    # noqa command-instead-of-shell - shell is used intentionally here
       shell:
-        cmd: "./nvmupdate64e -u -l -o update.xml -b -c nvmupdate.cfg -m '{{ ansible_facts[adq_dp.interface_name]['macaddress'] | replace(':','') }}'"
+        cmd: "./nvmupdate64e -u -l -o update.xml -b -c nvmupdate.cfg -m '{{ ansible_facts[adq_interface_name]['macaddress'] | replace(':','') }}'"
       args:
         chdir: "{{ (project_root_dir, 'Linux_x64') | path_join }}"
         executable: /bin/bash
@@ -116,7 +120,7 @@
 - name: show additional message on unsupported platforms
   debug:
     msg: >
-      Failed to update firmware on interface {{ adq_dp.interface_name }} .
+      Failed to update firmware on interface {{ adq_interface_name }} .
       This is probably caused by unsupported platform - contact your vendor for more information.
   when:
     - continue_nvmupdate | bool
@@ -124,13 +128,21 @@
 
 - name: fail if fw update failed
   fail:
-    msg: "Failed to update firmware on interface {{ adq_dp.interface_name }}. Error: {{ nvmupdate_result.stdout }}"
+    msg: "Failed to update firmware on interface {{ adq_interface_name }}. Error: {{ nvmupdate_result.stdout }}"
   when:
     - continue_nvmupdate | bool
     - (nvmupdate_result.stdout is not search('update successful'))
 
 - name: reboot after update
-# noqa 503 - more than one condition here, so can't be a handler
+# noqa no-handler - more than one condition here, so can't be a handler
   reboot:
     reboot_timeout: 1200 # wait up to 20 minutes - if reboot takes longer after NVM update
   when: continue_nvmupdate | bool
+
+- name: Disable FW LLDP Agent on ADQ interface
+  shell: "ethtool --set-priv-flags {{ adq_interface_name }} fw-lldp-agent off"
+  register: fw_lldp_agent
+  failed_when: fw_lldp_agent.rc != 0
+  changed_when: false
+  args:
+    executable: /bin/bash

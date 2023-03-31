@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 ---
 - name: check MinIO Tenant Helm charts directory
   stat:
-    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
+    path: "{{ (minio_operator_helm_local_dir, 'tenant') | path_join }}"
   register: tenant_dir
 
 - name: create MinIO Tenant Helm charts directory if needed
   file:
-    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
+    path: "{{ (minio_operator_helm_local_dir, 'tenant') | path_join }}"
     state: directory
     mode: 0755
   when:
@@ -30,11 +30,11 @@
 - name: create default MinIO Tenant local storage class
   template:
     src: "minio_tenant_storageclass.yml.j2"
-    dest: "{{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-tenant-storageclass.yml') | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir, 'operator', 'temp', 'minio-tenant-storageclass.yml') | path_join }}"
     force: yes
     mode: preserve
 
 - name: apply default MinIO Tenant local storage class
   k8s:
     state: present
-    src: "{{ (project_root_dir, 'charts', 'operator', 'temp', 'minio-tenant-storageclass.yml') | path_join }}"
+    src: "{{ (minio_operator_helm_local_dir, 'operator', 'temp', 'minio-tenant-storageclass.yml') | path_join }}"

@@ -21,7 +21,7 @@ This file contains functions needed for playbooks generation
 import os
 from render.common.common import render
 
-_available_playbooks = ['basic', 'full_nfv', 'access', 'remote_fp', 'regional_dc', 'on_prem', 'storage', 'build_your_own']
+_available_playbooks = ['basic', 'full_nfv', 'access', 'remote_fp', 'regional_dc', 'on_prem', 'build_your_own']
 _playbook_dir = 'playbooks'
 
 def render_playbooks(profile: str) -> None:

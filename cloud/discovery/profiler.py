@@ -1,4 +1,4 @@
-import discover
+import discover_local
 import yaml
 import pprint
 import os
@@ -24,7 +24,7 @@ class Features:
         try:
             with open(os.path.join(sys.path[0],featfile), 'r') as file:
                 try:
-                    output = parsed_yaml=yaml.safe_load(file)
+                    output = yaml.safe_load(file)
                 except yaml.YAMLError as exc:
                     print("Error parsing %s - Exiting" % featfile)
                     sys.exit()
@@ -108,7 +108,7 @@ def check_sub_feat_support(key, byo_sub_dict, feats):
              output_dict.update({subfeat: True})
     return output_dict
 
-def byo_check(plat: dict, feats: object):
+def byo_check(feats: object):
     output = {}
     if "build_your_own" not in feats.profiles.keys():
         return None
@@ -211,7 +211,7 @@ def check_profiles(profiles: object, byo_feats: dict):
     return summary
 
 def main():
-    platform_info = discover.main()
+    platform_info = discover_local.main()
     feats = Features(platform_info)
     if not feats.dist_support:
         print("Unsupported OS distribution and/or version - exiting")
@@ -219,7 +219,7 @@ def main():
     if not feats.codename:
         print("Unsupported CPU codename - exiting")
         sys.exit()
-    byo_feats = byo_check(platform_info, feats)
+    byo_feats = byo_check(feats)
     pprint.pprint(byo_feats)
     full_summary = check_profiles(feats.profiles, byo_feats)
     pprint.pprint(full_summary)

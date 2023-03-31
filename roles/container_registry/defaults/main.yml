@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ registry_port: 5000
 registry_addr: 127.0.0.1
 
 registry_image: "docker.io/library/registry:2.8.1"
-nginx_image: "docker.io/library/nginx:1.23.2-alpine"
+nginx_image: "docker.io/library/nginx:1.23.3-alpine"
 
 nginx_ssl_ciphers:
   "AES128-CCM-SHA256:CHACHA20-POLY1305-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE\

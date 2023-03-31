@@ -1,7 +1,8 @@
-## Secret with credentials to be used by MinIO Tenant
+## Secret with default environment variable configurations to be used by MinIO Tenant.
+## Not recommended for production deployments! Create the secret manually instead.
 secrets:
-  # create a kubernetes configuration secret object with the accessKey and secretKey as defined here.
   name: {{ minio_tenant_release_name }}-env-configuration
+  # MinIO root user and password
   accessKey: minio
   secretKey: minio123
 
@@ -20,6 +21,10 @@ tenant:
   ## If a scheduler is specified here, Tenant pods will be dispatched by specified scheduler.
   ## If not specified, the Tenant pods will be dispatched by default scheduler.
   scheduler: {}
+  ## Secret name that contains additional environment variable configurations.
+  ## The secret is expected to have a key named config.env containing environment variables exports.
+  configuration:
+    name: {{ minio_tenant_release_name }}-env-configuration
   ## Specification for MinIO Pool(s) in this Tenant.
   pools:
     ## Servers specifies the number of MinIO Tenant Pods / Servers in this pool.
@@ -80,13 +85,21 @@ tenant:
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
+        fsGroup: 1000
         runAsNonRoot: true
         fsGroup: 1000
 {% else %}
       securityContext: {}
 {% endif %}
+      ## Configure container security context
+      containerSecurityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
       ## Configure topology constraints
       topologySpreadConstraints: []
+      ## Configure Runtime Class
+      # runtimeClassName: ""
   ## Mount path where PV will be mounted inside container(s).
   mountPath: /export
   ## Sub path inside Mount path where MinIO stores data.
@@ -105,13 +118,6 @@ tenant:
     ## TLS for MinIO Tenant pods. Create secrets as explained here:
     ## https://github.com/minio/minio/tree/master/docs/tls/kubernetes#2-create-kubernetes-secret
     externalCertSecret: []
-    {# externalCertSecret:
-      - name: tls-minio1-general
-        type: kubernetes.io/tls
-      - name: tls-minio1-star-general
-        type: kubernetes.io/tls
-      - name: tls-console-minio1-general
-        type: kubernetes.io/tls #}
     ## Enable automatic Kubernetes based certificate generation and signing as explained in
     ## https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster
     requestAutoCert: true
@@ -119,11 +125,11 @@ tenant:
     ## for the auto-generated certificate. Internal DNS name for the pod will be used if CommonName is
     ## not provided. DNS name format is *.minio.default.svc.cluster.local
     certConfig: {}
-  ## Enable S3 specific features such as Bucket DNS which would allow `buckets` to be
-  ## accessible as DNS entries of form `<bucketname>.minio.default.svc.cluster.local`
-  s3:
-    ## This feature is turned off by default
+  ## MinIO features to enable or disable in the MinIO Tenant
+  ## https://github.com/minio/operator/blob/master/docs/crd.adoc#features
+  features:
     bucketDNS: false
+    domains: {}
   ## List of bucket names to create during tenant provisioning
   buckets: []
   ## List of secret names to use for generating MinIO users during tenant provisioning
@@ -138,6 +144,9 @@ tenant:
   # Readiness Probe for container readiness. Container will be removed from service endpoints if the probe fails.
   # Refer https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   readiness: {}
+  # Startup Probe for container startup. Container will be restarted if the probe fails.
+  # Refer https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  startup: {}
   ## exposeServices defines the exposure of the MinIO object storage and Console services.
   ## service is exposed as a loadbalancer in k8s service.
   exposeServices: {}
@@ -249,6 +258,8 @@ tenant:
   #    fsGroup: 1000
   ## Prometheus setup for MinIO Tenant.
   prometheus:
+    # When set to true disables the creation of prometheus deployment
+    disabled: false
     image: "" # defaults to quay.io/prometheus/prometheus:latest
     env: []
     sidecarimage: "" # defaults to alpine
@@ -258,6 +269,7 @@ tenant:
     annotations: {}
     labels: {}
     nodeSelector: {}
+    tolerations: []
     affinity:
       nodeAffinity: {}
       podAffinity: {}
@@ -271,6 +283,8 @@ tenant:
       fsGroup: 1000
   ## LogSearch API setup for MinIO Tenant.
   log:
+    # When set to true disables the creation of logsearch api deployment
+    disabled: false
     image: "" # defaults to minio/operator:v4.4.17
     env: []
     resources: {}

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@
   block:
     - name: SRIOV-FEC Operator - fec_acc reset warning
       fail:
-        msg: "WARNING: Device set as fec_acc {{ fec_acc }} in the host vars is NOT a supported SRIOV-FEC Accelerator.  Using {{ accelerator.stdout.split(' ').0 }} instead" # noqa line-length
+        msg: "WARNING: Device set as fec_acc {{ fec_acc }} in the host vars is NOT a supported SRIOV-FEC Accelerator.  Using {{ accelerator.stdout.split(' ').0 }} instead" # noqa yaml[line-length]
       ignore_errors: true # noqa ignore-errors
 
     - set_fact:

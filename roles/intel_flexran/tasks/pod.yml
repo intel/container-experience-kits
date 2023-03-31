@@ -1,0 +1,57 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: generate FlexRAN Docker POD files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ (intel_flexran_files_dir, item.dst) | path_join }}"
+    force: yes
+    mode: preserve
+  loop:
+    - {src: 'intel_flexran_pod_timer_mode.yaml.j2', dst: 'intel_flexran_pod_timer_mode.yaml'}
+    - {src: 'intel_flexran_pod_xran_mode.yaml.j2', dst: 'intel_flexran_pod_xran_mode.yaml'}
+
+- name: create namespace for FlexRAN as Docker POD
+  k8s:
+    name: "{{ intel_flexran_namespace }}"
+    kind: Namespace
+    state: present
+
+- name: label node for running FlexRAN as Docker POD
+  shell: "kubectl label node {{ groups['kube_node'][0] }} testnode=worker1" # noqa command-instead-of-shell
+  args:
+    executable: /bin/bash
+  register: sriov_pod_delete
+  changed_when: sriov_pod_delete.rc == 0
+  failed_when: sriov_pod_delete.rc != 0
+
+- name: run FlexRAN as Docker POD in Timer test mode
+  k8s:
+    state: present
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode.yaml') | path_join }}"
+  when: intel_flexran_mode == "timer"
+
+- name: run FlexRAN as Docker POD in XRAN test mode
+  k8s:
+    state: present
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode.yaml') | path_join }}"
+  when: intel_flexran_mode == "xran"
+
+- name: cluster final check-point
+  ansible.builtin.include_role:
+    name: wait_for_kubernetes_ready
+
+- debug: msg="Intel FlexRAN deployment as Docker POD in {{ intel_flexran_mode }} test mode is complete.  See https://hub.docker.com/r/intel/flexran_vdu"

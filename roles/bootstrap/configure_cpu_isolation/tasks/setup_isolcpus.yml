@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,23 +15,23 @@
 ##
 ---
 - block:
-  - name: Validate isolcpus settings
-    assert:
-      that: isolcpus | length > 0
-      fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
+    - name: Validate isolcpus settings
+      assert:
+        that: isolcpus | length > 0
+        fail_msg: "CPU isolation enabled, but list of CPUs to isolate is not defined, make sure that 'isolcpus' variable is set"
 
-  - name: Load present CPUs range
-    command: cat /sys/devices/system/cpu/present
-    become: true
-    changed_when: false
-    register: cpus_present_file
+    - name: Load present CPUs range
+      command: cat /sys/devices/system/cpu/present
+      become: true
+      changed_when: false
+      register: cpus_present_file
 
-  - name: Get range of all available CPUs
-    set_fact:
-      cpus_present: "{{ cpus_present_file.stdout }}"
+    - name: Get range of all available CPUs
+      set_fact:
+        cpus_present: "{{ cpus_present_file.stdout }}"
 
-  - name: Validate provided isolcpus value
-    action: validate_isolcpus
+    - name: Validate provided isolcpus value
+      action: validate_isolcpus
   when:
     - not vm_enabled
 

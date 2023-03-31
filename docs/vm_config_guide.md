@@ -54,9 +54,9 @@ Next section provides VM related configuration options.
 The first option defines VM image distribution of cloud image, which will be used inside VMs.
   Currently supported distributions are: "ubuntu" and "rocky". Default is "ubuntu"
 Following two options define VM image version for Ubuntu and for Rocky.
-  Currently supported ubuntu versions are: "20.04" and "22.04". Default is "20.04"
+  Currently supported ubuntu versions are: "22.04". Default is "22.04"
   Currently supported rocky versions are: "8.5" and "9.0". Default is "8.5"
-Default VM image distribution is "ubuntu" and default version is "20.04"
+Default VM image distribution is "ubuntu" and default version is "22.04"
 Setting for VM image can be done just on the first VM host. It is common for all VMs across all VM hosts.
 
 ```
@@ -67,14 +67,14 @@ vm_image_version_rocky: "9.0"
 
 The next options defines VM networking
 dhcp parameter specify `vxlan id`. Dhcp then provides IP addresses to vxlan network identified by `vxlan id`.
-In current default configuration `vxlan id` is `120` and `vxlan_gw_ip` is `"40.0.0.1/24"`
+In current default configuration `vxlan id` is `120` and `vxlan_gw_ip` is `"172.31.0.1/24"`
 Settings for VM networking have to be enabled just on the first VM host
 **_NOTE:_** If you have multiple deployments in your network then it is recommended to change `vxlan id` and `vxlan_gw_ip`.
 
 ```
 dhcp:
   - 120
-vxlan_gw_ip: "40.0.0.1/24"
+vxlan_gw_ip: "172.31.0.1/24"
 ```
 
 vm_hashed_passwd parameter is used to configure password for root user inside VMs
@@ -85,12 +85,22 @@ To create hashed password use e.g.: openssl passwd -6 -salt SaltSalt <your_passw
 vm_hashed_passwd: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 ```
 
-vxlan_device parameter specifies network interface, which will be used to setup vxlan network.
-It has to be interface connected to physical network, which is available on all VM hosts.
-Interface has to have IP address assigned on all VM hosts from the same IP subnet.
+vm_hashed_passwd_non_root parameter is used to configure password for non root user inside VMs
+Parameter is commented out by default and it's default value is just placeholder, which needs to be changed to real hashed password before deployment.
+If parameter is not enabled then vm_hashed_passwd value will be used for non root user as well.
+To create hashed password use e.g.: openssl passwd -6 -salt SaltSalt <your_password>
 
 ```
-vxlan_device: eno2
+#vm_hashed_passwd_non_root: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+```
+
+vxlan_physical_network parameter specifies IP subnet. IP from this subnet have to be available on one network interface on every VM hosts.
+Based on that IP address is automatically detected corresponding network interface name, which is used to setup vxlan network for VMs.
+This interface has to be connected to physical network, which is available on all VM hosts.
+This parameter is mandatory for VM multinode setup. For VM single node setup it is optional.
+
+```
+vxlan_physical_network: "10.31.0.0/16"
 ```
 
 cpu_host_os is optional parameter, which changes default number of CPUs reserved for VM host OS.
@@ -98,6 +108,16 @@ Parameter is commented out by default, which means that default value 16 is used
 
 ```
 #cpu_host_os: 8
+```
+
+vm_cluster_name is optional parameter. It is used to group all VMs from single deployment together.
+It's value is added to all VMs inside this deployment as domain name. It simplyfies ssh configuration for bastion host.
+Single record is used there for entire deployment.
+Parameter is disabled by default. If parameter is commneted out or it's value is set to empty string then original host based configuration is used.
+To enable VM cluster name feature uncomment vm_cluster_name parameter in host_vars file.
+
+```
+#vm_cluster_name: "cluster1.local"
 ```
 
 Next section provides definition of VMs, which will be created during deployment process, and which will be used as control and worker nodes there.
@@ -113,7 +133,10 @@ vms option defines the list of VMs. Each VM is defined by following parameters:
 `pci` defines list of PCI devices assigned to VM. It contains PCI ids for SRIOV NIC VFs and SRIOV QAT VFs which are assigned to VM. The list can be empty as well. PCI section is relevant only for VM type `work`. In example configuration bellow we've assigned 4 NIC VFs and 2 QAT VFs.
 
 To be able to configure PCI ids for VFs we need to know their "naming convention". We need to connect to VM host and check PCI ids for VFs there.
+
+
 **For SRIOV NIC VFs:**  
+
 To check if VFs exist there run following command:  
 for the first PF interface 18:00.0 from `dataplane_interfaces` above:
 
@@ -428,4 +451,11 @@ qat_devices:
 ```
 ssh vm-ctrl-1
 ssh vm-work-1
+```
+
+or
+
+```
+ssh vm-ctrl-1.cluster1.local
+ssh vm-work-1.cluster1.local
 ```

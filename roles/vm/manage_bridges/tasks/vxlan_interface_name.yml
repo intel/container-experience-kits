@@ -1,0 +1,32 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set vxlan_interface to empty string
+  set_fact:
+    vxlan_interface: ""
+
+- name: get interface name which holds VXLAN physical network
+  set_fact:
+    vxlan_interface: "{{ item }}"
+  with_items: "{{ ansible_interfaces }}"
+  when:
+    - "hostvars[inventory_hostname]['ansible_' + item]['ipv4'] is defined"
+    - "hostvars[inventory_hostname]['ansible_' + item]['ipv4']['address'] is defined"
+    - "hostvars[inventory_hostname]['ansible_' + item]['ipv4']['address'] | ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_physical_network'])"
+
+- name: print vxlan_interface
+  debug:
+    msg: "vxlan_interface: {{ vxlan_interface }}"

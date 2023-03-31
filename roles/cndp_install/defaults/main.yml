@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ docker_bin_dir: "/usr/bin"
 
 # Drop-in docker service file what defines DOCKER_OPTS environment variable
 docker_options_conf_file: "/etc/systemd/system/docker.service.d/docker-options.conf"
+daemon_conf_file: "daemon.json"
+daemon_conf_file_directory: "/etc/docker/{{ daemon_conf_file }}"
 containerd_service_dir: "/etc/systemd/system/containerd.service.d"
 containerd_options_conf_file: "{{ (containerd_service_dir, 'limits.conf') | path_join }}"
 crio_service_dir: "/etc/systemd/system/crio.service.d"

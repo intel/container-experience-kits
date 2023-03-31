@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,5 +17,9 @@
 multus_service_namespace: "kube-system"         # Multus Service namespace
 multus_service_release_name: "multus-service"   # Multus Service Helm Charts release name
 
-multus_service_git_url: "https://github.com/k8snetworkplumbingwg/multus-service.git"
-multus_service_commit_hash: "392817f2441b5443d7868fd9f0f692447a027554"
+multus_service_image: ghcr.io/k8snetworkplumbingwg/multus-service
+multus_service_digest: sha256:f53a6fcf3f728bec8fc6ceb1a6e5ad0ee0cc912ceb3c6610a3c8a468cb2736b9
+
+# Placeholder to upstream where deployment k8s template is taken from
+# multus_service_git_url: "https://github.com/k8snetworkplumbingwg/multus-service.git"
+# multus_service_commit_hash: "392817f2441b5443d7868fd9f0f692447a027554"

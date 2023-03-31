@@ -13,7 +13,7 @@ from __future__ import (absolute_import, division, print_function)
 # Severity: Low   Confidence: High
 # More Info: https://bandit.readthedocs.io/en/latest/blacklists/blacklist_imports.html#b404-import-subprocess # pylint: disable=line-too-long
 # -> considered
-import subprocess # nosec
+import subprocess # nosec B404
 from ansible.module_utils.basic import AnsibleModule
 
 __metaclass__ = type # pylint: disable=invalid-name

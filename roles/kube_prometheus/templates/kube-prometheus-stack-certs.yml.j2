@@ -41,7 +41,11 @@ spec:
   secretName: node-exporter-tls-rbac
   ipAddresses:
 {% for host in groups['k8s_cluster'] %}
-    - {{ hostvars[host].ip }}
+{% if on_vms | default(false) %}
+    - {{ hostvars[host]['ansible_all_ipv4_addresses'] | ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_gw_ip']) | first }}
+{% else %}
+    - {{ hostvars[host]['ansible_default_ipv4']['address'] }}
+{% endif %}
 {% endfor %}
     - 127.0.0.1
   isCA: false
@@ -66,7 +70,11 @@ spec:
   secretName: node-exporter-tls
   ipAddresses:
 {% for host in groups['k8s_cluster'] %}
-    - {{ hostvars[host].ip }}
+{% if on_vms | default(false) %}
+    - {{ hostvars[host]['ansible_all_ipv4_addresses'] | ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_gw_ip']) | first }}
+{% else %}
+    - {{ hostvars[host]['ansible_default_ipv4']['address'] }}
+{% endif %}
 {% endfor %}
     - 127.0.0.1
   isCA: false
@@ -92,7 +100,11 @@ spec:
   commonName: "system:serviceaccount:monitoring:prometheus-k8s"
   ipAddresses:
 {% for host in groups['k8s_cluster'] %}
-    - {{ hostvars[host].ip }}
+{% if on_vms | default(false) %}
+    - {{ hostvars[host]['ansible_all_ipv4_addresses'] | ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_gw_ip']) | first }}
+{% else %}
+    - {{ hostvars[host]['ansible_default_ipv4']['address'] }}
+{% endif %}
 {% endfor %}
     - 127.0.0.1
   isCA: false

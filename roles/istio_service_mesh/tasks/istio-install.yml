@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -95,6 +95,17 @@
     -f {{ (project_root_dir, 'charts', 'istioctl-values.yaml')  | path_join }}
     {{ (istio_service_mesh_charts_dir, 'istioctl') | path_join }}
   changed_when: true
+
+- name: wait for istio to be ready
+  k8s_info:
+    kind: Deployment
+    name: istioctl
+    namespace: "{{ istio_service_mesh.istio_namespace }}"
+    wait: yes
+    wait_condition:
+      reason: MinimumReplicasAvailable
+      type: Available
+    wait_timeout: 240
 
 - name: remove temporary files
   file:

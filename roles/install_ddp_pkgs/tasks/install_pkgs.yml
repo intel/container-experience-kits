@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
     group: root
 
 - name: install ddp package from a URL
-  include: install_a_pkg.yml
+  include_tasks: install_a_pkg.yml
   loop: "{{ pkgurls }}"
   loop_control:
     loop_var: pkgurl

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -20,12 +20,15 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
-- block:
-    - name: create namespace for kube-prometheus-stack if doesn't exist
-      ansible.builtin.shell: "set -o pipefail && kubectl create ns {{ kube_prometheus_stack_namespace }} -o yaml --dry-run=client | kubectl apply -f -"
-      args:
-        executable: /bin/bash
-      changed_when: true
+- name: Prepare certs for kube-prometheus
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: create namespace for kube-prometheus-stack
+      kubernetes.core.k8s:
+        kind: Namespace
+        state: present
+        name: "{{ kube_prometheus_stack_namespace }}"
 
     - name: create kube-prometheus-stack directory
       ansible.builtin.file:
@@ -42,14 +45,26 @@
         mode: 0744
 
     - name: create kube-prometheus-stack certs
-      ansible.builtin.command: "kubectl create -f kube-prometheus-stack-certs.yml"
-      args:
-        chdir: "{{ (kube_prometheus_stack_directory, 'certs') | path_join }}"
-      changed_when: true
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (kube_prometheus_stack_directory, 'certs', 'kube-prometheus-stack-certs.yml') | path_join }}"
 
     - name: wait for secrets to be created
-      ansible.builtin.pause:
-        seconds: 20
+      kubernetes.core.k8s_info:
+        kind: Certificate
+        name: "{{ item }}"
+        namespace: monitoring
+        wait: true
+        wait_condition:
+          type: Ready
+        wait_timeout: 20
+      loop:
+        - prometheus-adapter-tls
+        - grafana-tls
+        - node-exporter-tls-prometheus-scrapper
+        - node-exporter-tls
+        - node-exporter-tls-rbac
+        - kube-prometheus-stack-tls-ca
 
     - name: create password for node-exporter
       ansible.builtin.set_fact:
@@ -61,11 +76,13 @@
       changed_when: true
 
     - name: create node_exporter secret
-      ansible.builtin.command: >-
-        kubectl create secret generic node-exporter-auth
+      ansible.builtin.shell: "set -o pipefail && kubectl create secret generic node-exporter-auth
         --from-literal=username='prometheus'
         --from-literal=password='{{ node_exporter_password }}'
         -n monitoring
+        -o yaml --dry-run=client | kubectl apply -f -"
+      args:
+        executable: /bin/bash
       changed_when: true
 
     - name: generate htpasswd file
@@ -95,8 +112,6 @@
         kubectl get secret prometheus-adapter-tls -n monitoring -o jsonpath="{.data['ca\.crt']}"
       changed_when: false
       register: kube_prometheus_adapter_ca
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: prepare TAS demonstration policy files
   ansible.builtin.import_tasks: create-tas-demo-policy.yml

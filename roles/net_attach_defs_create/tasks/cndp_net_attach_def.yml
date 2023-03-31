@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 - name: create definition yaml file from template
   template:
     src: "cndp.yml.j2"
-    dest: "{{ cndp_k8s_manifest_dir }}/cndp_net_attach_def-e2e.yml"
+    dest: "{{ cndp_k8s_manifest_dir }}/cndp_net_attach_def.yml"
     force: yes
     mode: preserve
 
 - name: deploy network attachment definition for CNDP
   k8s:
     state: present
-    src: "{{ cndp_k8s_manifest_dir }}/cndp_net_attach_def-e2e.yml"
+    src: "{{ cndp_k8s_manifest_dir }}/cndp_net_attach_def.yml"

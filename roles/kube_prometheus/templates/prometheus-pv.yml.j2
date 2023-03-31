@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/component: prometheus-pv
     app.kubernetes.io/name: prometheus-pv
     app.kubernetes.io/part-of: kube-prometheus
-    app.kubernetes.io/version: 2.39.1
+    app.kubernetes.io/version: {{ prometheus_stack_version }}
 spec:
   capacity:
     storage: 20Gi

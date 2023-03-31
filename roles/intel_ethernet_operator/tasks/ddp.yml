@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,31 +15,36 @@
 ##
 ---
 - name: DDP update
+  when: hostvars[node_name]['intel_ethernet_operator']['ddp_update'] |d(false)
   block:
-    - name: populate Intel Ethernet Operator yaml files and push to controller node
+    - name: Populate Intel Ethernet Operator yaml files and push to controller node
       ansible.builtin.template:
         src: "ddp-update.yml.j2"
         dest: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
         force: yes
         mode: preserve
 
-    - name: apply DDP update on {{ node_name }}
+    - name: Apply DDP update on {{ node_name }}
       kubernetes.core.k8s:
         state: present
         src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
 
-    - name: wait for DDP update
-      ansible.builtin.pause:
-        minutes: 1
+    - name: Wait for start of node reboot
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[node_name]['ansible_host'] }}"
+        port: 22
+        state: stopped
+        timeout: 60
 
-    - name: wait for node after reboot
+    - name: Wait for node after reboot
       ansible.builtin.wait_for:
         host: "{{ hostvars[node_name]['ansible_host'] }}"
         port: 22
         connect_timeout: 5
         timeout: 1200
 
-    - name: wait for kube-apiserver to be up
+    # Update could be started on master node
+    - name: Wait for kube-apiserver to be up
       ansible.builtin.uri:
         url: "https://127.0.0.1:6443/healthz"
         validate_certs: no
@@ -49,77 +54,35 @@
       retries: 60
       delay: 5
 
-    - name: check status of DDP update
-      ansible.builtin.command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
-      register: ddp_update_info
-      until: "'InProgress' not in ddp_update_info.stdout and ddp_update_info.rc == 0"
-      retries: 60
-      delay: 10
-      failed_when: "'Failed' in ddp_update_info.stdout or 'InProgress' in ddp_update_info.stdout or 'NotRequested' in ddp_update_info.stdout"
-      changed_when: false
+    - name: Check status of DDP update
+      kubernetes.core.k8s_info:
+        kind: EthernetNodeConfig
+        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
+        namespace: "{{ intel_ethernet_operator_namespace }}"
+        wait: true
+        wait_timeout: 1200
+        wait_condition:
+          type: Updated
+          reason: Succeeded
 
-    - name: check node after reboot
-      block:
-        - name: check if node is ready
-          ansible.builtin.command: "kubectl get nodes {{ hostvars[node_name]['ansible_hostname'] }}"
-          register: ddp_node_readiness
-          retries: 60
-          delay: 10
-          until:
-            - "'NotReady' not in ddp_node_readiness.stdout"
-            - "'SchedulingDisabled' not in ddp_node_readiness.stdout"
-          changed_when: false
+    - name: Check cluster after reboot
+      ansible.builtin.include_role:
+        name: wait_for_kubernetes_ready
 
-        - name: wait for pods to be up and running
-          ansible.builtin.pause:
-            minutes: 1
+    - name: Remove DDP CR after update
+      kubernetes.core.k8s:
+        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+        state: absent
 
-        - name: check if all pods are running
-          ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk 'NR != 1 { print $4 }'
-          args:
-            executable: /bin/bash
-          register: ddp_pods_status
-          retries: 30
-          delay: 10
-          until:
-            - "'Error' not in ddp_pods_status.stdout"
-            - "'CrashLoopBackOff' not in ddp_pods_status.stdout"
-            - "'Terminating' not in ddp_pods_status.stdout"
-            - "'ContainerCreating' not in ddp_pods_status.stdout"
-            - "'Pending' not in ddp_pods_status.stdout"
-            - "'ImagePullBackOff' not in ddp_pods_status.stdout"
-            - "'ErrImagePull' not in ddp_pods_status.stdout"
-          changed_when: false
+    - name: Remove EthernetNodeConfig after update
+      kubernetes.core.k8s:
+        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
+        kind: EthernetNodeConfig
+        namespace: "{{ intel_ethernet_operator_namespace }}"
+        state: absent
+        wait: true
 
-        - name: check if all containers are running
-          ansible.builtin.shell: set -o pipefail && kubectl get pods -A | awk '! /Completed/ && NR != 1 { print $3 }'
-          args:
-            executable: /bin/bash
-          register: ddp_containers_readiness
-          retries: 30
-          delay: 10
-          until: "'0' not in ddp_containers_readiness.stdout"
-          changed_when: false
-
-        - name: check status of DDP update
-          ansible.builtin.command: "kubectl get ethernetnodeconfig {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}"
-          register: after_ddp_update_info
-          until: "'PostUpdateReboot' not in after_ddp_update_info.stdout"
-          retries: 30
-          delay: 10
-          failed_when: "'Failed' in after_ddp_update_info.stdout or 'PostUpdateReboot' in after_ddp_update_info.stdout or 'InProgress' in after_ddp_update_info.stdout" # noqa line-length
-          changed_when: false
-      when: "'PostUpdateReboot' in ddp_update_info.stdout"
-
-    - name: remove DDP CR after update
-      ansible.builtin.command: "kubectl delete -f {{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
-      changed_when: true
-
-    - name: remove EthernetNodeConfig after update
-      ansible.builtin.command: kubectl delete enc {{ hostvars[node_name]['ansible_hostname'] }} -n {{ intel_ethernet_operator_namespace }}
-      changed_when: true
-
-    - name: reload nic modules
+    - name: Reload nic modules
       block:
         - name: register mgmt driver
           ansible.builtin.shell: >-
@@ -133,14 +96,14 @@
           delegate_to: "{{ node_name }}"
           changed_when: false
 
-        - name: check if IRDMA module is loaded
+        - name: Check if IRDMA module is loaded
           ansible.builtin.command: "lsmod"
           register: ieo_lsmod
           delegate_to: "{{ node_name }}"
           changed_when: false
 
-        - name: unload ICE module
-          ansible.builtin.modprobe:
+        - name: Unload ICE module
+          community.general.modprobe:
             name: ice
             state: absent
           delegate_to: "{{ node_name }}"
@@ -149,8 +112,8 @@
             - mgmt_interface_driver_ieo.stdout != "ice"
             - "'irdma' not in ieo_lsmod.stdout"
 
-        - name: load ICE module
-          ansible.builtin.modprobe:
+        - name: Load ICE module
+          community.general.modprobe:
             name: ice
             state: present
           delegate_to: "{{ node_name }}"
@@ -159,9 +122,10 @@
             - mgmt_interface_driver_ieo.stdout != "ice"
             - "'irdma' not in ieo_lsmod.stdout"
 
-    - name: create ddp service
+    - name: Create ddp service
+      when: hostvars[node_name]['enable_ice_systemd_service'] |d(false)
       block:
-        - name: template the ddp-ice systemd service
+        - name: Template the ddp-ice systemd service
           ansible.builtin.template:
             src: ddp-service.j2
             dest: /lib/systemd/system/ddp.service
@@ -170,12 +134,10 @@
             mode: u=rw,g=r,o=r
           delegate_to: "{{ node_name }}"
 
-        - name: run ddp-ice service on boot
+        - name: Run ddp-ice service on boot
           ansible.builtin.systemd:
             daemon_reload: yes
             state: restarted
             name: ddp
             enabled: yes
           delegate_to: "{{ node_name }}"
-      when: hostvars[node_name]['enable_ice_systemd_service'] |d(false)
-  when: hostvars[node_name]['intel_ethernet_operator']['ddp_update'] |d(false)

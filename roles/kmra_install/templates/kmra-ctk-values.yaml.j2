@@ -6,7 +6,7 @@ http_proxy: "{{ proxy_env.http_proxy }}"
 https_proxy: "{{ proxy_env.https_proxy }}"
 {% endif %}
 {% if "no_proxy" in proxy_env %}
-no_proxy: "{{ proxy_env.no_proxy | quote }}"
+no_proxy: "{{ proxy_env.no_proxy }}"
 {% endif %}
 
 ctk_loadkey:
@@ -35,6 +35,7 @@ ctk_loadkey:
   apphsm_port: "{{ kmra.apphsm.upstream_port }}"
   apphsm_hostname: "{{ kmra.apphsm.hostname | trim}}"
   sgx_prv_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"
+  sgx_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx'][1] | default('107')}}"
   use_secure_cert: "{{ kmra.ctk_loadkey_demo.use_secure_cert | quote }}"
   client_token: "{{ kmra.ctk_loadkey_demo.client_token }}"
   client_key_label: "{{kmra.ctk_loadkey_demo.client_key_label }}"

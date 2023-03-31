@@ -28,7 +28,7 @@ healthCheckPath: "/app/kibana"
 # such as kibana.yml
 kibanaConfig:
   kibana.yml: |
-{% if http_proxy or https_proxy is defined %}
+{% if http_proxy is defined or https_proxy is defined %}
     xpack.fleet.registryProxyUrl: {% if https_proxy is defined %}{{ https_proxy }}{% else %}{{ http_proxy }}{% endif %}
 {% endif %}
 

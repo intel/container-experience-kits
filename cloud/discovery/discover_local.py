@@ -2,7 +2,7 @@ from asyncio.subprocess import DEVNULL
 import json
 import os
 import pprint
-import subprocess
+import subprocess # nosec B404 # subrocess is set to shell=False
 import sys
 import fnmatch
 import yaml
@@ -300,6 +300,7 @@ def get_host_info():
 
 def get_cpu_arch_codename(cpu_model):
     cpu_codename_arch = ''
+    cpu_models = None
     with open("cpu_arch.yml", "r") as stream:
         try:
             cpu_models = yaml.safe_load(stream)

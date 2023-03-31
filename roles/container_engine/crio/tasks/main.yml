@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,9 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- include_role:  # noqa unnamed-task
-    name: container_engine/crictl
-
 - name: make sure needed folders exist in the system
   file:
     path: "{{ item }}"
@@ -172,7 +169,7 @@
     label: '{{ item.path }}'
 
 - name: ensure crio service is started and enabled
-  service:
+  systemd:
     name: crio
     daemon_reload: true
     enabled: true
@@ -180,7 +177,8 @@
   register: service_start
 
 - name: trigger service restart only when needed
-  service:  # noqa 503
+  # noqa no-handler - intentionally implemented as not a handler
+  systemd:
     name: crio
     state: restarted
   when:
@@ -195,3 +193,7 @@
   changed_when: false
   retries: 5
   delay: 15
+
+- name: install podman
+  include_role:
+    name: container_engine/podman # noqa role-name[path] - role in container_engine

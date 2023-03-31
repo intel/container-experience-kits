@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@
 - name: download and install all listed DDP packages
   block:
     - name: calling install_pkgs.yml
-      include: install_pkgs.yml
+      include_tasks: install_pkgs.yml
       vars:
         install_dir: "{{ item.install_dir }}"
         pkgurls: "{{ item.pkgurls }}"

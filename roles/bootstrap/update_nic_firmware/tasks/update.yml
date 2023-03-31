@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -195,7 +195,7 @@
   when: continue_nvmupdate | bool
 
 - name: upgrade / downgrade firmware
-# noqa 305 - shell is used intentionally here
+# noqa command-instead-of-shell - shell is used intentionally here
   shell:
     cmd: "./nvmupdate64e -u -l -o update.xml -b -c nvmupdate.cfg -m '{{ ansible_facts[interface_name]['macaddress'] | replace(':','') }}'"
   args:
@@ -239,7 +239,7 @@
     - continue_nvmupdate | bool
 
 - name: reboot after upgrade / downgrade
-# noqa 503 - more than one condition here, so can't be a handler
+# noqa no-handler - more than one condition here, so can't be a handler
   reboot:
     reboot_timeout: 1200 # wait up to 20 minutes - if reboot takes longer after NVM upgrade / downgrade
   when: continue_nvmupdate | bool

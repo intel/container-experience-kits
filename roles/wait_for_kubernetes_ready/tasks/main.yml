@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,40 +14,91 @@
 ##   limitations under the License.
 ##
 ---
-- name: wait for kubernetes
-  command: kubectl get nodes
-  register: kubernetes_ready
-  retries: 10
-  delay: 2
-  until: kubernetes_ready.rc == 0
-  changed_when: false
-  delegate_to: "{{ groups['kube_control_plane'][0] }}"
+- delegate_to: "{{ groups['kube_control_plane'][0] }}"
   run_once: true
+  block:
+    - name: Wait for kube api to be up
+      ansible.builtin.uri:
+        url: "https://127.0.0.1:6443/healthz"
+        validate_certs: no
+        use_proxy: no
+      register: kube_api
+      until: kube_api.status == 200
+      retries: 10
+      delay: 2
 
-- name: show all pods/containers which we are waiting for
-  command: kubectl get pods -A -o wide
-  changed_when: false
-  delegate_to: "{{ groups['kube_control_plane'][0] }}"
-  run_once: true
+    - name: show all nodes on kubernetes cluster
+      command: kubectl get nodes
+      changed_when: false
+      register: get_nodes_output
+      until: get_nodes_output.rc == 0
+      retries: 10
+      delay: 2
 
-# this workaround is added because kmra-ctk deployment crash after restart and it need to be redepoyed
-# it should be removed when KMRA team deliver version that can be restarted
-- name: kmra workaround
-  include_role:
-    name: kmra_workaround
-  when:
-    - kmra.pccs.enabled | default(false) | bool or
-      kmra.apphsm.enabled  | default(false) | bool or
-      kmra.ctk_loadkey_demo.enabled  | default(false) | bool
+    - name: wait for kubernetes nodes to be ready
+      kubernetes.core.k8s_info:
+        kind: Node
+        wait: true
+        wait_condition:
+          type: Ready
+        wait_timeout: 600
+      no_log: true # produce long output with sensitive ifno
 
-- name: wait for pods ready status
-  shell: set -o pipefail && kubectl describe pods -A | grep -A 5 "Conditions:"
-  args:
-    executable: /bin/bash
-  register: pods_status
-  retries: 30
-  delay: 10
-  until: "'False' not in pods_status.stdout"
-  changed_when: false
-  delegate_to: "{{ groups['kube_control_plane'][0] }}"
-  run_once: true
+    - name: show all pods on kubernetes cluster
+      command: kubectl get pods -A -o wide
+      changed_when: false
+      register: get_pods_output
+      until: get_pods_output.rc == 0
+      retries: 10
+      delay: 2
+
+    # Descirption of check:
+    # All pods must have set all status conditions to "True" except
+    # of conditions that have reason set to "PodCompleted" (Pods created from Job).
+    - name: wait for pods to be ready
+      kubernetes.core.k8s_info:
+        kind: Pod
+      register: pods_status
+      retries: 30
+      delay: 10
+      until: |
+        pods_status.failed or
+        (
+          (
+            pods_status.resources
+            | map(attribute='status')
+            | rejectattr('conditions', 'defined')
+            | list | length == 0
+          )
+          and "False" not in
+          (
+            pods_status.resources
+            | map(attribute='status')
+            | selectattr('conditions', 'defined')
+            | map(attribute='conditions')
+            | flatten
+            | rejectattr('reason', 'defined') | list
+            | union(
+              pods_status.resources
+              | map(attribute='status')
+              | map(attribute='conditions')
+              | flatten
+              | selectattr('reason', 'defined')
+              | selectattr('reason', '!=', 'PodCompleted')
+              | list
+            )
+            | map(attribute='status')
+          )
+        )
+      failed_when: pods_status.failed
+      no_log: true # produces long output with sensitive info
+
+    - name: report pods that are not ready
+      vars:
+        pod_resources: "{{ pods_status.resources }}"
+      fail:
+        msg: |
+          Following pods failed to get ready:
+
+          {{ lookup('ansible.builtin.template', 'failed_pods.j2') }}
+      when: pods_status.failed

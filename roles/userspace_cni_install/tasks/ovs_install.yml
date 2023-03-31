@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@
   register: ovs_config_status
 
 - name: bootstrap OVS
-# noqa 503 - more than one condition, can't be a handler
+# noqa no-handler - more than one condition, can't be a handler
   command: ./boot.sh
   args:
     chdir: "{{ ovs_dir }}"
@@ -68,7 +68,7 @@
     - not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
 
 - name: prepare OVS-DPDK build
-# noqa 503 - more than one condition, can't be a handler
+# noqa no-handler - more than one condition, can't be a handler
   command: ./configure --with-dpdk={{ dpdk_build }} CFLAGS="-g -O2 -Wno-cast-align"
   args:
     chdir: "{{ ovs_dir }}"
@@ -83,7 +83,7 @@
   register: ovs_distfiles_status
 
 - name: build OVS-DPDK
-# noqa 503 - more than one condition, can't be a handler
+# noqa no-handler - more than one condition, can't be a handler
   make:
     chdir: "{{ ovs_dir }}"
     params:
@@ -95,7 +95,7 @@
   register: ovs_tools_status
 
 - name: install OVS-DPDK
-# noqa 503 - more than one condition, can't be a handler
+# noqa no-handler - more than one condition, can't be a handler
   make:
     target: install
     chdir: "{{ ovs_dir }}"
@@ -108,7 +108,7 @@
     - /usr/local/var/run/openvswitch
 
 - name: clear database configuration if required
-# noqa 503 - more than one condition, can't be a handler
+# noqa no-handler - more than one condition, can't be a handler
   file:
     path: /usr/local/etc/openvswitch/conf.db
     state: absent
@@ -185,7 +185,7 @@
 
     - name: Make dev_ids list unique
       set_fact:
-        dev_ids_list_var: "{{ dev_ids_list_var | unique }}"
+        dev_ids_list_var: "{{ dev_ids_list_var | list | unique }}"
 
     - name: Print unique dev_ids_list_var for qat devices
       debug:

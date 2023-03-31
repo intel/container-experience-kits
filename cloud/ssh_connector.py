@@ -1,11 +1,9 @@
 """Class for SSH connection"""
-from http import client
-from logging import exception
 import sys
 import os
 import io
-import subprocess
 import click
+from time import sleep
 from paramiko import SSHClient, SSHConfig, ProxyCommand, AutoAddPolicy, SSHException, AuthenticationException
 from scp import SCPClient, SCPException
 
@@ -78,7 +76,7 @@ class SSHConnector:
                 try:
                     self.client.connect(**cfg)
                     ssh_connected = True
-                except (SSHException, socket.error) as e:
+                except SSHException as e:
                     click.echo("SSH not available yet. Retrying in 10 seconds.")
                     sleep(10)
         else:
@@ -154,7 +152,7 @@ class SSHConnector:
         try:
             scp.put(file_path, destination_path, recursive)
         except SCPException as error:
-            click.print(f"Error during uploading host_var file: {error}", err=True)
+            click.echo(f"Error during uploading host_var file: {error}", err=True)
         scp.close()
 
     def close_connection(self):

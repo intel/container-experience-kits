@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
   notify:
     - reload systemd
     - reload docker
+    - restarted docker
     - wait for docker
 
 - name: reload systemd
@@ -26,6 +27,11 @@
     daemon_reload: true
 
 - name: reload docker
+  service:
+    name: docker
+    state: reloaded
+
+- name: restarted docker
   service:
     name: docker
     state: restarted

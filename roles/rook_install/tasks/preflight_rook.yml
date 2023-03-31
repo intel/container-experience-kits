@@ -1,0 +1,59 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# - name: preflight Rook Ceph
+#   block:
+#     - name: Intel CPU Control Plane - check if ansible_host distro is Ubuntu 20.04/22.04
+#       assert:
+#         that:
+#           - ansible_distribution == "Ubuntu" and ansible_distribution_version in ["20.04", "22.04"]
+#         msg: |
+#           Incorrect OS support !!
+#           Deploying Intel CPU Control Plane is supported only on Ubuntu 20.04/22.04
+
+#     - name: load golang_install variables
+#       include_vars: "{{ item }}"
+#       with_first_found:
+#         - files:
+#             - "main.yml"
+#           paths:
+#             - "{{ (role_path, '..', 'bootstrap', 'golang_install', 'defaults') | path_join }}"
+#       when:
+#         - golang_version is not defined
+
+#     - name: check golang version
+#       ansible.builtin.assert:
+#         that: golang_version is version(cpu_ctlplane_golang_version, '>')
+#         msg: |
+#           Incorrect configuration !!
+#           The Intel CPU Control Plane requires golang version > {{ cpu_ctlplane_golang_version }} on the controller.
+#           The current golang version: {{ golang_version }}
+#           Please install golang >= {{ cpu_ctlplane_golang_version }} on the controller.
+
+#     - name: check container runtime
+#       ansible.builtin.assert:
+#         that: container_runtime in ['containerd', 'docker']
+#         msg: |
+#           Incorrect configuration !!
+#           The Intel CPU Control Plane (group_vars/intel_cpu_controlplane) support only one of ['containerd', 'docker']
+#           The current container_runtime: {{ container_runtime }}"
+#           Please change group_vars/contanier_runtime or disable/remove intel_cpu_controlplane.
+#   when:
+#     - kubernetes
+#     - rook_install is defined and rook_install.enabled
+#   any_errors_fatal: true
+#   tags:
+#     - rook_ceph

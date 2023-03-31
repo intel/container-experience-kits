@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: install Multus Service
-  import_tasks: multus_service.yml
+- name: Install Multus Service
+  ansible.builtin.import_tasks: multus_service.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

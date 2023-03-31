@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#   Copyright (c) 2020-2022 Intel Corporation.
+#   Copyright (c) 2020-2023 Intel Corporation.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -485,7 +485,7 @@ class ActionModule(ActionBase):
 
         # Select random NUMA
         if not self.numa:
-            self.numa = random.choice(self.numa_nodes)
+            self.numa = random.choice(self.numa_nodes) # nosec B311 # pseudo random is not used for security purposes
 
         if not self.cpus:
             self.cpu_list = self._select_cpus(task_vars['numa_nodes_cpus'], self.number, self.numa)

@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -36,5 +36,5 @@
 
     - name: wait for SRIOV Network Node Policy
       ansible.builtin.pause:
-        seconds: 40
+        seconds: 40  # SriovNetworkNodePolicy kind doesn't provide any status/phase in resource
   when: hostvars[node_name]['dataplane_interfaces']|json_query('[?flow_configuration]')

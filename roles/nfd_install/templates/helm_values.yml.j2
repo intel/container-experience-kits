@@ -7,19 +7,9 @@ image:
   tag: {{ nfd_image_tag }}
 imagePullSecrets: []
 
-gpu_dp:
-  enabled: {{ gpu_dp_enabled | default(false) | bool | lower }}
-{% if gpu_dp_max_memory is defined %}
-  max_memory: "{{ gpu_dp_max_memory | human_to_bytes }}"
-{% else %}
-  max_memory: "0"
-{% endif %}
-
 nameOverride: ""
 fullnameOverride: ""
 
-nodeFeatureRule:
-  createCRD: true
 
 master:
   instance:
@@ -43,6 +33,8 @@ master:
   extraLabelNs: []
   resourceLabels: []
 {% endif %}
+  featureApi:
+  crdController: null
 
   featureRulesController: null
   deploymentAnnotations: {}
@@ -143,6 +135,8 @@ worker:
     # The name of the service account to use.
     # If not set and create is true, a name is generated using the fullname template
     name: {{ nfd_sa_name | default(false) | bool | lower }}
+  rbac:
+    create: {{ nfd_rbac_enabled | default(true) | bool | lower }}
 
   # Allow users to mount the hostPath /usr/src, useful for RHCOS on s390x
   # Does not work on systems without /usr/src AND a read-only /usr, such as Talos
@@ -169,6 +163,7 @@ worker:
   affinity: {}
 
 topologyUpdater:
+  config:
   enable: false
   createCRDs: false
 

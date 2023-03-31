@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -15,19 +15,19 @@
 ##
 ---
 - block:
-  - name: delete cAdvisor Helm Charts
-    command: >-
-      helm delete {{ cadvisor_release_name }} --namespace {{ cadvisor_helm_release_namespace }}
-    when:
-      - inventory_hostname == groups['kube_control_plane'][0]
-    changed_when: false
-    failed_when: false
-  - name: delete cAdvisor Helm Repo
-    command: >-
-      helm repo remove {{ cadvisor_helm_chart_repo_name }}
-    when:
-      - inventory_hostname == groups['kube_control_plane'][0]
-    changed_when: false
-    failed_when: false
+    - name: delete cAdvisor Helm Charts
+      command: >-
+        helm delete {{ cadvisor_release_name }} --namespace {{ cadvisor_helm_release_namespace }}
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+      changed_when: false
+      failed_when: false
+    - name: delete cAdvisor Helm Repo
+      command: >-
+        helm repo remove {{ cadvisor_helm_chart_repo_name }}
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+      changed_when: false
+      failed_when: false
   tags:
     - cadvisor

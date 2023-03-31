@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,8 +18,16 @@ minio_application_name: "minio"               # MinIO Main Application Name
 minio_operator_namespace: "minio-operator"    # MinIO Operator/Console namespace
 minio_tenant_namespace: "minio-tenant"        # MinIO Sample Tenant namespace
 
+minio_operator_version: "v4.5.8"
+minio_console_version: "v0.22.5"
+
+minio_operator_git_url: "https://github.com/minio/operator.git"
+minio_operator_git_tag: "{{ minio_operator_version }}"
+minio_operator_git_local_dir: "{{ (project_root_dir, 'minio-operator') | path_join }}"
+minio_operator_helm_local_dir: "{{ (project_root_dir, 'charts', 'minio-operator') | path_join }}"
+
 minio_git_url: "https://github.com/minio/minio.git"
-minio_git_tag: "RELEASE.2022-08-22T23-53-06Z"
+minio_git_tag: "RELEASE.2023-01-12T02-06-16Z"
 minio_local_build_dir: "{{ (project_root_dir, 'minio') | path_join }}"
 minio_local_build_name: "minio"
 
@@ -44,7 +52,7 @@ minio_log_postgres_local_image_name: "postgres"               # MinIO Log DB loc
 minio_log_postgres_local_image_tag: "minio"                   # MinIO Log DB local build tag
 minio_log_huge_pages: "off"                                   # MinIO Log DB huge_pages settings: try, on, and off
 
-aws_local_build_dir: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'awscli') | path_join }}"
+aws_local_build_dir: "{{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'awscli') | path_join }}"
 aws_build_image_locally: true
 aws_local_build_name: awscli
 aws_image_tag: test

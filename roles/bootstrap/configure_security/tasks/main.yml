@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@
 
 # fix for file size limit bug on RHEL-based distros, please see https://access.redhat.com/solutions/33993
 - name: fix file size limit settings bug
-  shell: sed -i -r 's/^(session\s+required\s+pam_limits.so)/#\1/' /etc/pam.d/* # noqa 303
+  shell: sed -i -r 's/^(session\s+required\s+pam_limits.so)/#\1/' /etc/pam.d/* # noqa command-instead-of-module
   when: ansible_os_family == "RedHat"
 
 - name: increase file size limit settings

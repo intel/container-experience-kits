@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -19,13 +19,29 @@
     hostname: "{{ item.name }}"
     ansible_host: "{{ vm_vxlan_ips[item.name] }}"
     ip: "{{ vm_vxlan_ips[item.name] }}"
+    ansible_user: "{{ login_user }}"
+    inventory_dir: '{{inventory_dir}}'
     groups: all
   loop: "{{ vms }}"
+  when:
+    - "vm_cluster_name | default('') | length == 0"
+
+- name: Add hosts to inventory - all (cluster)
+  add_host:
+    hostname: "{{ item.name }}"
+    ansible_host: "{{ item.name }}"
+    ansible_user: "{{ login_user }}"
+    inventory_dir: '{{inventory_dir}}'
+    groups: all
+  loop: "{{ vms }}"
+  when:
+    - "vm_cluster_name | default('') | length > 0"
 
 - name: Add hosts to inventory - kube*
   add_host:
     hostname: "{{ item.name }}"
     groups: "{% if item.type == 'ctrl' %} kube_control_plane,etcd {% elif item.type == 'work' %} kube_node {% endif %}"
+    inventory_dir: '{{inventory_dir}}'
   loop: "{{ vms }}"
 
 - name: VMs are ready

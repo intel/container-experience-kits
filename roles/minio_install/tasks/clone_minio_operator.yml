@@ -1,0 +1,48 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: clone MinIO Operator repo to the controller node
+  ansible.builtin.git:
+    repo: "{{ minio_operator_git_url }}"
+    version: "{{ minio_operator_git_tag }}"
+    dest: "{{ minio_operator_git_local_dir }}"
+    force: yes
+
+- name: copy MinIO Operator files into controller's local folder
+  ansible.builtin.copy:
+    src: "{{ (minio_operator_git_local_dir, 'helm', item) | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir) | path_join }}"
+    mode: 0644
+    remote_src: true
+  loop:
+    - "operator"
+    - "tenant"
+
+- name: populate MinIO Operator templates and copy to controller node
+  template:
+    src: "minio.min.io_tenants.yaml.j2"
+    dest: "{{ (minio_operator_helm_local_dir, 'operator', 'templates', 'minio.min.io_tenants.yaml') | path_join }}"
+    force: yes
+    trim_blocks: false
+    mode: preserve
+
+- name: create MinIO Helm charts temp directory if needed
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  loop:
+    - "{{ (minio_operator_helm_local_dir, 'operator', 'temp') | path_join }}"
+    - "{{ (minio_operator_helm_local_dir, 'tenant', 'temp') | path_join }}"

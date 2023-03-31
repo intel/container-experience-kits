@@ -1,0 +1,73 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create Rook Helm charts directory if needed
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  loop:
+    - "{{ rook_helm_local_dir }}"
+    - "{{ (rook_helm_local_dir, 'temp') | path_join }}"
+
+- name: clone Rook repo to the controller node
+  ansible.builtin.git:
+    repo: "{{ rook_git_url }}"
+    version: "{{ rook_git_tag }}"
+    dest: "{{ rook_git_local_dir }}"
+    force: yes
+
+- name: copy Rook Operator files into controller's local folder
+  ansible.builtin.copy:
+    src: "{{ (rook_git_local_dir, 'deploy', 'examples', item) | path_join }}"
+    dest: "{{ (rook_helm_local_dir, 'temp') | path_join }}"
+    mode: 0644
+    remote_src: true
+  loop:
+    - "crds.yaml"
+    - "common.yaml"
+    - "csi/nfs/rbac.yaml"
+
+- name: populate Rook Operator templates and copy to controller node
+  vars:
+    csi_provisioner_replicas: "{{ groups['kube_node'] | length }}"
+  template:
+    src: "operator.yaml.j2"
+    dest: "{{ (rook_helm_local_dir, 'temp', 'operator.yaml') | path_join }}"
+    force: yes
+    trim_blocks: false
+    mode: preserve
+
+- name: populate Rook Cluster templates and copy to controller node
+  template:
+    src: "cluster.yaml.j2"
+    dest: "{{ (rook_helm_local_dir, 'temp', 'cluster.yaml') | path_join }}"
+    force: yes
+    trim_blocks: false
+    mode: preserve
+
+- name: create Rook Common Resources
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ (rook_helm_local_dir, 'temp', item ) | path_join }}"
+  loop:
+    - "crds.yaml"
+    - "common.yaml"
+    - "operator.yaml"
+    - "cluster.yaml"
+    - "rbac.yaml"
+  loop_control:
+    pause: 5

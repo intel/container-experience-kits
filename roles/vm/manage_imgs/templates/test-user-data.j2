@@ -1,7 +1,0 @@
-{{ ansible_user_id }}
-
-{{ item.type }}
-
-{{ lookup('file', '/root/.ssh/id_rsa.pub') }}
-
-{{ lookup('file', '/home/{{ ansible_user_id }}/.ssh/id_rsa.pub') }}

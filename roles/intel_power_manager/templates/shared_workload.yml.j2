@@ -3,7 +3,7 @@ apiVersion: "power.intel.com/v1alpha1"
 kind: PowerWorkload
 metadata:
   name: shared-{{ node_name }}-workload
-  namespace: intel-power
+  namespace: {{ intel_power_manager_namespace }}
 spec:
   name: "shared-{{ node_name }}-workload"
   allCores: true

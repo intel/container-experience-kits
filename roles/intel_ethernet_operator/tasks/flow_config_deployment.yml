@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@
     src: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow-config-node-agent.yml') | path_join }}"
 
 - name: wait for FlowConfig Daemon
-  ansible.builtin.pause:
+  ansible.builtin.pause: # TODO replace with condition wait, not simple as there are no labels in flowconfig daemon pods
     seconds: 40
 
 - name: check if NodeFlowConfig is enabled on any node
@@ -60,7 +60,7 @@
     is_nodeflowconfig_enabled: "{{ is_nodeflowconfig | json_query('results[*].msg') | replace('\"', '') | replace('\\n', '') }}"
 
 - name: create NodeFlowConfig CR
-  ansible.builtin.shell: set -o pipefail && kubectl apply $( ls *node-flow.yml | awk ' { print " -f " $1 } ') # noqa 301
+  ansible.builtin.shell: set -o pipefail && kubectl apply $( ls *node-flow.yml | awk ' { print " -f " $1 } ') # noqa no-changed-when
   args:
     chdir: "{{ intel_ethernet_operator_flow_config_files_dir }}"
     executable: /bin/bash

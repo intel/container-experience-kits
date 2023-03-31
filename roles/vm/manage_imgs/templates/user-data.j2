@@ -2,7 +2,7 @@
 users:
   - name: root
     ssh-authorized-keys:
-      - {{ lookup('file', '/root/.ssh/id_rsa.pub') }}
+      - {{ lookup('file', '{{ local_login_user_dir }}/.ssh/id_rsa.pub') }}
 {% for pub in remote_pub.results %}
       - {{ pub['content'] | b64decode }}
 {%- endfor %}
@@ -11,6 +11,19 @@ users:
     shell: /bin/bash
     lock_passwd: false
     hashed_passwd: '{{ vm_hashed_passwd }}'
+{% if login_user != "root" %}
+  - name: "{{ login_user }}"
+    ssh-authorized-keys:
+      - {{ lookup('file', '{{ local_login_user_dir }}/.ssh/id_rsa.pub') }}
+{% for pub in remote_pub.results %}
+      - {{ pub['content'] | b64decode }}
+{%- endfor %}
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    groups: sudo
+    shell: /bin/bash
+    lock_passwd: false
+    hashed_passwd: '{{ vm_hashed_passwd_non_root | default( vm_hashed_passwd ) }}'
+{% endif %}
 
 
 runcmd:
@@ -19,6 +32,9 @@ runcmd:
 {% if vm_image_distribution == "ubuntu" %}
   - netplan apply
 {% endif %}
+  - "chown -R {{ login_user }}:{{ login_user }} {{ login_user_dir }}"
+  - "chmod 0700 {{ login_user_dir }}"
+  - "chmod 0700 {{ login_user_dir }}/.ssh"
   - echo "End of cloud-init runcmd execution"
 
 package_update: true
@@ -28,6 +44,7 @@ packages:
   - kernel
   - python3
   - vim
+  - pciutils
 package_reboot_if_required: true
 {% endif %}
 
@@ -69,10 +86,10 @@ write_files:
       https_proxy={{ https_proxy | default('') }}
       no_proxy=
     append: true
-  - path: /root/.ssh/id_rsa
+  - path: "{{ login_user_dir }}/.ssh/id_rsa"
     content: |
-      {{ lookup('file', '/root/.ssh/id_rsa') | indent(6) }}
+      {{ lookup('file', '{{ local_login_user_dir }}/.ssh/id_rsa') | indent(6) }}
     permissions: '0600'
-  - path: /root/.ssh/id_rsa.pub
-    content: {{ lookup('file', '/root/.ssh/id_rsa.pub') }}
+  - path: "{{ login_user_dir }}/.ssh/id_rsa.pub"
+    content: {{ lookup('file', '{{ local_login_user_dir }}/.ssh/id_rsa.pub') }}
     permissions: '0644'

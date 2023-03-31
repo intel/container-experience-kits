@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 ---
 - name: enable selinux
   selinux:
-    state: enabled
+    state: enforcing
   notify: reboot server
   when:
     - ansible_os_family == "RedHat"

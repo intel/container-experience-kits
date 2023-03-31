@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 # Set GPU kernel version, reload variables anytime via "include_role" when referring to gpu_oem_kernel_version
 - name: set kernel version for Ubuntu 22.04
   set_fact:
-    gpu_oem_kernel_version: "5.17.0-1019-oem"
+    gpu_oem_kernel_version: "5.15.0-48-generic"
   when: ansible_distribution_version == "22.04"
 
-- name: set kernel version for Ubuntu 22.04
+- name: set kernel version for Ubuntu 20.04
   set_fact:
     gpu_oem_kernel_version: "5.14.0-1047-oem"
   when: ansible_distribution_version == "20.04"

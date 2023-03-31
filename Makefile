@@ -1,6 +1,7 @@
 CEK_DIRECTORIES_WITH_SHELL_FILES ?= roles/ examples/ playbooks/infra/ playbooks/intel/
 ARCH ?= 'icx'
 NIC ?= 'cvl'
+MIRRORS ?= false
 PLAYBOOKS_DIRS = playbooks playbooks/infra playbooks/intel
 PLAYBOOK_NAMES = access basic full_nfv on_prem regional_dc remote_fp storage build_your_own
 
@@ -40,7 +41,8 @@ k8s-profile: clean-playbooks
 	--mode k8s \
 	-p $(PROFILE) \
 	-a $(ARCH) \
-	-n ${NIC}
+	-n ${NIC} \
+	-m ${MIRRORS}
 
 vm-profile: clean-playbooks
 	python3 generate/render.py \
@@ -53,7 +55,8 @@ vm-profile: clean-playbooks
 	--mode vm \
 	-p $(PROFILE) \
 	-a $(ARCH) \
-	-n ${NIC}
+	-n ${NIC} \
+	-m ${MIRRORS}
 
 cloud-profile: clean-playbooks
 	python3 generate/render.py \
@@ -65,7 +68,8 @@ cloud-profile: clean-playbooks
 	--mode cloud \
 	-p $(PROFILE) \
 	-a $(ARCH) \
-	-n ${NIC}
+	-n ${NIC} \
+	-m ${MIRRORS}
 
 clean: clean-playbooks clean-project-root-dir
 

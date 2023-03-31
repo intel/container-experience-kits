@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -16,49 +16,61 @@
 ---
 - name: Prepare bastion host configuration for VXLAN in ~/.ssh/config
   blockinfile:
-    path: ~/.ssh/config
+    path: "{{ local_login_user_dir }}/.ssh/config"
     block: |
       Host {{ item.value }}
-        ProxyCommand ssh root@{{ hostvars[groups['vm_host'][0]]['ansible_default_ipv4']['address'] }} -W %h:%p
+        ProxyCommand ssh {{ login_user }}@{{ hostvars[groups['vm_host'][0]]['ansible_default_ipv4']['address'] }} -W %h:%p
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }} VXLAN"
     create: yes
-    owner: "{{ ansible_user_id }}"
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
     mode: '0644'
   with_items: "{{ vm_vxlan_ips | dict2items }}"
   delegate_to: localhost
+  become: false
+  when:
+    - "vm_cluster_name | default('') | length == 0"
 
 - name: Remove old ECDSA key fingerprint on localhost for VXLAN
-  command: ssh-keygen -f "~/.ssh/known_hosts" -R "{{ item.key }}"
+  command: ssh-keygen -f "{{ local_login_user_dir }}/.ssh/known_hosts" -R "{{ item.value }}"
   with_items: "{{ vm_vxlan_ips | dict2items }}"
   delegate_to: localhost
-  changed_when: true
-  when:
-    - (not item.key in current_vms.stdout) or
-      vm_recreate_existing | default(true)
-
-- name: Store ECDSA key fingerprint for VXLAN
-  command: ssh -o StrictHostKeyChecking=No {{ item.value }} hostname
-  with_items: "{{ vm_vxlan_ips | dict2items }}"
-  delegate_to: "{{ groups['vm_host'][0] }}"
-  changed_when: true
+  become: false
+  register: ssh_keygen_result
+  changed_when: '" not found in " not in ssh_keygen_result.stderr'
   when:
     - (not item.key in current_vms.stdout) or
       vm_recreate_existing | default(true)
 
 - name: Store ECDSA key fingerprint on localhost for VXLAN
-  command: ssh -o StrictHostKeyChecking=No {{ item.key }} hostname
+  command: ssh -o StrictHostKeyChecking=No {{ login_user }}@{{ item.value }} hostname
   with_items: "{{ vm_vxlan_ips | dict2items }}"
   delegate_to: localhost
-  changed_when: true
+  become: false
+  register: ssh_result
+  changed_when: '"Warning: Permanently added " in ssh_result.stderr'
   when:
     - (not item.key in current_vms.stdout) or
       vm_recreate_existing | default(true)
+    - "vm_cluster_name | default('') | length == 0"
+
+- name: Store ECDSA key fingerprint on localhost
+  command: ssh -o StrictHostKeyChecking=No {{ login_user }}@{{ item.key }} hostname
+  with_items: "{{ vm_vxlan_ips | dict2items }}"
+  delegate_to: localhost
+  become: false
+  register: ssh_result
+  changed_when: '"Warning: Permanently added " in ssh_result.stderr'
+  when:
+    - (not item.key in current_vms.stdout) or
+      vm_recreate_existing | default(true)
+    - "vm_cluster_name | default('') | length > 0"
 
 - name: Update vm inventory file - all
   ini_file:
     dest: "{{ vm_inventory_name }}"
     section: "all"
-    option: "{{ item.name }} ansible_host={{ vm_vxlan_ips[item.name] }} ip={{ vm_vxlan_ips[item.name] }}"
+    option: "{{ item.name }} ansible_host={{ vm_vxlan_ips[item.name] }} ip={{ vm_vxlan_ips[item.name] }} ansible_user={{ login_user }}"
     no_extra_spaces: yes
     allow_no_value: yes
     mode: '0644'
@@ -66,6 +78,25 @@
     backup: no
   with_items: "{{ vms }}"
   delegate_to: localhost
+  become: false
+  when:
+    - "vm_cluster_name | default('') | length == 0"
+
+- name: Update vm inventory file - all (cluster)
+  ini_file:
+    dest: "{{ vm_inventory_name }}"
+    section: "all"
+    option: "{{ item.name }} ansible_host={{ item.name }} ansible_user={{ login_user }}"
+    no_extra_spaces: yes
+    allow_no_value: yes
+    mode: '0644'
+    state: present
+    backup: no
+  with_items: "{{ vms }}"
+  delegate_to: localhost
+  become: false
+  when:
+    - "vm_cluster_name | default('') | length > 0"
 
 - name: Update vm inventory file - kube*
   ini_file:
@@ -81,3 +112,4 @@
     - "{{ vms }}"
     - ['kube_control_plane', 'etcd']
   delegate_to: localhost
+  become: false

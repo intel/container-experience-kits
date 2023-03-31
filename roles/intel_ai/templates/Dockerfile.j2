@@ -1,0 +1,63 @@
+FROM {{ intel_ai_image_src}}:{{ intel_ai_image_tag }}
+
+ARG http_proxy
+ARG https_proxy
+
+USER root
+RUN apt update -y
+
+# User probably won't need sudo access
+#RUN apt install -y sudo
+#RUN echo "dlstreamer:dlstreamer" | chpasswd
+#RUN usermod -aG sudo dlstreamer
+RUN apt -y install git clinfo curl python3-venv python3-pip
+
+USER dlstreamer
+ENV HOME=/home/dlstreamer
+
+RUN python3 -m venv venv --prompt dls2022.3
+ENV PATH="$HOME/venv/bin:$PATH"
+RUN python3 -m pip install -U pip
+RUN pip install openvino-dev[onnx,tensorflow2,pytorch]==2022.3.0
+
+ENV MODEL_PATH=${HOME}/models
+RUN mkdir -p ${MODEL_PATH}
+
+# Download classifier from OMZ
+RUN omz_downloader -o ${MODEL_PATH} --name vehicle-attributes-recognition-barrier-0039
+RUN curl --output ${MODEL_PATH}/intel/vehicle-attributes-recognition-barrier-0039/vehicle-attributes-recognition-barrier-0039.json \
+    https://raw.githubusercontent.com/dlstreamer/dlstreamer/2022.3-release/samples/gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0039.json
+
+# Download and convert yolov5m detection model from source
+RUN git clone --branch v6.2 --depth 1 https://github.com/ultralytics/yolov5 yolov5-v6.2
+RUN pip install -r yolov5-v6.2/requirements.txt
+RUN pip install onnx==1.12.0 torch==1.13.0 torchvision==0.14.0
+RUN mkdir -p ${MODEL_PATH}/public/yolov5m/
+RUN curl -L --output ${MODEL_PATH}/public/yolov5m/yolov5m.pt \
+    https://github.com/ultralytics/yolov5/releases/download/v6.2/yolov5m.pt
+RUN cd yolov5-v6.2 && python3 export.py --weights ${MODEL_PATH}/public/yolov5m/yolov5m.pt \
+    --imgsz 640 --batch 1 --include onnx
+RUN mo --input_model ${MODEL_PATH}/public/yolov5m/yolov5m.onnx --model_name yolov5m \
+    --scale 255 --reverse_input_channels \
+    --output /model.24/m.0/Conv,/model.24/m.1/Conv,/model.24/m.2/Conv \
+    --data_type FP16 \
+    --output_dir ${MODEL_PATH}/public/yolov5m/FP16
+RUN curl -L --output ${MODEL_PATH}/public/yolov5m/yolov5m.json \
+    https://raw.githubusercontent.com/dlstreamer/dlstreamer/2022.3-release/samples/gstreamer/model_proc/public/yolo-v5.json
+RUN curl -L --output ${MODEL_PATH}/public/yolov5m/coco_80cl.txt \
+    https://github.com/dlstreamer/dlstreamer/blob/2022.3-release/samples/labels/coco_80cl.txt?raw=true
+                
+# Download example video
+RUN curl -L --output cars-on-highway.1920x1080.mp4 "https://www.pexels.com/video/854671/download/?h=1080&w=1920"
+
+COPY --chown=dlstreamer run_vehicle_detection_attribute.sh /home/dlstreamer/run_vehicle_detection_attribute.sh
+RUN chmod +x /home/dlstreamer/run_vehicle_detection_attribute.sh
+
+# We have 2 choices here
+# 1. Run container as dlstreamer:
+#      We need to ensure dlstreamer has access to /dev/dri/renderD128 and /dev/dri/renderD129 via the "render" group.
+# 2. Run container as root:
+#      Need to check to see if have violated the "least-privilege" principle
+# USER dlstreamer
+# USER root
+CMD ./run_vehicle_detection_attribute.sh

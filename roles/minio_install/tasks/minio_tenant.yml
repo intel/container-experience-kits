@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -14,42 +14,10 @@
 ##   limitations under the License.
 ##
 ---
-- name: check MinIO Tenant Helm charts directory
-  stat:
-    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
-  register: tenant_dir
-
-- name: create MinIO Tenant Helm charts directory if needed
-  file:
-    path: "{{ (project_root_dir, 'charts', 'tenant') | path_join }}"
-    state: directory
-    mode: 0755
-  when:
-    - tenant_dir.stat.exists is defined and not tenant_dir.stat.exists
-
-- name: copy MinIO Tenant Helm charts to the controller node
-  copy:
-    src: "{{ (role_path, 'charts', 'tenant') | path_join }}"
-    dest: "{{ (project_root_dir, 'charts') | path_join }}"
-    mode: 0755
-
-- name: check MinIO Tenant Helm charts temp directory
-  stat:
-    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
-  register: tenant_temp_dir
-
-- name: create the temp folder for MinIO Tenant custom values
-  file:
-    path: "{{ (project_root_dir, 'charts', 'tenant', 'temp') | path_join }}"
-    state: directory
-    mode: 0755
-  when:
-    - not tenant_temp_dir.stat.exists
-
 - name: populate MinIO Tenant Helm charts values template and push to controller node
   template:
     src: "minio_tenant_custom_values.yml.j2"
-    dest: "{{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-tenant-custom-values.yml') | path_join }}"
+    dest: "{{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'minio-tenant-custom-values.yml') | path_join }}"
     force: yes
     mode: preserve
 
@@ -64,8 +32,8 @@
   command: >-
     helm install
     {{ minio_tenant_release_name }}
-    {{ (project_root_dir, 'charts', 'tenant') | path_join }}
+    {{ (minio_operator_helm_local_dir, 'tenant') | path_join }}
     --namespace {{ minio_tenant_namespace }}
     --set installCRDs=true
-    -f {{ (project_root_dir, 'charts', 'tenant', 'temp', 'minio-tenant-custom-values.yml') | path_join }}
+    -f {{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'minio-tenant-custom-values.yml') | path_join }}
   changed_when: true

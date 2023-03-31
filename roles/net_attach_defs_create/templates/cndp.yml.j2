@@ -5,13 +5,13 @@ metadata:
   name: {{ cndp_net_attach_def_conf.name | default("cndp-cni-e2e") }}
   namespace: default
   annotations:
-    k8s.v1.cni.cncf.io/resourceName: cndp/e2e
+    k8s.v1.cni.cncf.io/resourceName: afxdp/raPool
 spec:
   config: '{
       "cniVersion": "{{ cndp_cni_version }}",
       "type": "afxdp",
-      "mode": "cndp",
-      "logFile": "/var/log/afxdp-k8s-plugins/cndp-cni.log",
+      "mode": "primary",
+      "logFile": "afxdp-cni.log",
       "logLevel": "debug",
 {% if not (on_vms | default(false) | bool) %}
       "queues": "4",

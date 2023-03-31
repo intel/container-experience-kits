@@ -1,5 +1,5 @@
 ##
-##   Copyright (c) 2020-2022 Intel Corporation.
+##   Copyright (c) 2020-2023 Intel Corporation.
 ##
 ##   Licensed under the Apache License, Version 2.0 (the "License");
 ##   you may not use this file except in compliance with the License.
@@ -58,6 +58,20 @@
       create: true
   when: item.create | default(false) | bool
 
+- name: replace prometheus_stack_version tag
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '<prometheus_stack_version>'
+    replace: "{{ prometheus_stack_version }}"
+  loop: "{{ prometheus_stack_version_files }}"
+
+- name: replace prometheus_operator_version tag
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '<prometheus_operator_version>'
+    replace: "{{ prometheus_operator_version }}"
+  loop: "{{ prometheus_operator_version_files }}"
+
 - name: find template files
   ansible.builtin.find:
     paths: "{{ (role_path, 'templates') | path_join }}"
@@ -67,7 +81,8 @@
     patterns:
       - '^(?!kube-prometheus-stack-certs).*'
   register: template_files
-  delegate_to: 127.0.0.1
+  delegate_to: localhost
+  become: false
 
 - name: template kube-prometheus-stack manifests
   ansible.builtin.template:
@@ -89,23 +104,62 @@
     - ../templates/prometheus_srv/*.j2
   when: prometheus_srv_expose | default(false)
 
+- name: find kube-prometheus CRD manifests
+  ansible.builtin.find:
+    paths: "{{ (kube_prometheus_stack_directory, 'crds') | path_join }}"
+    recurse: no
+    file_type: file
+    use_regex: yes
+    patterns:
+      - '^.*\.y*'
+  register: crs_files
+
 - name: install kube-prometheus CRD manifests
-  ansible.builtin.command: "kubectl create -f {{ (kube_prometheus_stack_directory, 'crds') | path_join }}"
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item.path }}"
+  with_items:
+    - "{{ crs_files.files }}"
+  when:
+    - "'0alertmanagerConfigCustomResourceDefinition' not in item.path"
+
+# This CRD is failing with 'kubernetes.core.k8s' ansible module above
+# This task is workaround for that failure
+- name: install kube-prometheus CRD manifest 0alertmanagerConfigCustomResourceDefinition
+  ansible.builtin.command: "kubectl apply -f {{ (kube_prometheus_stack_directory, 'crds', '0alertmanagerConfigCustomResourceDefinition.yaml') | path_join }}"
   changed_when: true
 
 - name: wait for kube-prometheus CRDs to finish installation
-  ansible.builtin.command: >-
-    kubectl wait --for condition=Established crd
-    alertmanagerconfigs.monitoring.coreos.com
-    alertmanagers.monitoring.coreos.com
-    podmonitors.monitoring.coreos.com
-    probes.monitoring.coreos.com
-    prometheuses.monitoring.coreos.com
-    prometheusrules.monitoring.coreos.com
-    servicemonitors.monitoring.coreos.com
-    thanosrulers.monitoring.coreos.com
-  changed_when: false
+  kubernetes.core.k8s_info:
+    kind: CustomResourceDefinition
+    name: "{{ item }}"
+    wait: true
+    wait_condition:
+      type: "Established"
+    wait_timeout: 120
+  loop:
+    - alertmanagerconfigs.monitoring.coreos.com
+    - alertmanagers.monitoring.coreos.com
+    - podmonitors.monitoring.coreos.com
+    - probes.monitoring.coreos.com
+    - prometheuses.monitoring.coreos.com
+    - prometheusrules.monitoring.coreos.com
+    - servicemonitors.monitoring.coreos.com
+    - thanosrulers.monitoring.coreos.com
+
+- name: find kube-prometheus application manifests
+  ansible.builtin.find:
+    paths: "{{ kube_prometheus_stack_directory }}"
+    recurse: no
+    file_type: file
+    use_regex: yes
+    patterns:
+      - '^.*\.y*'
+  register: app_files
 
 - name: install kube-prometheus application manifests
-  ansible.builtin.command: "kubectl create -f {{ kube_prometheus_stack_directory }}"
-  changed_when: true
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item.path }}"
+  with_items:
+    - "{{ app_files.files }}"

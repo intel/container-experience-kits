@@ -13,6 +13,7 @@
 # - kube_dashboard
 # - isolcpu
 # - cpusets
+# - intel_cpu_controlplane
 # - native_cpu_manager
 # - bond_cni
 # - topology_manager
@@ -47,8 +48,10 @@
 #     prometheus
 #     collectd
 #     telegraf
+#     jaeger
 #     opentelemetry
-# - jaeger
+#     elasticsearch
+#     kibana
 # - wireguard
 # - multus
 # - cndp
@@ -73,7 +76,8 @@
 # - intel_sriov_fec_operator
 # - intel_flexran
 # - tadk
-
+# - remove_kubespray_host_dns_settings
+# - enable_dhclient_systemd_service
 ---
 access:
   name: access
@@ -122,8 +126,10 @@ access:
     prometheus: on
     collectd: off
     telegraf: on
+    jaeger: on
     opentelemetry: on
-  jaeger: optional
+    elasticsearch: on
+    kibana: on
   istio_service_mesh:
     enabled: off
     tcpip_bypass_ebpf: off
@@ -139,7 +145,7 @@ access:
   cndp_dp: off
   minio: off
   cert_manager: on
-  registry: on
+  registry: off
   hugepages: on
   intel_ethernet_operator:
     enabled: off
@@ -149,6 +155,8 @@ access:
   intel_sriov_fec_operator: off
   intel_flexran: off
   adq_dp: off
+  remove_kubespray_host_dns_settings: off
+  enable_dhclient_systemd_service: off
 
 basic:
   name: basic
@@ -170,21 +178,25 @@ basic:
     prometheus: on
     collectd: off
     telegraf: on
+    jaeger: on
     opentelemetry: on
-  jaeger: optional
+    elasticsearch: on
+    kibana: on
   wireguard: off
   multus: on
   firewall: off
   cndp: off
   cndp_dp: off
   cert_manager: on
-  registry: on
+  registry: off
   hugepages: optional
   intel_ethernet_operator:
     enabled: off
     flow_config: off
     fw_update: off
   adq_dp: off
+  remove_kubespray_host_dns_settings: off
+  enable_dhclient_systemd_service: off
 
 full_nfv:
   name: full_nfv
@@ -195,6 +207,7 @@ full_nfv:
   kube_dashboard: off
   isolcpu: optional
   cpusets: optional
+  intel_cpu_controlplane: optional
   native_cpu_manager: off
   topology_manager: off
   sriov_operator: off
@@ -233,11 +246,13 @@ full_nfv:
     prometheus: on
     collectd: off
     telegraf: on
+    jaeger: on
     opentelemetry: on
-  jaeger: on
+    elasticsearch: on
+    kibana: on
   istio_service_mesh:
     enabled: on
-    tcpip_bypass_ebpf: on
+    tcpip_bypass_ebpf: off
     tls_splicing: on
     sgx_signer: off
     intel_preview: optional
@@ -250,7 +265,7 @@ full_nfv:
   cndp_dp: off
   minio: off
   cert_manager: on
-  registry: on
+  registry: off
   hugepages: on
   intel_ethernet_operator:
     enabled: off
@@ -261,6 +276,8 @@ full_nfv:
   intel_flexran: off
   tadk: on
   adq_dp: off
+  remove_kubespray_host_dns_settings: off
+  enable_dhclient_systemd_service: off
 
 on_prem:
   name: on_prem
@@ -303,11 +320,13 @@ on_prem:
     prometheus: on
     collectd: off
     telegraf: on
+    jaeger: on
     opentelemetry: on
-  jaeger: optional
+    elasticsearch: on
+    kibana: on
   istio_service_mesh:
     enabled: on
-    tcpip_bypass_ebpf: on
+    tcpip_bypass_ebpf: off
     tls_splicing: on
     sgx_signer: off
     intel_preview: optional
@@ -319,13 +338,15 @@ on_prem:
   cndp: off
   cndp_dp: off
   cert_manager: on
-  registry: on
+  registry: off
   hugepages: on
   intel_ethernet_operator:
     enabled: off
     flow_config: off
     fw_update: off
   adq_dp: off
+  remove_kubespray_host_dns_settings: off
+  enable_dhclient_systemd_service: off
 
 regional_dc:
   name: regional_dc
@@ -360,11 +381,13 @@ regional_dc:
     prometheus: on
     collectd: off
     telegraf: on
+    jaeger: on
     opentelemetry: on
-  jaeger: optional
+    elasticsearch: on
+    kibana: on
   istio_service_mesh:
     enabled: on
-    tcpip_bypass_ebpf: on
+    tcpip_bypass_ebpf: off
     tls_splicing: on
     sgx_signer: off
     intel_preview: optional
@@ -376,13 +399,15 @@ regional_dc:
   cndp: off
   cndp_dp: off
   cert_manager: on
-  registry: on
+  registry: off
   hugepages: optional
   intel_ethernet_operator:
     enabled: off
     flow_config: off
     fw_update: off
   adq_dp: off
+  remove_kubespray_host_dns_settings: off
+  enable_dhclient_systemd_service: off
 
 remote_fp:
   name: remote_fp
@@ -393,6 +418,7 @@ remote_fp:
   kube_dashboard: off
   isolcpu: optional
   cpusets: optional
+  intel_cpu_controlplane: optional
   native_cpu_manager: off
   topology_manager: off
   sriov_operator: off
@@ -427,11 +453,13 @@ remote_fp:
     prometheus: on
     collectd: off
     telegraf: optional
-    opentelemetry: on
-  jaeger: optional
+    jaeger: optional
+    opentelemetry: optional
+    elasticsearch: optional
+    kibana: optional
   istio_service_mesh:
     enabled: optional
-    tcpip_bypass_ebpf: optional
+    tcpip_bypass_ebpf: off
     tls_splicing: optional
     sgx_signer: off
     intel_preview: optional
@@ -443,7 +471,7 @@ remote_fp:
   cndp: off
   cndp_dp: off
   cert_manager: on
-  registry: on
+  registry: off
   hugepages: on
   intel_ethernet_operator:
     enabled: off
@@ -451,45 +479,8 @@ remote_fp:
     ddp: off
     fw_update: off
   adq_dp: off
-
-storage:
-  name: storage
-  cloud_mode: on
-  vm_mode: off
-  on_vms: off
-  nfd: on
-  kube_dashboard: off
-  native_cpu_manager: off
-  topology_manager: off
-  sriov_operator: off
-  sriov_network_dp: off
-  nic_drivers: off
-  qat: off
-  qat_dp: off
-  tas: off
-  ddp: off
-  dpdk: on
-  cstate: optional
-  ufs: off
-  telemetry:
-    prometheus: on
-    collectd: off
-    telegraf: on
-    opentelemetry: on
-  jaeger: optional
-  wireguard: off
-  multus: on
-  firewall: off
-  minio: off
-  cert_manager: on
-  registry: on
-  hugepages: on
-  intel_ethernet_operator:
-    enabled: off
-    flow_config: off
-    ddp: off
-    fw_update: off
-  adq_dp: off
+  remove_kubespray_host_dns_settings: off
+  enable_dhclient_systemd_service: off
 
 build_your_own:
   name: build_your_own
@@ -500,6 +491,7 @@ build_your_own:
   kube_dashboard: off
   isolcpu: optional
   cpusets: optional
+  intel_cpu_controlplane: optional
   native_cpu_manager: off
   topology_manager: off
   sriov_operator: off
@@ -536,11 +528,13 @@ build_your_own:
     prometheus: optional
     collectd: off
     telegraf: optional
+    jaeger: optional
     opentelemetry: optional
-  jaeger: optional
+    elasticsearch: optional
+    kibana: optional
   istio_service_mesh:
     enabled: optional
-    tcpip_bypass_ebpf: optional
+    tcpip_bypass_ebpf: off
     tls_splicing: optional
     sgx_signer: off
     intel_preview: optional
@@ -553,7 +547,7 @@ build_your_own:
   cndp_dp: off
   minio: off
   cert_manager: optional
-  registry: optional
+  registry: off
   hugepages: optional
   intel_ethernet_operator:
     enabled: off
@@ -564,3 +558,5 @@ build_your_own:
   intel_flexran: off
   tadk: optional
   adq_dp: off
+  remove_kubespray_host_dns_settings: off
+  enable_dhclient_systemd_service: off
