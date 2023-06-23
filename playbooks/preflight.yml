@@ -858,15 +858,14 @@
         success_msg: "GPU device plugin is enabled"
       when: configure_gpu is defined and configure_gpu
 
-# OpenSSL & OpenSSL*Engine must only be configured / installed when update_qat_drivers is set to 'true' and qat_devices is defined in host vars
-# or auto-detected from the system
-    - name: check OpenSSL and OpenSSL*Engine requirements
+    - name: check OpenSSL and OpenSSL*Engine requirements when OOT or Intree QAT setup configured
       assert:
         that:
-          - update_qat_drivers
-        fail_msg: "OpenSSL & OpenSSL*Engine will only configured if update_qat_drivers is set to 'true'"
-        success_msg: "OpenSSL & OpenSSL*Engine verification completed"
-      when: openssl_install is defined and openssl_install
+          - openssl_install
+        fail_msg: "OpenSSL & OpenSSL*Engine must be configured if 'update_qat_drivers' or 'enable_intel_qatlibs' are set to 'true'"
+        success_msg: "Assertion of OpenSSL & OpenSSL*Engine for QAT passed"
+      when:
+        - update_qat_drivers | default(false) or enable_intel_qatlibs | default(false)
 
     - name: check KMRA sgx_dp requirements
       assert:
@@ -1004,6 +1003,12 @@
           - number_of_hugepages_1G = {{ number_of_hugepages_1G }} (host_vars)
           - number_of_hugepages_2M = {{ number_of_hugepages_2M }} (host_vars)
       when: vpp_enabled is defined and vpp_enabled # host_vars
+
+    # W/A Disabled until userspace CNI compilation is fixed
+    - name: check OS for VPP compilation
+      fail:
+        msg: "VPP is temporarily not supported."
+      when: vpp_enabled is defined and vpp_enabled
 
     - name: check OS for VPP compilation
       assert:

@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sriovtest
+  namespace: cnf-validation
+spec:
+  containers:
+  - name: sriovtest1
+    image: alpine:3.18
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        intel.com/intel_sriov_odu: '2'
+        #intel.com/intel_fec_5g: '1'
+        cpu: 100m
+        memory: 50Mi
+      limits:
+        intel.com/intel_sriov_odu: '2'
+        #intel.com/intel_fec_5g: '1'
+        cpu: 100m
+        memory: 50Mi
+    command: [ "/bin/sh", "-c", "--" ]
+    args: [ "sleep infinity;" ]
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65432
+      runAsGroup: 65432
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
+      readOnlyRootFilesystem: true
+  - name: sriovtest2
+    image: alpine:3.18
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        intel.com/intel_sriov_odu: '2'
+        #intel.com/intel_fec_5g: '1'
+        cpu: 100m
+        memory: 50Mi
+      limits:
+        intel.com/intel_sriov_odu: '2'
+        #intel.com/intel_fec_5g: '1'
+        cpu: 100m
+        memory: 50Mi
+    command: [ "/bin/sh", "-c", "--" ]
+    args: [ "sleep infinity;" ]
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65432
+      runAsGroup: 65432
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
+      readOnlyRootFilesystem: true

@@ -1,0 +1,33 @@
+{
+  "comment1": "Copyright (C) 2023 Intel Corporation",
+  "comment2": "SPDX-License-Identifier: Apache-2.0",
+  "script": {
+    "show": {
+      "description": true,
+      "timeStamps": true
+    },
+    "debug": true,
+    "podPause": 10
+  },
+  "testCases": [
+    {
+      "name": "podCheckSRIOV",
+      "description": "SR-IOV pod count, node count and env var check",
+      "comment1": "either set configMapNS and configMapName to find there SR-IOV device name, or set sriovName directly which will ignore configMap",
+      "configMapNS": "kube-system",
+      "configMapName": "sriovdp-config",
+      "comment2": "configMapSearch is search string that finds only one entry",
+      "configMapSearch": "sriov_odu",
+      "comment_configMapSearch": "fec_5g",
+      "comment_sriovName": "intel.com/intel_sriov_odu",
+      "comment3": "either set podYAML to find there pod name and number of devices, or set namespace, podName and podCountSRIOV directly which will ignore podYAML",
+      "podYAML": "k8s/1-sriov-test-pod.yaml",
+      "comment_namespace": "cnf-validation",
+      "comment_podName": "sriovtest",
+      "comment_podCountSRIOV": 2,
+      "podDeployCmd": "kubectl apply -f k8s/",
+      "podDeleteCmd": "kubectl delete -f k8s/",
+      "checkPodEnvVarPCIDev": true
+    }
+  ]
+}

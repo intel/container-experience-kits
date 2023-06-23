@@ -1,0 +1,169 @@
+{
+  "comment1": "Copyright (C) 2023 Intel Corporation",
+  "comment2": "SPDX-License-Identifier: Apache-2.0",
+  "script": {
+    "show": {
+      "description": true,
+      "ra2Spec": true,
+      "timeStamps": true
+    },
+    "debug": true,
+    "podPause": 60,
+    "podNamespace": "stack-validation",
+    "deployFiles": {
+      "directory": "k8s",
+      "namespace": "ns",
+      "huge": {
+        "name": "huge"
+      },
+      "multi": {
+        "name": "multi"
+      },
+      "reserve": {
+        "comment": "in pod yaml uses hostPID",
+        "name": "reserve"
+      },
+      "netPolicy": "netpolicy"
+    },
+    "netPolicyPause": 5
+  },
+  "testCases": [
+    {
+      "name": "validateHugepages",
+      "description": "Validate huge pages",
+      "types": [
+        {
+          "name": "2Mi"
+        },
+        {
+          "name": "1Gi"
+        }
+      ],
+      "ra2Spec": "ra2.ch.001"
+    },
+    {
+      "name": "validateSMT",
+      "description": "Validate SMT",
+      "ra2Spec": "ra2.ch.004"
+    },
+    {
+      "name": "validatePhysicalStorage",
+      "description": "Validate physical storage with SSD",
+      "ra2Spec": "ra2.ch.009"
+    },
+    {
+      "name": "validateStorageQuantity",
+      "description": "Validate storage quantity",
+      "limit": 320,
+      "ra2Spec": "ra2.ch.010"
+    },
+    {
+      "name": "validateVcpuQuantity",
+      "description": "Validate vCPU quantity",
+      "limit": 16,
+      "ra2Spec": "ra2.ch.011"
+    },
+    {
+      "name": "validateNFD",
+      "description": "Validate NFD labels",
+      "nFDLabelPrefix": "feature.node.kubernetes.io/",
+      "limit": 20,
+      "ra2Spec": "ra2.ch.018"
+    },
+    {
+      "name": "validateSystemResourceReservation",
+      "description": "Validate system resource reservation",
+      "ra2Spec": "ra2.k8s.008",
+      "checks": [
+        {
+          "process": "/usr/bin/kubelet",
+          "flag": "reserved-cpus"
+        },
+        {
+          "process": "/usr/local/bin/kubelet",
+          "flag": "reserved-cpus"
+        },
+        {
+          "process": "//next/process",
+          "flag": "next-flag"
+        }
+      ]
+    },
+    {
+      "name": "validateCPUPinning",
+      "description": "Validate CPU Manager",
+      "ra2Spec": "ra2.k8s.009"
+    },
+    {
+      "name": "validateLinuxDistribution",
+      "description": "Validate Linux distribution for deb/rpm",
+      "ra2Spec": "ra2.os.001",
+      "comment": "needs more testing to confirm mapping",
+      "distroNames": [
+        {
+          "name": "Red Hat"
+        },
+        {
+          "name": "CentOS"
+        },
+        {
+          "name": "Ubuntu"
+        },
+        {
+          "name": "Amazon"
+        }
+      ]
+    },
+    {
+      "name": "validateKubernetesAPIs",
+      "description": "Validate k8s APIs without alpha+beta or is exception",
+      "ra2Spec": "ra2.k8s.012",
+      "comment1": "needs more testing to confirm mapping",
+      "comment2": "monitoring.coreos.com/v1alpha1, opentelemetry.io/v1alpha1, policy.sigstore.dev/v1alpha1, policy.sigstore.dev/v1beta1  when running Intel BMRA Access profile",
+      "comment2": "traefik.containo.us/v1alpha1  when running on k3s",
+      "comment3": "metrics.k8s.io/v1beta1  when running on k3s or after installing Metrics API",
+      "comment4": "vpcresources.k8s.aws/v1beta1, crd.k8s.amazonaws.com/v1alpha1  when running on EKS",
+      "exceptions": [
+        {
+          "name": "nfd.k8s-sigs.io/v1alpha1"
+        },
+        {
+          "name": "flowcontrol.apiserver.k8s.io/v1beta",
+          "comment": "will catch v1beta*"
+        },
+        {
+          "name": "policy/v1beta1"
+        },
+        {
+          "name": "storage.k8s.io/v1beta1"
+        }
+      ]
+    },
+    {
+      "name": "validateLinuxKernelVersion",
+      "description": "Validate Linux kernel version",
+      "ra2Spec": "ra2.os.002",
+      "minMajor": 4,
+      "minMinor": 0
+    },
+    {
+      "name": "validateAnuketProfileLabels",
+      "description": "Validate Anuket profile labels",
+      "ra2Spec": "ra2.k8s.011",
+      "anuketProfileLabelKey": "anuket.io/profile",
+      "anuketProfileLabelValues": [
+        {
+          "name": "basic"
+        },
+        {
+          "name": "network-intensive"
+        }
+      ]
+    },
+    {
+      "name": "validateSecurityGroups",
+      "description": "Validate security groups with NetworkPolicy",
+      "ra2Spec": "ra2.k8s.014"
+    }
+  ]
+}

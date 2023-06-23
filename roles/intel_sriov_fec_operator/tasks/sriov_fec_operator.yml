@@ -26,6 +26,13 @@
   register: gopath
   changed_when: false
 
+# Workaoround to get SRIOV-FEC Operator daemon image build working
+- name: patch Intel Smart Edge Open (SEO) SRIOV-FEC Operator Dockerfile
+  ansible.builtin.replace:
+    path: "{{ intel_sriov_fec_operator_dir }}/Dockerfile.daemon"
+    regexp: 'libbpf\.so\.0'
+    replace: 'libbpf.so.1'
+
 - name: build Intel Smart Edge Open (SEO) SRIOV-FEC Operator
   make:
     target: "{{ item }}"

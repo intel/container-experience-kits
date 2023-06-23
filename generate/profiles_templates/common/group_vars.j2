@@ -308,7 +308,7 @@ qat_supported_vf_dev_ids:
 
 {%- if openssl in ['on', 'optional'] %}
 # This feature will enable OpenSSL*Engine
-openssl_engine_enabled: {% if openssl == 'on' and qat == 'on' %}true{% else %}false{% endif %} # to activate OpenSSL*Engine set both install_openssl and update_qat_drivers to 'true' in host_vars
+openssl_engine_enabled: {% if openssl == 'on' %}true{% else %}false{% endif %} # to activate OpenSSL*Engine set 'install_openssl' to 'true' in host_vars
 {% endif %}
 
 {%- if gpu_dp in ['on', 'optional'] %}

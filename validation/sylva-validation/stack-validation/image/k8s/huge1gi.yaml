@@ -1,0 +1,68 @@
+# Copyright (C) 2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+# To do:
+#   add app like on https://stackoverflow.com/questions/57233360/pod-fails-to-allocate-hugepages-in-kubernetes ?
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  namespace: stack-validation
+  name: test-huge1gi
+  labels:
+    app.kubernetes.io/name: test-huge1gi
+    app.kubernetes.io/component: test-backend
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: test-huge1gi
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: test-huge1gi
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+      - name: test-huge
+        image: alpine:3.18
+        imagePullPolicy: Always
+        securityContext:
+          capabilities:
+            add: ["IPC_LOCK"]
+        volumeMounts:
+        - mountPath: /dev/hugepages
+          name: hugepages
+          readOnly: false
+        resources:
+          requests:
+            cpu: 100m
+            hugepages-1Gi: 1Gi
+            memory: 50Mi
+          limits:
+            cpu: 100m
+            hugepages-1Gi: 1Gi
+            memory: 50Mi
+        command: [ "sh", "-c" ]  # also check correct permissions
+        args:
+        - r1="` cat /proc/sys/vm/nr_hugepages `";
+          echo "nr_hugepages=${r1}";
+          r2="` cat /proc/meminfo | awk ' $1=="HugePages_Free:" { f=$2 } END { print f } ' ` ";
+          echo "meminfo_HugePages_Free=${r2}";
+          r3="` mount | grep -c /dev/hugepages `";
+          echo "mount_/dev/hugepages=${r3}";
+          if [ "${r1}" -gt 0 ] && [ "${r2}" -gt 0 ] && [ "${r3}" -eq 1 ]; then
+            echo "1";
+          else
+            echo "0";
+          fi;
+          sleep infinity;
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65432
+          runAsGroup: 65432
+          allowPrivilegeEscalation: false
+      volumes:
+      - name: hugepages
+        emptyDir:
+          medium: HugePages

@@ -18,37 +18,41 @@
   include_role:
     name: install_dependencies
 
-- name: confirm module before OpenSSL installation
-  shell: "set -o pipefail && lsmod | grep qat"
-  args:
-    executable: /bin/bash
-  register: confirm_mod
-  failed_when: '"intel_qat" not in confirm_mod.stdout'
-  changed_when: false
-  ignore_errors: true
+# Block for QAT check
+- name: block for QAT check
+  block:
+    - name: confirm module before OpenSSL installation
+      shell: "set -o pipefail && lsmod | grep qat"
+      args:
+        executable: /bin/bash
+      register: confirm_mod
+      failed_when: '"intel_qat" not in confirm_mod.stdout'
+      changed_when: false
+      ignore_errors: true
 
-- name: Module not found, playbook terminated
-  fail:
-    msg: "No QAT module found. Please set update_qat_drivers to true in host vars to resolve issue."
-  when: '"intel_qat" not in confirm_mod.stdout'
+    - name: Module not found, playbook terminated
+      fail:
+        msg: "No QAT module found. Please set update_qat_drivers to true in host vars to resolve issue."
+      when: '"intel_qat" not in confirm_mod.stdout'
 
-- debug:
-    var: confirm_mod.stdout_lines
+    - debug:
+        var: confirm_mod.stdout_lines
 
-# ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove and use ansible service module
-- name: check status of {{ enabled_qat_service }} service - openssl
-  shell: "set -o pipefail && service {{ enabled_qat_service }} status | grep qat_dev"
-  args:
-    executable: /bin/bash
-  register: service_check
-  changed_when: false
-  ignore_errors: true
+    # ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove and use ansible service module
+    - name: check status of {{ enabled_qat_service }} service - openssl
+      shell: "set -o pipefail && service {{ enabled_qat_service }} status | grep qat_dev"
+      args:
+        executable: /bin/bash
+      register: service_check
+      changed_when: false
+      ignore_errors: true
 
-- name: openssl - {{ enabled_qat_service }} service not running properly, playbook terminated
-  fail:
-    msg: "Failed to start {{ enabled_qat_service }} service on system. Please check if QAT configuration in host vars is correct."
-  when:
-    - "'up' not in service_check.stdout"
+    - name: openssl - {{ enabled_qat_service }} service not running properly, playbook terminated
+      fail:
+        msg: "Failed to start {{ enabled_qat_service }} service on system. Please check if QAT configuration in host vars is correct."
+      when:
+        - "'up' not in service_check.stdout"
+  when: update_qat_drivers | default(false)
 
 # OpenSSL build
 - name: create directory {{ openssl_dir }} for all OpenSSL dependencies

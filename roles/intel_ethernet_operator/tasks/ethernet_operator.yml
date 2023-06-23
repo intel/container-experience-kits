@@ -26,12 +26,12 @@
   register: gopath
   changed_when: false
 
-# Workaround for IEO labeler build issue
-- name: WA - Fix curl issue
-  lineinfile:
-    path: "{{ intel_ethernet_operator_dir }}/Dockerfile.labeler"
-    regexp: "^RUN apk update && apk add --no-cache curl.*"
-    line: "RUN apk update && apk add --no-cache curl"
+# Workaoround to get IEO daemon image build working
+- name: patch Intel Ethernet Operator Daemon Dockerfile
+  ansible.builtin.replace:
+    path: "{{ intel_ethernet_operator_dir }}/Dockerfile.daemon"
+    regexp: 'libbpf\.so\.0'
+    replace: 'libbpf.so.1'
 
 - name: build Intel Ethernet Operator
   community.general.make:

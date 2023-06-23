@@ -1,0 +1,43 @@
+# Copyright (C) 2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  namespace: stack-validation
+  name: test-reserve
+  labels:
+    app: test-reserve
+spec:
+  selector:
+    matchLabels:
+      app: test-reserve
+  template:
+    metadata:
+      labels:
+        app: test-reserve
+    spec:
+      hostPID: true
+      containers:
+      - name: test-reserve
+        image: alpine:3.18
+        resources:
+          requests:
+            cpu: 100m
+            memory: 50Mi
+          limits:
+            cpu: 100m
+            memory: 200Mi
+        command: ['sh', '-c', 'sleep infinity']
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65432
+          runAsGroup: 65432
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true

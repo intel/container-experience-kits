@@ -54,8 +54,6 @@
 #     kibana
 # - wireguard
 # - multus
-# - cndp
-# - cndp_dp
 # - minio
 # - cert_manager
 # - registry
@@ -141,8 +139,6 @@ access:
   wireguard: off
   multus: on
   firewall: off
-  cndp: off
-  cndp_dp: off
   minio: off
   cert_manager: on
   registry: off
@@ -185,8 +181,6 @@ basic:
   wireguard: off
   multus: on
   firewall: off
-  cndp: off
-  cndp_dp: off
   cert_manager: on
   registry: off
   hugepages: optional
@@ -261,8 +255,6 @@ full_nfv:
   wireguard: off
   multus: on
   firewall: off
-  cndp: off
-  cndp_dp: off
   minio: off
   cert_manager: on
   registry: off
@@ -335,8 +327,6 @@ on_prem:
   wireguard: off
   multus: on
   firewall: off
-  cndp: off
-  cndp_dp: off
   cert_manager: on
   registry: off
   hugepages: on
@@ -396,8 +386,6 @@ regional_dc:
   wireguard: off
   multus: on
   firewall: off
-  cndp: off
-  cndp_dp: off
   cert_manager: on
   registry: off
   hugepages: optional
@@ -468,8 +456,6 @@ remote_fp:
   wireguard: off
   multus: on
   firewall: off
-  cndp: off
-  cndp_dp: off
   cert_manager: on
   registry: off
   hugepages: on
@@ -543,8 +529,6 @@ build_your_own:
   wireguard: off
   multus: optional
   firewall: off
-  cndp: off
-  cndp_dp: off
   minio: off
   cert_manager: optional
   registry: off

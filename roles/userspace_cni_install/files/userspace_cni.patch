@@ -1,0 +1,83 @@
+diff --git a/userspace/userspace.go b/userspace/userspace.go
+index 235d7ea7..b146d97f 100644
+--- a/userspace/userspace.go
++++ b/userspace/userspace.go
+@@ -33,7 +33,6 @@ import (
+ 	"github.com/containernetworking/plugins/pkg/ns"
+
+ 	"github.com/intel/userspace-cni-network-plugin/cniovs"
+-	"github.com/intel/userspace-cni-network-plugin/cnivpp"
+ 	"github.com/intel/userspace-cni-network-plugin/pkg/k8sclient"
+ 	"github.com/intel/userspace-cni-network-plugin/logging"
+ 	"github.com/intel/userspace-cni-network-plugin/pkg/types"
+@@ -141,9 +140,7 @@ func getPodAndSharedDir(netConf *types.NetConf,
+ 				sharedDir = fmt.Sprintf("%s/%s/", netConf.SharedDir, args.ContainerID[:12])
+ 			}
+ 		} else {
+-			if netConf.HostConf.Engine == "vpp" {
+-				sharedDir = fmt.Sprintf("%s/%s/", configdata.DefaultVppCNIDir, args.ContainerID[:12])
+-			} else if netConf.HostConf.Engine == "ovs-dpdk" {
++			if netConf.HostConf.Engine == "ovs-dpdk" {
+ 				sharedDir = fmt.Sprintf("%s/%s/", configdata.DefaultOvsCNIDir, args.ContainerID[:12])
+ 			} else {
+ 				sharedDir = fmt.Sprintf("%s/%s/", annotations.DefaultBaseCNIDir, args.ContainerID[:12])
+@@ -164,7 +161,6 @@ func cmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient kubernetes.Interfac
+ 	var netConf *types.NetConf
+ 	var containerEngine string
+
+-	vpp := cnivpp.CniVpp{}
+ 	ovs := cniovs.CniOvs{}
+
+ 	// Convert the input bytestream into local NetConf structure
+@@ -210,9 +206,7 @@ func cmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient kubernetes.Interfac
+ 	//
+
+ 	// Add the requested interface and network
+-	if netConf.HostConf.Engine == "vpp" {
+-		err = vpp.AddOnHost(netConf, args, kubeClient, sharedDir, result)
+-	} else if netConf.HostConf.Engine == "ovs-dpdk" {
++	if netConf.HostConf.Engine == "ovs-dpdk" {
+ 		err = ovs.AddOnHost(netConf, args, kubeClient, sharedDir, result)
+ 	} else {
+ 		err = fmt.Errorf("ERROR: Unknown Host Engine:" + netConf.HostConf.Engine)
+@@ -271,9 +265,7 @@ func cmdAdd(args *skel.CmdArgs, exec invoke.Exec, kubeClient kubernetes.Interfac
+ 	}
+
+ 	// Add the requested interface and network
+-	if containerEngine == "vpp" {
+-		pod, err = vpp.AddOnContainer(netConf, args, kubeClient, sharedDir, pod, result)
+-	} else if containerEngine == "ovs-dpdk" {
++	if containerEngine == "ovs-dpdk" {
+ 		pod, err = ovs.AddOnContainer(netConf, args, kubeClient, sharedDir, pod, result)
+ 	} else {
+ 		err = fmt.Errorf("ERROR: Unknown Container Engine:" + containerEngine)
+@@ -311,7 +303,6 @@ func cmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient kubernetes.Interfac
+ 	var netConf *types.NetConf
+ 	var containerEngine string
+
+-	vpp := cnivpp.CniVpp{}
+ 	ovs := cniovs.CniOvs{}
+
+ 	// Convert the input bytestream into local NetConf structure
+@@ -341,9 +332,7 @@ func cmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient kubernetes.Interfac
+ 	//
+
+ 	// Delete the requested interface
+-	if netConf.HostConf.Engine == "vpp" {
+-		err = vpp.DelFromHost(netConf, args, sharedDir)
+-	} else if netConf.HostConf.Engine == "ovs-dpdk" {
++	if netConf.HostConf.Engine == "ovs-dpdk" {
+ 		err = ovs.DelFromHost(netConf, args, sharedDir)
+ 	} else {
+ 		err = fmt.Errorf("ERROR: Unknown Host Engine:" + netConf.HostConf.Engine)
+@@ -366,9 +355,7 @@ func cmdDel(args *skel.CmdArgs, exec invoke.Exec, kubeClient kubernetes.Interfac
+ 	}
+
+ 	// Delete the requested interface
+-	if containerEngine == "vpp" {
+-		err = vpp.DelFromContainer(netConf, args, sharedDir, pod)
+-	} else if containerEngine == "ovs-dpdk" {
++	if containerEngine == "ovs-dpdk" {
+ 		err = ovs.DelFromContainer(netConf, args, sharedDir, pod)
+ 	} else {
+ 		err = fmt.Errorf("ERROR: Unknown Container Engine:" + containerEngine)

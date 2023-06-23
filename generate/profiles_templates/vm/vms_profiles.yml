@@ -50,8 +50,6 @@
 #     kibana
 # - wireguard
 # - multus
-# - cndp
-# - cndp_dp
 # - cert_manager
 # - registry
 # - hugepages
@@ -160,8 +158,6 @@ basic:
   wireguard: on
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   cert_manager: on
   registry: on
   hugepages: optional
@@ -228,8 +224,6 @@ full_nfv:
   wireguard: on
   multus: on
   firewall: optional
-  cndp: on
-  cndp_dp: on
   cert_manager: on
   registry: on
   hugepages: on
@@ -291,8 +285,6 @@ on_prem:
   wireguard: on
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   cert_manager: on
   registry: on
   hugepages: on
@@ -342,8 +334,6 @@ regional_dc:
   wireguard: on
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   cert_manager: on
   registry: on
   hugepages: optional
@@ -406,8 +396,6 @@ remote_fp:
   wireguard: on
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   cert_manager: on
   registry: on
   hugepages: on
@@ -475,8 +463,6 @@ build_your_own:
   wireguard: optional
   multus: optional
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   cert_manager: optional
   registry: optional
   hugepages: optional

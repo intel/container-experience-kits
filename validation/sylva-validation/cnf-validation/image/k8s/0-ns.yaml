@@ -1,0 +1,10 @@
+# Copyright (C) 2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnf-validation
+  labels:
+    name: cnf-validation

@@ -55,8 +55,6 @@
 #     kibana
 # - wireguard
 # - multus
-# - cndp
-# - cndp_dp
 # - minio
 # - lpvsp
 # - rook_ceph
@@ -144,8 +142,6 @@ access:
   wireguard: optional
   multus: on
   firewall: optional
-  cndp: off
-  cndp_dp: off
   minio: off
   lpvsp: optional
   rook_ceph: off
@@ -190,8 +186,6 @@ basic:
   wireguard: optional
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   minio: off
   lpvsp: on
   rook_ceph: off
@@ -269,8 +263,6 @@ full_nfv:
   wireguard: optional
   multus: on
   firewall: optional
-  cndp: on
-  cndp_dp: on
   minio: optional
   lpvsp: on
   rook_ceph: on
@@ -346,8 +338,6 @@ on_prem:
   wireguard: optional
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   minio: optional
   lpvsp: on
   rook_ceph: optional
@@ -410,8 +400,6 @@ regional_dc:
   wireguard: optional
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   minio: optional
   lpvsp: on
   rook_ceph: optional
@@ -485,8 +473,6 @@ remote_fp:
   wireguard: optional
   multus: on
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   minio: off
   lpvsp: on
   rook_ceph: off
@@ -565,8 +551,6 @@ build_your_own:
   wireguard: optional
   multus: optional
   firewall: optional
-  cndp: optional
-  cndp_dp: optional
   minio: optional
   lpvsp: optional
   rook_ceph: optional

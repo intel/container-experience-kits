@@ -1,0 +1,76 @@
+# Copyright (C) 2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  namespace: stack-validation
+  name: test-multi
+  labels:
+    app.kubernetes.io/name: test-multi
+    app.kubernetes.io/component: test-backend
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: test-multi
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: test-multi
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+      - name: test-multi
+        image: alpine:3.18
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 1
+            memory: 50Mi
+          limits:
+            cpu: 1
+            memory: 50Mi
+        env:
+        - name: https_proxy
+          #value: "http://yourProxyFQDNOrIP:port"
+        command: [ "sh", "-c" ]
+        # awk pci.ids is to avoid apk add pciutils and keep runAsNonRoot
+        args:
+        - cpuinfocpus=` cat /proc/cpuinfo | grep -c ^processor `;
+          allrange=` echo "0-"\` expr $cpuinfocpus - 1 \` `;
+          if [ -e /sys/fs/cgroup/cpuset/cpuset.cpus ]; then
+            cpusetcpus=` cat /sys/fs/cgroup/cpuset/cpuset.cpus `;
+          else
+            cpusetcpus=` cat /sys/fs/cgroup/cpuset.cpus.effective `;
+          fi;
+          if [ "$cpusetcpus" == "$allrange" ]; then
+            cpusetlimited=0;
+          else
+            cpusetlimited=1;
+          fi;
+          echo "allrange=${allrange}";
+          echo "cpusetcpus=${cpusetcpus}";
+          echo "cpusetlimited=${cpusetlimited}";
+          echo "Next trying to wget pci.ids";
+          pciids=$( wget --timeout=20 -qO - https://pciids.sourceforge.net/v2.2/pci.ids );
+          for pcidev in $( awk ' { print $2 } ' < /proc/bus/pci/devices ); do
+            venid="${pcidev:0:4}";
+            devid="${pcidev:4:4}";
+            echo -n "pcidev= ${venid} ";
+            nextvenid=$( echo "${pciids}" | awk -vv="${venid}" ' $1!="#" && $1!="C" { split($0,a,"\t"); if ( f==1 && a[1]!="" ) { split(a[1],b," "); print b[1]; f=0; }; if (a[1]~v) f=1; } ' );
+            echo "${pciids}" | awk -vv="${venid}" -vnv="${nextvenid}" -vd="${devid}" ' $1!="#" && $1!="C" { split($0,a,"\t"); if ( a[1]~v && f==0 ) { f=1; } } f==1 { split($0,a,"\t"); if ( a[1]~nv ) f=2; else if ( $1==d ) { print $0; p=1; } } END { if ( p!=1 ) print d " (unknown)"; } ';
+          done;
+          sleep infinity;
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65432
+          runAsGroup: 65432
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true

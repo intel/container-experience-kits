@@ -40,18 +40,37 @@
     mode: 0600
   when: ansible_distribution == "Rocky"
 
-- name: build Userspace CNI plugin
+
+# START OF BLOCK W/A to unblock userspace CNI
+- name: patch Userspace CNI plugin to build only ovs-dpdk part
+  ansible.posix.patch:
+    src: "userspace_cni.patch"
+    dest: "{{ userspace_cni_path }}/userspace/userspace.go"
+
+- name: build Userspace CNI plugin without VPP support
   shell: >
     source /etc/profile.d/golang.sh &&
-    make clean &&
     export GO111MODULE=on &&
-    make install-dep &&
-    make install &&
-    make
+    go build -v
   args:
-    chdir: "{{ userspace_cni_path }}"
+    chdir: "{{ userspace_cni_path }}/userspace"
     executable: /bin/bash
     creates: "{{ userspace_cni_path }}/userspace/userspace"
+
+# - name: build Userspace CNI plugin
+#   shell: >
+#     source /etc/profile.d/golang.sh &&
+#     make clean &&
+#     export GO111MODULE=on &&
+#     make install-dep &&
+#     make install &&
+#     make
+#   args:
+#     chdir: "{{ userspace_cni_path }}"
+#     executable: /bin/bash
+#     creates: "{{ userspace_cni_path }}/userspace/userspace"
+
+# END OF BLOCK W/A to unblock userspace CNI
 
 - name: copy built Userspace CNI plugin binary to the CNI bin dir
   copy:

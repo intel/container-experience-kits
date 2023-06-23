@@ -257,10 +257,6 @@
         - configure-openssl
         - intel-platform-qat-setup
       when:
-        - qat_devices | default([]) | length > 0
-        - iommu_enabled | default(true) | bool
-          or on_vms | default(false) | bool
-        - update_qat_drivers | default(false) | bool
         - openssl_install | default(false) | bool
 {%- endif %}
 {%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'regional_dc', 'build_your_own'] %}
