@@ -14,161 +14,140 @@
 ##   limitations under the License.
 ##
 ---
-# server
-- name: configure master node
+- name: Generate Key and CSR
+  when: inventory_hostname == groups['kube_control_plane'][0]
   block:
-    - name: clean up any preexisting certs/key/CSR files
-      file: path=/etc/ssl/registry state=absent
-      failed_when: false
-      become: yes
-
-    - name: create registry SSL directory
-      become: yes
-      file:
-        path: /etc/ssl/registry
+    - name: Create registry SSL directory
+      ansible.builtin.file:
+        path: "{{ registry_tls_dir }}"
         state: directory
-        mode: '0700'
+        mode: 0700
         owner: root
         group: root
+      become: true
 
-    - name: delete any preexisting certs/key/CSR from Kubernetes
-      command: kubectl delete csr registry.{{ registry_namespace }}
-      changed_when: true
-      failed_when: false
+    - name: Populate registry CSR template
+      ansible.builtin.template:
+        src: "registry_csr_template.json.j2"
+        dest: "{{ (registry_tls_dir, 'registry-csr.json') | path_join }}"
+        mode: 0600
+        owner: root
+        group: root
+      become: true
 
-    - name: delete any preexisting secrets from Kubernetes
-      command: kubectl delete secret -n {{ registry_namespace }} {{ registry_secret_name }}
-      changed_when: true
-      failed_when: false
-
-    - name: populate registry CSR template
-      template:
-        src: "registry_csr.json.j2"
-        dest: "/etc/ssl/registry/registry-csr.json"
-        force: yes
-        mode: preserve
-      become: yes
-
-    - name: get GOPATH
-      command: /usr/local/go/bin/go env GOPATH
+    - name: Get GOPATH
+      ansible.builtin.command: >-
+        go env GOPATH
       register: gopath
       changed_when: false
 
-    - name: generate key and CSR
-      shell: >-
-        set -o pipefail && {{ gopath.stdout }}/bin/cfssl genkey registry-csr.json | {{ gopath.stdout }}/bin/cfssljson -bare registry
+    - name: Generate key and CSR using cfssl
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          {{ gopath.stdout }}/bin/cfssl genkey registry-csr.json |
+          {{ gopath.stdout }}/bin/cfssljson -bare registry
+        creates: registry-key.pem
+        chdir: "{{ registry_tls_dir }}"
       args:
-        chdir: "/etc/ssl/registry/"
         executable: /bin/bash
+      become: true
+
+    - name: Read generated key
+      ansible.builtin.slurp:
+        src: "{{ (registry_tls_dir, 'registry-key.pem') | path_join }}"
+      register: generated_key
+      no_log: true
+
+    - name: Read generated csr
+      ansible.builtin.slurp:
+        src: "{{ (registry_tls_dir, 'registry.csr') | path_join }}"
+      register: generated_csr
+
+    - name: Load generated key & csr
+      ansible.builtin.set_fact:
+        registry_key_base64: "{{ generated_key.content }}"
+        registry_csr_base64: "{{ generated_csr.content }}"
+      no_log: true
+
+
+- name: Get certificate signed by kubernetes
+  when: inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: Send CSR to the Kubernetes API Server
+      kubernetes.core.k8s:
+        template: registry_csr.yaml.j2
+        state: present
+      register: csr_signing
+
+    - name: Approve CSR to sign certificate
+      ansible.builtin.command: >-
+        kubectl -n {{ registry_namespace }} certificate approve {{ registry_csr_name }}
       changed_when: true
-      become: yes
+      when: csr_signing.changed
 
-    - name: read generated key
-      command: cat registry-key.pem
-      args:
-        chdir: "/etc/ssl/registry/"
-      changed_when: false
-      register: key
+    - name: Get signed certificate
+      kubernetes.core.k8s_info:
+        kind: CertificateSigningRequest
+        name: "{{ registry_csr_name }}"
+        namespace: "{{ registry_namespace }}"
+      register: registry_csr
+      retries: 10
+      delay: 3
+      until: |
+        registry_csr.resources | length() != 0 and
+        registry_csr.resources[0].status is defined and
+        registry_csr.resources[0].status.certificate is defined
+      no_log: true
 
-    - name: load generated key
-      set_fact:
-        registry_key: "{{ key.stdout }}"
+    - name: Load signed cert
+      ansible.builtin.set_fact:
+        registry_cert_base64: "{{ registry_csr.resources[0].status.certificate }}"
 
-    - name: read generated csr
-      command: cat registry.csr
-      args:
-        chdir: "/etc/ssl/registry/"
-      changed_when: false
-      register: csr
 
-    - name: load generated csr
-      set_fact:
-        registry_csr: "{{ csr.stdout | b64encode }}"
+- name: Create TLS secret for registry
+  kubernetes.core.k8s:
+    template: registry_tls_secret.yaml.j2
+    state: present
+  no_log: true
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
-    - name: populate registry Kubernetes CA CSR template
-      template:
-        src: "kube_registry_csr.yml.j2"
-        dest: "/etc/ssl/registry/kube-registry-csr.yml"
-        force: yes
-        mode: preserve
-
-    - name: send CSR to the Kubernetes API Server
-      command: kubectl apply -f /etc/ssl/registry/kube-registry-csr.yml
-      changed_when: true
-
-    - name: approve request
-      command: kubectl certificate approve registry.kube-system
-      changed_when: true
-
-    - name: get approved certificate
-      shell: kubectl get csr registry.kube-system -o jsonpath='{.status.certificate}'
-      args:
-        chdir: "/etc/ssl/registry"
-      changed_when: false
-      register: cert
-      retries: 30
-      delay: 1
-      until: cert.stdout | length > 0
-
-    - name: load generated cert
-      set_fact:
-        registry_cert: "{{ cert.stdout | b64decode }}"
-
-    - name: create TLS secret for registry
-      command: >-
-        kubectl create -n {{ registry_namespace }} secret generic {{ registry_secret_name }}
-        --from-literal=tls.crt='{{ registry_cert }}'
-        --from-literal=tls.key='{{ registry_key }}'
-      changed_when: true
-
-    - name: clean up
-      file: path=/etc/ssl/registry state=absent
-      failed_when: false
-      become: yes
+- name: Clean up generated files from system
+  ansible.builtin.file:
+    path: "{{ registry_tls_dir }}"
+    state: absent
+  become: true
   when: inventory_hostname == groups['kube_control_plane'][0]
 
 # copy CA file so that registry clients can validate its certificate
-- name: copy Kubernetes CA so that registry client can validate registry's certificate
-  become: yes
+- name: Copy Kubernetes CA so that registry client can validate registry's certificate
+  become: true
+  vars:
+    certs_path: |-
+      {%- if container_runtime == "docker" -%}
+      /etc/docker/certs.d/
+      {%- else -%}
+      /etc/containers/certs.d/
+      {%- endif -%}
   block:
-    - name: remove existing certs and keys
-      file: path="/etc/docker/certs.d/{{ registry_local_address }}" state=absent
-    - name: ensure that path exists
-      file:
-        path: "/etc/docker/certs.d/{{ registry_local_address }}"
-        mode: '0700'
-        owner: root
-        group: root
-        state: directory
-    - name: place Kubernetes CA in the /etc/docker/certs.d
-      copy:
-        src: /etc/kubernetes/ssl/ca.crt
-        dest: "/etc/docker/certs.d/{{ registry_local_address }}/ca.crt"
-        remote_src: yes
-        mode: '0600'
-        owner: root
-        group: root
-  when: container_runtime == "docker"
+    - name: Remove existing certs and keys
+      ansible.builtin.file:
+        path: "{{ (certs_path, registry_local_address) | path_join }}"
+        state: absent
 
-# copy CA file so that registry clients can validate its certificate
-- name: copy Kubernetes CA so that registry client can validate registry's certificate
-  become: yes
-  block:
-    - name: remove existing certs and keys
-      file: path="/etc/containers/certs.d/{{ registry_local_address }}ca.crt" state=absent
-    - name: ensure that path exists
-      file:
-        path: "/etc/containers/certs.d/{{ registry_local_address }}"
+    - name: Ensure that path exists
+      ansible.builtin.file:
+        path: "{{ (certs_path, registry_local_address) | path_join }}"
         mode: '0700'
         owner: root
         group: root
         state: directory
-    - name: place Kubernetes CA in the /etc/containers/certs.d/
-      copy:
+
+    - name: Place Kubernetes CA in the /etc/docker/certs.d
+      ansible.builtin.copy:
         src: /etc/kubernetes/ssl/ca.crt
-        dest: "/etc/containers/certs.d/{{ registry_local_address }}/ca.crt"
-        remote_src: yes
+        dest: "{{ (certs_path, registry_local_address, 'ca.crt') | path_join }}"
+        remote_src: true
         mode: '0600'
         owner: root
         group: root
-  when: '"docker" not in container_runtime'

@@ -14,12 +14,22 @@
 ##   limitations under the License.
 ##
 ---
-- name: delete previous telegraf deployment
-  command: helm delete {{ telegraf_release_name }} --namespace {{ telegraf_namespace }}
-  failed_when: false
-  changed_when: true
+- name: Cleanup telegraf stuff
+  block:
+    - name: Delete telegraf deployment
+      kubernetes.core.helm:
+        name: "{{ telegraf_release_name }}"
+        namespace: "{{ telegraf_namespace }}"
+        state: absent
 
-- name: remove telegraf charts directory
-  file:
-    path: "{{ telegraf_chart_path }}"
-    state: absent
+    - name: Remove telegraf charts directory
+      ansible.builtin.file:
+        path: "{{ telegraf_chart_path }}"
+        state: absent
+
+    - name: Remove telegraf root directory
+      ansible.builtin.file:
+        path: "{{ telegraf_root_path }}"
+        state: absent
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]

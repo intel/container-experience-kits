@@ -21,6 +21,8 @@
         - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
         - sgx_dp_enabled | default(false)
     - role: vm/conf_libvirt
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
 
 - hosts: vm_host
   gather_facts: false
@@ -29,21 +31,24 @@
     - role: vm/manage_imgs
     - role: vm/manage_bridges
     - role: vm/manage_vms
-    - role: vm/vm_sgx_enable
-      when:
-        - sgx_dp_enabled | default(false)
     - role: vm/prepare_cek
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
 
 - hosts: vm_host
   gather_facts: false
   serial: 1
   roles:
     - role: vm/prepare_bastion_host_config
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
 
 - hosts: vm_host
   gather_facts: false
   roles:
     - vm/prepare_cek_vxlan
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
 
 - hosts: vm_host
   gather_facts: false
@@ -51,6 +56,8 @@
   roles:
     - role: vm/prepare_bastion_host_config_vxlan
     - role: vm/prepare_vm_inventory
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
 
 - hosts: k8s_cluster
   handlers:
@@ -67,3 +74,5 @@
         - reboot VMs
       changed_when: needs_reboot.rc == 1
       when: vm_image_distribution == "rocky"
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true

@@ -14,70 +14,132 @@
 ##   limitations under the License.
 ##
 ---
-- name: uninstall elasticsearch
+- name: uninstall prometheus and grafana
   include_role:
+    name: kube_prometheus
+    tasks_from: cleanup.yml
+  tags:
+    - kube_prometheus
+
+- name: uninstall elasticsearch
+  ansible.builtin.include_role:
     name: elasticsearch_install
     tasks_from: cleanup
   tags:
     - elasticsearch
 
 - name: uninstall opentelemetry
-  include_role:
+  ansible.builtin.include_role:
     name: opentelemetry_install
     tasks_from: cleanup
   tags:
     - opentelemetry
 
+# TODO: missing cleanup for Collectd
+# - name: Remove Collectd
+#   ansible.builtin.include_role:
+#     name: collectd_install
+#     tasks_from: cleanup
+#   tags:
+#     - monitoring
+
+- name: Remove Telegraf
+  ansible.builtin.include_role:
+    name: telegraf_install
+    tasks_from: cleanup
+  tags:
+    - monitoring
+
 - name: uninstall cAdvisor
-  include_role:
+  ansible.builtin.include_role:
     name: cadvisor_install
-    tasks_from: cleanup_cadvisor
+    tasks_from: cleanup
   tags:
     - cadvisor
 
 - name: uninstall LinkerD
-  include_role:
+  ansible.builtin.include_role:
     name: linkerd_service_mesh
     tasks_from: uninstall
   tags:
-    - linkerd_service_mesh
+    - linkerd-service-mesh
 
 - name: cleanup cpu_ctlplane
-  include_role:
+  ansible.builtin.include_role:
     name: intel_cpu_controlplane
     tasks_from: cleanup_cpu_controlplane
   tags:
-    - cpu_ctlplane
+    - cpu-ctlplane
 
 - name: cleanup Rook
-  include_role:
+  ansible.builtin.include_role:
     name: rook_install
     tasks_from: cleanup_rook
   tags:
     - rook-ceph
 
-- name: cleanup Intel AI
-  include_role:
-    name: intel_ai
-    tasks_from: cleanup_intel_ai
+- name: cleanup Intel Media Analytics
+  ansible.builtin.include_role:
+    name: intel_media_analytics
+    tasks_from: cleanup_intel_media_analytics
   tags:
-    - intel-ai
+    - intel-media-analytics
+
+- name: cleanup FFmpeg
+  include_role:
+    name: ffmpeg_install
+    tasks_from: ffmpeg_cleanup
+  tags:
+    - intel-ffmpeg
+
+- name: cleanup sigstore policy controller
+  ansible.builtin.include_role:
+    name: sigstore_policy_controller
+    tasks_from: cleanup
+  tags:
+    - sigstore
+
+- name: cleanup container_registry
+  ansible.builtin.include_role:
+    name: container_registry
+    tasks_from: cleanup
+  tags:
+    - registry
+
+- name: cleanup dyna config dpdk
+  include_role:
+    name: configure_dpdk
+    tasks_from: cleanup
+  tags:
+    - dyna_config_dpdk
+
+- name: cleanup intel oneAPI kits
+  include_role:
+    name: intel_oneapi_install
+    tasks_from: cleanup
+  tags:
+    - intel-oneapi
 
 - name: reset and remove Kubernetes cluster
-  import_tasks: k8s_cleanup.yml
+  ansible.builtin.import_tasks: k8s_cleanup.yml
+  when: kube_provisioner == "kubespray"
+
+- name: reset and remove rke2 cluster
+  ansible.builtin.import_tasks: rke2_cleanup.yml
+  when: kube_provisioner == "rke2"
 
 - name: remove Intel Container Experience Kit features artifacts
-  import_tasks: intel_cleanup.yml
+  ansible.builtin.import_tasks: intel_cleanup.yml
 
 - name: uninstall MinIO
-  include_role:
+  ansible.builtin.include_role:
     name: minio_install
     tasks_from: cleanup_minio_main
   tags:
     - minio
 
 - name: reboot
-  debug:
+  ansible.builtin.debug:
     msg: rebooting after pre-redeploy cleanup
   changed_when: true
   notify:

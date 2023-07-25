@@ -14,121 +14,13 @@
 ##   limitations under the License.
 ##
 ---
-telegraf_plugins_config:
-  agent: |
-    [agent]
-      interval = "5s"
-      round_interval = true
-      metric_batch_size = 10000
-      metric_buffer_limit = 100000
-      collection_jitter = "0s"
-      flush_interval = "5s"
-      flush_jitter = "0s"
-      precision = ""
-      debug = true
-      quiet = false
-      logfile = ""
-      hostname = "$HOSTNAME"
-      omit_hostname = false
-  prometheus_client: |
-    [[outputs.prometheus_client]]
-      listen = "127.0.0.1:9272"
-      metric_version = 2
-      export_timestamp = true
-  output_to_file: |
-    [[outputs.file]]
-      files = ["/tmp/metrics.out"]
-      data_format = "prometheus"
-  intel_rdt: |
-    [[inputs.intel_rdt]]
-      pqos_path = "/usr/local/bin/pqos"
-      cores = ["0-{{ ansible_processor_vcpus - 1 }}"]
-  ras: |
-    [[inputs.ras]]
-  intel_powerstat: |
-    [[inputs.intel_powerstat]]
-      cpu_metrics = [
-        "cpu_frequency",
-        "cpu_busy_frequency",
-        "cpu_temperature",
-        "cpu_c1_state_residency",
-        "cpu_c6_state_residency",
-        "cpu_busy_cycles"
-      ]
-  smart: |
-    [[inputs.smart]]
-      use_sudo = true
-      attributes = true
-  cpu: |
-    [[inputs.cpu]]
-      percpu = true
-      totalcpu = true
-      collect_cpu_time = true
-      report_active = false
-  diskio: |
-    [[inputs.diskio]]
-      device_tags = ["ID_FS_TYPE", "ID_FS_USAGE"]
-  ethtool: |
-    [[inputs.ethtool]]
-  net: |
-    [[inputs.net]]
-  iptables: |
-    [[inputs.iptables]]
-      use_sudo = true
-      use_lock = false
-      table = "filter"
-      chains = [ "INPUT" ]
-  system: |
-    [[inputs.system]]
-  kernel_vmstat: |
-    [[inputs.kernel_vmstat]]
-  cgroups: |
-    [[inputs.cgroup]]
-      paths = [
-        "/sys/fs/cgroup/cpu",
-        "/sys/fs/cgroup/cpu/*",
-        "/sys/fs/cgroup/cpu/*/*",
-      ]
-      files = ["cpuacct.usage", "cpu.cfs_period_us", "cpu.cfs_quota_us", "cpu.shares", "cpu.stat"]
-  disk: |
-    [[inputs.disk]]
-      ignore_fs = ["tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs"]
-  ping: |
-    [[inputs.ping]]
-      urls = ["google.com"]
-      method = "exec"
-      count = 1
-      ping_interval = 1.0
-      timeout = 1.0
-      deadline = 10
-      interface = ""
-      percentiles = [50, 95, 99]
-      binary = "ping"
-  dns_query: |
-    [[inputs.dns_query]]
-      servers = ["8.8.8.8"]
-      network = "tcp"
-      domains = ["google.com"]
-      record_type = "A"
-      port = 53
-      timeout = 2
-  mem: |
-    [[inputs.mem]]
-  temp: |
-    [[inputs.temp]]
-  ipmi_sensor: |
-    [[inputs.ipmi_sensor]]
-      use_sudo = true
-      interval = "30s"
-      timeout = "20s"
-      metric_version = 2
-
-telegraf_profiles:
+telegraf_config_profiles:
   basic: &basic
     - agent
     - prometheus_client
-    - output_to_file
+#    - output_to_file
     - intel_rdt
+    - intel_pmu
     - intel_powerstat
     - ras
     - cpu
@@ -156,21 +48,36 @@ telegraf_profiles:
     - *basic
   full_nfv: &full_nfv
     - *basic
-  storage: &storage
-    - *basic
   build_your_own: &build_your_own
     - *basic
+  on_prem_vss:
+    - *on_prem
+  on_prem_sw_defined_factory:
+    - *on_prem
+
 telegraf_release_name: telegraf
 telegraf_namespace: monitoring
 
-# telegraf_dpdk_socket_path: /var/run/dpdk/rte
-
 telegraf_chart_path: "{{ (project_root_dir, 'charts', 'telegraf') | path_join }}"
+telegraf_root_path: "{{ (project_root_dir, 'telegraf') | path_join }}"
 telegraf_helm_values_file: "{{ telegraf_chart_path }}/values.yaml"
 
 telegraf_scrap_interval: 30
 telegraf_prometheus_metrics_endpoint_port: 9273
 
 telegraf_image_name: "docker.io/intel/observability-telegraf"
-telegraf_image_tag: "1.2.0"
+telegraf_image_tag: "1.2.0" # IMPORTANT see warning below
 telegraf_image_pullpolicy: IfNotPresent
+
+# WARNING: Current download script from PMU tools downloads events definition in old format.
+#          The old format is used by current telegraf version correctly. In case of update
+#          of telegraf OR PMU tools, changes may be required to achieve that intel_pmu plugin works.
+#          Problem is following: format of event definitions json file has changed and now includes
+#          'headers' section. Neither pinned versions of PMU tools nor telegraf is prepared to use
+#          the section so its working correctly now.
+#          Please read more here: https://github.com/intel/perfmon/issues/22
+
+# PMU tools scripts to get performance event definitions of target system
+# definitions are used in configuraion of intel_pmu telegraf input plugin
+telegraf_pmu_tools_git: "https://github.com/andikleen/pmu-tools.git"
+telegraf_pmu_tools_version: r220420 # IMPORTANT see warning at above

@@ -18,14 +18,7 @@
 # Define respective field in the group_vars/all.yml instead
 tac_defaults:
   enabled: false
-  apphsm_hostname: |
-    {%- if vm_enabled %}
-    {{ hostvars[groups['kube_node'][0]]['ansible_all_ipv4_addresses'] |
-    ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_gw_ip']) |
-    join('') }}
-    {%- else %}
-    {{ hostvars[groups['kube_node'][0]]['ansible_default_ipv4']['address'] }}
-    {%- endif %}
+  apphsm_hostname: "kmra-apphsm.kmra.svc.{{ cluster_name | default('cluster.local') }}"
   apphsm_port: 5000
   client_mtls_secret_name: "generic-apphsm-client-tls"
   client_mtls_secret_namespace: "kmra"

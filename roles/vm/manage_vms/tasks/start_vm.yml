@@ -22,17 +22,40 @@
           --connect qemu:///system
           --name {{ vm.name }}
           --cpu host
+          {%- if vm.type == 'work' and sgx_dp_enabled | default(false) %}
+          --ram {{ vm.memory - sgx_memory_size }}
+          {%- else %}
           --ram {{ vm.memory }}
+          {%- endif %}
           --vcpus={{ vm.cpu_total }},sockets=1,cores={{ (vm.cpu_total / 2) | int }},threads=2
           --cpuset={{ vm.cpus }}
           --os-variant {{ vm_os_variant }}
           --disk path={{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.qcow2,format=qcow2
           --disk {{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.iso,device=cdrom
           --network network=vm-default,model=virtio
+          --iommu model=intel,driver.intremap=on,driver.caching_mode=on
+          --features apic=on,ioapic.driver=qemu
           {%- if vm.type == "work" %}
           {%- for pci in vm.pci %}
           --hostdev {{ pci }},address.type=pci
           {%- endfor -%}
+          {%- endif %}
+          {%- if vm.type == 'work' and sgx_dp_enabled | default(false) %}
+          --xml xpath.create=./devices/memory
+          --xml ./devices/memory/@model="sgx-epc"
+          --xml xpath.create=./devices/memory/target/size
+          --xml ./devices/memory/target/size/@unit="MiB"
+          --xml ./devices/memory/target/size={{ sgx_memory_size }}
+          --xml xpath.create=./maxMemory
+          --xml ./maxMemory/@slots={%- if (vm.memory) > 2048 %}{{ ((vm.memory) / 1024) | int }}{%- else %}"2"{%- endif %}
+          --xml ./maxMemory/@unit="MiB"
+          --xml ./maxMemory={{ vm.memory }}
+          --xml xpath.create=./cpu/numa
+          --xml xpath.create=./cpu/numa/cell
+          --xml ./cpu/numa/cell/@id="0"
+          --xml ./cpu/numa/cell/@cpus="0 - {{ vm.cpu_total - 1 }}"
+          --xml ./cpu/numa/cell/@memory="{{ vm.memory - sgx_memory_size }}"
+          --xml ./cpu/numa/cell/@unit="MiB"
           {%- endif %}
           --network network=vxlanbr{{ vm.vxlan }},model=virtio
           --import --noautoconsole

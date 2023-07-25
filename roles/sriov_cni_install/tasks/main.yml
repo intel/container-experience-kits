@@ -18,6 +18,11 @@
   include_role:
     name: install_dependencies
 
+# WA till upstream fix reach official version - issue https://github.com/k8snetworkplumbingwg/sriov-cni/issues/241
+- name: WA till upstream fix reach official version for issue 241 - use commit id
+  set_fact:
+    sriov_cni_version: "c1faa0805c92be6e5c629e9caf481f43cfee866c"
+
 - name: clone sriov-cni repository
   git:
     repo: "{{ sriov_cni_url }}"
@@ -34,6 +39,12 @@
 - name: update GOFLAGS for golang env before sriov-cni plugin
   command: "go env -w GOFLAGS=-mod=mod"
   changed_when: true
+
+# WA for upstream idempotency issue https://github.com/k8snetworkplumbingwg/sriov-cni/issues/263
+- name: WA for issue 263 - cleanup sriov-cni plugin
+  make:
+    chdir: "{{ sriov_cni_dir }}"
+    target: clean
 
 - name: build sriov-cni plugin
   make:

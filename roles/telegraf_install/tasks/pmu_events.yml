@@ -1,0 +1,55 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: create Telegraf directory if needed
+  ansible.builtin.file:
+    path: "{{ telegraf_root_path }}"
+    state: directory
+    mode: 0755
+
+- name: fetch scripts to load
+  ansible.builtin.git:
+    repo: "{{ telegraf_pmu_tools_git }}"
+    dest: "{{ (telegraf_root_path, 'pmu-tools') | path_join }}"
+    version: "{{ telegraf_pmu_tools_version }}"
+
+- name: Fetch PMU events definitions for current CPU
+  become: true
+  ansible.builtin.command:
+    cmd: 'python3 ./event_download.py'
+    chdir: "{{ (telegraf_root_path, 'pmu-tools') | path_join }}"
+  changed_when: true # script will redownload files each time
+  register: pmu_results
+  environment:
+    PMU_EVENTS_PATH: "{{ (telegraf_root_path, 'pmu-events') | path_join }}"
+
+- name: Prepare PMU events for current CPU
+  vars:
+    pmu_events_file: '{{ pmu_results.stdout_lines | last | regex_search("\/[^ ]+\.json$") }}'
+  when: pmu_events_file | length() != 0
+  block:
+    - name: Load encoded PMU events definitions json
+      ansible.builtin.slurp:
+        src: "{{ pmu_events_file }}"
+      become: true
+      register: pmu_events_json_encoded
+
+    - name: Decode PMU events json
+      ansible.builtin.set_fact:
+        pmu_event_definitions: "{{ (pmu_events_json_encoded['content'] | b64decode | from_json) }}"
+
+    - name: Get all PMU C0 events available for the target CPU
+      ansible.builtin.set_fact:
+        cstates_events_available: "{{ pmu_event_definitions | map(attribute='EventName') | list | select('contains', 'CPU_CLK_UNHALTED.C0') }}"

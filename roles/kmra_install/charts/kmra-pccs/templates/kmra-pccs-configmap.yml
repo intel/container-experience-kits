@@ -8,7 +8,7 @@ data:
   default.json: |
     {
       "HTTPS_PORT" : {{ .Values.pccs.main.port | quote }},
-      "hosts" : {{ .Values.pccs.hostname | quote }},
+      "hosts" : {{ .Values.pccs.listen_ip | quote }},
       "uri": {{ .Values.pccs.main.sgx_provisioning_api_url | quote }},
       "ApiKey": {{ .Values.pccs.main.api_key | quote }},
       "proxy" : {{ .Values.https_proxy | default "" | quote }},

@@ -14,6 +14,17 @@
 ##   limitations under the License.
 ##
 ---
+- name: Remove old records for the same VXLAN IP in ~/.ssh/config
+  replace:
+    path: "{{ local_login_user_dir }}/.ssh/config"
+    regexp: "^Host {{ item.value }}\n  ProxyCommand ssh (.*)$\n"
+    replace: ""
+  with_items: "{{ vm_vxlan_ips | dict2items }}"
+  delegate_to: localhost
+  become: false
+  when:
+    - "vm_cluster_name | default('') | length == 0"
+
 - name: Prepare bastion host configuration for VXLAN in ~/.ssh/config
   blockinfile:
     path: "{{ local_login_user_dir }}/.ssh/config"

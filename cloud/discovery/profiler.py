@@ -1,13 +1,16 @@
-import discover_local
-import yaml
-import pprint
 import os
+import pprint
 import sys
+
+import yaml
+
+import discover_local  # pylint:disable=E0401
 
 dists = ["RedHat", "Rocky", "Ubuntu"]
 dist_vers = ['8.5', '20.04', '21.10', '22.04']
 # Verify pmu_name for SPR below
 archs = ["skylake", "cascadelake", "icelake", "sapphirerapids"]
+
 
 class Features:
     def __init__(self, plat: dict):
@@ -22,14 +25,14 @@ class Features:
 
     def _load_yaml(self, featfile: str):
         try:
-            with open(os.path.join(sys.path[0],featfile), 'r') as file:
+            with open(os.path.join(sys.path[0], featfile), 'r') as file:
                 try:
                     output = yaml.safe_load(file)
-                except yaml.YAMLError as exc:
+                except yaml.YAMLError:
                     print("Error parsing %s - Exiting" % featfile)
                     sys.exit()
             return output
-        except IOError as e:
+        except IOError:
             print("Error loading %s - Exiting" % featfile)
             sys.exit()
 
@@ -41,9 +44,7 @@ class Features:
             print("No Codename information available")
             return None
         codename = self.plat["Host"]["Codename"]
-        if not codename: return None
-        if codename.lower() not in archs: return None
-        return codename.lower()
+        return codename.lower() if codename and codename.lower() in archs else None
 
     def _get_nic_types(self):
         if "Summary" not in self.plat.keys():
@@ -52,8 +53,7 @@ class Features:
         if "Nic_Types" not in self.plat["Summary"].keys():
             return None
         nics = self.plat["Summary"]["Nic_Types"]
-        if not nics: return None
-        return nics
+        return nics if nics else None
 
     def _check_distro(self):
         match = False
@@ -69,10 +69,10 @@ class Features:
                     if dv in self.plat["Host"]["OS"]:
                         match = True
                         break
-            if match: break
-        if not match:
-            return None
-        return match
+            if match:
+                break
+        return match if match else None
+
 
 def check_feat_support(key, feats):
     reqs = feats.feat_reqs
@@ -85,6 +85,7 @@ def check_feat_support(key, feats):
                 if not any(i in feats.nics for i in reqs[key][lim_type]):
                     return False
     return True
+
 
 def check_sub_feat_support(key, byo_sub_dict, feats):
     output_dict = {}
@@ -105,17 +106,18 @@ def check_sub_feat_support(key, byo_sub_dict, feats):
                 output_dict.update({subfeat: True})
     else:
         for subfeat in byo_sub_dict.keys():
-             output_dict.update({subfeat: True})
+            output_dict.update({subfeat: True})
     return output_dict
 
-def byo_check(feats: object):
+
+def byo_check(feats):
     output = {}
     if "build_your_own" not in feats.profiles.keys():
         return None
     byo_list = feats.profiles["build_your_own"].keys()
     byo_dict = feats.profiles["build_your_own"]
     for key in byo_list:
-        if type(byo_dict[key]) == dict:
+        if isinstance(byo_dict[key], dict):
             feat_support = check_feat_support(key, feats)
             if feat_support is False:
                 support = "Unsupported"
@@ -131,15 +133,17 @@ def byo_check(feats: object):
             output.update({key: support})
     return output
 
+
 def set_sub_static(subfeats, state):
     feat_dict = {}
     for feat in subfeats.keys():
         feat_dict.update({feat: state})
     return feat_dict
 
+
 def check_feat(key, feats):
-    features = ["sriov_operator", "sriov_network_dp", "qat", "qat_dp", "ddp"] # sgx features covered in arch_features
-    unchecked = ["gpu", "gpu_dp", "name", "on_vms", "vm_mode"] # Consider minio (when not test-mode) and physical storage
+    features = ["sriov_operator", "sriov_network_dp", "qat", "qat_dp", "ddp"]  # sgx features covered in arch_features
+    unchecked = ["gpu", "gpu_dp", "name", "on_vms", "vm_mode"]  # Consider minio (when not test-mode) and physical storage
     if key in unchecked:
         return None
     elif key not in features:
@@ -163,7 +167,8 @@ def check_feat(key, feats):
                     return True
         return False
 
-def check_profiles(profiles: object, byo_feats: dict):
+
+def check_profiles(profiles: dict, byo_feats: dict):
     summary = {}
     for prof in profiles.keys():
         if prof == "build_your_own":
@@ -182,7 +187,7 @@ def check_profiles(profiles: object, byo_feats: dict):
                         summary[prof]["Features"].update({feat: "Unsupported (CPU/NIC)"})
                     elif byo_feats[feat] is None:
                         summary[prof]["Features"].update({feat: "Unchecked (TODO)"})
-                elif type(profiles[prof][feat]) is dict:
+                elif isinstance(profiles[prof][feat], dict):
                     subfeat_set = {}
                     if byo_feats[feat] == "Unsupported":
                         summary[prof]["Features"].update({feat: "Unsupported"})
@@ -203,12 +208,11 @@ def check_profiles(profiles: object, byo_feats: dict):
                     if subfeat_set:
                         summary[prof]["Features"].update({feat: subfeat_set})
             except KeyError:
-                print("KeyError (expected): ",feat)
+                print("KeyError (expected): ", feat)
                 summary[prof]["Features"].update({feat: "Special feature (not in BYO)"})
-        summary[prof].update({"Supported": prof_support})
-    if not summary:
-        return None
-    return summary
+        summary[prof]["Supported"] = prof_support
+    return summary if summary else None
+
 
 def main():
     platform_info = discover_local.main()
@@ -222,10 +226,14 @@ def main():
     byo_feats = byo_check(feats)
     pprint.pprint(byo_feats)
     full_summary = check_profiles(feats.profiles, byo_feats)
+    if not full_summary:
+        print("No support summary")
+        return
     pprint.pprint(full_summary)
     print("Printing support summary:")
-    for profile in full_summary.keys():
-        print("  Profile: %s, Supported: %s" % (profile, full_summary[profile]["Supported"]))
+    for profile_name, profile_data in full_summary.items():
+        print("  Profile: %s, Supported: %s" % (profile_name, profile_data["Supported"]))
+
 
 if __name__ == "__main__":
     main()

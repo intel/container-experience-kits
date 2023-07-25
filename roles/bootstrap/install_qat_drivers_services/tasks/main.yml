@@ -18,29 +18,9 @@
   include_role:
     name: install_dependencies
 
-- name: WA for libudev-dev version issue on Ubuntu
-  apt:
-    name: 'udev'
-    state: latest # noqa package-latest
-  when: ansible_distribution == "Ubuntu"
-
-- name: get current udev package version
-  shell: "set -o pipefail && apt list --installed 2>/dev/null |grep '^udev' | awk 'NR==1{ print $2 }'"
-  args:
-    executable: /bin/bash
-  register: udev_pkg_version
-  changed_when: false
-  failed_when: "udev_pkg_version.stdout | length==0"
-  when: ansible_distribution == "Ubuntu"
-
-- name: current udev package version
-  debug:
-    msg: "udev_pkg_version={{ udev_pkg_version.stdout }}"
-  when: ansible_distribution == "Ubuntu"
-
 - name: install libudev-dev package on Ubuntu
   apt:
-    name: 'libudev-dev={{ udev_pkg_version.stdout }}'
+    name: libudev-dev
   when: ansible_distribution == "Ubuntu"
 
 - name: create directory {{ qat_drivers_dir }} for all QAT dependencies
@@ -67,7 +47,8 @@
         dest: "{{ qat_drivers_dir }}"
         remote_src: yes
         mode: 0755
-  when: configured_arch != "spr"
+  when:
+    - configured_arch not in ["spr", "emr"]
 
 - name: block for QAT 2.x
   block:
@@ -87,7 +68,26 @@
         dest: "{{ qat_drivers_dir }}"
         remote_src: yes
         mode: 0755
-  when: configured_arch == "spr"
+  when:
+    - configured_arch in ["spr"]
+
+# Due to EMR is not lauched yet, EMR QAT driver temporally copy from ansible host
+# When external driver offically support the EMR platform, converge w/ upper task
+- name: block for EMR QAT driver package
+  block:
+    - name: copy EMR QAT driver package
+      ansible.builtin.copy:
+        src: "{{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }}"
+        dest: "{{ (qat_drivers_dir, emr_qat_driver_package) | path_join }}"
+        mode: 0644
+    - name: unarchive EMR QAT driver package
+      ansible.builtin.unarchive:
+        src: "{{ (qat_drivers_dir, emr_qat_driver_package) | path_join }}"
+        dest: "{{ qat_drivers_dir }}"
+        remote_src: yes
+        mode: 0755
+  when:
+    - configured_arch == "emr"
 
 - name: check all packages are present for QAT drivers installation
   command: ./configure
@@ -120,7 +120,8 @@
         chdir: "{{ qat_drivers_dir }}"
         target: samples-install
       become: yes
-  when: configured_arch != "spr"
+  when:
+    - configured_arch not in ["spr", "emr"]
 
 # Reboot with driver ver: QAT20.L.0.8.0-00071 causing issues, there is no need to reboot.
 - name: block for QAT 2.x drivers and samples compilation
@@ -137,7 +138,8 @@
         chdir: "{{ qat_drivers_dir }}"
         target: samples-install
       become: yes
-  when: configured_arch == "spr"
+  when:
+    - configured_arch in ["spr", "emr"]
 
 - name: confirm QAT module installed
   shell: "set -o pipefail && lsmod | grep qat"
@@ -171,9 +173,6 @@
     name: "{{ enabled_qat_service }}"
     enabled: yes
 
-# Mentioned below block is also present in "roles/bootstrap/configure_openssl/tasks/intel_qatlibs_and_qatsvm_configuration.yml" that will only occurs if,
-# "enable_intel_qatlibs" is "true" in host_vars because, in order to compile QAT configuration,
-# QATlibs must be installed before SVM feature is configured
 - name: configuration for QAT Shared Virtual Memory (SVM)
   block:
     - name: set QAT SVM is enabled
@@ -193,5 +192,5 @@
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.asym.vm"
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.sym.vm"
   when:
-    - configured_arch == "spr"
-    - enable_intel_qatlibs is defined and not enable_intel_qatlibs
+    - configured_arch in ["spr", "emr"]
+    - enable_qat_svm | default(false)

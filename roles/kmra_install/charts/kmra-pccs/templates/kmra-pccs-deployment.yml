@@ -17,12 +17,21 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
-      hostNetwork: true
+      hostNetwork: false
       serviceAccountName: {{ .Release.Name }}
       containers:
       - name: {{ .Release.Name }}
         image: "{{ .Values.pccs.main.image.repo }}/{{ .Values.pccs.main.image.name }}:{{ .Values.pccs.main.image.tag }}"
         imagePullPolicy: {{ .Values.pccs.main.image.pullPolicy }}
+        ports:
+          - name: pccs
+            containerPort: {{ .Values.pccs.main.port }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.pccs.main.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 2
         volumeMounts:
           - name: pccs-config
             mountPath: /opt/intel/pccs/config
@@ -75,4 +84,3 @@ spec:
         emptyDir:
           medium: Memory
           sizeLimit: 64Mi
-

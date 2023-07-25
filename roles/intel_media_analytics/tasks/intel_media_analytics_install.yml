@@ -1,0 +1,72 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create Media Analytics folder
+  ansible.builtin.file:
+    path: "{{ (intel_media_analytics_local_folder) | path_join }}"
+    state: directory
+    mode: 0755
+
+- name: copy Media Analytics shell script to the controller node
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ (intel_media_analytics_local_folder) | path_join }}"
+    mode: 0644
+  with_fileglob:
+    - ./*.sh
+
+- name: Copy YAML templates to  the controller node for each node
+  ansible.builtin.template:
+    src: "templates/media_analytics_sample_pod.yaml.j2"
+    dest: "{{ intel_media_analytics_local_folder }}/{{ item }}.yaml"
+    mode: 0644
+  loop: "{{ groups['kube_node'] }}"
+  when: hostvars[item].gpu_stat_gid.stat.gid is defined
+
+- name: copy Media Analytics Dockerfile to the controller node
+  ansible.builtin.template:
+    src: "templates/Dockerfile.j2"
+    dest: "{{ intel_media_analytics_local_folder}}/Dockerfile"
+    mode: 0644
+
+# docker is used as container runtime:
+- name: prepare containers images
+  block:
+    - name: prepare and push containers images
+      vars:
+        image: "{{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}"
+        tag: "{{ intel_media_analytics_local_build_tag }}"
+      ansible.builtin.shell:
+        cmd: |-
+          docker build -t {{ image }}:{{ tag }} -f Dockerfile .
+          docker push {{ image }}:{{ tag }}
+        chdir: "{{ (intel_media_analytics_local_folder) | path_join }}"
+      changed_when: true
+  when:
+    - container_runtime is in ['docker']
+
+- name: create a k8s namespace for Media Analytics
+  kubernetes.core.k8s:
+    name: "{{ intel_media_analytics_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: create Media Analytics sample pod
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ intel_media_analytics_local_folder }}/{{ item }}.yaml"
+  loop: "{{ groups['kube_node'] }}"

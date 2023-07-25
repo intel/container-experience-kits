@@ -46,6 +46,7 @@
         release_name: "{{ opentelemetry_operator_chart_name }}"
         release_namespace: "{{ opentelemetry_operator_namespace }}"
         wait: true
+        timeout: 15m0s
         values:
           kubeRBACProxy:
             enabled: true
@@ -72,46 +73,54 @@
         executable: /bin/bash
       changed_when: false
       register: es_otel_credentials
+      when: opentelemetry_collectors['elasticsearch'] | default(false)
 
     - name: template opentelemetry deployment file
       ansible.builtin.template:
-        src: "otel-gateway.yml.j2"
-        dest: "{{ (project_root_dir, 'opentelemetry', 'otel-gateway.yml') | path_join }}"
+        src: "otel-gateway.yaml.j2"
+        dest: "{{ (project_root_dir, 'opentelemetry', 'otel-gateway.yaml') | path_join }}"
         mode: '0644'
 
     - name: create opentelemetry certs
       kubernetes.core.k8s:
         state: present
-        src: "{{ (project_root_dir, 'opentelemetry', item) | path_join }}"
+        src: "{{ (project_root_dir, 'opentelemetry', item[1]) | path_join }}"
       loop:
-        - otel-agent-telegraf-certs.yml
-        - otel-gateway-certs.yml
-        - otel-elasticsearch-certs.yml
+        - ['telegraf', 'otel-agent-telegraf-certs.yaml']
+        - ['cadvisor', 'otel-agent-cadvisor-certs.yaml']
+        - ['gateway', 'otel-gateway-certs.yaml']
+        - ['elasticsearch', 'otel-elasticsearch-certs.yaml']
+      when: opentelemetry_collectors[item[0]] | default(false)
 
     - name: wait for certs creation
       kubernetes.core.k8s_info:
         kind: Certificate
-        name: "{{ item }}"
+        name: "{{ item[1] }}"
         namespace: monitoring
         wait: true
         wait_condition:
           type: Ready
         wait_timeout: 60
       loop:
-        - otel-gateway-collector
-        - otel-agent-telegraf
-        - otel-elasticsearch-tls
+        - ['telegraf', 'otel-gateway-collector']
+        - ['cadvisor', 'otel-agent-cadvisor']
+        - ['gateway', 'otel-gateway-certs.yaml']
+        - ['elasticsearch', 'otel-elasticsearch-tls']
+      when: opentelemetry_collectors[item[0]] | default(false)
 
     - name: create opentelemetry resources
       kubernetes.core.k8s:
         state: present
-        src: "{{ (project_root_dir, 'opentelemetry', item) | path_join }}"
+        src: "{{ (project_root_dir, 'opentelemetry', item[1]) | path_join }}"
       loop:
-        - otel-gateway-log-rbac.yml
-        - otel-gateway.yml
-        - otel-agent-telegraf.yml
-        - otel-telegraf-servicemonitor.yml
-        - otel-sidecar.yml
+        - ['gateway', 'otel-gateway-log-rbac.yaml']
+        - ['gateway', 'otel-gateway.yaml']
+        - ['gateway', 'otel-agent-rbac.yaml']
+        - ['cadvisor', "otel-agent-cadvisor.yaml"]
+        - ['telegraf', 'otel-agent-telegraf.yaml']
+        - ['gateway', 'otel-gateway-servicemonitor.yaml']
+        - ['elasticsearch', 'otel-sidecar.yaml']
+      when: opentelemetry_collectors[item[0]] | default(false)
 
     - name: check for all pods
       ansible.builtin.include_role:

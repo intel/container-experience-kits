@@ -1,0 +1,75 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+install_dependencies:
+  Debian:
+    - autoconf
+    - automake
+    - build-essential
+    - cmake
+    - git-core
+    - libass-dev
+    - libfreetype6-dev
+    - libgnutls28-dev
+    - libmp3lame-dev
+    - libsdl2-dev
+    - libtool
+    - libva-dev
+    - libvdpau-dev
+    - libvorbis-dev
+    - libxcb1-dev
+    - libxcb-shm0-dev
+    - libxcb-xfixes0-dev
+    - meson
+    - ninja-build
+    - pkg-config
+    - texinfo
+    - yasm
+    - zlib1g-dev
+    - nasm
+    - libx264-dev
+    - libx265-dev
+    - libnuma-dev
+    - libvpx-dev
+    - libfdk-aac-dev
+    - libopus-dev
+    - libdav1d-dev
+    - libmfx-dev
+    - libvpl-dev
+  RedHat:
+    - autoconf
+    - automake
+    - bzip2
+    - bzip2-devel
+    - cmake
+    - freetype-devel
+    - gcc
+    - gcc-c++
+    - git
+    - libtool
+    - make
+    - pkgconfig
+    - zlib-devel
+    - nasm
+    - yasm-devel
+    - libx264-devel
+    - libx265-devel
+    - fdk-aac-free
+    - lame-devel
+    - opus
+    - libvpx6-devel
+    - libmfx-devel
+    - libvpl-devel

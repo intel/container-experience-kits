@@ -1,0 +1,59 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Load requirements.yml file
+  set_fact:
+    ansible_reqs_file: "{{ lookup('file', collections_file) | from_yaml }}"
+
+- name: Load desired kubespray version
+  set_fact:
+    kubespray_version_desired: |-
+      {{
+        (ansible_reqs_file.collections |
+        selectattr('name', '==', collection_name) |
+        list)[0].version
+      }}
+
+- name: Load kubespray directory state
+  ansible.builtin.stat:
+    path: "{{ kubespray_dir }}"
+  register: kubespray_stat
+
+- name: Check if kubespray module present
+  ansible.builtin.assert:
+    that: kubespray_stat.stat.exists
+    fail_msg: |-
+      Kubespray module not installed.
+      Please install the kubespray module and apply kubespray patch.
+
+- name: Load current version of kubespray
+  set_fact:
+    kubespray_version_current: "{{ lookup('file', version_file, errors='ignore') }}"
+
+- name: Check if desired version of kubespray present
+  ansible.builtin.assert:
+    that: kubespray_version_desired == kubespray_version_current
+    fail_msg: |-
+      Wrong kubespray version detected.
+      Please re-install the kubespray module and apply kubespray patch.
+  when:
+    - kubespray_version_current is defined
+    - kubespray_version_current
+
+- name: Write kubespray version
+  ansible.builtin.copy:
+    dest: "{{ version_file }}"
+    content: "{{ kubespray_version_desired }}"
+    mode: preserve

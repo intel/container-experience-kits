@@ -1,0 +1,121 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create policy_controller directory if needed
+  ansible.builtin.file:
+    path: "{{ policy_controller_dir }}"
+    state: directory
+    mode: 0755
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: create cosign namespace if doesn't exist
+  kubernetes.core.k8s:
+    name: "{{ cosign_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: import container_registry public certificate
+  block:
+    - name: get registry secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: "{{ registry_tls_secret_name }}"
+        namespace: "{{ registry_namespace }}"
+      register: registry_secret
+      no_log: true
+
+    - name: install kubernetes root ca for cosign
+      ansible.builtin.copy:
+        dest: |-
+          {% if ansible_os_family == "Debian" -%}
+          /usr/local/share/ca-certificates/{{ inventory_hostname }}_ca.crt
+          {%- elif ansible_os_family == "RedHat" -%}
+          /etc/pki/ca-trust/source/anchors/{{ inventory_hostname }}_ca.crt
+          {%- endif %}
+        src: /etc/kubernetes/ssl/ca.crt
+        remote_src: true
+        mode: preserve
+      changed_when: true
+
+    - name: update ca-certificates (Debian)
+      ansible.builtin.command: update-ca-certificates
+      changed_when: true
+      when:
+        - ansible_os_family == "Debian"
+
+    - name: update ca-certificates (RedHat)
+      ansible.builtin.command: update-ca-trust extract
+      changed_when: true
+      when:
+        - ansible_os_family == "RedHat"
+
+    - name: create configmap for policy-controller access this registry
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          api_version: v1
+          kind: ConfigMap
+          metadata:
+            name: "ca-bundle-config"
+            namespace: "{{ cosign_namespace }}"
+          data:
+            ca-bundle.crt: "{{ registry_secret['resources'][0]['data']['tls.crt'] | b64decode }}"
+  when:
+    - registry_enable | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: helm install policy-controller
+  block:
+    - name: create helm values yaml file
+      ansible.builtin.template:
+        src: "values.yaml.j2"
+        dest: "{{ (policy_controller_dir, 'policy-controller-values.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: add policy-controller chart repo
+      kubernetes.core.helm_repository:
+        name: "{{ sigstore_chart_name }}"
+        repo_url: "{{ sigstore_chart_repo }}"
+
+    - name: deploy policy-controller
+      kubernetes.core.helm:
+        chart_ref: "{{ sigstore_chart_name }}/{{ policy_controller_release_name }}"
+        chart_version: "{{ policy_controller_release }}"
+        release_name: "{{ policy_controller_release_name }}"
+        release_namespace: "{{ cosign_namespace }}"
+        values_files: "{{ (policy_controller_dir, 'policy-controller-values.yaml') | path_join }}"
+        wait: true
+        timeout: 4m0s
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: install cosign tool for container image signing
+  ansible.builtin.command: go install {{ cosign_url }}@{{ cosign_version }}
+  changed_when: true
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: install example namespace to enforce policy-controller
+  include_tasks: enforce_namespace.yml
+  when:
+    - registry_enable | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]

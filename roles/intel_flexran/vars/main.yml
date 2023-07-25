@@ -31,6 +31,7 @@ install_dependencies:
     - flex
     - bison
     - msr-tools
+    - linux-tools-{{ ansible_kernel }}
   RedHat:
     - git
     - make
@@ -38,7 +39,7 @@ install_dependencies:
     - elfutils-libelf-devel
     - cmake
     - gcc-c++
-    - libhugetlbfs*
+#    - libhugetlbfs* # RH9.2RT: "failures": "No package available."
     - libstdc++*
     - kernel-devel
     - numactl*

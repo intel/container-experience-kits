@@ -42,3 +42,4 @@ install_dependencies:
     - usbutils
     - yasm
     - boost-devel
+    - libnl3-devel

@@ -146,7 +146,7 @@ spec:
           name: node-exporter-config
 {% if tas_enable_demo_policy |d(false) %}
       - hostPath:
-          path: /tmp/node-metrics
+          path: {{ tas_demo_policy_dir }}
         name: tas-demo-policy
 {% endif %}
   updateStrategy:

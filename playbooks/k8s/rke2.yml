@@ -1,0 +1,225 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Initialize rke2 on server
+- hosts: k8s_cluster
+  roles:
+    - role: cluster_defaults
+    - role: rke2_target_setup
+
+- hosts: kube_control_plane
+  vars:
+    kube_pod_security_use_default: true
+  tasks:
+    - name: prepare additional rke2 facts
+      ansible.builtin.set_fact:
+        rke2_root_dir: "{{ (project_root_dir, 'rke2') | path_join }}"
+        rke2_conf_dir: "/etc/rancher/rke2"
+        rke2_manifests_dir: "/var/lib/rancher/rke2/server/manifests"
+
+    - name: Create rke2 workdir
+      ansible.builtin.file:
+        path: "{{ rke2_root_dir }}"
+        state: directory
+        mode: 0755
+
+    - name: Set rke2 installer and configuration paths
+      ansible.builtin.set_fact:
+        rke2_installer: "{{ (rke2_root_dir, 'rke2_install.sh') | path_join }}"
+        rke2_audit_policy_file: "{{ (rke2_conf_dir, 'audit-policy.yaml') | path_join }}"
+        rke2_config_file: "{{ (rke2_conf_dir, 'config.yaml') | path_join }}"
+        rke2_calico_config_file: "{{ (rke2_manifests_dir, 'calico-custom-config.yaml') | path_join }}"
+        rke2_admission_config_file: "{{ (rke2_conf_dir, 'rke2-admission-config.yaml') | path_join }}"
+
+    - name: Download rke2 install file
+      ansible.builtin.get_url:
+        url: https://get.rke2.io
+        dest: "{{ rke2_installer }}"
+        mode: 0755
+      register: rke2_downloaded
+      retries: "{{ number_of_retries | default(3) }}"
+      until: rke2_downloaded is success
+      delay: "{{ retry_delay | default(3) }}"
+
+    - name: Install rke2
+      ansible.builtin.command: "{{ rke2_installer }}"
+      register: rke2_installed
+      retries: 3
+      environment:
+        INSTALL_RKE2_VERSION: "{{ rke2_version }}"
+      until: rke2_installed is success
+      changed_when: true
+
+    - name: set /usr/local/lib/systemd/system/rke2-server.env proxy settings
+      ansible.builtin.lineinfile:
+        path: /usr/local/lib/systemd/system/rke2-server.env
+        state: present
+        regexp: '^{{ item.key }}'
+        line: '{{ item.key }}={{ item.value }}'
+        create: yes
+        owner: root
+        group: root
+        mode: 0644
+      with_dict: "{{ proxy_env }}"
+      when: '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
+
+    - name: Create directory for rke2 config files
+      ansible.builtin.file:
+        path: "{{ rke2_conf_dir }}"
+        state: directory
+        mode: 0750
+
+    - name: Populate rke2 Admission configuration
+      ansible.builtin.template:
+        src: rke2-admission-config.yaml.j2
+        dest: "{{ rke2_admission_config_file }}"
+        mode: 0644
+
+    - name: Set up rke2 audit policy
+      ansible.builtin.template:
+        src: rke2-audit-policy.yaml.j2
+        dest: "{{ rke2_audit_policy_file }}"
+        mode: 0644
+
+    - name: Set up rke2 cluster configuration
+      ansible.builtin.template:
+        src: rke2_config.yaml.j2
+        dest: "{{ rke2_config_file }}"
+        mode: 0644
+
+    - name: Start rke2 server
+      ansible.builtin.systemd:
+        name: rke2-server.service
+        state: started
+        enabled: true
+
+    - name: Create directory for kube config files
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.kube/"
+        state: directory
+        mode: 0750
+
+    - name: Set up kube config file
+      ansible.builtin.copy:
+        src: /etc/rancher/rke2/rke2.yaml
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        remote_src: yes
+        mode: 0640
+
+    - name: Copy rancher binaries to /usr/local/bin/ for cluster access
+      ansible.builtin.copy:
+        src: /var/lib/rancher/rke2/bin/
+        dest: /usr/local/bin/
+        remote_src: yes
+        force: yes
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Link the crictl client config to ease containerd access
+      block:
+        - name: remove existing config
+          ansible.builtin.file: path="/etc/crictl.yaml" state=absent
+        - name: link the crictl client config to the default path
+          ansible.builtin.file:
+            src: /var/lib/rancher/rke2/agent/etc/crictl.yaml
+            path: /etc/crictl.yaml
+            state: link
+
+    - name: Link Kubernetes CA to align with kubespray's certificate path
+      block:
+        - name: remove existing certs and keys
+          ansible.builtin.file: path="/etc/kubernetes/ssl/" state=absent
+        - name: ensure that path exists
+          ansible.builtin.file:
+            path: "/etc/kubernetes/ssl/"
+            mode: 0755
+            owner: root
+            group: root
+            state: directory
+        - name: link Kubernetes CA cert in the /etc/kubernetes/ssl/
+          ansible.builtin.file:
+            src: /var/lib/rancher/rke2/server/tls/server-ca.crt
+            path: /etc/kubernetes/ssl/ca.crt
+            state: link
+        - name: link Kubernetes CA key in the /etc/kubernetes/ssl/
+          ansible.builtin.file:
+            src: /var/lib/rancher/rke2/server/tls/server-ca.key
+            path: /etc/kubernetes/ssl/ca.key
+            state: link
+
+    - name: check for all pods
+      ansible.builtin.include_role:
+        name: wait_for_kubernetes_ready
+
+    - name: Enable custom settings for calico
+      block:
+        - name: populate calico custom config yaml
+          ansible.builtin.template:
+            src: rke2_calico_config.yaml.j2
+            dest: "{{ rke2_calico_config_file }}"
+            mode: 0644
+        - name: apply calico custom config
+          kubernetes.core.k8s:
+            state: present
+            src: "{{ rke2_calico_config_file }}"
+            wait_sleep: 30
+      when: kube_network_plugin == "calico"
+
+    - name: Enable dashboard  # noqa role-name[path]
+      ansible.builtin.include_role:
+        name: rke2_kubernetes_apps/dashboard
+      when: kube_dashboard_enabled | default(true)
+
+    - name: Install helm  # noqa role-name[path]
+      ansible.builtin.include_role:
+        name: rke2_kubernetes_apps/helm
+
+    - name: Install cert-manager  # noqa role-name[path]
+      ansible.builtin.include_role:
+        name: rke2_kubernetes_apps/cert_manager_install
+      when: cert_manager_enabled | default(false)
+
+    - name: Install podman  # noqa role-name[path]
+      ansible.builtin.include_role:
+        name: container_engine/podman
+
+    - name: registries.conf configuration on containerd
+      block:
+        - name: check if registries.conf exists
+          ansible.builtin.stat:
+            path: /etc/containers/registries.conf
+          register: registries_conf
+
+        - name: add "unqualified-search-registries" to registries.conf
+          ansible.builtin.lineinfile:
+            path: /etc/containers/registries.conf
+            regexp: '^# unqualified-search-registries'
+            line: unqualified-search-registries = ["docker.io"]
+          when: registries_conf.stat.exists
+      when: container_runtime == "containerd"
+
+    - name: Install container registry
+      ansible.builtin.include_role:
+        name: container_registry
+      when: registry_enable | default(false)
+
+    - name: Install Rancher # noqa role-name[path]
+      ansible.builtin.include_role:
+        name: rke2_kubernetes_apps/rancher
+      when: rancher_manager_enabled | default(false)
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true

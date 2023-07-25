@@ -36,6 +36,20 @@
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'rdt' ] }}"
   when: not enable_intel_rdt_plugin
 
+- name: set rdt monitored cores to avoid core dump on ICX
+  block:
+    - name: get cores number
+      shell: "set -o pipefail && cat /proc/cpuinfo | grep processor | wc -l"
+      args:
+        executable: /bin/bash
+      register: cores_number
+      changed_when: false
+
+    - name: set intel_rdt_plugin_monitored_cores if using default value
+      set_fact:
+        intel_rdt_plugin_monitored_cores: "0-{{ cores_number.stdout|int - 1 }}"
+  when: enable_intel_rdt_plugin and intel_rdt_plugin_monitored_cores == ""
+
 - name: disable pkgpower plugin
   set_fact:
     exclude_collectd_plugins: "{{ exclude_collectd_plugins + [ 'pkgpower' ] }}"
@@ -43,7 +57,7 @@
 
 - name: prepare list of plugins to be deployed
   set_fact:
-    plugins: "{{ collectd_plugins[collectd_profile | default('basic')] | difference(exclude_collectd_plugins) }}"
+    plugins: "{{ collectd_plugins[profile_name] | flatten | difference(exclude_collectd_plugins) }}"
 
 - name: rename ipmi to 0_ipmi to ensure that ipmi plugin will be loaded first (https://sourceforge.net/p/openipmi/bugs/86/)
   set_fact:

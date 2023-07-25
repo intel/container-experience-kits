@@ -1,0 +1,39 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: preflight Media Analytics
+  block:
+      - name: Media Analytics - check if GPU DP enabled
+        ansible.builtin.assert:
+            that:
+                - gpu_dp_enabled
+            msg: |
+              Incorrect Media Analytics configuration !!
+              Make sure 'gpu_dp_enalbed: true' to enable Media Analytics
+
+      - name: Media Analytics - support only docker runtime
+        ansible.builtin.assert:
+            that:
+                - container_runtime == 'docker'
+            msg: |
+              Incorrect Media Analytics configuration !!
+              Make sure 'container_runtime: docker' to enable Media Analytics
+  when:
+      - kubernetes
+      - intel_media_analytics_enabled | default(false)
+  any_errors_fatal: true
+  tags:
+      - intel-media-analytics

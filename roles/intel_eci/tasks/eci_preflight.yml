@@ -1,0 +1,47 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: validate linux distro version for Intel ECI
+  ansible.builtin.assert:
+    that: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '22.04'
+    fail_msg: "Intel ECI is supported only on Ubuntu 22.04 ({{ ansible_distribution }} {{ ansible_distribution_version }} is not supported)"
+    success_msg: "Assertion passed. Intel ECI is supported and can be deployed on target with Ubuntu 22.04"
+
+# check Codesys Benchmarking for Intel ECI
+- name: validate OPC UA Client and Server are mutually exclusive
+  ansible.builtin.assert:
+    that: >
+      (opcua_framework.codesys_opcua_client | bool and not opcua_framework.standalone_opcua_server | bool) or
+      (opcua_framework.standalone_opcua_server | bool and not opcua_framework.codesys_opcua_client | bool)
+    fail_msg: "OPC UA Client and Server roles are mutually exclusive; they cannot be both enabled on the same target"
+    success_msg: "Assertion passed. Target role is unique"
+  when: opcua_framework.codesys_opcua_client | default(false) | bool or opcua_framework.standalone_opcua_server | default(false) | bool
+
+- name: validate Intel ECI is enabled for OPC UA Client or Server
+  ansible.builtin.assert:
+    that: intel_eci_enabled
+    fail_msg: "OPC UA Client and Server roles require Intel ECI to be enabled in host vars (intel_eci_enabled: true)"
+    success_msg: "Assertion passed. Intel ECI is enabled"
+  when: opcua_framework.codesys_opcua_client | default(false) | bool or opcua_framework.standalone_opcua_server | default(false) | bool
+
+- name: validate Intel ECI repo
+  ansible.builtin.assert:
+    that: intel_eci_repo_checksum == "{{ intel_eci_repo | checksum }}"
+    msg:
+      - Please configure intel_eci_repo in group vars.
+      - Please contact eci-support@intel.com on how to access this repo.
+
+# TODO: check CPU for Intel ECI (Atom or Core)

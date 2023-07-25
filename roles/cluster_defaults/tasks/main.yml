@@ -45,3 +45,9 @@
     sysctl_file: "/etc/sysctl.d/99-sysctl.conf"
     state: present
     reload: yes
+
+- name: set kube_apiserver fact
+  ansible.builtin.set_fact:
+    kube_apiserver_cert: "{{ (kube_provisioner == 'kubespray') | ternary('/etc/kubernetes/ssl/ca.crt', '/var/lib/rancher/rke2/server/tls/client-ca.crt') }}"
+    kube_apiserver_key: "{{ (kube_provisioner == 'kubespray') | ternary('/etc/kubernetes/ssl/ca.key', '/var/lib/rancher/rke2/server/tls/client-ca.key') }}"
+  when: kubernetes

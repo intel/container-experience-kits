@@ -1,0 +1,24 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+ffmpeg_path: "{{ (project_root_dir, 'ffmpeg') | path_join }}"
+ffmpeg_patch_path: "{{ (ffmpeg_path, 'ffmpeg_patch') | path_join }}"
+
+# Define the FFmpeg version using the release tag or commit hash. If both are used, the commit hash is used.
+# ffmpeg_version: "n4.2.9"
+ffmpeg_commit_hash: "c3a7999"
+ffmpeg_git_url: "https://github.com/FFmpeg/FFmpeg.git"
+ffmpeg_configure_options: "--enable-shared --enable-vaapi --enable-libvpl"

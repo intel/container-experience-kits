@@ -1,17 +1,16 @@
 {
-    "core": {
-      "events": [
-          "LLC-load-misses"
-      ],
-      "custom_events": [
-        {
-          "type": 3,
-          "config": [
-            "0x10002"
-          ],
-          "name": "LLC-load-misses"
-        }
-      ]
-    }
+  "core": {
+    "events": [
+      "LLC-load-misses"
+    ],
+    "custom_events": [
+      {
+        "type": 3,
+        "config": [
+          "0x10002"
+        ],
+        "name": "LLC-load-misses"
+      }
+    ]
   }
-  
+}

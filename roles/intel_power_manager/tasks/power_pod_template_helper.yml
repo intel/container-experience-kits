@@ -16,10 +16,12 @@
 ---
 - name: populate sample power pods templates
   ansible.builtin.template:
-    src: "sample_power_pod.yml.j2"
-    dest: "{{ (intel_power_manager_dir, 'sample_power_pods', profile_name + '_power_pod.yml') | path_join }}"
+    src: "sample_power_pod.yaml.j2"
+    dest: "{{ (intel_power_manager_dir, 'sample_power_pods', power_profile_name + '_power_pod_' + power_node + '.yaml') | path_join }}"
     force: yes
     mode: preserve
-  loop: "{{ intel_power_manager.power_nodes }}"
+  loop: "{{ hostvars[power_node]['power_profiles'] }}"
   loop_control:
-    loop_var: node_name
+    loop_var:
+      power_profile_name
+  when: inventory_hostname == groups['kube_control_plane'][0]

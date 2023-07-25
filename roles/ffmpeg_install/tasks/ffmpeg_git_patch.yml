@@ -1,0 +1,64 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create patch directory
+  ansible.builtin.file:
+    path: ffmpeg_patch_path
+    state: directory
+    mode: 0755
+
+- name: clone patch git repository
+  ansible.builtin.git:
+    repo: "{{ patch_item.url }}"
+    dest: "{{ ffmpeg_patch_path }}"
+    version: "{{ patch_item.git_tag }}"
+
+- name: get patch files
+  block:
+    - name: find all patch files
+      ansible.builtin.find:
+        paths: "{{ (ffmpeg_patch_path, patch_item.subdirectory) | path_join }}"
+      register: patch_file_list
+    - name: sort patch files by Name
+      ansible.builtin.set_fact:
+        files_list: "{{ (patch_file_list.files | map(attribute='path') | list | sort) }}"
+
+- name: patch FFmpeg sources
+  ansible.posix.patch:
+    src: "{{ item }}"
+    basedir: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
+    remote_src: true
+    strip: 1
+  with_items: "{{ files_list }}"
+  when:
+    - patch_item.apply_all_patches
+
+- name: patch FFmpeg sources
+  ansible.posix.patch:
+    src: "{{ (ffmpeg_patch_path, patch_item.subdirectory, item) | path_join }}"
+    basedir: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
+    remote_src: true
+    strip: 1
+  loop: "{{ patch_item.patches_to_apply }}"
+  when:
+    - (patch_item.apply_all_patches is not defined) or
+      (not patch_item.apply_all_patches) and
+      (patch_item.patches_to_apply is defined)
+
+- name: remove patch directory
+  ansible.builtin.file:
+    path: '{{ ffmpeg_patch_path }}'
+    state: absent

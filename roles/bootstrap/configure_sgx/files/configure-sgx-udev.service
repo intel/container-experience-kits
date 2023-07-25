@@ -1,0 +1,10 @@
+[Unit]
+Description=enabled the sgx udev rule on reboot
+AssertPathExists=/usr/bin/udevadm
+
+[Service]
+Type=simple
+ExecStart=udevadm trigger
+
+[Install]
+WantedBy=multi-user.target

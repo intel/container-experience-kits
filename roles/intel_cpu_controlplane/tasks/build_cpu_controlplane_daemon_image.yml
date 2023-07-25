@@ -23,7 +23,7 @@
 - name: clone CPU Control Plane to the controller node
   ansible.builtin.git:
     repo: "{{ cpu_ctlplane_git_url }}"
-    version: "{{ cpu_ctlplane_commit_hash }}"
+    version: "{{ ( 'v' + cpu_ctlplane_version ) | path_join }}"
     dest: "{{ cpu_ctlplane_local_build_dir }}"
     force: yes
 
@@ -36,14 +36,14 @@
 
     - name: build local CPU Control Plane image
       ansible.builtin.command: >-
-        docker build -f ./docker/Dockerfile -t {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_local_tag_name }} ./
+        docker build -f ./docker/Dockerfile -t {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_version }} ./
       args:
         chdir: "{{ (cpu_ctlplane_local_build_dir) | path_join }}"
       changed_when: true
 
     - name: push the local CPU Control Plane image to local registry
       ansible.builtin.command: >-
-        docker push {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_local_tag_name }}
+        docker push {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_version }}
       changed_when: true
   when:
     - container_runtime == "docker"
@@ -57,14 +57,14 @@
 
     - name: build local CPU Control Plane image
       ansible.builtin.command: >-
-        podman build -f ./docker/Dockerfile -t {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_local_tag_name }} ./
+        podman build -f ./docker/Dockerfile -t {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_version }} ./
       args:
         chdir: "{{ (cpu_ctlplane_local_build_dir) | path_join }}"
       changed_when: true
 
     - name: push the local CPU Control Plane image to local registry
       ansible.builtin.command: >-
-        podman push {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_local_tag_name }}
+        podman push {{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}:{{ cpu_ctlplane_version }}
       changed_when: true
   when:
     - container_runtime == "containerd"

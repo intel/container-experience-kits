@@ -15,8 +15,8 @@
 ##
 ---
 - name: prepare for removing worker node(s)
-  import_playbook: k8s/kubespray/remove-node.yml
+  ansible.builtin.import_playbook: kubernetes_sigs.kubespray.remove_node
 
 - name: prepare for Intel cleanup
-  import_playbook: infra/redeploy_cleanup.yml
+  ansible.builtin.import_playbook: infra/redeploy_cleanup.yml
   when: kubernetes | default(true)

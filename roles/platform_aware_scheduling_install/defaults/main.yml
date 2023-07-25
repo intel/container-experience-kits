@@ -14,14 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-install_dependencies:
-  Debian:
-    - git
-    - make
-  RedHat:
-    - git
-    - make
-
 # Platform Aware Scheduler
 pas_git_url: "https://github.com/intel/platform-aware-scheduling.git"
 pas_dir: "{{ (project_root_dir, 'platform-aware-scheduling') | path_join }}"
@@ -29,14 +21,18 @@ pas_namespace: kube-system
 
 # Descheduler
 descheduler_git_url: https://github.com/kubernetes-sigs/descheduler.git
-descheduler_git_version: "v0.24.1"
+# Descheduler version can't be bumped until below bug is resolved.
+# https://github.com/intel/platform-aware-scheduling/issues/90
+# Bug has been sumbitted:
+# https://github.com/kubernetes-sigs/descheduler/issues/863
+descheduler_git_version: "v0.23.1"
 descheduler_dir: "{{ (project_root_dir, 'sigs.k8s.io/descheduler') | path_join }}"
 sigs_k8s_io_dir: "{{ (project_root_dir, 'sigs.k8s.io') | path_join }}"
 
 # TAS deployment
 tas_enabled: false
 tas_build_image_locally: false
-tas_extender_image_tag_default: "0.4.0"
+tas_extender_image_tag_default: "0.5.0"
 tas_git_version: "telemetry-aware-scheduling/v{{ tas_extender_image_tag_default }}"
 tas_version: |-
   {{ ('telemetry-aware-scheduling' in tas_git_version)
@@ -69,7 +65,7 @@ tas_verbosity: 4
 # GAS deployment
 gas_enabled: false
 gas_build_image_locally: false
-gas_extender_image_tag_default: "0.5.1"
+gas_extender_image_tag_default: "0.5.2"
 gas_git_version: "gpu-aware-scheduling/v{{ gas_extender_image_tag_default }}"
 gas_version: |-
   {{ ('gpu-aware-scheduling' in gas_git_version)

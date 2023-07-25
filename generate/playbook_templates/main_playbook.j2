@@ -14,6 +14,13 @@
   when:
     - kubernetes | default(true)
     - not on_cloud | default(false)
+    - kube_provisioner == "kubespray"
+- name: provision Kubernetes cluster using rke2
+  import_playbook: k8s/rke2.yml
+  when:
+    - kubernetes | default(true)
+    - not on_cloud | default(false)
+    - kube_provisioner == "rke2"
 - name: install Intel Container Experience Kit features
   import_playbook: intel/{{ playbook_name }}.yml
   when: kubernetes | default(true)

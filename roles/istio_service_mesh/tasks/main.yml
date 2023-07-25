@@ -20,14 +20,6 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
-- name: determine machine type
-  include_role:
-    name: check_machine_type
-  when:
-    - inventory_hostname in groups['kube_node'] or
-      inventory_hostname in groups['vm_host']
-    - not on_vms | default (false)
-
 - name: remove existing istio service mesh resources
   include_tasks: cleanup.yml
   when:

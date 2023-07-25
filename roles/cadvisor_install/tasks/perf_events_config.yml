@@ -1,0 +1,43 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: create the perf_config folder for cAdvisor custom perf events
+  ansible.builtin.file:
+    path: "{{ (project_root_dir, 'charts', 'cadvisor', 'perf_config') | path_join }}"
+    state: directory
+    mode: 0755
+
+- name: load sample perf events json file
+  ansible.builtin.set_fact:
+    sample_perf_conf_json: "{{ lookup('file', 'sample-perf-event.json' ) | from_json }}"
+  when: cadvisor_sample_perf_events_enabled
+
+- name: load perf events json file supplied for PIK
+  ansible.builtin.set_fact:
+    pik_perf_conf_json: "{{ lookup('file', 'pik-perf-event.json') | from_json }}"
+  when: cadvisor_pik_perf_events_enabled | default(false)
+
+- name: construct perf events config
+  vars:
+    sample_perf: "{{ sample_perf_conf_json | default({}) }}"
+    pik_perf: "{{ pik_perf_conf_json | default({}) }}"
+  ansible.builtin.set_fact:
+    perf_conf_json: "{{ sample_perf | combine(pik_perf, recursive=true, list_merge='append_rp') | to_json(indent=2) }}"
+
+- name: create perf events configuration json file
+  ansible.builtin.copy:
+    content: "{{ perf_conf_json }}"
+    dest: "{{ (project_root_dir, 'charts', 'cadvisor', 'perf_config', cadvisor_perf_config_filename) | path_join }}"
+    mode: 0644

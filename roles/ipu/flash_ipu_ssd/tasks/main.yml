@@ -1,0 +1,99 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Install dependencies
+  ansible.builtin.include_role:
+    name: install_dependencies
+
+- name: Create IPU project directory
+  ansible.builtin.file:
+    path: "{{ ipu_project_root_dir }}"
+    state: directory
+    mode: 0755
+
+- name: copy ssd image from ansible host
+  ansible.builtin.copy:
+    src: "{{ (ipu_tmp_dir, ipu_ssd_image_tarball) | path_join }}"
+    dest: "{{ (ipu_project_root_dir, ipu_ssd_image_tarball) | path_join }}"
+    mode: 0644
+
+- name: unarchive ssd image
+  ansible.builtin.unarchive:
+    src: "{{ (ipu_project_root_dir, ipu_ssd_image_tarball) | path_join }}"
+    dest: "{{ ipu_project_root_dir }}"
+    remote_src: yes
+    mode: 0755
+
+- name: check if ssd image is available
+  ansible.builtin.stat:
+    path: "{{ ipu_ssd_image_file }}"
+  register: ssd_image_stats
+
+- name: fail if ssd image does not exist
+  ansible.builtin.fail:
+    msg: "ssd image {{ ipu_ssd_image_file }} does not exist"
+  when: not ssd_image_stats.stat.exists
+
+- name: syslogmode DEV
+  ansible.builtin.shell: "set -o pipefail && ssh -p {{ imc_ssh_port }} {{ ssh_options }} {{ imc_user }}@{{ imc_static_ip }} /etc/init.d/syslogmode DEV"
+  args:
+    executable: /bin/bash
+  register: syslogmode_out
+  changed_when: "'DEV mode, syslog disabled' in syslogmode_out.stdout"
+  failed_when: syslogmode_out.rc != 0
+
+- name: umount loop0
+  ansible.builtin.shell: "set -o pipefail && ssh -p {{ imc_ssh_port }} {{ ssh_options }} {{ imc_user }}@{{ imc_static_ip }} umount /dev/loop0"
+  args:
+    executable: /bin/bash
+  register: loop0_out
+  changed_when: loop0_out.stderr | length == 0
+  failed_when:
+    - loop0_out.rc != 0
+    - "'t unmount /dev/loop0' not in loop0_out.stderr"
+    - "'Invalid argument' not in loop0_out.stderr"
+
+- name: umount nvme0n1
+  ansible.builtin.shell: "set -o pipefail && ssh -p {{ imc_ssh_port }} {{ ssh_options }} {{ imc_user }}@{{ imc_static_ip }} umount -l /dev/nvme0n1*"
+  args:
+    executable: /bin/bash
+  register: nvme0n1_out
+  changed_when: nvme0n1_out.stderr | length == 0
+  failed_when:
+    - nvme0n1_out.rc != 0
+    - "'t unmount /dev/nvme0n1' not in nvme0n1_out.stderr"
+    - "'Invalid argument' not in nvme0n1_out.stderr"
+
+- name: kill tgtd
+  ansible.builtin.shell: "set -o pipefail && ssh -p {{ imc_ssh_port }} {{ ssh_options }} {{ imc_user }}@{{ imc_static_ip }} killall -9 tgtd"
+  args:
+    executable: /bin/bash
+  register: tgtd_out
+  changed_when: tgtd_out.stderr | length == 0
+  failed_when:
+    - tgtd_out.rc != 0
+    - "' no process killed' not in tgtd_out.stderr"
+    - "' No such process' not in tgtd_out.stderr"
+
+- name: flash ssd image
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && {{ dd_src_cmd }} | ssh -p {{ imc_ssh_port }} {{ ssh_options }} -q {{ imc_user }}@{{ imc_static_ip }} {{ dd_dst_cmd }}"
+  args:
+    executable: /bin/bash
+  register: flash_ssd_out
+  changed_when: true
+  async: 1200 # Maximum allowed timeout in Seconds
+  poll: 10 # Polling Interval in Seconds

@@ -1,0 +1,32 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+cosign_version: v2.0.0
+cosign_url: github.com/sigstore/cosign/v2/cmd/cosign
+cosign_namespace: cosign-system
+cosign_pubkey_secret: cosign-pubkey
+
+cosign_enforce_namespace: my-cosign-namespace
+cosign_password:
+cosign_key_secret: cosign-key
+container_registry_secret: container-registry-secret
+
+sigstore_chart_name: sigstore
+sigstore_chart_repo: https://sigstore.github.io/helm-charts
+policy_controller_release: 0.5.6
+sigstore_chart_tag: "policy-controller-{{ policy_controller_release }}"
+policy_controller_release_name: policy-controller
+policy_controller_dir: "{{ (project_root_dir, 'policy-controller') | path_join }}"

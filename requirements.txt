@@ -1,6 +1,6 @@
 ansible==5.7.1
 ansible-core==2.12.5
-cryptography==39.0.1
+cryptography==41.0.2
 jinja2==3.1.2
 netaddr==0.7.19
 pbr==5.4.4

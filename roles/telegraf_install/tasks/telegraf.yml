@@ -15,41 +15,50 @@
 ##
 ---
 - name: create Helm charts directory if needed
-  file:
+  ansible.builtin.file:
     path: "{{ (project_root_dir, 'charts') | path_join }}"
     state: directory
     mode: 0755
 
 - name: copy telegraf Helm chart to the controller node
-  copy:
-    src: "{{ role_path }}/charts/telegraf"
-    dest: "{{ (project_root_dir, 'charts') | path_join }}"
+  ansible.builtin.copy:
+    src: "{{ role_path }}/charts/telegraf/" # Copy contentx of charts/telegraf
+    dest: "{{ telegraf_chart_path }}"
     mode: 0755
 
-- name: build telegraf configuration
-  set_fact:
-    telegraf_config: "{{ telegraf_config | default('') + telegraf_plugins_config[telegraf_plugin] }}"
-  loop: "{{ telegraf_profiles[telegraf_profile] | flatten(levels=1) }}"
+- name: prepare PMU events definitions
+  ansible.builtin.include_tasks: pmu_events.yml
+
+- name: template all telegraf configuration options
+  ansible.builtin.set_fact:
+    telegraf_plugins_config: "{{ lookup('ansible.builtin.template', 'telegraf_plugins_conf.yml.j2') | from_yaml }}"
+
+- name: build telegraf configuration based on current RA profile
+  ansible.builtin.set_fact:
+    telegraf_config: "{{ telegraf_config | default('') + telegraf_plugins_config[telegraf_plugin] }}" # add enabled plugin section to config
+  loop: "{{ telegraf_config_profiles[profile_name] | flatten(levels=1) }}" # select plugins enabled for current RA profile
   loop_control:
     loop_var: telegraf_plugin
 
 - name: print out effective telegraf config
-  debug:
+  ansible.builtin.debug:
     msg: |
-      "Effective telegraf configuration to use:"
-      "{{ telegraf_config }}"
+      Effective telegraf configuration to use:
+      {{ telegraf_config }}
 
 - name: populate values.yaml template with values
-  template:
+  ansible.builtin.template:
     src: "values.yaml.j2"
     dest: "{{ telegraf_helm_values_file }}"
     force: yes
     mode: preserve
 
 - name: install telegraf helm chart
-  command: >-
-    helm upgrade -i {{ telegraf_release_name }}
-    --namespace {{ telegraf_namespace }}
-    -f {{ telegraf_helm_values_file }}
-    {{ telegraf_chart_path }}
-  changed_when: true
+  kubernetes.core.helm:
+    chart_ref: "{{ telegraf_chart_path }}"
+    name: "{{ telegraf_release_name }}"
+    namespace: "{{ telegraf_namespace }}"
+    create_namespace: true
+    values_files:
+      - "{{ telegraf_helm_values_file }}"
+    wait: true

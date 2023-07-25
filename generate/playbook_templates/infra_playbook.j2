@@ -1,16 +1,15 @@
 ---
 # apply common cluster node configuration
 - hosts: k8s_cluster,vm_host
-  tasks: []
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
   pre_tasks:
     - name: End play for VM host
       meta: end_host
       when:
         - "'vm_host' in group_names"
         - on_vms | default(false) | bool
-  handlers:
-    - name: reboot server
-      reboot: { reboot_timeout: 1200 }
   roles:
     - role: cluster_defaults
       tags: always
@@ -39,24 +38,39 @@
     - role: bootstrap/configure_dns
       when:
         - ansible_distribution == "Ubuntu" and dns_disable_stub_listener | default(true) | bool
-        - not vm_enabled or on_vms | default(false) | bool
     - role: bootstrap/golang_install
       tags: golang-install
+    - role: bootstrap/configure_docker_daemon
+      tags: docker
+  post_tasks:
+    - name: Execute handlers
+      ansible.builtin.meta: flush_handlers
+    - name: Check for failure in handlers execution
+      ansible.builtin.assert:
+        that: >-
+          (
+            on_vms | default(false) and
+            ansible_play_hosts_all | difference(groups['vm_host']) | difference(ansible_play_hosts) | length() == 0
+          ) or
+          (
+            not on_vms | default(false) and
+            ansible_play_hosts_all | difference(ansible_play_hosts) | length() == 0
+          )
+        msg: Failure detected in handlers executiuon. Please look for fails in previous tasks.
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
 # apply worker node kernel configuration
 - hosts: kube_node,vm_host
-  tasks: []
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
   pre_tasks:
     - name: End play for VM host
       meta: end_host
       when:
         - "'vm_host' in group_names"
         - on_vms | default(false) | bool
-  handlers:
-    - name: reboot server
-      reboot: { reboot_timeout: 1200 }
   roles:
     - role: cluster_defaults
       tags: defaults
@@ -64,6 +78,28 @@
       when:
         - vm_enabled | default(false) | bool
         - not on_vms | default(false) | bool
+    - name: check_machine_type
+      tags:
+        - sgx
+        - intel-platform-sgx-setup
+        - kmra
+        - istio-service-mesh
+        - sst
+        - apply-intel-pstate
+      when:
+        - configure_sgx | default(false) | bool or
+          kmra.oran.enabled | default(false) | bool or
+          kmra.pccs.enabled | default(false) | bool or
+          kmra.apphsm.enabled  | default(false) | bool or
+          kmra.ctk_loadkey_demo.enabled  | default(false) | bool or
+          istio_service_mesh.enabled | default(true) | bool or
+          sst_bf_configuration_enabled | default(false) | bool or
+          sst_cp_configuration_enabled | default(false) | bool or
+          sst_tf_configuration_enabled | default(false) | bool or
+          sst_pp_configuration_enabled | default(false) | bool or
+          intel_pstate_enabled | default(true) | bool
+    - role: bootstrap/install_realtime_kernel
+      when: rt_kernel_enabled | default(false) | bool
     - role: bootstrap/configure_hugepages
       tags:
         - hugepages
@@ -75,23 +111,25 @@
       when: cpusets_enabled | default(false) | bool
     - role: bootstrap/configure_intel_pstate
       when: intel_pstate_enabled | default(true) | bool
-    - role: bootstrap/configure_cstates
-      when: cstate_enabled | default(false) | bool
-    - role: bootstrap/configure_ufs
-      when: ufs_enabled | default(false) | bool
+    - role: bootstrap/reset_qat_option
+      tags:
+        - reset_qat_option
+        - intel-platform-qat-setup
+      when:
+        - update_qat_drivers | default(false) | bool
     - role: bootstrap/auto_detect_qat_devices
       tags:
         - auto-detect-qat-device
         - intel-platform-qat-setup
       when:
-        - update_qat_drivers | default(false) | bool
+        - configure_qat | default(false) | bool
         - qat_devices | default([]) | length == 0
     - role: bootstrap/set_sriov_kernel_flags
       tags:
         - setup-sriov
         - intel-platform-qat-setup
       when:
-        - iommu_enabled | default(true) | bool or on_vms | default(false) | bool
+        - iommu_enabled | default(true) | bool
         - not ((configure_dlb_devices is defined and configure_dlb_devices) or
           (configure_dsa_devices is defined and configure_dsa_devices))
     - role: bootstrap/set_siov_kernel_flags
@@ -109,7 +147,7 @@
       when: telegraf_enabled | default(true) | bool
     - role: bootstrap/set_intel_flexran_kernel_flags
       when: intel_flexran_enabled | default(false) | bool
-{%- if playbook_name in ['full_nfv', 'remote_fp', 'on_prem', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'remote_fp', 'on_prem', 'on_prem_vss', 'build_your_own'] %}
     - role: bootstrap/configure_sst
       tags: sst
       when:
@@ -120,37 +158,60 @@
           sst_tf_configuration_enabled | default(false) | bool or
           sst_pp_configuration_enabled | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
-{%- endif %}
-{%- if playbook_name in ['full_nfv', 'on_prem', 'regional_dc', 'build_your_own'] %}
+{% endif %}
+{% if playbook_name in ['full_nfv', 'on_prem', 'on_prem_vss', 'regional_dc', 'build_your_own'] %}
+    - role: bootstrap/set_pcie_kernel_flags
+      when:
+        - configure_fpga | default(false) | bool
+        - not vm_enabled or on_vms | default(false) | bool
     - role: bootstrap/install_gpu_driver
       when:
         - configure_gpu | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
-{%- endif %}
+    - role: bootstrap/configure_fpga
+      when:
+        - configure_fpga | default(false) | bool
+        - not vm_enabled or on_vms | default(false) | bool
+{% endif %}
     - role: bootstrap/update_grub
       tags:
         - grub-update
         - intel-platform-qat-setup
+  post_tasks:
+    - name: Execute handlers
+      ansible.builtin.meta: flush_handlers
+    - name: Check for failure in handlers execution
+      ansible.builtin.assert:
+        that: >-
+          (
+            on_vms | default(false) and
+            ansible_play_hosts_all | difference(groups['vm_host']) | difference(ansible_play_hosts) | length() == 0
+          ) or
+          (
+            not on_vms | default(false) and
+            ansible_play_hosts_all | difference(ansible_play_hosts) | length() == 0
+          )
+        msg: Failure detected in handlers executiuon. Please look for fails in previous tasks.
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
-{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'build_your_own'] -%}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
 # install worker node qat software
 - hosts: kube_node,vm_host
-  tasks: []
+  handlers:
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
   pre_tasks:
     - name: End play for VM host
       meta: end_host
       when:
         - "'vm_host' in group_names"
         - on_vms | default(false) | bool
-  handlers:
-    - name: reboot server
-      reboot: { reboot_timeout: 1200 }
   roles:
     - role: cluster_defaults
       tags: defaults
     - role: bootstrap/apply_intel_pstate
+      tags: apply-intel-pstate
       when: intel_pstate_enabled | default(true) | bool
     - role: bootstrap/install_qat_drivers_services
       tags:
@@ -169,13 +230,27 @@
     - role: bootstrap/configure_dsa
       tags: dsa-dp
       when: configure_dsa_devices | default(false)
+  post_tasks:
+    - name: Execute handlers
+      ansible.builtin.meta: flush_handlers
+    - name: Check for failure in handlers execution
+      ansible.builtin.assert:
+        that: >-
+          (
+            on_vms | default(false) and
+            ansible_play_hosts_all | difference(groups['vm_host']) | difference(ansible_play_hosts) | length() == 0
+          ) or
+          (
+            not on_vms | default(false) and
+            ansible_play_hosts_all | difference(ansible_play_hosts) | length() == 0
+          )
+        msg: Failure detected in handlers executiuon. Please look for fails in previous tasks.
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
-{%- endif %}
+{% endif %}
 
 # install worker node network software
 - hosts: kube_node,vm_host
-  tasks: []
   pre_tasks:
     - name: End play for VM host
       meta: end_host
@@ -228,21 +303,29 @@
         - intel-platform-qat-setup
       when:
         - ovs_dpdk_enabled | default(false) | bool or install_dpdk | default(true) | bool
-{%- if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own'] %}
     - role: install_ddp_pkgs
       when: install_ddp_packages | default(true) | bool
-{%- endif %}
+{% endif %}
     - role: sriov_nic_init
       tags: setup-sriov-nic
       when:
         - install_dpdk | default(true) | bool
         - iommu_enabled | default(true) | bool
+        - not on_vms | default(false) | bool
         - (kubernetes | default(true) | bool
           and not container_runtime_only_deployment | default(false) | bool
           and not sriov_network_operator_enabled | default(false) | bool
           or (not kubernetes | default(true) | bool
           and container_runtime_only_deployment | default(false) | bool))
-{%- if playbook_name in ['full_nfv', 'access', 'on_prem', 'remote_fp', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
+    - role: bootstrap/install-qatlibs
+      tags: qatlibs
+      when:
+        - qat_devices | default([]) | length > 0
+        - iommu_enabled | default(true) | bool
+        - configure_qat | default(false) | bool
+        - not update_qat_drivers | default(false) | bool
     - role: bootstrap/configure_qat
       tags:
         - setup-sriov-qat
@@ -250,23 +333,23 @@
       when:
         - qat_devices | default([]) | length > 0
         - iommu_enabled | default(true) | bool
-          or on_vms | default(false) | bool
-        - update_qat_drivers | default(false) | bool
+        - not on_vms | default(false) | bool
+        - configure_qat | default(false) | bool
     - role: bootstrap/configure_openssl
       tags:
         - configure-openssl
         - intel-platform-qat-setup
       when:
         - openssl_install | default(false) | bool
-{%- endif %}
-{%- if playbook_name in ['full_nfv', 'on_prem', 'remote_fp', 'regional_dc', 'build_your_own'] %}
+{% endif %}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'regional_dc', 'build_your_own'] %}
     - role: bootstrap/configure_sgx
       tags:
         - sgx
         - intel-platform-sgx-setup
       when:
         - configure_sgx | default(false) | bool
-{%- endif %}
+{% endif %}
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 

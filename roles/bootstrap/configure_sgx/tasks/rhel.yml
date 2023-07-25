@@ -25,43 +25,6 @@
     mode: 0700
   become: yes
 
-- name: confirm DCAP driver module installed
-  command: "lsmod"
-  register: lsmod_output
-  changed_when: false
-
-- name: if intel_sgx module is not available, the block is executed
-  block:
-    - name: download DCAP drivers
-      get_url:
-        url: "{{ dcap_driver_url_rhel }}"
-        dest: "{{ project_root_dir }}"
-        mode: 0755
-        checksum: "{{ dcap_driver_checksum_rhel }}"
-      register: get_url_results
-      retries: "{{ number_of_retries | default(5) }}"
-      until: get_url_results is success
-      delay: "{{ retry_delay | default(3) }}"
-
-    - name: install DCAP driver
-    # noqa command-instead-of-shell - shell is used intentionally here
-      shell: "./{{ dcap_driver_version_rhel }}"
-      args:
-        chdir: "{{ project_root_dir }}"
-        executable: /bin/bash
-      register: dcap_output_rhel
-      failed_when: '"Installation is successful!" not in dcap_output_rhel.stdout'
-      changed_when: '"Installation is successful!" in dcap_output_rhel.stdout'
-
-    - name: Load SGX module (DCAP)
-      modprobe:
-        name: intel_sgx
-        state: present
-  when:
-    - not update_kernel
-    - ansible_os_family == "RedHat" and ansible_distribution_version < '8.4'
-    - '"intel_sgx" not in lsmod_output.stdout'
-
 - name: download SGX RPM local repository
   get_url:
     url: "{{ sgx_rpm_local_repo_url_rhel }}"

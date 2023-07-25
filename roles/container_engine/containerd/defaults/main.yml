@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-containerd_version: 1.6.16
-containerd_archive_checksum: "2415b431a900275c14942f87f751e1e13d513c1c2f062322b5ca5a9a2190f22a"
+containerd_version: 1.7.0
+containerd_archive_checksum: "b068b05d58025dc9f2fc336674cac0e377a478930f29b48e068f97c783a423f0"
 
 containerd_download_url: "https://github.com/containerd/containerd/releases/download/v{{ containerd_version }}/containerd-{{ containerd_version }}-linux-amd64.tar.gz" # noqa yaml[line-length]
 containerd_bin_dir: "/usr/local/bin"

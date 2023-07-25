@@ -58,5 +58,5 @@
     release_values: "{{ lookup('template', 'custom_values.yml.j2') | from_yaml }}"
     create_namespace: true
     chart_ref: "{{ (project_root_dir, 'charts', 'intel-cpu-controlplane') | path_join }}"
-    chart_version: "{{ cpu_ctlplane_local_tag_name }}"
+    chart_version: "{{ cpu_ctlplane_version }}"
     wait: true

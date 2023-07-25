@@ -1,0 +1,61 @@
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+
+FROM {{ intel_media_analytics_image_src}}:{{ intel_media_analytics_image_tag }}
+
+ARG http_proxy
+ARG https_proxy
+
+USER root
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-utils \
+    git \
+    clinfo \
+    curl \
+    python3-venv \
+    python3-pip \
+ && rm -rf /var/lib/apt/lists/*
+
+USER dlstreamer
+ENV HOME=/home/dlstreamer
+
+RUN python3 -m venv venv --prompt dls2022.3
+ENV PATH="$HOME/venv/bin:$PATH"
+RUN python3 -m pip install --no-cache-dir -U pip \
+ && pip install --no-cache-dir "openvino-dev[onnx]==2022.3.0" \
+    "openvino-dev[tensorflow2]==2022.3.0" \
+    "openvino-dev[pytorch]==2022.3.0"
+
+ENV MODEL_PATH=${HOME}/models
+RUN mkdir -p ${MODEL_PATH}
+
+# Download classifier from OMZ and Download example video
+RUN omz_downloader -o ${MODEL_PATH} --name vehicle-attributes-recognition-barrier-0039 \
+ && curl --output ${MODEL_PATH}/intel/vehicle-attributes-recognition-barrier-0039/vehicle-attributes-recognition-barrier-0039.json \
+    https://raw.githubusercontent.com/dlstreamer/dlstreamer/2022.3-release/samples/gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0039.json \
+ && curl -L --output cars-on-highway.1920x1080.mp4 "https://www.pexels.com/video/854671/download/?h=1080&w=1920"
+
+COPY --chown=dlstreamer run_vehicle_detection_attribute.sh /home/dlstreamer/run_vehicle_detection_attribute.sh
+RUN chmod +x /home/dlstreamer/run_vehicle_detection_attribute.sh
+
+# We have 2 choices here
+# 1. Run container as dlstreamer:
+#      We need to ensure dlstreamer has access to /dev/dri/renderD128 and /dev/dri/renderD129 via the "render" group.
+# 2. Run container as root:
+#      Need to check to see if have violated the "least-privilege" principle
+# USER dlstreamer
+# USER root
+CMD ["./run_vehicle_detection_attribute.sh"]

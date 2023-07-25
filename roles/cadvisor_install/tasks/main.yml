@@ -14,8 +14,22 @@
 ##   limitations under the License.
 ##
 ---
+- name: create cAdvisor Helm chart directory
+  ansible.builtin.file:
+    path: "{{ (project_root_dir, 'charts', 'cadvisor') | path_join }}"
+    state: directory
+    mode: 0755
+
+- name: Check if perf events config enabled
+  ansible.builtin.set_fact:
+    cadvisor_perf_events: true
+  when: cadvisor_sample_perf_events_enabled or cadvisor_pik_perf_events_enabled | default(false)
+
+- name: Prepare perf events config for all nodes
+  ansible.builtin.import_tasks: perf_events_config.yml
+  when: cadvisor_perf_events | default(false)
+
 - name: install cAdvisor Helm charts
-  import_tasks: cadvisor_install.yml
+  ansible.builtin.import_tasks: install.yml
   when:
-    - cadvisor_enabled is defined and cadvisor_enabled
     - inventory_hostname == groups['kube_control_plane'][0]

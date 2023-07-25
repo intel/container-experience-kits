@@ -1,4 +1,4 @@
-{%- if intel_flexran == 'on' %}
+{% if intel_flexran == 'on' %}
 [all]
 bbu ansible_host=10.0.0.1 ip=10.0.0.1 ansible_user=USER ansible_password=XXXX
 oru ansible_host=10.0.0.2 ip=10.0.0.2 ansible_user=USER ansible_password=XXXX
@@ -24,7 +24,7 @@ kube_node
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
-{%- else %}
+{% else %}
 [all]
 controller1 ansible_host=10.0.0.1 ip=10.0.0.1 ansible_user=USER ansible_password=XXXX
 controller2 ansible_host=10.0.0.2 ip=10.0.0.2 ansible_user=USER ansible_password=XXXX
@@ -55,4 +55,4 @@ kube_node
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
-{%- endif %}
+{% endif %}

@@ -35,6 +35,8 @@
         port: 22
         state: stopped
         timeout: 60
+      delegate_to: localhost
+      become: false
 
     - name: Wait for node reboot
       ansible.builtin.wait_for:
@@ -42,11 +44,15 @@
         port: 22
         connect_timeout: 5
         timeout: 1200
+      delegate_to: localhost
+      become: false
 
     # Update could be started on master node
     - name: Wait for kube-apiserver to be up
       ansible.builtin.uri:
         url: "https://127.0.0.1:6443/healthz"
+        client_cert: "{{ kube_apiserver_cert }}"
+        client_key: "{{ kube_apiserver_key }}"
         validate_certs: no
         use_proxy: no
       register: ddp_update_api_info

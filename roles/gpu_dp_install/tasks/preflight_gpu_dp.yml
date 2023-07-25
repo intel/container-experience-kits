@@ -69,8 +69,3 @@
       when: " item | regex_search('8086:[0-9a-zA-Z]{4}') != none "
   when:
     - configure_gpu is defined and configure_gpu
-
-- name: Set GPU oem kernel version based on OS version
-  include_role:
-    name: bootstrap/install_gpu_driver # noqa role-name[path] - role in bootstrap
-    tasks_from: set_oem_kernel_version

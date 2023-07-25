@@ -22,6 +22,7 @@ install_dependencies:
     - linux-headers-{{ ansible_kernel }}
     - pkg-config
     - python3-pip
+    - git
   RedHat:
     - numactl-devel
     - libpcap-devel
@@ -30,3 +31,4 @@ install_dependencies:
     - elfutils-libelf-devel
     - pkgconfig
     - python3-pip
+    - git

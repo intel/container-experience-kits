@@ -1,19 +1,26 @@
-import os
-import paramiko
-import click
 import json
-import subprocess # nosec B404 # subrocess is set to shell=False
-import string
+import os
 import random
-from time import sleep
-import cwdf
-import yaml
 import shutil
-import sw_deployment.sw_deployment_tool as sw_deployment
-from ssh_connector import SSHConnector
+import string
+import subprocess  # nosec B404 # subprocess is set to shell=False
+
+import click
+import paramiko
+import yaml
+
 from azure.identity import AzureCliCredential
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.compute import ComputeManagementClient
+
+import cwdf_util
+import sw_deployment.sw_deployment_tool as sw_deployment
+
+from ssh_connector import SSHConnector
+
+
+def subprocess_run(*args, **kwargs):
+    return subprocess.run(*args, **kwargs)  # pylint: disable=W1510
 
 
 def generate_ssh_keys(ssh_dir, public_key_path, private_key_path):
@@ -28,50 +35,16 @@ def generate_ssh_keys(ssh_dir, public_key_path, private_key_path):
 
 
 def authenticate_aks(deployment_dir):
-    proc = subprocess.run(["terraform", "output", "-json"], cwd=deployment_dir, capture_output=True)
+    proc = subprocess_run(["terraform", "output", "-json"], cwd=deployment_dir, capture_output=True)
     terraform_output = json.loads(proc.stdout)
     resource_group_name = terraform_output.get("resource_group_name", {}).get("value")
     aks_cluster_name = terraform_output.get("aks_cluster_name", {}).get("value")
     if not resource_group_name or not aks_cluster_name:
         return
     click.echo("Running az aks get-credentials...")
-    proc = subprocess.run(["az", "aks", "get-credentials", f"-n={aks_cluster_name}", f"-g={resource_group_name}"], universal_newlines=True)
+    proc = subprocess_run(["az", "aks", "get-credentials", f"-n={aks_cluster_name}", f"-g={resource_group_name}"], universal_newlines=True)
     if proc.returncode != 0:
         click.secho("Unable to setup kubectl. Ignoring...", err=True, bold=True, fg="red")
-
-
-def install_aks_confcom_addon(deployment_dir, provisioner_tool):
-    aks_cluster_name = ""
-    resource_group_name = ""
-    if provisioner_tool == "terraform":
-        proc = subprocess.run(["terraform", "output", "-json"], cwd=deployment_dir, capture_output=True)
-        terraform_output = json.loads(proc.stdout)
-        resource_group_name = terraform_output.get("resource_group_name", {}).get("value")
-        aks_cluster_name = terraform_output.get("aks_cluster_name", {}).get("value")
-        if not resource_group_name or not aks_cluster_name:
-            return
-
-    if provisioner_tool == "cloudcli":
-        output_file = os.path.join(deployment_dir, "provision_output.json")
-        with open(file=output_file, mode='r', encoding='utf-8') as json_file:
-            cloudcli_output = json.load(json_file)
-        resource_group_name = cloudcli_output["resource_group_name"]["value"]
-        aks_cluster_name = cloudcli_output["aks_cluster_name"]["value"]
-        if not resource_group_name or not aks_cluster_name:
-            return
-
-    proc = subprocess.run(["az", "aks", "addon", "list", f"-n={aks_cluster_name}", f"-g={resource_group_name}"], capture_output=True)
-    json_output = proc.stdout
-    enabled_addons = json.loads(json_output)
-    sgx_addon = list(filter(lambda addon: addon["api_key"] == "ACCSGXDevicePlugin", enabled_addons))[0]
-    if sgx_addon["enabled"] == True:
-        click.echo("SGX is already enabled in cluster.")
-        return
-
-    click.echo("Enabling SGX...")
-    proc = subprocess.run(["az", "aks", "enable-addons", "-a=confcom", f"-n={aks_cluster_name}", f"-g={resource_group_name}", "--enable-sgxquotehelper"], universal_newlines=True)
-    if proc.returncode != 0:
-        click.secho("Unable to enable SGX. Ignoring...", err=True, bold=True, fg="red")
 
 
 @click.group()
@@ -107,7 +80,7 @@ def deploy(deployment_dir, provisioner_tool):
     with open(public_key_path, 'r') as f:
         ssh_public_key = f.read()
     with open(private_key_path, 'r') as f:
-        ssh_private_key = f.read()
+        f.read()
 
     # Create lock file if not exists
     # Lock file is intended to contain info not to break previous deployment in future
@@ -118,19 +91,20 @@ def deploy(deployment_dir, provisioner_tool):
         lock_str = f.read()
         try:
             lock = json.loads(lock_str)
-        except ValueError as e:
+        except ValueError:
             lock = None
 
         if lock is not None and "job_id" in lock:
             job_id = lock["job_id"]
         else:
             # Random 8 digit identifier
-            job_id = ''.join(random.choices(string.digits, k=8)) # nosec B311 # pseudo-random generator is not used for security purposes
+            job_id = ''.join(random.choices(string.digits, k=8))  # nosec B311 # pseudo-random generator is not used for security purposes
             lock = json.dumps({"job_id": job_id})
             f.write(lock)
 
     click.echo("Job ID: " + job_id)
 
+    provisioning_output = None
     if provisioner_tool == "terraform":
         provisioning_output = terrafrom_provisioning(deployment_dir, cwdf_user_config, job_id, ssh_public_key)
     if provisioner_tool == "cloudcli":
@@ -149,7 +123,7 @@ def deploy(deployment_dir, provisioner_tool):
     if cloud_provider == "azure":
         subscription_id = provisioning_output["subscription_id"]["value"]
         aks_scale_sets_rg = provisioning_output["aks_scale_sets_rg"]["value"]
-        
+
         credential = AzureCliCredential()
         network_client = NetworkManagementClient(credential, subscription_id)
         compute_client = ComputeManagementClient(credential, subscription_id)
@@ -169,7 +143,7 @@ def deploy(deployment_dir, provisioner_tool):
                 })
     elif cloud_provider == "aws":
         workers = provisioning_output["k8s_worker_instances"]["value"]
-    
+
     click.echo("Worker nodes:")
     click.echo("-------------------")
     workers_ip = []
@@ -182,12 +156,12 @@ def deploy(deployment_dir, provisioner_tool):
     ssh_username = provisioning_output["k8s_worker_username"]["value"]
     click.echo("Opening SSH connection to Ansible host...")
     ssh = SSHConnector(ip_address=ansible_host_ip,
-                              username='ubuntu',
-                              priv_key=private_key_path,
-                              try_loop=True)
+                       username='ubuntu',
+                       priv_key=private_key_path,
+                       try_loop=True)
     click.echo("Opened SSH connection.")
     click.echo("Waiting for cloud init to complete on Ansible host...")
-    stdin, stdout, stderr = ssh.exec_command("cloud-init status --wait")
+    _, stdout, stderr = ssh.exec_command("cloud-init status --wait")
     stdout.channel.recv_exit_status()
     click.echo("Cloud init done.")
 
@@ -199,10 +173,10 @@ def deploy(deployment_dir, provisioner_tool):
     cwdf_output_filename = os.path.join(deployment_dir, "cwdf_output.yaml")
     with open(cwdf_output_filename, 'w') as f:
         yaml.dump(cwdf_output, f)
-    ssh.copy_file(cwdf_output_filename, destination_path="/home/ubuntu/cwdf_deployment/")
 
+    ssh.copy_file(cwdf_output_filename, destination_path="/home/ubuntu/cwdf_deployment/")
     click.echo("Transferring SSH keys to Ansible machine...")
-    ssh.copy_file(private_key_path, destination_path='/tmp/id_rsa',)
+    ssh.copy_file(private_key_path, destination_path='/tmp/id_rsa')
     ssh.exec_command("sudo mv /tmp/id_rsa /home/ubuntu/cwdf_deployment/ssh/id_rsa")
     ssh.exec_command("sudo chmod 600 /home/ubuntu/cwdf_deployment/ssh/id_rsa")
     click.echo("Successfully transferred SSH key to ~/cwdf_deployment/ssh/id_rsa")
@@ -215,7 +189,7 @@ def deploy(deployment_dir, provisioner_tool):
     if not os.path.exists(discovery_results_path):
         os.makedirs(discovery_results_path)
     for worker in workers:
-        stdin, stdout, stderr = ssh.exec_command(
+        _, stdout, stderr = ssh.exec_command(
             f"python3 /home/ubuntu/cwdf_deployment/discovery/discover.py {worker['private_ip']} ec2-user /home/ubuntu/cwdf_deployment/ssh/id_rsa"
         )
         if stdout.channel.recv_exit_status() != 0:
@@ -231,18 +205,6 @@ def deploy(deployment_dir, provisioner_tool):
     click.echo("Copied discovery results to Ansible host.")
 
     configuration = yaml.safe_load(cwdf_user_config)
-    if cloud_provider == 'azure':
-        if configuration["azureConfig"]["aks"]["cni"] == "cilium-ebpf":
-            for worker in workers:
-                click.echo(f"Preparing {worker['private_ip']} for Cilium eBPF")
-                stdin, stdout, stderr = ssh.exec_command(
-                    f"ssh -o StrictHostKeyChecking=no {ssh_username}@{worker['private_ip']} -i ~/cwdf_deployment/ssh/id_rsa \"sudo iptables-save | sudo grep -v KUBE | sudo iptables-restore\""
-                )
-                if stdout.channel.recv_exit_status() != 0:
-                    click.echo(f"Error while preparing {worker['private_ip']} for cilium eBPF:", err=True)
-                    click.echo(stderr.read(), err=True)
-        if configuration["azureConfig"]["aks"]["enable_sgx"] == True:
-            install_aks_confcom_addon(deployment_dir, provisioner_tool)
     ssh.close_connection()
 
     click.echo("-------------------")
@@ -265,14 +227,15 @@ def deploy(deployment_dir, provisioner_tool):
 
     sw_deployment.start_deploy(config=sw_config_path)
 
+
 def terrafrom_provisioning(deployment_dir, cwdf_user_config, job_id, ssh_public_key):
-    tf_manifest, cwdf_config = cwdf.compose_terraform(cwdf_user_config, job_id, ssh_public_key)
+    tf_manifest, _ = cwdf_util.compose_terraform(cwdf_user_config, job_id, ssh_public_key)
     manifest_path = os.path.join(deployment_dir, 'deploy.tf')
     with open(manifest_path, 'w') as f:
         f.write(tf_manifest)
 
     click.echo("Initializing Terraform...")
-    proc = subprocess.run(["terraform", "init", "-upgrade"], cwd=deployment_dir, universal_newlines=True)
+    proc = subprocess_run(["terraform", "init", "-upgrade"], cwd=deployment_dir, universal_newlines=True)
     if proc.returncode != 0:
         click.secho("Error while initializing Terraform", err=True, bold=True, fg="red")
         return
@@ -281,8 +244,8 @@ def terrafrom_provisioning(deployment_dir, cwdf_user_config, job_id, ssh_public_
     authenticate_aks(deployment_dir)
 
     click.echo("Building Terraform plan...")
-    proc = subprocess.run([
-        "terraform", "plan", "-out=outfile", "-detailed-exitcode"],
+    proc = subprocess_run(
+        ["terraform", "plan", "-out=outfile", "-detailed-exitcode"],
         cwd=deployment_dir, universal_newlines=True
     )
     if proc.returncode == 1:
@@ -292,7 +255,7 @@ def terrafrom_provisioning(deployment_dir, cwdf_user_config, job_id, ssh_public_
         click.echo("No infrastructure changes needed.")
     elif proc.returncode == 2:
         if click.confirm("Continue with above modifications?"):
-            proc = subprocess.run(["terraform", "apply", "outfile"], cwd=deployment_dir, universal_newlines=True)
+            proc = subprocess_run(["terraform", "apply", "outfile"], cwd=deployment_dir, universal_newlines=True)
             if proc.returncode == 1:
                 click.echo("Error while running deployment", err=True)
                 return
@@ -303,16 +266,17 @@ def terrafrom_provisioning(deployment_dir, cwdf_user_config, job_id, ssh_public_
     else:
         return
 
-    proc = subprocess.run(["terraform", "output", "-json"], cwd=deployment_dir, capture_output=True)
+    proc = subprocess_run(["terraform", "output", "-json"], cwd=deployment_dir, capture_output=True)
     json_output = proc.stdout
     provisioning_output = json.loads(json_output)
     return provisioning_output
 
+
 def cloudcli_provisioning(deployment_dir, cwdf_user_config, job_id, public_key_path):
-    script_path = cwdf.compose_cloudcli(deployment_dir, cwdf_user_config, job_id, public_key_path)
+    script_path = cwdf_util.compose_cloudcli(deployment_dir, cwdf_user_config, job_id, public_key_path)
 
     click.echo("Running CloudCLI provisioning script...")
-    proc = subprocess.run([script_path], universal_newlines=True)
+    proc = subprocess_run([script_path], universal_newlines=True)
     if proc.returncode != 0:
         click.secho("Error while initializing deploy script", err=True, bold=True, fg="red")
         return
@@ -323,15 +287,18 @@ def cloudcli_provisioning(deployment_dir, cwdf_user_config, job_id, public_key_p
 
     return cloudcli_output
 
+
 def remove_all_k8s_services(ansible_host_ip, private_key_path):
     ssh = SSHConnector(ip_address=ansible_host_ip,
-                              username='ubuntu',
-                              priv_key=private_key_path,
-                              try_loop=True)
+                       username='ubuntu',
+                       priv_key=private_key_path,
+                       try_loop=True)
     click.echo("Removing all k8s services...")
-    stdin, stdout, stderr = ssh.exec_command('for each in $(kubectl get ns -o jsonpath="{.items[*].metadata.name}" | sed s/"kube-system"//); do kubectl delete service --all -n $each; done')
+    cmd = 'for each in $(kubectl get ns -o jsonpath="{.items[*].metadata.name}" | sed s/"kube-system"//); do kubectl delete service --all -n $each; done'
+    stdout = ssh.exec_command(cmd)[1]
     stdout.channel.recv_exit_status()
     ssh.close_connection()
+
 
 def temp_files_remove(deployment_dir, provisioner_tool, cloud_provider):
     click.echo("Removing temporary files...")
@@ -367,7 +334,7 @@ def temp_files_remove(deployment_dir, provisioner_tool, cloud_provider):
 
 def terraform_cleanup(deployment_dir, skip_service_cleanup):
     if not skip_service_cleanup:
-        proc = subprocess.run(["terraform", "output", "-json"], cwd=deployment_dir, capture_output=True)
+        proc = subprocess_run(["terraform", "output", "-json"], cwd=deployment_dir, capture_output=True)
         json_output = proc.stdout
         terraform_output = json.loads(json_output)
         if "ansible_host_public_ip" in terraform_output:
@@ -378,7 +345,7 @@ def terraform_cleanup(deployment_dir, skip_service_cleanup):
     # Setup ~/.kube/config if in AKS environment to prevent helm provider errors
     authenticate_aks(deployment_dir)
 
-    proc = subprocess.run(
+    proc = subprocess_run(
         ["terraform", "plan", "-destroy", "-out=destroyplan", "-detailed-exitcode"],
         cwd=deployment_dir,
         universal_newlines=True
@@ -388,22 +355,23 @@ def terraform_cleanup(deployment_dir, skip_service_cleanup):
         return
     elif proc.returncode == 0:
         click.echo("No infrastructure changes needed.")
-    elif proc.returncode == 2:
-        if click.confirm("Continue with above modifications?"):
-            proc = subprocess.run(["terraform", "apply", "destroyplan"], cwd=deployment_dir, universal_newlines=True)
-            if proc.returncode == 1:
-                click.echo("Error while running cleanup", err=True)
-                return
-            else:
-                click.echo("Cleanup finished.")
-        else:
-            return
-    else:
+    elif proc.returncode != 2:
         return
+    elif not click.confirm("Continue with above modifications?"):
+        return
+    else:
+        proc = subprocess_run(["terraform", "apply", "destroyplan"], cwd=deployment_dir, universal_newlines=True)
+        if proc.returncode == 1:
+            click.echo("Error while running cleanup", err=True)
+            return
+
+        click.echo("Cleanup finished.")
+
     temp_files_remove(deployment_dir, "terraform", None)
 
+
 def cloudcli_cleanup(deployment_dir):
-    config_path = os.path.join(deployment_dir, "cwdf.yaml")
+    config_path = os.path.join(deployment_dir, "cwdf_util.yaml")
 
     # Verify config file exists
     if not os.path.exists(config_path):
@@ -417,11 +385,12 @@ def cloudcli_cleanup(deployment_dir):
     script_path = os.path.join(deployment_dir, cleaning_script)
 
     click.echo("Running CloudCLI cleaning script...")
-    proc = subprocess.run([script_path], universal_newlines=True)
+    proc = subprocess_run([script_path], universal_newlines=True)
     if proc.returncode != 0:
         click.secho("Error while initializing cleaning script", err=True, bold=True, fg="red")
         return
     temp_files_remove(deployment_dir, "cloudcli", configuration['cloudProvider'])
+
 
 @click.command()
 @click.option('--deployment_dir', help='Path to deployment directory', required=True)
@@ -439,7 +408,6 @@ def cleanup(deployment_dir, skip_service_cleanup, provisioner_tool):
 
 cli.add_command(deploy)
 cli.add_command(cleanup)
-
 
 if __name__ == "__main__":
     cli()

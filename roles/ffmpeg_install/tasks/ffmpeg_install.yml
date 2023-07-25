@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create FFmpeg folder
+  ansible.builtin.file:
+    path: "{{ (ffmpeg_path) | path_join }}"
+    state: directory
+    mode: 0755
+
+- name: install FFmpeg dependencies
+  include_role:
+    name: install_dependencies
+
+- name: clone FFmpeg git repository
+  ansible.builtin.git:
+    repo: "{{ ffmpeg_git_url }}"
+    dest: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
+    version: "{{ ffmpeg_version | default(ffmpeg_commit_hash ) }}"
+
+- name: apply FFmpeg patches
+  block:
+    - name: apply FFmpeg patches from git repository
+      ansible.builtin.include_tasks: ffmpeg_git_patch.yml
+      when: patch_item.type == "git"
+      loop: "{{ ffmpeg_patches }}"
+      loop_control:
+        loop_var: patch_item
+    - name: apply FFmpeg patches from archive file
+      ansible.builtin.include_tasks: ffmpeg_archive_patch.yml
+      when: patch_item.type in ['zip', 'tar.gz']
+      loop: "{{ ffmpeg_patches }}"
+      loop_control:
+        loop_var: patch_item
+
+- name: configure FFmpeg source
+  ansible.builtin.command: "{{ item }}"
+  changed_when: false
+  args:
+    chdir: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
+  with_items:
+    - ./configure --prefix={{ ffmpeg_path }} --libdir=/usr/lib {{ ffmpeg_configure_options }}
+
+- name: get number of CPUs
+  ansible.builtin.command: nproc
+  register: proc_number
+  changed_when: false
+
+- name: build FFmpeg tool (1/2)
+  community.general.make:
+    chdir: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
+    jobs: "{{ proc_number.stdout }}"
+
+- name: build FFmpeg tool (2/2)
+  community.general.make:
+    target: "{{ item }}"
+    chdir: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
+  with_items:
+    - install
+
+- name: remove FFmpeg source directory
+  ansible.builtin.file:
+    path: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
+    state: absent

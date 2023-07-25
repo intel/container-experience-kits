@@ -10,6 +10,7 @@
 # - on_vms              - is 'optional(false)' on k8s and on vm_host and is 'on(true)' on VMs
 # - nfd
 # - kube_dashboard
+# - rancher_manager
 # - isolcpu
 # - cpusets
 # - intel_cpu_controlplane
@@ -22,6 +23,8 @@
 # - sgx
 # - sgx_dp
 # - kmra:
+#     sbx
+#     oran
 #     pccs
 #     apphsm
 #     ctk_demo
@@ -29,6 +32,7 @@
 # - tac
 # - qat
 # - dsa
+# - dsa_dp
 # - dlb
 # - dlb_dp
 # - gpu
@@ -40,11 +44,12 @@
 # - network_userspace
 # - dpdk
 # - ovs_dpdk
-# - pstate
-# - cstate
-# - ufs - uncore frequency scaling
 # - sst
-# - power_manager
+# - power:
+#     manager
+#     pstate
+#     cstate
+#     uncore_frequency
 # - telemetry:
 #     prometheus
 #     collectd
@@ -58,7 +63,8 @@
 # - minio
 # - lpvsp
 # - rook_ceph
-# - intel_ai
+# - intel_media_analytics
+# - intel_ffmpeg
 # - cert_manager
 # - registry
 # - hugepages
@@ -76,10 +82,28 @@
 #     ddp
 #     fw_update
 # - intel_sriov_fec_operator
+# - intel_oneapi
+#     base
+#     ai
+# - rt_kernel
 # - intel_flexran
+# - intel_eci
+#     process_automation
+#     manufacturing_equipment
+#     discrete_manufacturing
+#     realtime
+#     connectivity
+#     softplc
+#     infra_clients
+#     inference
+#     acrn
+# - opcua_framework
+#     codesys_opcua_client
+#     standalone_opcua_server
 # - tadk
-# - remove_kubespray_host_dns_settings
-# - enable_dhclient_systemd_service
+# - sigstore_policy_controller
+# - cadvisor
+# - fpga
 ---
 access:
   name: access
@@ -87,6 +111,7 @@ access:
   on_vms: optional
   nfd: on
   kube_dashboard: on
+  rancher_manager: optional
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
@@ -104,12 +129,14 @@ access:
   dlb_dp: optional
   gpu: off
   gpu_dp: off
-  sgx: off
-  sgx_dp: off
+  sgx: optional
+  sgx_dp: optional
   kmra:
-    pccs: off
-    apphsm: off
-    ctk_demo: off
+    sbx: optional
+    oran: optional
+    pccs: optional
+    apphsm: optional
+    ctk_demo: optional
   tcs: off
   tac: off
   tas: off
@@ -118,11 +145,12 @@ access:
   network_userspace: off
   dpdk: on
   ovs_dpdk: off
-  pstate: off
-  cstate: off
-  ufs: off
   sst: off
-  power_manager: off
+  power:
+    manager: off
+    pstate: off
+    cstate: off
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: optional
@@ -145,7 +173,8 @@ access:
   minio: off
   lpvsp: optional
   rook_ceph: off
-  intel_ai: off
+  intel_media_analytics: off
+  intel_ffmpeg: off
   cert_manager: on
   registry: on
   hugepages: on
@@ -155,10 +184,14 @@ access:
     ddp: optional
     fw_update: optional
   intel_sriov_fec_operator: on
+  intel_oneapi:
+    base: on
+    ai: optional
+  rt_kernel: optional
   intel_flexran: on
   adq_dp: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: on
+  cadvisor: on
 
 basic:
   name: basic
@@ -166,6 +199,7 @@ basic:
   on_vms: optional
   nfd: on
   kube_dashboard: on
+  rancher_manager: optional
   isolcpu: optional
   cpusets: optional
   topology_manager: on
@@ -173,8 +207,11 @@ basic:
   sriov_network_dp: optional
   nic_drivers: on
   dpdk: optional
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -189,7 +226,8 @@ basic:
   minio: off
   lpvsp: on
   rook_ceph: off
-  intel_ai: off
+  intel_media_analytics: off
+  intel_ffmpeg: off
   cert_manager: on
   registry: on
   hugepages: optional
@@ -198,8 +236,11 @@ basic:
     flow_config: optional
     fw_update: optional
   adq_dp: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 full_nfv:
   name: full_nfv
@@ -207,6 +248,7 @@ full_nfv:
   on_vms: optional
   nfd: on
   kube_dashboard: on
+  rancher_manager: optional
   isolcpu: optional
   cpusets: optional
   intel_cpu_controlplane: optional
@@ -228,6 +270,8 @@ full_nfv:
   sgx: on
   sgx_dp: on
   kmra:
+    sbx: optional
+    oran: optional
     pccs: on
     apphsm: on
     ctk_demo: on
@@ -239,11 +283,12 @@ full_nfv:
   network_userspace: on
   dpdk: on
   ovs_dpdk: on
-  pstate: optional
-  cstate: optional
-  ufs: optional
   sst: optional
-  power_manager: on
+  power:
+    manager: on
+    pstate: on
+    cstate: on
+    uncore_frequency: on
   telemetry:
     prometheus: on
     collectd: optional
@@ -266,7 +311,8 @@ full_nfv:
   minio: optional
   lpvsp: on
   rook_ceph: on
-  intel_ai: off
+  intel_media_analytics: off
+  intel_ffmpeg: optional
   cert_manager: on
   registry: on
   hugepages: on
@@ -278,8 +324,12 @@ full_nfv:
   intel_sriov_fec_operator: optional
   tadk: on
   adq_dp: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
+  fpga: optional
 
 on_prem:
   name: on_prem
@@ -287,6 +337,7 @@ on_prem:
   on_vms: optional
   nfd: on
   kube_dashboard: on
+  rancher_manager: optional
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
@@ -299,6 +350,8 @@ on_prem:
   sgx: on
   sgx_dp: on
   kmra:
+    sbx: optional
+    oran: optional
     pccs: on
     apphsm: on
     ctk_demo: on
@@ -312,13 +365,15 @@ on_prem:
   dlb_dp: optional
   openssl: on
   tas: on
+  gas: optional
   dpdk: on
   bond_cni: optional
-  pstate: optional
-  cstate: optional
-  ufs: optional
   sst: optional
-  power_manager: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -341,7 +396,8 @@ on_prem:
   minio: optional
   lpvsp: on
   rook_ceph: optional
-  intel_ai: optional
+  intel_media_analytics: optional
+  intel_ffmpeg: optional
   cert_manager: on
   registry: on
   hugepages: on
@@ -350,8 +406,193 @@ on_prem:
     flow_config: optional
     fw_update: optional
   adq_dp: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
+  fpga: optional
+
+on_prem_vss:
+  name: on_prem_vss
+  vm_mode: optional
+  on_vms: optional
+  nfd: on
+  kube_dashboard: on
+  isolcpu: on
+  cpusets: optional
+  native_cpu_manager: optional
+  topology_manager: optional
+  sriov_operator: on
+  sriov_network_dp: optional
+  nic_drivers: on
+  bond_cni: optional
+  qat: on
+  qat_dp: on
+  openssl: on
+  dsa: on
+  dsa_dp: on
+  dlb: on
+  dlb_dp: on
+  gpu: on
+  gpu_dp: on
+  sgx: on
+  sgx_dp: on
+  kmra:
+    sbx: optional
+    oran: optional
+    pccs: optional
+    apphsm: optional
+    ctk_demo: optional
+  tcs: optional
+  tac: optional
+  tas: on
+  gas: on
+  ddp: optional
+  network_userspace: optional
+  dpdk: on
+  ovs_dpdk: optional
+  sst: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
+  telemetry:
+    prometheus: optional
+    collectd: optional
+    telegraf: optional
+    jaeger: optional
+    opentelemetry: optional
+    elasticsearch: optional
+    kibana: optional
+  istio_service_mesh:
+    enabled: on
+    tcpip_bypass_ebpf: optional
+    tls_splicing: optional
+    sgx_signer: optional
+    intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: optional
+  multus: on
+  firewall: optional
+  minio: optional
+  lpvsp: on
+  rook_ceph: on
+  intel_media_analytics: on
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    ddp: optional
+    fw_update: optional
+  adq_dp: optional
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+
+on_prem_sw_defined_factory:
+  name: on_prem_sw_defined_factory
+  vm_mode: optional
+  on_vms: optional
+  nfd: optional
+  kube_dashboard: optional
+  rancher_manager: optional
+  isolcpu: optional
+  cpusets: optional
+  native_cpu_manager: optional
+  intel_cpu_controlplane: optional
+  topology_manager: optional
+  sriov_operator: optional
+  sriov_network_dp: optional
+  nic_drivers: optional
+  bond_cni: optional
+  qat: optional
+  qat_dp: optional
+  openssl: optional
+  dsa: optional
+  dsa_dp: optional
+  dlb: optional
+  dlb_dp: optional
+  gpu: optional
+  gpu_dp: optional
+  sgx: optional
+  sgx_dp: optional
+  kmra:
+    sbx: optional
+    oran: optional
+    pccs: optional
+    apphsm: optional
+    ctk_demo: optional
+  tcs: optional
+  tac: optional
+  tas: optional
+  gas: optional
+  ddp: optional
+  network_userspace: optional
+  dpdk: optional
+  ovs_dpdk: optional
+  sst: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
+  telemetry:
+    prometheus: optional
+    collectd: optional
+    telegraf: optional
+    jaeger: optional
+    opentelemetry: optional
+    elasticsearch: optional
+    kibana: optional
+  istio_service_mesh:
+    enabled: optional
+    tcpip_bypass_ebpf: optional
+    tls_splicing: optional
+    sgx_signer: optional
+    intel_preview: optional
+  linkerd_service_mesh:
+    enabled: optional
+  wireguard: optional
+  multus: optional
+  firewall: optional
+  minio: optional
+  lpvsp: optional
+  rook_ceph: optional
+  intel_media_analytics: optional
+  cert_manager: optional
+  registry: optional
+  hugepages: optional
+  intel_ethernet_operator:
+    enabled: optional
+    flow_config: optional
+    ddp: optional
+    fw_update: optional
+  intel_sriov_fec_operator: optional
+  rt_kernel: optional
+  intel_flexran: optional
+  intel_eci:
+    process_automation: on
+    manufacturing_equipment: optional
+    discrete_manufacturing: optional
+    realtime: optional
+    connectivity: optional
+    softplc: optional
+    infra_clients: optional
+    inference: optional
+    acrn: optional
+  opcua_framework:
+    codesys_opcua_client: on
+    standalone_opcua_server: optional
+  tadk: optional
+  adq_dp: optional
+  sigstore_policy_controller: optional
+  cadvisor: optional
 
 regional_dc:
   name: regional_dc
@@ -359,6 +600,7 @@ regional_dc:
   on_vms: optional
   nfd: on
   kube_dashboard: on
+  rancher_manager: optional
   isolcpu: optional
   cpusets: optional
   topology_manager: on
@@ -371,16 +613,21 @@ regional_dc:
   sgx: on
   sgx_dp: on
   kmra:
+    sbx: optional
+    oran: optional
     pccs: on
     apphsm: on
     ctk_demo: on
   tcs: on
   tac: on
   tas: on
-  gas: on
+  gas: optional
   dpdk: optional
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -403,7 +650,8 @@ regional_dc:
   minio: optional
   lpvsp: on
   rook_ceph: optional
-  intel_ai: off
+  intel_media_analytics: off
+  intel_ffmpeg: optional
   cert_manager: on
   registry: on
   hugepages: optional
@@ -412,8 +660,12 @@ regional_dc:
     flow_config: optional
     fw_update: optional
   adq_dp: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
+  fpga: optional
 
 remote_fp:
   name: remote_fp
@@ -421,6 +673,7 @@ remote_fp:
   on_vms: optional
   nfd: on
   kube_dashboard: on
+  rancher_manager: optional
   isolcpu: optional
   cpusets: optional
   intel_cpu_controlplane: optional
@@ -449,11 +702,12 @@ remote_fp:
   bond_cni: optional
   network_userspace: optional
   dpdk: on
-  pstate: on
-  cstate: optional
-  ufs: optional
   sst: optional
-  power_manager: optional
+  power:
+    manager: optional
+    pstate: on
+    cstate: optional
+    uncore_frequency: optional
   telemetry:
     prometheus: on
     collectd: on
@@ -476,7 +730,8 @@ remote_fp:
   minio: off
   lpvsp: on
   rook_ceph: off
-  intel_ai: off
+  intel_media_analytics: off
+  intel_ffmpeg: off
   cert_manager: on
   registry: on
   hugepages: on
@@ -486,8 +741,11 @@ remote_fp:
     ddp: on
     fw_update: optional
   adq_dp: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: optional
 
 build_your_own:
   name: build_your_own
@@ -495,6 +753,7 @@ build_your_own:
   on_vms: optional
   nfd: optional
   kube_dashboard: optional
+  rancher_manager: optional
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: optional
@@ -516,6 +775,8 @@ build_your_own:
   sgx: optional
   sgx_dp: optional
   kmra:
+    sbx: optional
+    oran: optional
     pccs: optional
     apphsm: optional
     ctk_demo: optional
@@ -527,11 +788,12 @@ build_your_own:
   network_userspace: optional
   dpdk: optional
   ovs_dpdk: optional
-  pstate: optional
-  cstate: optional
-  ufs: optional
   sst: optional
-  power_manager: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   telemetry:
     prometheus: optional
     collectd: optional
@@ -554,7 +816,8 @@ build_your_own:
   minio: optional
   lpvsp: optional
   rook_ceph: optional
-  intel_ai: optional
+  intel_media_analytics: optional
+  intel_ffmpeg: optional
   cert_manager: optional
   registry: optional
   hugepages: optional
@@ -564,8 +827,26 @@ build_your_own:
     ddp: optional
     fw_update: optional
   intel_sriov_fec_operator: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  rt_kernel: optional
   intel_flexran: optional
+  intel_eci:
+    process_automation: optional
+    manufacturing_equipment: optional
+    discrete_manufacturing: optional
+    realtime: optional
+    connectivity: optional
+    softplc: optional
+    infra_clients: optional
+    inference: optional
+    acrn: optional
+  opcua_framework:
+    codesys_opcua_client: optional
+    standalone_opcua_server: optional
   tadk: optional
   adq_dp: optional
-  remove_kubespray_host_dns_settings: optional
-  enable_dhclient_systemd_service: optional
+  sigstore_policy_controller: optional
+  cadvisor: optional
+  fpga: optional

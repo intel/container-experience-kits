@@ -2,16 +2,18 @@
 
 intel_cpu_controlplane:
   image:
-    repository: "{{ registry_local_address}}/{{cpu_ctlplane_local_build_name}}"
-    tag: "{{ cpu_ctlplane_local_tag_name }}"
+    repository: "{{ registry_local_address}}/{{ cpu_ctlplane_local_build_name }}"
+    tag: "{{ cpu_ctlplane_version }}"
     pullPolicy: IfNotPresent
 
   # container runtime: one of ['contianerd', 'docker']
   runtime : "{{ container_runtime }}"
 
   # NUMA allocator: one of ['default', 'numa', 'numa-namespace', 'numa-namespace-exclusive']
-  # https://github.com/intel-innersource/libraries.orchestrators.resourcemanagement.controlplane.daemon/blob/master/README.md
+  # https://github.com/intel/cpu-control-plane-plugin-for-kubernetes/blob/main/README.md
   allocator: "{{ intel_cpu_controlplane.allocator }}"
+
+  enable_memory_pinning: {{ intel_cpu_controlplane.enable_memory_pinning }}
 
   # control plane agent namespace
   agent_namespace_prefix: "{{ intel_cpu_controlplane.agent_namespace_prefix }}"

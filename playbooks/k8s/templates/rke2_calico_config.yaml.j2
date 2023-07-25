@@ -1,0 +1,23 @@
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rke2-calico
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    installation:
+      imagePath: "calico"
+      imagePrefix: ""
+{% if calico_bpf_enabled | default(false)  %}
+      calicoNetwork:
+        linuxDataplane: BPF
+        hostPorts: null
+{% endif %}
+    tigeraOperator:
+      image: tigera/operator
+      version: v1.29.5
+      registry: quay.io
+    calicoctl:
+      image: docker.io/calico/ctl
+      tag: v3.25.1

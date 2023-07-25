@@ -1,0 +1,22 @@
+mirrors:
+{% if registry_enable == true %}
+  {{ registry_local_address }}:
+    endpoint:
+      - "https://{{ registry_local_address }}"
+{% endif %}
+
+configs:
+{% if registry_enable == true %}
+  "{{ registry_local_address }}":
+    auth:
+      auth: {{ ("docker" + ':' + registry_password ) | b64encode }}
+    tls:
+      insecure_skip_verify: true
+{% endif %}
+{% if intel_sriov_fec_operator_enabled | default(false) and container_runtime == "containerd" %}
+  "registry.redhat.io":
+    auth:
+      auth: {{ (redhat_user + ':' + redhat_password) | b64encode }}
+    tls:
+      insecure_skip_verify: true
+{% endif %}

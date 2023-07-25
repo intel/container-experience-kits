@@ -1,0 +1,12 @@
+{
+  "core": {
+    "events": ["INST_RETIRED.ANY"],
+    "custom_events": [
+      {
+        "config": ["0xc0"],
+        "name": "INST_RETIRED.ANY",
+        "type": 4
+      }
+    ]
+  }
+}

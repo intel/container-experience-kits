@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import (absolute_import, division, print_function)
-from logging import raiseExceptions
+
 __metaclass__ = type
 
 DOCUMENTATION = r'''

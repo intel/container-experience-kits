@@ -14,7 +14,22 @@
 ##   limitations under the License.
 ##
 ---
-container_registry_path: "{{ (project_root_dir, 'container_registry') | path_join }}"
+registry_root_dir: "{{ (project_root_dir, 'container_registry') | path_join }}"
+registry_tls_dir: "{{ (registry_root_dir, 'ssl') | path_join }}"
+registry_chart_dir: "{{ (project_root_dir, 'charts', 'container-registry') | path_join }}"
+
+registry_release_name: "container-registry"
+registry_htpasswd_secret_name: "{{ registry_release_name }}-htpasswd"
+registry_pv_name: "{{ registry_release_name }}-pv"
+registry_pvc_name: "{{ registry_release_name }}-pvc"
+registry_csr_name: "{{ registry_release_name }}-csr"
+
+registry_auth_env: "REGISTRY_AUTH_FILE={{ registry_auth_path }}"
+
+registry_nginx_ssl_ciphers:
+  "AES128-CCM-SHA256:CHACHA20-POLY1305-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE\
+  -ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256"
+registry_nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
 
 install_dependencies:
   Debian:

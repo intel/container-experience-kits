@@ -14,7 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: preflight Intel CPU Control Plane
+- name: Preflight Intel CPU Control Plane
   block:
     - name: Intel CPU Control Plane - check if ansible_host distro is Ubuntu 20.04/22.04
       assert:
@@ -34,7 +34,7 @@
       when:
         - golang_version is not defined
 
-    - name: check golang version
+    - name: Check golang version
       ansible.builtin.assert:
         that: golang_version is version(cpu_ctlplane_golang_version, '>')
         msg: |
@@ -43,7 +43,7 @@
           The current golang version: {{ golang_version }}
           Please install golang >= {{ cpu_ctlplane_golang_version }} on the controller.
 
-    - name: check container runtime
+    - name: Check container runtime
       ansible.builtin.assert:
         that: container_runtime in ['containerd', 'docker']
         msg: |
@@ -51,9 +51,20 @@
           The Intel CPU Control Plane (group_vars/intel_cpu_controlplane) support only one of ['containerd', 'docker']
           The current container_runtime: {{ container_runtime }}"
           Please change group_vars/contanier_runtime or disable/remove intel_cpu_controlplane.
+
+    - name: Check if registry is enabled
+      ansible.builtin.assert:
+        that:
+          - registry_enable | default(false)
+        msg: |
+          Incorrect configuration !!
+          Intel CPU Control Plane requires a container registry.
+          Please enable with registry_enable: true in group_vars
+      when: not on_cloud | default(false)
+
   when:
     - kubernetes
     - intel_cpu_controlplane is defined and intel_cpu_controlplane.enabled
   any_errors_fatal: true
   tags:
-    - cpu_ctlplane
+    - cpu-ctlplane

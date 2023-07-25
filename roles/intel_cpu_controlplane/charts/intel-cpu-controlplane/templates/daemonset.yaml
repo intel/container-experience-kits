@@ -21,20 +21,46 @@ spec:
           volumeMounts:
           - name: state
             mountPath: /daemonstate
+          securityContext:
+            privileged: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - all
+          resources:
+            limits:
+              cpu: 2
+              memory: "128M"
+            requests:
+              cpu: 1
+              memory: "64M"  
       containers:
         - name: ctlplane-daemonset
-          image: {{ dig "image" "repository" "intel.io/intel_cpu_controlplane" . }}:{{ dig "image" "tag" "v0.1" . }}
+          image: {{ dig "image" "repository" "" . }}:{{ dig "image" "tag" "" . }}
           imagePullPolicy: Always
           ports:
             - containerPort: 31000
           securityContext:
             privileged: true
-          args: ["-cpath", "/cgroup", "-spath", "/daemonstate/daemon.state", "-runtime", {{ dig "runtime" "containerd" .| quote }}, "-allocator", {{ dig "allocator" "default" . | quote }}]
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - all
+          args: ["-cpath", "/cgroup", "-spath", "/daemonstate/daemon.state", "-runtime", {{ dig "runtime" "" .| quote }}, "-allocator", {{ dig "allocator" "default" . | quote }} {{ if dig "enable_memory_pinning" "true" . | eq true }}, "-mem" {{ end }}]
           volumeMounts:
           - name: host
             mountPath: /cgroup
           - name: state
             mountPath: /daemonstate
+          resources:
+            limits:
+              cpu: 4
+              memory: "512M"
+            requests:
+              cpu: 2
+              memory: "64M"
           readinessProbe:
             tcpSocket:
               port: 31000
@@ -46,16 +72,33 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
         - name: ctlplane-agent
-          image: {{ dig "image" "repository" "intel.io/intel_cpu_controlplane" . }}:{{ dig "image" "tag" "v0.1" . }}
+          image: {{ dig "image" "repository" "" . }}:{{ dig "image" "tag" "" . }}
           imagePullPolicy: Always
           securityContext:
-            privileged: true
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - all
           args: ["-a", "-namespace-prefix", {{ dig "agent_namespace_prefix" "" .| quote }}]
           env:
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+          resources:
+            limits:
+              cpu: 4
+              memory: "512M"
+            requests:
+              cpu: 2
+              memory: "64M"
       volumes:
         - name: host
           hostPath:

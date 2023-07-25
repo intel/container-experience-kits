@@ -45,10 +45,9 @@
   file:
     path: "{{ ansible_env.HOME }}/.docker"
     state: "directory"
-    mode: 0755
+    mode: 0750
     owner: "{{ ansible_user | default(ansible_user_id) }}"
     group: "{{ ansible_user | default(ansible_user_id) }}"
-  when: container_runtime == "docker"
 
 - name: create Docker config.json file with proxy setttings
   template:
@@ -57,7 +56,7 @@
     owner: "{{ ansible_user | default(ansible_user_id) }}"
     group: "{{ ansible_user | default(ansible_user_id) }}"
     force: yes
-    mode: 0755
+    mode: 0640
   when:
     - '"http_proxy" in proxy_env or "https_proxy" in proxy_env'
     - container_runtime == "docker"

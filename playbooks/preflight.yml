@@ -46,7 +46,6 @@
 # - Check VPP Dependencies (for 2M Hugepages)
 # - Check CNI Dependencies (for OVS DPDK or VPP and Hugepages)
 # - Check SST (not on RHEL 8.2 or old OSs)
-# - Check Linux distro for cstates
 # - Warn BIOS VT-d (should be enabled)
 # - Warn BIOS Intel Virtualization Technology (should be enabled)
 # - Warn BIOS Hyper-Threading (should be enabled)
@@ -90,6 +89,26 @@
       assert:
         that: (ansible_python_version is version_compare(cek_supported_python, '>='))
         msg: "Python version must be at least {{ cek_supported_python }}. Please update"
+
+    - name: Check kubernetes provisioner
+      ansible.builtin.assert:
+        that:
+          - kube_provisioner in ['rke2', 'kubespray']
+        fail_msg: "kube_provisioner supports only 'rke2' and 'kubespray' values, please correct the configuration in groups/all.yml"
+        success_msg: "kube_provisioner set to '{{ kube_provisioner }}'"
+      when: kubernetes
+
+    - name: Check kubespray version
+      ansible.builtin.import_role:
+        name: kubespray_check
+        tasks_from: check_kubespray_version
+      when: kube_provisioner != 'rke2'
+
+    - name: Check applied kubespray patch
+      ansible.builtin.import_role:
+        name: kubespray_patch
+        tasks_from: preflight_checksum
+      when: kube_provisioner != 'rke2'
 
     - name: read Group Vars
       stat:
@@ -217,6 +236,21 @@
         - scale is defined
         - vm_enabled | default(false)
 
+    - name: check k8s for rancher manager
+      block:
+        - name: check if kube_provisioner is rke2
+          ansible.builtin.assert:
+            that: kube_provisioner == 'rke2'
+            fail_msg: "rancher manager is only supported on rke2 currently"
+        - name: regex k8s version
+          ansible.builtin.set_fact:
+            kube_version_number: "{{ rke2_version | regex_search('(?<=v)\\d+\\.\\d+') }}"
+        - name: assert kube_version_number
+          ansible.builtin.assert:
+            that: "{{ kube_version_number is version('1.25', '<=') }}"
+            fail_msg: "Maximum k8s version for rancher manager is v1.25, current version is v{{ kube_version_number }}, please update group_vars"
+      when: rancher_manager_enabled is defined and rancher_manager_enabled
+
 ##############################################
 # Prerequisites for Control and Worker Nodes #
 ##############################################
@@ -225,7 +259,7 @@
   gather_facts: true
   vars:
     cek_supported_distros: [RedHat, Rocky, Ubuntu]
-    cek_supported_distros_versions: ['8.6', '9.0', '9.1', '22.04']
+    cek_supported_distros_versions: ['8.6', '9.0', '9.1', '9.2', '22.04']
     cpusets_ranges: []
     cpusets_discretes: []
     isolcpus_ranges: []
@@ -408,6 +442,12 @@
         that: "{{ kube_version is version('v1.22', '>=') }}"
         msg: "Minimum supported k8s version is 1.22, please update kube_version variable with correct version"
       when: kubernetes and not container_runtime_only_deployment
+
+    - name: check RKE2 requirements
+      ansible.builtin.include_role:
+        name: rke2_defaults
+        tasks_from: rke2_preflight
+      when: kube_provisioner == "rke2"
 
     - name: assert that Multus is enabled in the config
       assert:
@@ -595,15 +635,15 @@
       tags:
         - cpu_ctlplane
 
-    - name: check Intel AI configuration
+    - name: check Intel Media Analytics configuration
       import_role:
-        name: intel_ai
-        tasks_from: preflight_intel_ai.yml
+        name: intel_media_analytics
+        tasks_from: preflight_intel_media_analytics.yml
       when:
         - kubernetes
-        - intel_ai_enabled | default(false)
+        - intel_media_analytics_enabled | default(false)
       tags:
-        - intel-ai
+        - intel-media-analytics
 
 ####################################
 # Prerequisites for Worker Node(s) #
@@ -611,11 +651,9 @@
 - hosts: kube_node,vm_host
   any_errors_fatal: true
   vars:
-    cstates_supported_distros: [Ubuntu]
-    cstates_supported_distros_versions: ['22.04']
     phy_nics_pciids: []
   vars_files:
-    - "roles/check_machine_type/vars/main.yml"
+    - "../roles/check_machine_type/vars/main.yml"
 
   tasks:
     - name: end play for VM host
@@ -650,6 +688,16 @@
           (sriov_cni_enabled is defined and sriov_cni_enabled) or
           (sriov_network_operator_enabled is defined and sriov_network_operator_enabled)
 
+    # FlexRAN needs 2 NIC PFs
+    - name: check DP Interfaces PF numbers for FlexRAN
+      assert:
+        that:
+          - dataplane_interfaces[0].bus_info is defined
+          - dataplane_interfaces[1].bus_info is defined
+        msg: "For FlexRAN, 2 Dataplane (DP) interface(s) on target '{{ ansible_hostname }}' are needed. Please correct the configuration"
+      when:
+        - intel_flexran_enabled | default(false)
+
     - debug:
         msg: "Network interfaces present on target '{{ ansible_hostname }}' = {{ ansible_interfaces }}"
 
@@ -667,17 +715,6 @@
         msg: "Dataplane interface defined with PCI ID '{{ item.bus_info }}' does NOT exist on target. Please correct the configuration"
       with_items: "{{ dataplane_interfaces }}"
       when: dataplane_interfaces is defined and dataplane_interfaces != []
-
-    - name: check invalid driver for CNDP on DP Interfaces
-      assert:
-        that: ("{{ item.pf_driver }}" in "['i40e', 'ice', 'iavf']")
-        msg: >-
-          "Dataplane interface defined with PCI ID '{{ item.bus_info }}' have unssupported pf_driver '{{ item.pf_driver }}' for CNDP.
-          Please correct the configuration. Supported pf_drivers are ['i40e', 'ice', 'iavf']"
-      with_items: "{{ dataplane_interfaces }}"
-      when:
-        - dataplane_interfaces is defined and dataplane_interfaces != []
-        - cndp_dp_enabled | default(false) | bool
 
     - name: load firmware specific variables
       include_vars: "../roles/bootstrap/update_nic_firmware/defaults/main.yml"
@@ -771,6 +808,57 @@
           Please be aware that by using CPU model that is not confirmed, some features may not work properly."
       when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
 
+    - name: check ubuntu pro token is not a placeholder
+      assert:
+        that:
+          - ubuntu_pro_token is defined
+          - ubuntu_pro_token != "ffffffffffffffffffffffffffffff"
+        fail_msg:
+          - "Please, visit https://ubuntu.com/pro to apply the token for rt kernel install."
+          - "And update ubuntu_pro_token placeholder inside group_vars with real token."
+        success_msg: "ubuntu_pro_token verified"
+      when:
+        - rt_kernel_enabled | default(false)
+
+    - name: check EMR QAT drvier package
+      block:
+        - name: print debug message EMR QAT driver package
+          ansible.builtin.debug:
+            msg="Expecting file {{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }} on local ansible host"
+        - name: probe for EMR QAT driver package
+          delegate_to: localhost
+          become: false
+          ansible.builtin.stat:
+            path: "{{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }}"
+            checksum_algorithm: sha1
+          register: emr_qat_driver
+        - name: print debug message for emr qat driver existence
+          ansible.builtin.debug:
+            msg="{{ emr_qat_driver_package }} exists is {{ emr_qat_driver.stat.exists }}"
+        - name: check emr qat driver files exists
+          ansible.builtin.assert:
+            that: "emr_qat_driver.stat.exists"
+            msg:
+              - Mandatory file {{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }} does NOT exist on localhost.
+              - Please acquire the zip file and place it in the location indicated above in order to deploy EMR QAT. See docs/emr.md
+        - name: check the qat driver package integrity
+          ansible.builtin.assert:
+            that: "emr_qat_driver.stat.checksum == '{{ emr_qat_driver_pkg_checksum }}'"
+            msg:
+              - File {{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }} on localhost is NOT the expected one.
+              - Please provide the correct file. See docs/emr.md
+      when:
+        - update_qat_drivers is defined and update_qat_drivers
+        - configured_arch == "emr"
+
+    - name: check QAT SVM precheck
+      ansible.builtin.assert:
+        that:
+          - update_qat_drivers
+        fail_msg: "qat svm only works on the Out of tree driver, please set the update_qat_drivers to true in host_vars."
+      when:
+        - enable_qat_svm | default(false) | bool
+
     - name: check QAT Devices list is configured properly
       block:
         - debug:
@@ -858,25 +946,89 @@
         success_msg: "GPU device plugin is enabled"
       when: configure_gpu is defined and configure_gpu
 
+    - name: FPGA environment preflight check
+      block:
+        - name: FPGA OS precheck
+          ansible.builtin.assert:
+            that: ((ansible_distribution == "Ubuntu") and (ansible_distribution_version == '22.04'))
+            msg: >-
+              Currently fpga is only supported on Ubuntu 22.04.
+
+        - name: fpga dependencies check
+          ansible.builtin.assert:
+            that:
+              - hugepages_enabled
+              - iommu_enabled
+            msg:
+              - "fpga has dependency on hugepages and iommu, please enable them firstly in the host_vars yaml file."
+
+        - name: probe fpga driver installation script
+          delegate_to: localhost
+          become: false
+          ansible.builtin.stat:
+            path: "{{ (fpga_driver_staging_folder, fpga_install_script) | path_join }}"
+          register: fpga_register
+
+        - name: check fpga install scripts exists
+          ansible.builtin.assert:
+            that: "fpga_register.stat.exists"
+            msg:
+              - "Mandatory file {{ (fpga_driver_staging_folder, fpga_install_script) | path_join }} does NOT exist on localhost."
+              - "Please acquire the file from Intel Resource and Design Center and place it in the location indicated above in order to deploy fpga."
+      when:
+        - configure_fpga is defined and configure_fpga
+
     - name: check OpenSSL and OpenSSL*Engine requirements when OOT or Intree QAT setup configured
       assert:
         that:
           - openssl_install
-        fail_msg: "OpenSSL & OpenSSL*Engine must be configured if 'update_qat_drivers' or 'enable_intel_qatlibs' are set to 'true'"
+        fail_msg: "OpenSSL & OpenSSL*Engine must be configured if configure_qat is set to 'true'"
         success_msg: "Assertion of OpenSSL & OpenSSL*Engine for QAT passed"
       when:
-        - update_qat_drivers | default(false) or enable_intel_qatlibs | default(false)
+        - configure_qat | default(false) | bool
+
+    - name: check gas(gpu aware scheduling) configuration
+      assert:
+        that:
+          - gpu_dp_enabled
+        fail_msg: "gas installation requires gpu_dp_enabled set to true"
+        success_msg: "gas requirement verified"
+      when:
+        - gas_enabled | default(false)
 
     - name: check KMRA sgx_dp requirements
       assert:
         that:
           - sgx_dp_enabled
         fail_msg: "KMRA installation requires sgx_dp_enabled set to 'true'"
-        success_msg: "KMRA requirements verified"
+        success_msg: "KMRA sgx_dp requirements verified"
       when:
         - kmra.ctk_loadkey_demo.enabled | default(false) or
           kmra.pccs.enabled | default(false) or
           kmra.apphsm.enabled | default(false)
+
+    - name: check KMRA sbx requirements
+      include_role:
+        name: kmra_install
+        tasks_from: kmra_sbx_preflight
+      when:
+        - kmra.sbx | default(false)
+
+    - name: make sure netopeer2 server/client is off when oran disabled
+      assert:
+        that:
+          - not (kmra.oran_netopeer2_server.enabled | default(false))
+          - not (kmra.oran_netopeer2_client.enabled | default(false))
+        fail_msg: "oran disabled, so netopeer2 server/client cannot set"
+      when:
+        - not kmra.oran.enabled | default(false)
+
+    - name: check KMRA oran requirements
+      include_role:
+        name: kmra_install
+        tasks_from: kmra_oran_preflight
+      when:
+        - kmra.oran.enabled | default(false)
 
     - name: check Intel SGX DP configuration
       assert:
@@ -1097,28 +1249,6 @@
         - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
         - "'skylake' in verify_platform_for_sst_pp.stdout"
 
-
-# Cstates are supported only with kernel version >= 5.13
-    - name: Check if distribution is supported by cstates
-      assert:
-        that: "ansible_distribution in cstates_supported_distros and ansible_distribution_version in cstates_supported_distros_versions"
-        msg:
-          - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}' does NOT support cstates
-          - Must be one of {{ cstates_supported_distros }} and version {{ cstates_supported_distros_versions }}
-      when: cstate_enabled is defined and cstate_enabled
-
-
-# Uncore frequency scaling is supported only with kernel version >= 5.13
-    - name: Check if distribution is supported by uncore frequency scaling
-      assert:
-        that: "ansible_distribution in cstates_supported_distros and ansible_distribution_version in cstates_supported_distros_versions"
-        msg:
-          - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}'
-          - does NOT support uncore frequency scaling
-          - Must be one of {{ cstates_supported_distros }} and version {{ cstates_supported_distros_versions }}
-      when: ufs_enabled is defined and ufs_enabled
-
-
 # STORY: Intel VT-d should be enabled in BIOS
     - name: check Intel VT-d on BMs
       block:
@@ -1195,12 +1325,16 @@
         - on_cloud is not defined or not on_cloud
 
 # STORY: CPU Hyper-Threading should be enabled in BIOS
+    - debug: msg="ansible_processor_threads_per_core={{ ansible_processor_threads_per_core }}"
+    - debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa yaml[line-length]
+
     - name: warn about Hyper-Threading
       fail:
-        msg: "Warning: Intel Hyper-Threading Tech is DISABLED on target.  Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
+        msg: "Warning: Intel Hyper-Threading Tech is DISABLED on target. Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
       when:
         - ansible_processor_threads_per_core != 2
         - on_cloud is not defined or not on_cloud
+        - configured_arch not in ['atom', 'core']
 
 # STORY: "collectd and telegraf are mutually exclusive"
     - name: fail if collectd and telegraf are both enabled
@@ -1227,23 +1361,26 @@
         - not container_runtime_only_deployment
         - istio_service_mesh is defined
         - istio_service_mesh.version is defined
-# STORY: "TCS depends on KMRA AppHSM and KMRA PCCS"
-    - name: check if KMRA Apps are enabled when TCS is enabled
+
+# STORY: "TCS depends on sgx dp and cert manager"
+    - name: check if sgx dp and cert manager are enabled when TCS enabled
       assert:
         that:
-          - "{{ kmra.apphsm.enabled | default(false) }}"
-          - "{{ kmra.pccs.enabled | default(false) }}"
-        msg: "KMRA AppHSM and PCCS applications should be enabled in order to have TCS functional."
+          - "{{ sgx_dp_enabled | default(false) }}"
+          - "{{ cert_manager_enabled | default(false) }}"
+        msg: "sgx_dp and cert manager should be enabled in order to have TCS functional."
       when:
-        - tcs.enabled | default(false) or tac.enabled | default(false)
+        - tcs.enabled | default(false)
         - configured_arch in ['icx']
 
 # STORY: "TAC depends on TCS"
     - name: check if TCS is enabled when TAC enabled
       assert:
         that:
-          - "{{ tcs.enabled | default(false ) }}"
-        msg: "TCS should be enabled in order to have TAC functional."
+          - "{{ tcs.enabled | default(false) }}"
+          - "{{ kmra.apphsm.enabled | default(false) }}"
+          - "{{ kmra.pccs.enabled | default(false) }}"
+        msg: "TCS, KMRA AppHSM and PCCS should be enabled in order to have TAC functional."
       when:
         - tac.enabled | default(false)
         - configured_arch in ['icx']
@@ -1257,6 +1394,18 @@
       when:
         - istio_service_mesh.enabled | default(false)
         - configured_arch not in ['icx']
+
+# STORY: "istio_service_mesh.sgx_signer' option must be true when profile is ca_custom"
+    - name: particular service mesh options must be set together
+      assert:
+        that:
+          - "{{ istio_service_mesh.sgx_signer.enabled | default(false) }}"
+        msg: "'istio_service_mesh.sgx_signer' must be enabled for custom-ca profile."
+      when:
+        - istio_service_mesh is defined
+        - istio_service_mesh.enabled | default(false)
+        - istio_service_mesh.profile == 'custom-ca' | default('default')
+        - configured_arch in ['icx']
 
 # STORY: TCS is available only for icx platforms"
     - name: TCS is available only for specific platforms
@@ -1314,7 +1463,8 @@
     - name: check OVS DPDK compatibility
       assert:
         that:
-          (ovs_version >= 'v2.17.0' and ovs_version <= 'v3.0.3') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
+          ovs_version == 'v3.1.1' and (dpdk_version == '23.03' or dpdk_version == '22.11.1')
+          or (ovs_version >= 'v2.17.0' and ovs_version <= 'v3.0.3') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
           or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
           or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
           or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
@@ -1333,9 +1483,8 @@
     - name: check settings for Intel Power Manager
       assert:
         that:
-          - intel_power_manager.power_profiles | length > 0
           - intel_power_manager.power_nodes | length > 0
-        fail_msg: "Intel Power Manager is enabled, but either Power Profiles or Power Nodes are not specified in group vars."
+        fail_msg: "Intel Power Manager is enabled, but Power Nodes are not specified in group vars."
       when: intel_power_manager is defined and intel_power_manager.enabled
 
     - name: check if power_nodes are available in inventory
@@ -1344,6 +1493,30 @@
           - item in groups['kube_node']
         fail_msg: "Intel Power Manager power_nodes have to be present in inventory. '{{ item }}' is not there: {{ groups['kube_node'] }}"
       loop: "{{ intel_power_manager.power_nodes }}"
+      when: intel_power_manager is defined and intel_power_manager.enabled
+
+    # kubelet cpuManagerPolicy should be 'static' for IPM 2.2.0 and higher
+    - name: check if native_cpu_manager is enabled
+      assert:
+        that:
+          - native_cpu_manager_enabled
+        fail_msg: "Please set 'native_cpu_manager_enabled' to 'true' in group vars"
+      when: intel_power_manager is defined and intel_power_manager.enabled
+
+    # kubelet reservedSystemCPUs should be set to desired value
+    - name: check if reserved cpus are defined in host vars
+      assert:
+        that:
+          - (native_cpu_manager_system_reserved_cpus is defined
+            and native_cpu_manager_kube_reserved_cpus is defined
+            and native_cpu_manager_reserved_cpus is not defined) or
+            (native_cpu_manager_system_reserved_cpus is not defined
+            and native_cpu_manager_kube_reserved_cpus is not defined
+            and native_cpu_manager_reserved_cpus is defined)
+
+        fail_msg: "Reserved cpus are not defined.
+                   Please configure ('native_cpu_manager_system_reserved_cpus' and 'native_cpu_manager_kube_reserved_cpus')
+                   or 'native_cpu_manager_reserved_cpus' in host vars."
       when: intel_power_manager is defined and intel_power_manager.enabled
 
     - name: check if Intel Power Manager is enabled, the ISST features should be disabled
@@ -1388,13 +1561,21 @@
       include_role:
         name: intel_sriov_fec_operator
         tasks_from: preflight_sriov_fec_operator
-      when: intel_sriov_fec_operator_enabled | default(false) | bool
+      when:
+        - intel_sriov_fec_operator_enabled | default(false) | bool
+        - intel_flexran_type != "pod"
 
     - name: check Intel FlexRAN requirements
       include_role:
         name: intel_flexran
         tasks_from: flexran_preflight
-      when: intel_flexran_enabled | default(false)
+      when: intel_flexran_enabled | default(false) | bool
+
+    - name: check Intel ECI requirements
+      include_role:
+        name: intel_eci
+        tasks_from: eci_preflight
+      when: intel_eci_enabled | default(false) | bool
 
     - name: check OS when DLB or DSA is enabled
       assert:
@@ -1411,6 +1592,7 @@
           If you wish to use DLB or DSA feature set 'update_kernel' as true.
           {% endif %}
       when: configure_dsa_devices | d(false) or configure_dlb_devices | d(false)
+
 # SGX on VMs require Ubuntu 22.04 for VM Host
     - name: Check requirements to enable Intel SGX on VMs
       block:
@@ -1420,6 +1602,17 @@
               - ansible_distribution == "Ubuntu"
               - ansible_distribution_version == "22.04"
             msg: "Deploying SGX on VMRA is supported only on Ubuntu 22.04 VM host. Please change the o/s for VM host"
+
+        - name: Check if configured SGX memory is not bigger than total memory
+          assert:
+            that:
+              - item.memory > sgx_memory_size
+            msg: |
+              Improper memory configuration for vms.
+              SGX memory size ({{ sgx_memory_size }}MB) can't be bigger than total memory ({{ item.memory }}MB) of VM: {{ item.name }}.
+          with_items: "{{ vms }}"
+          when:
+            - item.type == "work"
       when:
         - vm_enabled | default(false)
         - sgx_dp_enabled | default(false)
@@ -1446,6 +1639,18 @@
 - hosts: k8s_cluster
   any_errors_fatal: true
   tasks:
+    - name: Include Sigstore policy controller checks
+      import_role:
+        name: sigstore_policy_controller
+        tasks_from: preflight.yml
+      when: sigstore_policy_controller_install | default(false) | bool
+
+    - name: Include oneAPI kits checks
+      import_role:
+        name: intel_oneapi_install
+        tasks_from: preflight.yml
+      tags: intel-oneapi
+      when: intel_oneapi_enabled | default(false) | bool
 
 # STORY: "Observability: assert that all required compontents are enabled"
     - name: assert that all observability/monitoring variables are disabled
@@ -1486,6 +1691,24 @@
           When collectd is enabled then Observability stack needs to be disabled: telegraf, elastisearch, jaeger, opentelemtry and kibana.
       when:
         - collectd_enabled | default(false)
+
+    - name: Check Telegraf configuration
+      ansible.builtin.include_role:
+        name: telegraf_install
+        tasks_from: preflight
+      when: telegraf_enabled | default(false)
+
+    - name: Check Collectd configuration
+      ansible.builtin.include_role:
+        name: collectd_install
+        tasks_from: preflight
+      when: collectd_enabled | default(false)
+
+    - name: Check cAdvisor configuration
+      ansible.builtin.include_role:
+        name: cadvisor_install
+        tasks_from: preflight
+      when: cadvisor_enabled | default(false)
 
     - name: check ADQ configuration
       include_role:

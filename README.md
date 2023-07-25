@@ -8,13 +8,7 @@ The software provided here is for reference only and not intended for production
 
 **_NOTE:_** Instruction provided bellow are prepared for deployment done under root user by default. If you want to do deployment under non-root user then read [this](docs/rootless_deployment.md) file first and then continue with following steps under that non-root user.
 
-1. Initialize git submodules to download Kubespray code.
-
-    ```bash
-    git submodule update --init
-    ```
-
-2. Decide which configuration profile you want to use and export environmental variable.
+1. Decide which configuration profile you want to use and export environmental variable.
    > **_NOTE:_** It will be used only to ease execution of the steps listed below.
     - For **Kubernetes Basic Infrastructure** deployment:
 
@@ -46,13 +40,25 @@ The software provided here is for reference only and not intended for production
         export PROFILE=on_prem
         ```
 
+    - For **Kubernetes Infrastructure On Customer Premises for VSS** deployment:
+
+        ```bash
+        export PROFILE=on_prem_vss
+        ```
+
+    - For **Kubernetes Infrastructure On Customer Premises for SW-Defined Factory** deployment:
+
+        ```bash
+        export PROFILE=on_prem_sw_defined_factory
+        ```
+
     - For **Kubernetes Build-Your-Own Infrastructure** deployment:
 
         ```bash
         export PROFILE=build_your_own
         ```
 
-3. Install dependencies using one of the following methods
+2. Install python dependencies using one of the following methods
 
     a) Non-invasive virtual environment using pipenv
 
@@ -79,12 +85,18 @@ The software provided here is for reference only and not intended for production
     pip3 install -r requirements.txt
     ```
 
+3. Install ansible collection dependencies with following command:
+
+    ```bash
+    ansible-galaxy install -r collections/requirements.yml
+    ```
+
 4. Generate example host_vars, group_vars and inventory files for Intel Container Experience Kits profiles.
 
    > **_NOTE:_** It is **highly recommended** to read [this](docs/generate_profiles.md) file before profiles generation.
 
     ```bash
-    make examples ARCH=<skl,clx,**icx**,spr> NIC=<fvl,**cvl**>
+    make examples ARCH=<atom,core,**icx**,spr> NIC=<fvl,**cvl**>
     ```
 
 5. Copy example inventory file to the project root dir.
@@ -145,7 +157,7 @@ The software provided here is for reference only and not intended for production
       Needed details are at least dataplane_interfaces
       For more details see [VM case configuration guide](docs/vm_config_guide.md)
 
-9. **Required:** Apply bug fix patch for Kubespray submodule (for RHEL 8+).
+9. **Mandatory:** Apply patch for Kubespray collection.
 
     ```bash
     ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
@@ -154,7 +166,9 @@ The software provided here is for reference only and not intended for production
 10. Execute `ansible-playbook`.
 
     > **_NOTE:_** For Cloud case this step is not used. See the [cloud/](cloud/) directory for more details
-
+    
+    > **_NOTE:_** It is recommended to use "--flush-cache" (e.g. "ansible-playbook -i --flush-cache inventory.ini playbooks/remote_fp.yml") when executing ansible-playbook in order to avoid unknown issues such as skip of tasks/roles, unable to update previous run inventory details, etc.
+              
     ```bash
     ansible-playbook -i inventory.ini playbooks/${PROFILE}.yml
     ```
@@ -178,6 +192,7 @@ Refer to the documentation linked below to see configuration details for selecte
 - [VM multinode setup guide](docs/vm_multinode_setup_guide.md)
 - [VM cluster expansion guide](docs/vm_cluster_expansion_guide.md)
 - [Non-root deployment guide](docs/rootless_deployment.md)
+
 ## Prerequisites and Requirements
 
 - Required packages on the target servers: **Python3**.

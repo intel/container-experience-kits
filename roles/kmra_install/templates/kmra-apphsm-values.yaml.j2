@@ -12,12 +12,20 @@ no_proxy: "{{ proxy_env.no_proxy }}"
 apphsm:
   main:
     image:
+{% if kmra.sbx == true %}
+      repo: "{{ kmra.apphsm.sbx_image_repo }}"
+      name: "{{ kmra.apphsm.sbx_image_name }}"
+      tag: "{{ kmra.apphsm.sbx_image_tag | default(kmra.image_tag) }}"
+{% else %}
       repo: "{{ kmra.apphsm.image_repo }}"
       name: "{{ kmra.apphsm.image_name }}"
       tag: "{{ kmra.apphsm.image_tag | default(kmra.image_tag) }}"
+{% endif %}
       pullPolicy: IfNotPresent
-    port: "{{ kmra.apphsm.upstream_port }}"
-    hostname: "{{ kmra.apphsm.hostname | trim}}"
+    port: "{{ kmra.apphsm.port }}"
+    servicePort: "{{ kmra.apphsm.upstream_port }}"
+    ip: "{{ kmra.apphsm.listen_ip }}"
+    hostname: "{{ kmra.apphsm.hostname }}"
   init:
     image:
       repo: "{{ kmra.apphsm.init_image_repo }}"
@@ -25,11 +33,13 @@ apphsm:
       tag: "{{ kmra.apphsm.init_image_tag }}"
       pullPolicy: "IfNotPresent"
   pccs_port: "{{ kmra.pccs.upstream_port }}"
-  pccs_hostname: "{{ kmra.pccs.hostname }}"
+  pccs_hostname: "{{ kmra.pccs.dns_name }}"
   use_secure_cert: "{{ kmra.apphsm.use_secure_cert | quote }}"
   test_ctk_loadkey_cert_user_id: "{{ kmra.apphsm.test_ctk_loadkey_cert_user_id }}"
   generic_client_cert_id: "{{ kmra.apphsm.generic_client_cert_id }}"
   ctk_loadkey_demo_enabled: "{{ kmra.ctk_loadkey_demo.enabled | bool | lower }}"
+  oran: "{{ kmra.oran.enabled | bool | default(false) | lower }}"
+  oran_netopeer2_cert_user_id: "{{ kmra.apphsm.oran_netopeer2_cert_user_id | default('') }}"
   default_user_pin: "{{ kmra.apphsm.default_user_pin }}"
   default_so_pin: "{{ kmra.apphsm.default_so_pin }}"
   nonce_lifetime: "{{ kmra.apphsm.nonce_lifetime }}"

@@ -15,14 +15,6 @@
 ##
 ---
 openssl_url: "https://github.com/openssl/openssl.git"
-openssl_version: "openssl-3.0.8"
+openssl_version: "openssl-3.1.1"
 openssl_dir: "{{ (project_root_dir, 'openssl') | path_join }}"
 openssl_pkg_subdir: "{{ openssl_dir }}/{{ openssl_version }}"
-
-# QATLibs
-intel_qatlib_download_url: "https://github.com/intel/qatlib.git"
-intel_qatlib_download_url_version: "23.02.0"
-intel_qatlib_download_url_dir: "{{ (project_root_dir, 'intel_qatlibs') | path_join }}"
-
-# Note: mentioned below variable name & folder location must match "roles/bootstrap/install_qat_drivers_services/defaults/main.yml"
-qat_drivers_dir: "{{ (project_root_dir, 'qat_drivers') | path_join }}"

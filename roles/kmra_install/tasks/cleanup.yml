@@ -14,6 +14,18 @@
 ##   limitations under the License.
 ##
 ---
+- name: combine oran defaults and user provided vars
+  ansible.builtin.set_fact:
+    kmra: "{{ kmra_oran | combine(kmra | default({}), recursive=True) }}"
+  no_log: true
+  when:
+    - kmra.oran.enabled | default(false)
+
+- name: combine defaults and user provided vars
+  set_fact:
+    kmra: "{{ kmra_defaults | combine(kmra | default({}), recursive=True) }}"
+  no_log: true
+
 - name: delete kmra applications
   command: "helm delete {{ item }} -n {{ kmra.namespace }}"
   loop:
@@ -23,22 +35,55 @@
   changed_when: true
   failed_when: false
 
+- name: delete oran applications
+  kubernetes.core.helm:
+    name: "{{ item }}"
+    state: absent
+    namespace: "{{ cosign_enforce_namespace }}"
+    wait: true
+    timeout: 4m0s
+  loop:
+    - "{{ kmra_oran.oran_netopeer2_server.release_name }}"
+    - "{{ kmra_oran.oran_netopeer2_client.release_name }}"
+
+- name: delete oran configmap
+  kubernetes.core.k8s:
+    api_version: v1
+    name: oran-sysrepo-config
+    kind: ConfigMap
+    namespace: "{{ cosign_enforce_namespace }}"
+    state: absent
+  failed_when: false
+
+- name: delete apphsm configmap
+  kubernetes.core.k8s:
+    api_version: v1
+    name: "{{ kmra.apphsm.release_name }}-custom-config"
+    kind: ConfigMap
+    namespace: "{{ kmra.namespace }}"
+    state: absent
+  failed_when: false
+
 - name: delete charts directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   loop:
     - "{{ kmra.pccs.chart_path }}"
     - "{{ kmra.apphsm.chart_path }}"
     - "{{ kmra.ctk_loadkey_demo.chart_path }}"
+    - "{{ kmra_oran.oran_netopeer2_server.chart_path }}"
+    - "{{ kmra_oran.oran_netopeer2_client.chart_path }}"
   failed_when: false
 
 - name: delete charts values files
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   loop:
     - "{{ kmra.pccs.helm_values_file }}"
     - "{{ kmra.apphsm.helm_values_file }}"
     - "{{ kmra.ctk_loadkey_demo.helm_values_file }}"
+    - "{{ kmra_oran.oran_netopeer2_server.helm_values_file }}"
+    - "{{ kmra_oran.oran_netopeer2_client.helm_values_file }}"
   failed_when: false

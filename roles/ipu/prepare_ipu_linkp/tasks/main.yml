@@ -1,0 +1,77 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Install dependencies
+  ansible.builtin.include_role:
+    name: install_dependencies
+
+- name: create IMC minicom file
+  ansible.builtin.copy:
+    dest: "/etc/minirc.IMC"
+    content: |
+      pu port /dev/ttyUSB2
+      pu baudrate 460800
+      pu bits 8
+      pu parity N
+      pu stopbits 1
+      pu rtscts No
+    mode: 0644
+
+- name: create ACC minicom file
+  ansible.builtin.copy:
+    dest: "/etc/minirc.ACC"
+    content: |
+      pu port /dev/ttyUSB0
+      pu baudrate 115200
+      pu bits 8
+      pu parity N
+      pu stopbits 1
+      pu rtscts No
+    mode: 0644
+
+- name: Create IPU project directory
+  ansible.builtin.file:
+    path: "{{ ipu_project_root_dir }}"
+    state: directory
+    mode: 0755
+
+- name: copy EthProgrammer from ansible host
+  ansible.builtin.copy:
+    src: "{{ (ipu_tmp_dir, ipu_eth_programmer_zip) | path_join }}"
+    dest: "{{ (ipu_project_root_dir, ipu_eth_programmer_zip) | path_join }}"
+    mode: 0644
+
+- name: unarchive EthProgrammer
+  ansible.builtin.unarchive:
+    src: "{{ (ipu_project_root_dir, ipu_eth_programmer_zip) | path_join }}"
+    dest: "{{ ipu_project_root_dir }}"
+    remote_src: yes
+    mode: 0755
+  register: unzip_result
+  failed_when: (unzip_result.extract_results.rc != 0) and ('appears to use backslashes as path separators' not in unzip_result.extract_results.err)
+
+- name: create a symbolic link for libdl.so
+  ansible.builtin.file:
+    src: /usr/lib64/libdl.so.2
+    dest: /usr/lib64/libdl.so
+    owner: root
+    group: root
+    state: link
+
+- name: ensure that ftdi_sio module is loaded
+  community.general.modprobe:
+    name: ftdi_sio
+    state: present

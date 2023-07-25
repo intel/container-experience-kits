@@ -1,0 +1,31 @@
+From d156b0d44722ef5de37685accd308a08f6ba0931 Mon Sep 17 00:00:00 2001
+From: Michal Motyl <michalx.motyl@intel.com>
+Date: Wed, 13 Apr 2022 09:43:50 +0100
+Subject: [PATCH] Fix slotID
+
+
+diff --git a/gck-rpc-dispatch.c b/gck-rpc-dispatch.c
+index fd0ef38..9fb509a 100644
+--- a/gck-rpc-dispatch.c
++++ b/gck-rpc-dispatch.c
+@@ -1063,7 +1063,7 @@ static CK_RV rpc_C_WaitForSlotEvent(CallState * cs)
+ 	BEGIN_CALL(C_WaitForSlotEvent);
+ 	IN_ULONG(flags);
+ 	PROCESS_CALL((flags, &slot_id, NULL));
+-	slot_id = CK_GNOME_APPARTMENT_SLOT(slot_id);
++	//slot_id = CK_GNOME_APPARTMENT_SLOT(slot_id);
+ 	OUT_ULONG(slot_id);
+ 	END_CALL;
+ }
+@@ -1194,7 +1194,7 @@ static CK_RV rpc_C_GetSessionInfo(CallState * cs)
+ 	BEGIN_CALL(C_GetSessionInfo);
+ 	IN_ULONG(session);
+ 	PROCESS_CALL((session, &info));
+-	info.slotID = CK_GNOME_APPARTMENT_SLOT(info.slotID);
++	//info.slotID = CK_GNOME_APPARTMENT_SLOT(info.slotID);
+ 	OUT_SESSION_INFO(info);
+ 	END_CALL;
+ }
+-- 
+2.17.1
+

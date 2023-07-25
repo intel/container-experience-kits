@@ -15,4 +15,3 @@
 ##
 ---
 userspace_cni_dir: "{{ (project_root_dir, 'userspace_cni_manifests') |  path_join }}"
-cndp_k8s_manifest_dir: "{{ (project_root_dir, 'cndp_k8s_manifest') |  path_join }}"

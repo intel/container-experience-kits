@@ -1,0 +1,30 @@
+diff --git a/roles/kubernetes/preinstall/handlers/main.yml b/roles/kubernetes/preinstall/handlers/main.yml
+index 631ea743e..333930b3e 100644
+--- a/roles/kubernetes/preinstall/handlers/main.yml
++++ b/roles/kubernetes/preinstall/handlers/main.yml
+@@ -9,6 +9,7 @@
+     - Preinstall | restart kube-controller-manager crio/containerd
+     - Preinstall | restart kube-apiserver docker
+     - Preinstall | restart kube-apiserver crio/containerd
++    - Preinstall | delay wait for the apiserver to be running
+     - Preinstall | wait for the apiserver to be running
+   when: not ansible_os_family in ["Flatcar", "Flatcar Container Linux by Kinvolk"] and not is_fedora_coreos
+
+@@ -107,6 +108,17 @@
+     - resolvconf_mode == 'host_resolvconf'
+     - kube_apiserver_set.stat.exists
+
++# Ensure apiserver is already restarting before wait is started
++- name: Preinstall | delay wait for the apiserver to be running
++  pause:
++    seconds: 5
++  when:
++    - container_manager == "docker"
++    - inventory_hostname in groups['kube_control_plane']
++    - dns_mode != 'none'
++    - resolvconf_mode == 'host_resolvconf'
++    - kube_apiserver_set.stat.exists
++
+ # When running this as the last phase ensure we wait for kube-apiserver to come up
+ - name: Preinstall | wait for the apiserver to be running
+   uri:

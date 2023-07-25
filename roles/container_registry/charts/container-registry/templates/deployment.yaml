@@ -1,0 +1,100 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "container-registry.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "container-registry.selectorLabels" . | nindent 6 }}
+  replicas: 1
+  minReadySeconds: 5
+  template:
+    metadata:
+      labels:
+        {{- include "container-registry.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: nginx
+          image: {{ .Values.nginx.image }}:{{ .Values.nginx.tag }}
+          ports:
+            - containerPort: {{ .Values.nginx.port }}
+              name: nginx-https
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/nginx/conf.d/
+            - name: nginx-conf
+              mountPath: /etc/nginx
+            - name: htpasswd
+              mountPath: /etc/nginx/conf.d/auth
+        - name: container-registry
+          image: {{ .Values.registry.image }}:{{ .Values.registry.tag }}
+          ports:
+            - containerPort: {{ .Values.registry.port }}
+              name: registry-http
+          command:
+          - /bin/registry
+          - serve
+          - /etc/container/registry/config.yml
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - /etc/probe/probe.sh
+              - 127.0.0.1:{{ .Values.registry.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - /etc/probe/probe.sh
+              - 127.0.0.1:{{ .Values.registry.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: REGISTRY_HTTP_ADDR
+              value: 127.0.0.1:{{ .Values.registry.port }}
+            - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+              value: /var/lib/registry
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/registry/
+            - name: config
+              mountPath: /etc/container/registry
+            - name: probe
+              mountPath: /etc/probe
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.node_name }}
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.pvc }}
+        - name: config
+          configMap:
+            name: {{ include "container-registry.fullname" . }}-config
+        - name: htpasswd
+          secret:
+            secretName: {{ .Values.secrets.htpasswd }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.secrets.tls }}
+        - name: probe
+          configMap:
+            name: {{ include "container-registry.fullname" . }}-probe
+        - name: nginx-conf
+          configMap:
+            name: {{ include "container-registry.fullname" . }}-nginx-conf
+            items:
+              - key: nginx.conf
+                path: nginx.conf

@@ -60,29 +60,31 @@
 - name: obtain RPM-GPG-KEY-EPEL-8
   rpm_key:
     state: present
-    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8
+    key: "{{ fedora_epel_repo_url }}/RPM-GPG-KEY-EPEL-8"
   when:
     - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '8'
+    - ansible_distribution_version < '9'
 
 - name: install RPM-GPG-KEY-EPEL-8
   package:
-    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+    name: "{{ fedora_epel_repo_url }}/epel-release-latest-8.noarch.rpm"
   when:
     - ansible_distribution in ['RedHat', 'Rocky']
     - ansible_distribution_version >= '8'
+    - ansible_distribution_version < '9'
 
 - name: obtain RPM-GPG-KEY-EPEL-9
   rpm_key:
     state: present
-    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+    key: "{{ fedora_epel_repo_url }}/RPM-GPG-KEY-EPEL-9"
   when:
     - ansible_distribution in ["RedHat", "Rocky"]
     - ansible_distribution_version >= "9"
 
 - name: install RPM-GPG-KEY-EPEL-9
   package:
-    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+    name: "{{ fedora_epel_repo_url }}/epel-release-latest-9.noarch.rpm"
   when:
     - ansible_distribution in ["RedHat", "Rocky"]
     - ansible_distribution_version >= "9"
@@ -92,7 +94,7 @@
   block:
     - name: get list of packages
       uri:
-        url: "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/c/"
+        url: "{{ fedora_epel_repo_url }}/9/Everything/x86_64/Packages/c/"
         return_content: true
       register: epel_output
 
@@ -104,7 +106,7 @@
 
     - name: download CPUID on Rocky >= 9.0
       get_url:
-        url: "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/c/{{ cpuid_rpm }}"
+        url: "{{ fedora_epel_repo_url }}/9/Everything/x86_64/Packages/c/{{ cpuid_rpm }}"
         dest: "{{ project_root_dir }}"
         mode: 0755
 
@@ -196,7 +198,7 @@
 
 - name: install epel-release on Amazon Linux 2
   package:
-    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    name: "{{ fedora_epel_repo_url }}/epel-release-latest-7.noarch.rpm"
     state: present
   retries: 5
   delay: 10

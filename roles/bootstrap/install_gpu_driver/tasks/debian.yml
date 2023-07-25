@@ -15,146 +15,127 @@
 ##
 ---
 
-# The installation steps based on get started guide at https://dgpu-docs.intel.com
+# The installation steps based https://dgpu-docs.intel.com
 - name: Download Intel graphic gpg key in text format
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ gpu_repo_key_url }}"
     dest: "{{ gpu_key_text_path }}"
-    force: yes
+    force: true
     mode: 0644
 
 # TODO: This file will block the gpg command if not removed.
 - name: Remove the key file
-  file:
+  ansible.builtin.file:
     state: absent
     path: "{{ gpu_usr_key_path }}"
 
 - name: Add Intel graphic gpg key to system
-  expect:
-    command: "gpg --dearmor --output {{ gpu_usr_key_path }} {{ gpu_key_text_path }}"
-    responses:
-      enter: 'y'
+  command: "gpg --dearmor --output {{ gpu_usr_key_path }} {{ gpu_key_text_path }}"
+  changed_when: false
 
 - name: Add Intel graphic driver repo
-  apt_repository:
+  ansible.builtin.apt_repository:
     filename: "{{ gpu_repo_list_path }}"
-    repo: "deb [arch=amd64 signed-by={{ gpu_usr_key_path }}] {{ gpu_repo_focal_url }} {{ gpu_repo_spec }}"
+    repo: "deb [arch=amd64 signed-by={{ gpu_usr_key_path }}] {{ gpu_repo_ubuntu_url }} {{ gpu_repo_spec }}"
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Run apt update before kernel installation
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
   register: update_cache_results
   retries: "{{ number_of_retries | default(5) }}"
   until: update_cache_results is success
   delay: "{{ retry_delay | default(3) }}"
 
-- name: Install OEM kernel
-  apt:
-    name: "{{ gpu_oem_kernel_image }}"
+- name: Set fact for kernel version
+  ansible.builtin.set_fact:
+    kernel_ver: "{{ ansible_kernel }}"
 
-- name: Fetch kernel fisrt entry
-  shell: "set -o pipefail && cat /boot/grub/grub.cfg | grep submenu | awk -F \"'\" '{print $2}'"
-  args:
-    executable: /bin/bash
-  register: kernel_fisrt_entry
-  failed_when: kernel_fisrt_entry.rc > 1
-  changed_when: false
+- name: Install kernel headers incase it missed
+  ansible.builtin.apt:
+    name: linux-headers-{{ kernel_ver }}
 
-- debug: msg={{ kernel_fisrt_entry.stdout }}
-
-- name: Fetch kernel second entry
-  shell: "set -o pipefail && cat /boot/grub/grub.cfg | grep menuentry | grep {{ gpu_oem_kernel_version }} | grep -v recovery | awk -F \"'\" '{print $2}'"
-  args:
-    executable: /bin/bash
-  register: kernel_second_entry
-  failed_when: kernel_second_entry.rc > 1
-  changed_when: false
-
-- debug: msg={{ kernel_second_entry.stdout }}
-
-- name: Set OEM kernel(2-level entries) as default boot kernel
-  lineinfile:
-    path: /etc/default/grub
-    regexp: "^GRUB_DEFAULT"
-    line: GRUB_DEFAULT="{{ kernel_fisrt_entry.stdout }}>{{ kernel_second_entry.stdout }}"
-  when: kernel_fisrt_entry.stdout != ""
-
-- name: Set OEM kernel(1-level entry) as default boot kernel
-  lineinfile:
-    path: /etc/default/grub
-    regexp: "^GRUB_DEFAULT"
-    line: GRUB_DEFAULT="{{ kernel_second_entry.stdout }}"
-  when: kernel_fisrt_entry.stdout == ""
-
-- name: Update boot configure
-  command: "update-grub"
-  changed_when: false
-
-- name: Reboot to updated kernel
-  reboot:
-    reboot_timeout: 1200
-
-- name: Get update kernel version
-  command: "uname -r"
-  register: oem_kernel_ver
-  changed_when: false
-
-- name: Show the new kernel version
-  debug:
-    msg: "New kernel version is {{ oem_kernel_ver.stdout }}"
-
-- name: Check new kernel version
-  assert:
-    that: oem_kernel_ver.stdout == "{{ gpu_oem_kernel_version }}"
-    msg: "Wrong kernel version: {{ oem_kernel_ver.stdout }}"
-
-- name: Run apt update before dkms installation
-  apt:
-    update_cache: yes
-  register: update_cache_results
-  retries: "{{ number_of_retries | default(5) }}"
-  until: update_cache_results is success
-  delay: "{{ retry_delay | default(3) }}"
-
-- name: Remove the unused kernel headers before dkms installation
+- name: Set current kernel as default boot kernel in case there are multiple kernels in system
   block:
-    - name: Fetch the installed kernel headers
-      shell: "set -o pipefail && dpkg --list | grep linux-headers | awk '{ print $2 }' |grep -v {{ gpu_oem_kernel_version }} | grep -v hwe"
+    - name: Fetch kernel first entry
+      ansible.builtin.shell:
+        "set -o pipefail && cat /boot/grub/grub.cfg | grep submenu | awk -F \"'\" '{print $2}'"
       args:
         executable: /bin/bash
-      register: installed_kernel_headers
-      failed_when: installed_kernel_headers.rc > 1
+      register: kernel_first_entry
+      failed_when: kernel_first_entry.rc > 1
       changed_when: false
-      tags:
-        - atsm
 
-    - debug:
-        msg: "{{ installed_kernel_headers.stdout }}"
-      tags:
-        - atsm
-    - name: Remove the unused linux kernel headers
-      apt:
-        name: "{{ item }}"
-        state: absent
-      with_items: "{{installed_kernel_headers.stdout_lines}}"
-      when: installed_kernel_headers.rc == 0
-      tags:
-        - atsm
+    - name: Fetch kernel second entry
+      ansible.builtin.shell:
+        "set -o pipefail && cat /boot/grub/grub.cfg | grep menuentry | grep {{ kernel_ver }} | grep -v recovery | awk -F \"'\" '{print $2}'"
+      args:
+        executable: /bin/bash
+      register: kernel_second_entry
+      failed_when: kernel_second_entry.rc > 1
+      changed_when: false
 
-- name: Install DKMS(Dynamic Kernel Module Support) and kernel header files
-  apt:
+    - name: Set OEM kernel(2-level entries) as default boot kernel
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: "^GRUB_DEFAULT"
+        line: GRUB_DEFAULT="{{ kernel_first_entry.stdout }}>{{ kernel_second_entry.stdout }}"
+      when: kernel_first_entry.stdout != ""
+
+    - name: Set OEM kernel(1-level entry) as default boot kernel
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: "^GRUB_DEFAULT"
+        line: GRUB_DEFAULT="{{ kernel_second_entry.stdout }}"
+      when: kernel_first_entry.stdout == ""
+
+    - name: Add support for multi-gpu system
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        line: GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} pci=realloc=off"
+
+    - name: Update boot configure
+      ansible.builtin.command: "update-grub"
+      changed_when: false
+
+- name: Install kernel dkms packages
+  ansible.builtin.apt:
     name: "{{ item }}"
-  with_items: "{{ gpu_dkms_packages }}"
+  with_items: "{{ kernel_dkms_packages }}"
 
-- name: Install run-time packages
-  apt:
+- name: Install gpu kernel mode driver packages
+  ansible.builtin.apt:
+    name: "{{ item.pkg }}={{ item.ver }}"
+    allow_downgrade: true
+  with_items: "{{ gpu_kmd_packages }}"
+
+- name: Install gpu user mode driver and runtime packages
+  ansible.builtin.apt:
+    name: "{{ item.pkg }}={{ item.ver }}"
+    allow_downgrade: true
+  with_items: "{{ gpu_umd_rt_packages }}"
+
+- name: Install gpu dev packages
+  ansible.builtin.apt:
+    name: "{{ item.pkg }}={{ item.ver }}"
+    allow_downgrade: true
+  with_items: "{{ gpu_dev_packages }}"
+
+- name: Install gpu tool packages
+  ansible.builtin.apt:
+    name: "{{ item.pkg }}={{ item.ver }}"
+    allow_downgrade: true
+  with_items: "{{ gpu_tool_packages }}"
+
+- name: Install gpu test packages
+  ansible.builtin.apt:
     name: "{{ item }}"
-  with_items: "{{ gpu_runtime_packages }}"
+    allow_downgrade: true
+  with_items: "{{ gpu_test_packages }}"
 
 - name: Reboot the system for these changes to take effect
-  reboot:
+  ansible.builtin.reboot:
     reboot_timeout: 1200
 
 - name: Create render group if it doesn't exist
@@ -166,55 +147,8 @@
   user:
     name: "{{ ansible_user_id }}"
     groups: render
-    append: yes
+    append: true
 
 - name: Apply the current user to the new group id immediately
   meta:
     reset_connection
-
-- name: Install graphic driver tools for inspection
-  apt:
-    name: "{{ item }}"
-  with_items: "{{ gpu_tool_packages }}"
-
-- name: Run hwinfo
-  command: hwinfo --display
-  register: hwinfo_msg
-  changed_when: false
-
-- name: Set fact for i915 driver string
-  set_fact:
-    drv_list: "{{ hwinfo_msg.stdout | regex_findall('Driver: \"i915\"', multiline=True) }}"
-
-- name: Check if i915 installed successfully
-  assert:
-    that: (drv_list | length) > 0
-    msg: "Can't find i915 driver"
-
-- name: Run vainfo to check libVA readiness
-  command: vainfo
-  register: vainfo_msg
-  changed_when: false
-
-- name: Show vainfo output
-  debug:
-    msg: "{{ vainfo_msg.stdout }}"
-
-- name: Check libVA VA-API version greater than 1.14
-  assert:
-    that: "{{ (vainfo_msg.stdout | regex_search('vainfo: VA-API version: \\d.\\d{2} \\(libva \\d.\\d{2}.\\d\\)')).split()[3] }} > 1.14"
-    msg: "VA-API version must be greater than 1.14"
-
-- name: Run clinfo to check OpenCL readiness
-  command: clinfo
-  register: clinfo_msg
-  changed_when: false
-
-- name: Show clinfo output
-  debug:
-    msg: "{{ clinfo_msg.stdout }}"
-
-- name: Check OpenCL driver-- 'Number of platforms' must be greater than 0
-  assert:
-    that: "{{ (clinfo_msg.stdout | regex_search('Number of platforms\\s+\\d')).split()[3] }} > 0"
-    msg: "'Number of platforms' must be greater than 0"

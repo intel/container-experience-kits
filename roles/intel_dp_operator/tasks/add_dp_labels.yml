@@ -18,7 +18,7 @@
   command: kubectl label nodes {{ hostvars[node_name]['ansible_hostname'] }} qat.configured=true --overwrite
   when:
     - qat_dp_enabled | default(false)
-    - hostvars[node_name]['update_qat_drivers'] | default(false)
+    - hostvars[node_name]['configure_qat'] | default(false)
     - hostvars[node_name]['qat_devices'] | length > 0
 
 - name: add labels for nodes with configured SGX

@@ -3,7 +3,7 @@ ARCH ?= 'icx'
 NIC ?= 'cvl'
 MIRRORS ?= false
 PLAYBOOKS_DIRS = playbooks playbooks/infra playbooks/intel
-PLAYBOOK_NAMES = access basic full_nfv on_prem regional_dc remote_fp storage build_your_own
+PLAYBOOK_NAMES = access basic full_nfv on_prem on_prem_vss on_prem_sw_defined_factory regional_dc remote_fp build_your_own
 
 # set default target available with simple 'make' command
 .DEFAULT_GOAL := examples

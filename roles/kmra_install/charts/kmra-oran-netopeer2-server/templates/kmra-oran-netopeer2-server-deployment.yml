@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+      annotations:
+        sgx.intel.com/quote-provider: {{ .Release.Name }}
+    spec:
+      hostNetwork: false
+      serviceAccountName: {{ .Release.Name }}
+      initContainers:
+      - name: init-tmpfs
+        image: "{{ .Values.oran_netopeer2_server.init.image.repo }}/{{ .Values.oran_netopeer2_server.init.image.name }}:{{ .Values.oran_netopeer2_server.init.image.tag }}"
+        command: ['sh', '-c', "rm -rf /opt/intel/cryptoapitoolkit/tokens/*"]
+      securityContext:
+        runAsUser: 65533
+        runAsGroup: {{ .Values.oran_netopeer2_server.sgx_prv_gid }}
+        supplementalGroups:
+        - {{ .Values.oran_netopeer2_server.sgx_gid }}
+      containers:
+      - name: {{ .Release.Name }}
+        image: "{{ .Values.oran_netopeer2_server.main.image.repo }}/{{ .Values.oran_netopeer2_server.main.image.name }}:{{ .Values.oran_netopeer2_server.main.image.tag }}"
+        imagePullPolicy: {{ .Values.oran_netopeer2_server.main.image.pullPolicy }}
+        ports:
+        - name: ctk-loader
+          containerPort: {{ .Values.oran_netopeer2_server.pkcs11_daemon_socket_port }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-env-cm
+        volumeMounts:
+        - name: mtls
+          mountPath: /opt/intel/ca
+          readOnly: true
+        - name: sgx-qcnl-conf
+          mountPath: /etc/sgx_default_qcnl.conf
+          subPath: sgx_default_qcnl.conf
+          readOnly: true
+        - name: tmpfs
+          mountPath: /tmp
+          subPath: tmp
+        - name: tmpfs
+          mountPath: /opt/intel/cryptoapitoolkit/tokens
+          subPath: tokens
+        - name: p11-proxy-tls-psk
+          mountPath: "{{ .Values.oran_netopeer2_server.pkcs11_proxy_tls_psk_file }}"
+          subPath: p11_proxy_tls.psk
+          readOnly: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+            sgx.intel.com/epc: "512Ki"
+          requests:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          readOnlyRootFilesystem: true
+      - name: {{ .Release.Name }}-oran
+        image: "{{ .Values.oran_netopeer2_server.oran.image.repo }}/{{ .Values.oran_netopeer2_server.oran.image.name }}:{{ .Values.oran_netopeer2_server.oran.image.tag }}"
+        imagePullPolicy: {{ .Values.oran_netopeer2_server.oran.image.pullPolicy }}
+        ports:
+        - name: netopeer-server
+          containerPort: {{ .Values.oran_netopeer2_server.oran.servicePort }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-oran-env
+        volumeMounts:
+        - name: tmpfs-oran
+          mountPath: /tmp
+          subPath: tmp
+        - name: p11-proxy-tls-psk
+          mountPath: "{{ .Values.oran_netopeer2_server.pkcs11_proxy_tls_psk_file }}"
+          subPath: p11_proxy_tls.psk
+          readOnly: true
+        - name: sysrepo-config
+          mountPath: /opt/intel/sysrepo_config
+          readOnly: true
+        resources:
+          limits:
+            cpu: 200m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          readOnlyRootFilesystem: true
+      imagePullSecrets:
+        - name: {{ .Values.oran_netopeer2_server.pullSecret }}
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - kmra
+      volumes:
+      - name: mtls
+        secret:
+          secretName: {{ .Release.Name }}-tls
+          items:
+          - key: tls.key
+            path: ctk_loadkey.key
+          - key: tls.cert
+            path: ctk_loadkey.crt
+          - key: ca.cert
+            path: ca.crt
+      - name: sgx-qcnl-conf
+        configMap:
+          name: {{ .Release.Name }}-qcnl-conf
+      - name: tmpfs
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+      - name: tmpfs-oran
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+      - name: p11-proxy-tls-psk
+        configMap:
+          name: {{ .Release.Name }}-p11-proxy-tls-psk-conf
+      - name: oran-env
+        configMap:
+          name: {{ .Release.Name }}-oran-env
+      - name: sysrepo-config
+        configMap:
+          name: oran-sysrepo-config

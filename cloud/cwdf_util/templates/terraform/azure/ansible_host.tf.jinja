@@ -1,0 +1,256 @@
+resource "azurerm_public_ip" "ansible_instance" {
+  name                = "cwdf-infra-{{ job_id }}-ansible-instance-public-ip"
+  location            = azurerm_resource_group.default.location
+  resource_group_name = azurerm_resource_group.default.name
+  allocation_method   = "Static"
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ansible-instance-public-ip"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_network_interface" "ansible_instance" {
+  name                = "cwdf-infra-{{ job_id }}-ansible-instance-ni"
+  location            = azurerm_resource_group.default.location
+  resource_group_name = azurerm_resource_group.default.name
+
+  ip_configuration {
+    name                          = "default"
+    subnet_id                     = azurerm_subnet.{{ subnets[0].name }}.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.ansible_instance.id
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ansible-instance-ni"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_network_interface_security_group_association" "ansible_instance" {
+  network_interface_id      = azurerm_network_interface.ansible_instance.id
+  network_security_group_id = azurerm_network_security_group.default.id
+}
+
+resource "azurerm_linux_virtual_machine" "ansible_instance" {
+  name                = "cwdf-infra-{{ job_id }}-ansible-instance"
+  resource_group_name = azurerm_resource_group.default.name
+  location            = azurerm_resource_group.default.location
+
+  size                = "{{ ansible_instance_size }}"
+  admin_username      = "ubuntu"
+
+  {% if enable_proximity_placement == true %}
+  proximity_placement_group_id = azurerm_proximity_placement_group.default.id
+  {% endif %}
+
+  network_interface_ids = [
+    azurerm_network_interface.ansible_instance.id,
+  ]
+
+  admin_ssh_key {
+    username   = "ubuntu"
+    public_key = "{{ ssh_pub_key }}"
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "StandardSSD_LRS"
+    disk_size_gb         = 64
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  custom_data = base64encode(<<EOF
+#!/bin/bash
+mkdir -p /etc/apt/keyrings
+curl -sLS https://packages.microsoft.com/keys/microsoft.asc |
+  gpg --dearmor |
+  tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+chmod go+r /etc/apt/keyrings/microsoft.gpg
+AZ_REPO=$(lsb_release -cs)
+echo "deb [arch=`dpkg --print-architecture` signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" |
+  tee /etc/apt/sources.list.d/azure-cli.list
+apt-get -qq -y update
+apt-get -qq -y -o DPkg::Lock::Timeout=60 upgrade
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install python3-pip python3-venv
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install zip unzip net-tools apache2-utils
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install ca-certificates curl apt-transport-https lsb-release gnupg
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install podman
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install azure-cli
+az aks install-cli
+sudo -H -u ubuntu bash -c 'az login --identity'
+sudo -H -u ubuntu bash -c 'az aks get-credentials --resource-group ${azurerm_resource_group.default.name} --name ${azurerm_kubernetes_cluster.default.name}'
+az login --identity
+az aks get-credentials --resource-group ${azurerm_resource_group.default.name} --name ${azurerm_kubernetes_cluster.default.name}
+echo -e "unqualified-search-registries = [\"docker.io\"]" | tee -a /etc/containers/registries.conf
+systemctl restart podman
+TOKEN=$(az acr login --name ${azurerm_container_registry.default.name} --expose-token --output tsv --query accessToken)
+echo $TOKEN | REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" podman login -u 00000000-0000-0000-0000-000000000000 --password-stdin ${azurerm_container_registry.default.name}.azurecr.io
+cp -r /home/ubuntu/.kube /root/
+curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 /tmp/get_helm.sh
+/bin/bash /tmp/get_helm.sh
+rm /tmp/get_helm.sh
+mkdir /home/ubuntu/cwdf_deployment
+mkdir /home/ubuntu/cwdf_deployment/ssh
+echo "{{ ssh_pub_key }}" >> /home/ubuntu/cwdf_deployment/ssh/id_rsa.pub
+chown ubuntu /home/ubuntu/cwdf_deployment -R
+sudo -H -u ubuntu bash -c 'pip install --user paramiko scp'
+EOF
+  )
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ansible-instance"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_role_assignment" "ansible_acr" {
+  principal_id                     = azurerm_linux_virtual_machine.ansible_instance.identity[0].principal_id
+  role_definition_name             = "AcrPush"
+  scope                            = azurerm_container_registry.default.id
+  skip_service_principal_aad_check = true
+}
+
+resource "azurerm_role_assignment" "ansible_aks" {
+  principal_id                     = azurerm_linux_virtual_machine.ansible_instance.identity[0].principal_id
+  role_definition_name             = "Owner"
+  scope                            = azurerm_kubernetes_cluster.default.id
+  skip_service_principal_aad_check = true
+}
+
+resource "azurerm_virtual_machine_extension" "ansible_instance_monitroing" {
+  name                 = "AzureMonitorLinuxAgent"
+  virtual_machine_id   = azurerm_linux_virtual_machine.ansible_instance.id
+  publisher            = "Microsoft.Azure.Monitor"
+  type                 = "AzureMonitorLinuxAgent"
+  type_handler_version = "1.21"
+  automatic_upgrade_enabled = true
+  auto_upgrade_minor_version = true
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-ansible-instance-monitoring-extension"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_monitor_data_collection_rule" "linux" {
+  name                = "cwdf-infra-{{ job_id }}-linux-monitoring-dcr"
+  resource_group_name = azurerm_resource_group.default.name
+  location            = azurerm_resource_group.default.location
+
+  destinations {
+    log_analytics {
+      workspace_resource_id = azurerm_log_analytics_workspace.default.id
+      name                  = "default"
+    }
+  }
+
+  data_flow {
+    streams      = ["Microsoft-InsightsMetrics", "Microsoft-Syslog", "Microsoft-Perf"]
+    destinations = ["default"]
+  }
+
+  data_sources {
+    syslog {
+      facility_names = ["*"]
+      log_levels     = ["*"]
+      name           = "syslog"
+    }
+
+    performance_counter {
+      streams                       = ["Microsoft-Perf", "Microsoft-InsightsMetrics"]
+      sampling_frequency_in_seconds = 60
+      name                          = "perfcounter"
+      counter_specifiers            = [
+        "\\Processor Information(_Total)\\% Processor Time",
+        "\\Processor Information(_Total)\\% Privileged Time",
+        "\\Processor Information(_Total)\\% User Time",
+        "\\Processor Information(_Total)\\Processor Frequency",
+        "\\System\\Processes",
+        "\\Process(_Total)\\Thread Count",
+        "\\Process(_Total)\\Handle Count",
+        "\\System\\System Up Time",
+        "\\System\\Context Switches/sec",
+        "\\System\\Processor Queue Length",
+        "\\Memory\\% Committed Bytes In Use",
+        "\\Memory\\Available Bytes",
+        "\\Memory\\Committed Bytes",
+        "\\Memory\\Cache Bytes",
+        "\\Memory\\Pool Paged Bytes",
+        "\\Memory\\Pool Nonpaged Bytes",
+        "\\Memory\\Pages/sec",
+        "\\Memory\\Page Faults/sec",
+        "\\Process(_Total)\\Working Set",
+        "\\Process(_Total)\\Working Set - Private",
+        "\\LogicalDisk(_Total)\\% Disk Time",
+        "\\LogicalDisk(_Total)\\% Disk Read Time",
+        "\\LogicalDisk(_Total)\\% Disk Write Time",
+        "\\LogicalDisk(_Total)\\% Idle Time",
+        "\\LogicalDisk(_Total)\\Disk Bytes/sec",
+        "\\LogicalDisk(_Total)\\Disk Read Bytes/sec",
+        "\\LogicalDisk(_Total)\\Disk Write Bytes/sec",
+        "\\LogicalDisk(_Total)\\Disk Transfers/sec",
+        "\\LogicalDisk(_Total)\\Disk Reads/sec",
+        "\\LogicalDisk(_Total)\\Disk Writes/sec",
+        "\\LogicalDisk(_Total)\\Avg. Disk sec/Transfer",
+        "\\LogicalDisk(_Total)\\Avg. Disk sec/Read",
+        "\\LogicalDisk(_Total)\\Avg. Disk sec/Write",
+        "\\LogicalDisk(_Total)\\Avg. Disk Queue Length",
+        "\\LogicalDisk(_Total)\\Avg. Disk Read Queue Length",
+        "\\LogicalDisk(_Total)\\Avg. Disk Write Queue Length",
+        "\\LogicalDisk(_Total)\\% Free Space",
+        "\\LogicalDisk(_Total)\\Free Megabytes",
+        "\\Network Interface(*)\\Bytes Total/sec",
+        "\\Network Interface(*)\\Bytes Sent/sec",
+        "\\Network Interface(*)\\Bytes Received/sec",
+        "\\Network Interface(*)\\Packets/sec",
+        "\\Network Interface(*)\\Packets Sent/sec",
+        "\\Network Interface(*)\\Packets Received/sec",
+        "\\Network Interface(*)\\Packets Outbound Errors",
+        "\\Network Interface(*)\\Packets Received Errors",
+      ]
+    }
+  }
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-linux-monitoring-dcr"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "azurerm_monitor_data_collection_rule_association" "ansible_instance" {
+  name                        = "ansible_instance"
+  target_resource_id          = azurerm_linux_virtual_machine.ansible_instance.id
+  data_collection_rule_id     = azurerm_monitor_data_collection_rule.linux.id
+}
+
+output "ansible_host_public_ip" {
+  value = azurerm_public_ip.ansible_instance.ip_address
+}

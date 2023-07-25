@@ -11,12 +11,17 @@ pccs:
       tag: "{{ kmra.pccs.image_tag | default(kmra.image_tag) }}"
       pullPolicy: "IfNotPresent"
     port: "{{ kmra.pccs.upstream_port }}"
+{% if kmra.sbx == true %}
+    sgx_provisioning_api_url: "{{ kmra.pccs.sbx_sgx_provisioning_api_url }}"
+{% else %}
     sgx_provisioning_api_url: "{{ kmra.pccs.sgx_provisioning_api_url }}"
+{% endif %}
     api_key: "{{ kmra.pccs.api_key }}"
     admin_pass: "{{ kmra.pccs.admin_pass | default('pccs_admin') | password_hash('sha512') }}"
     user_pass: "{{ kmra.pccs.user_pass | default('pccs_user') | password_hash('sha512') }}"
     log_level: "{{ kmra.pccs.log_level | default('info') }}"
   hostname: "{{ kmra.pccs.hostname }}"
+  listen_ip: "{{ kmra.pccs.listen_ip }}"
   db_name: "{{ kmra.pccs.db_name }}"
   db_user: "{{ kmra.pccs.db_user }}"
   db_password: "{{ kmra.pccs.db_passwd }}"

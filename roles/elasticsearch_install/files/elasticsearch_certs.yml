@@ -45,6 +45,11 @@ spec:
   - elasticsearch-master.monitoring
   - elasticsearch-master
   - elasticsearch
+  - kibana-kibana.monitoring.svc.cluster.local
+  - kibana-kibana.monitoring.svc
+  - kibana-kibana.monitoring
+  - kibana-kibana
+  - kibana
   isCA: false
   privateKey:
     algorithm: RSA

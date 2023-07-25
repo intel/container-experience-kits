@@ -14,6 +14,14 @@
 ##   limitations under the License.
 ##
 ---
+install_dependencies:
+  Debian:
+    - git
+    - make
+  RedHat:
+    - git
+    - make
+
 # variables in this file are not intended to be modified by the user directly
 # please use defaults/main.yml instead
 extenders:

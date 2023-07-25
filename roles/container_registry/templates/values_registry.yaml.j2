@@ -1,0 +1,25 @@
+service:
+    type: NodePort
+    node_port: {{ registry_nodeport }}
+
+registry:
+    image: {{ registry_image }}
+    tag: {{ registry_version }}
+    listen_addr: 127.0.0.1
+    port: 5000
+
+nginx:
+    image: {{ registry_nginx_image }}
+    tag: {{ registry_nginx_version }}
+    ssl_ciphers: {{ registry_nginx_ssl_ciphers }}
+    ssl_protocols: {{ registry_nginx_ssl_protocols }}
+    port: 5001
+
+node_name: {{ hostvars[groups['kube_control_plane'][0]]['ansible_hostname'] }}
+
+storage:
+    pvc: {{ registry_pvc_name }}
+
+secrets:
+    tls: {{ registry_tls_secret_name }}
+    htpasswd: {{ registry_htpasswd_secret_name }}

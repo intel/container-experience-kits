@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ registry_pv_name }}
+  labels:
+    app: {{ registry_release_name }}
+spec:
+  storageClassName: manual
+  capacity:
+    storage: {{ registry_size }}
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: {{ registry_storage_dir }}

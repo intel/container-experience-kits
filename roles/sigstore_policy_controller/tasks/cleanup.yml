@@ -1,0 +1,65 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- debug:
+    msg: "start to remove sigstore policy controller feature ..."
+  tags:
+    - sigstore
+
+- name: uninstall sigstore policy controller feature
+  block:
+    - name: delete sigstore custom resources
+      kubernetes.core.k8s:
+        state: absent
+        wait: true
+        definition:
+          api_version: v1
+          kind: CustomResourceDefinition
+          metadata:
+            name: "{{ item }}"
+      loop:
+        - clusterimagepolicies.policy.sigstore.dev
+        - trustroots.policy.sigstore.dev
+
+    - name: helm uninstall previous setup
+      kubernetes.core.helm:
+        name: "policy-controller"
+        state: absent
+        namespace: "{{ cosign_namespace }}"
+        wait: true
+        timeout: 4m0s
+
+    - name: clear example enforce namespace
+      kubernetes.core.k8s:
+        name: "{{ cosign_enforce_namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: absent
+        wait: true
+        wait_timeout: 240
+
+    - name: clear cosign-system namespace
+      kubernetes.core.k8s:
+        name: "{{ cosign_namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: absent
+        wait: true
+        wait_timeout: 240
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+  tags:
+    - sigstore

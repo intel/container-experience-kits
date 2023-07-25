@@ -1,0 +1,52 @@
+---
+disable: rke2-ingress-nginx
+profile: cis-1.23
+protect-kernel-defaults: true
+audit-policy-file: {{ rke2_audit_policy_file }}
+
+kube-apiserver-arg:
+- "enable-admission-plugins=NodeRestriction,EventRateLimit"
+- "admission-control-config-file={{ rke2_admission_config_file }}"
+
+{% if kube_controller_manager_bind_address %}
+kube-controller-manager-arg:
+- "bind-address={{ kube_controller_manager_bind_address }}"
+{% endif %}
+
+{% if kube_proxy_metrics_bind_address or kube_proxy_nodeport_addresses_cidr %}
+kube-proxy-arg:
+{% if kube_proxy_metrics_bind_address %}
+- "metrics-bind-address={{ kube_proxy_metrics_bind_address }}"
+{% endif %}
+{% if kube_proxy_nodeport_addresses_cidr %}
+- "nodeport-addresses={{ kube_proxy_nodeport_addresses_cidr }}"
+{% endif %}
+{% endif %}
+
+{% if kube_pods_subnet %}
+cluster-cidr: {{ kube_pods_subnet }}
+{% endif %}
+
+{% if kube_service_addresses %}
+service-cidr: {{ kube_service_addresses }}
+{% endif %}
+
+{% if kube_network_plugin %}
+{% if kube_network_plugin_multus == true %}
+cni: multus,{{ kube_network_plugin }}
+{% else %}
+cni: {{ kube_network_plugin }}
+{% endif %}
+{% endif %}
+
+{% if native_cpu_manager_enabled == true or topology_manager_enabled == true %}
+kubelet-arg:
+{% if native_cpu_manager_enabled == true %}
+- "cpu-manager-policy=static"
+- "kube-reserved=cpu={{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
+- "system-reserved=cpu={{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
+{% endif %}
+{% if topology_manager_enabled == true %}
+- "topology-manager-policy={{ topology_manager_policy }}"
+{% endif %}
+{% endif %}

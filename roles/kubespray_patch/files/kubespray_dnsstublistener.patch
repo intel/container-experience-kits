@@ -1,0 +1,13 @@
+diff --git a/roles/kubernetes/preinstall/templates/resolved.conf.j2 b/roles/kubernetes/preinstall/templates/resolved.conf.j2
+index 901fd2473..50f3886e0 100644
+--- a/roles/kubernetes/preinstall/templates/resolved.conf.j2
++++ b/roles/kubernetes/preinstall/templates/resolved.conf.j2
+@@ -14,7 +14,7 @@ Domains={{ searchdomains|default([]) | join(' ') }}
+ #MulticastDNS=no
+ DNSSEC=no
+ Cache=no-negative
+-{% if ansible_os_family in ["Flatcar", "Flatcar Container Linux by Kinvolk"] %}
++{% if ansible_os_family in ["Debian", "RedHat", "Flatcar", "Flatcar Container Linux by Kinvolk"] %}
+ DNSStubListener=no
+ {% else %}
+ #DNSStubListener=yes

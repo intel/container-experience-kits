@@ -236,7 +236,6 @@
 
 - include_role:
     name: remove_kubespray_host_dns_settings
-  when: remove_kubespray_host_dns_settings | default(false)
 
 - debug:
     msg: "k8s cluster has been removed ..."

@@ -1,682 +1,288 @@
 ---
-# Kubernetes node configuration
-# Do not change profile_name, configured_nic and configured_arch here !!!
-# To generate vars for different profile/architecture use make command
-# generated for profile and arch:
+###########################
+## Profile Configuration ##
+###########################
+## Do not modify values listed here
+## Re-run the "make" command to change profile configuration
+
 profile_name: {{ name }}
 configured_arch: {{ arch }}
 configured_nic: {{ nic }}
 
-{% if sriov_operator in ['on', 'optional'] or sriov_network_dp in ['on', 'optional'] or qat in ['on', 'optional'] or dsa in ['on', 'optional'] -%}
+########################
+## Host Configuration ##
+########################
+
+{% if sriov_operator in ['on', 'optional'] or sriov_network_dp in ['on', 'optional'] or qat in ['on', 'optional'] or dsa in ['on', 'optional'] or fpga in ['on', 'optional'] %}
 # Enable IOMMU (required for SR-IOV networking and QAT)
-iommu_enabled: {% if (sriov_operator == 'on' or sriov_network_dp == 'on' or qat == 'on' or dsa == 'on' or dlb == 'on') and on_vms != 'on' %}true{% else %}false{% endif %}
+iommu_enabled: {% if (sriov_operator == 'on' or sriov_network_dp == 'on' or qat == 'on' or dsa == 'on' or dlb == 'on' or fpga == 'on') %}true{% else %}false{% endif %}
+
+
 {% endif %}
+{% if hugepages in ['on', 'optional'] %}
+# Enables hugepages support
+hugepages_enabled: {% if hugepages == 'on' %}true{% else %}false{% endif %}
+
+# Hugepage sizes available: 2M, 1G
+default_hugepage_size: {% if vpp == 'on' %}2M{% else %}1G{% endif %}
+
+# Sets how many hugepages should be created
+{% if cloud_mode == 'on' %}
+number_of_hugepages_1G: 2
+number_of_hugepages_2M: 512
+{% else %}
+number_of_hugepages_1G: 4
+number_of_hugepages_2M: 1024
+{% endif %}
+{% endif %}
+
+{% if isolcpu in ["on", "optional"] %}
+# CPU isolation from Linux scheduler
+isolcpus_enabled: {% if isolcpu == 'on' %}true{% else %}false{% endif %}
+
+{% if on_vms == 'on' %}
+isolcpus: "4-15"
+{% else %}
+{% if vm_mode == 'on' %}
+# isolcpus variable can't be enabled in case of VMRA deployment.
+# Its content is generated automatically.
+# isolcpus: "" 
+{% else %}
+isolcpus: "4-11"
+{% endif %}
+{% endif %}
+{% endif %}
+
+{% if cpusets in ["on", "optional"] %}
+# CPU shielding
+cpusets_enabled: {% if cpusets == 'on' %}true{% else %}false{% endif %}
+
+{% if on_vms == 'on' %}
+cpusets: "4-15"
+{% else %}
+cpusets: "4-11"
+{% endif %}
+{% endif %}
+
+{% if dpdk in ['on', 'optional'] %}
+# Install DPDK (required for SR-IOV networking)
+install_dpdk: {% if dpdk == 'on' %}true{% else %}false{% endif %}
+
+# DPDK version (will be in action if install_dpdk: true)
+dpdk_version: {% if intel_flexran == 'on' %}"22.11.1"{% elif arch == "emr" %}"22.11.1"{% else %}"23.03"{% endif %}    # Note: dpdk_version is also dependent on ovs_dpdk when enabled (see preflight)
+# Custom DPDK patches local path
+{% if intel_flexran == 'on' %}dpdk_local_patches_dir: "/tmp/flexran"{% else %}#dpdk_local_patches_dir: "/tmp/patches/dpdk"{% endif %}
+
+# It might be necessary to adjust the patch strip parameter, update as required.
+{% if intel_flexran == 'on' %}dpdk_local_patches_strip: 1{% else %}#dpdk_local_patches_strip: 0{% endif %}
+
+{% endif %}
+
+{% if openssl in ['on', 'optional'] %}
+# Install and configure OpenSSL cryptography
+openssl_install: {% if openssl == 'on' %}true{% else %}false{% endif %}
+
+{% endif %}
+{% if not cloud_mode == 'on' %}
+# Useful if system loses IP after reboot. Note: make sure IP is stable / system gets same IP after reboot else will cause failures.
+# It is needed only in some lab environments. Default setting is false.
+# TODO: JP: This workaround should not be needed any longer. To be removed completely once it pass complete validation cycle
+enable_dhclient_systemd_service: false
+
+{% endif %}
+##################################
+## Network Device Configuration ##
+##################################
+
 # dataplane interface configuration list
 dataplane_interfaces: []
-{%- if on_vms == 'on' %}
-#  - bus_info: "06:00.0"             # pci bus info
-#    pf_driver: iavf              # driver inside VM
+#dataplane_interfaces:
+{% if on_vms == 'on' %}
+#  - bus_info: "06:00.0"            # PCI bus info
+#    pf_driver: iavf                # Driver inside VM
 #    sriov_numvfs: 0
 #    default_vf_driver: "igb_uio"
-#  - bus_info: "07:00.0"             # pci bus info
-#    pf_driver: iavf              # driver inside VM
+#  - bus_info: "07:00.0"
+#    pf_driver: iavf
 #    sriov_numvfs: 0
 #    default_vf_driver: "iavf"
-#  - bus_info: "08:00.0"             # pci bus info
-#    pf_driver: iavf              # driver inside VM
+#  - bus_info: "08:00.0"
+#    pf_driver: iavf
 #    sriov_numvfs: 0
 #    default_vf_driver: "iavf"
-#  - bus_info: "09:00.0"             # pci bus info
-#    pf_driver: iavf              # driver inside VM
+#  - bus_info: "09:00.0"
+#    pf_driver: iavf
 #    sriov_numvfs: 0
 #    default_vf_driver: "igb_uio"
-{%- else %}
-#  - bus_info: "18:00.0"                    # pci bus info
+{% else %}
+#  - bus_info: "18:00.0"                    # PCI bus info
 #    pf_driver: {% if nic == 'cvl' %}ice{% else %}i40e{% endif %}                         # PF driver, "i40e", "ice"
-{%- if ddp in ['on', 'optional'] %}
-#    ddp_profile: {% if nic == 'cvl' %}"ice_comms-1.3.37.0.pkg"{% else %}gtp.pkgo{% endif %}  # DDP package name to be loaded into the NIC
+{% if ddp in ['on', 'optional'] %}
+#    ddp_profile: {% if nic == 'cvl' %}"ice_comms-1.3.40.0.pkg"{% else %}gtp.pkgo{% endif %}  # DDP package name to be loaded into the NIC
                                             # For i40e(XV710-*) allowable ddp values are: "ecpri.pkg", "esp-ah.pkg", "ppp-oe-ol2tpv2.pkgo", "mplsogreudp.pkg" and "gtp.pkgo", replace as required
-                                            # For ice(E810-*) allowable ddp values are: ice_comms-1.3.[17,20,22,24,28,30,31,35].0.pkg  such as "ice_comms-1.3.37.0.pkg", replace as required
+                                            # For ice(E810-*) allowable ddp values are: ice_comms-1.3.[17,20,22,24,28,30,31,35,37,40].0.pkg  such as "ice_comms-1.3.40.0.pkg", replace as required
                                             # ddp_profile must be defined for first port of each network device. bifurcated cards will appear as unique devices.
 {% endif %}
-{%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
-#    flow_configuration: {% if intel_ethernet_operator.flow_config == 'on' and nic == "cvl" %}true{% else %}false{% endif %}              # Flow Configuration # NOTE: this option is for Intel E810 Series NICs and requires Intel Ethernet Operator and Flow Config to be enabled in group vars.
-                                            # with Flow Configuration enabled the first VF (VF0) will be reserved for Flow Configuration and the rest of VFs will be indexed starting from 1.
+{% if intel_ethernet_operator.enabled in ['on', 'optional'] %}
+#    flow_configuration: {% if intel_ethernet_operator.flow_config == 'on' and nic == "cvl" %}true{% else %}false{% endif %}              # This option is for Intel E810 Series NICs and requires Intel Ethernet Operator and Flow Config to be enabled in group vars.
+                                            # With Flow Configuration enabled the first VF (VF0) will be reserved for Flow Configuration and the rest of VFs will be indexed starting from 1.
 {% endif %}
-{%- if intel_flexran in ['on', 'optional'] %}
+{% if intel_flexran in ['on', 'optional'] %}
 #    default_vf_driver: "vfio-pci"          # FlexRAN in POD requires SRIOV VFs with vfio-pci
-#    sriov_numvfs: 4                        # total number of VFs for FlexRAN in POD must be 4
-{%- else %}
-#    default_vf_driver: "iavf"              # default driver to be used with VFs if specific driver is not defined in the "sriov_vfs" section
-#    sriov_numvfs: 8                        # total number of VFs to create including VFs listed in the "sriov_vfs" section.
+#    sriov_numvfs: 4                        # Total number of VFs for FlexRAN in POD must be 4
+{% else %}
+#    default_vf_driver: "iavf"              # Default driver to be used with VFs if specific driver is not defined in the "sriov_vfs" section
+#    sriov_numvfs: 8                        # Total number of VFs to create including VFs listed in the "sriov_vfs" section.
                                             # If total number of VFs listed in the "sriov_vfs" section is greater than "sriov_numvfs" then excessive entities will be ignored.
                                             # VF's name should follow scheme: <arbitrary_vf_name>_<zero_started_index_of_vf>
                                             # If index in the VF's name is greater than "sriov_numfs - 1" such VF will be ignored.
 {% endif %}
-{%- if minio in ['on', 'optional'] %}
+{% if minio in ['on', 'optional'] %}
 #    minio_vf: true
 {% endif %}
-{%- if intel_flexran not in ['on', 'optional'] %}
-#    sriov_vfs:                             # list of VFs to create on this PF with specific driver
+{% if intel_flexran not in ['on', 'optional'] %}
+#    sriov_vfs:                             # List of VFs to create on this PF with specific driver
 #      vf_00: "vfio-pci"                    # VF driver to be attached to this VF under this PF. Options: "iavf", "vfio-pci", "igb_uio"
 #      vf_05: "vfio-pci"
 {% endif %}
 
 #  - bus_info: "18:00.1"
 #    pf_driver: {% if nic == 'cvl' %}ice{% else %}i40e{% endif %}
-{%- if ddp in ['on', 'optional'] %}
-#    ddp_profile: {% if nic == 'cvl' %}"ice_comms-1.3.37.0.pkg"{% else %}gtp.pkgo{% endif %}
-{%- endif %}
-{%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
+
+{% if ddp in ['on', 'optional'] %}
+#    ddp_profile: {% if nic == 'cvl' %}"ice_comms-1.3.40.0.pkg"{% else %}gtp.pkgo{% endif %}
+
+{% endif %}
+{% if intel_ethernet_operator.enabled in ['on', 'optional'] %}
 #    flow_configuration: {% if intel_ethernet_operator.flow_config == 'on' and nic == "cvl" %}true{% else %}false{% endif %}
+
 {% endif %}
 #    default_vf_driver: "vfio-pci"
 #    sriov_numvfs: 4
-{%- if minio in ['on', 'optional'] %}
+{% if minio in ['on', 'optional'] %}
 #    minio_vf: true
 {% endif %}
-{%- if intel_flexran not in ['on', 'optional'] %}
-#    sriov_vfs: {}                   # no VFs with specific driver on this PF or "sriov_vfs" can be omitted for convenience
+{% if intel_flexran not in ['on', 'optional'] %}
+#    sriov_vfs: {}                          # No VFs with specific driver on this PF or "sriov_vfs" can be omitted for convenience
 {% endif %}
 {% endif %}
-{%- if nic_drivers in ['on', 'optional'] %}
-# Set to 'true' to update i40e, ice and iavf kernel modules
-update_nic_drivers: {% if nic_drivers == 'on' %}true{% else %}false{% endif %}
-#i40e_driver_version: "2.22.8" # Downgrading i40e drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
-#i40e_driver_checksum: "sha1:9ae9a51b8d16f5d6ea9a817de5d3f37eb96101a1" # update checksum per required i40e drivers version
-#ice_driver_version: "1.10.1.2.2"    # Downgrading ice drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
-#ice_driver_checksum: "sha1:a71d0497307b462059b5819cf8686b2f9361a930"  # update checksum per required ice drivers version
-#iavf_driver_version: "4.6.1" # Downgrading iavf drivers is not recommended due to the possible consequences. Users should update and proceed at their own risk.
-#iavf_driver_checksum: "sha1:7102e6fcb6271f6cb14bcd9e64eccc58fcafd788" # update checksum per required iavf drivers version
-{% endif %}
-# Set 'true' to upgrade / downgrade NIC firmware. FW upgrade / downgrade will be executed on all NICs listed in "dataplane_interfaces[*].bus_info".
-update_nic_firmware: false # Note: downgrading FW is not recommended, users should proceed at their own risk.
-{%- if nic == 'fvl' %}
-#nvmupdate: []  # remove '[]' in case of downgrading FW such as 'nvmupdate:'
-#  i40e: []     # remove '[]' in case of downgrading FW to get required version of NVM 'i40e' 700 Series such as 'i40e:'
-#     nvmupdate_pkg_url: "https://downloadmirror.intel.com/769287/700Series_NVMUpdatePackage_v9_20_Linux.tar.gz"
-#     nvmupdate_pkg_checksum: "sha1:87F0BDA58BAAEE0ADF1FADBBCC485AF0A2F0777F"
-#     required_fw_version: "9.20"
-#      # min fw version for ddp was taken from:
-#      # https://www.intel.com/content/www/us/en/developer/articles/technical/dynamic-device-personalization-for-intel-ethernet-700-series.html
-#     min_ddp_loadable_fw_version: "6.01"
-#     min_updatable_fw_version: "5.02"
-#      # when downgrading only, the recommended below version is required to download the supported NVMupdate64E tool. Users should replace the tool at their own risk.
-#     supported_nvmupdate_tool_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
-#     supported_nvmupdate_tool_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
-#     supported_nvmupdate_tool_fw_version: "4.0"
-{%- endif %}
-{%- if nic == 'cvl' %}
-#nvmupdate: []  # remove '[]' in case of downgrading FW such as 'nvmupdate:'
-#  ice: []      # remove '[]' in case of downgrading FW to get required version of NVM 'ICE' 800 Series such as 'ice:'
-#     nvmupdate_pkg_url: "https://downloadmirror.intel.com/769278/E810_NVMUpdatePackage_v4_20_Linux.tar.gz"
-#     nvmupdate_pkg_checksum: "sha1:36CE159E53E6060F2AC4E3419DB8A21E3D982A85"
-#     required_fw_version: "4.20"
-#      # https://builders.intel.com/docs/networkbuilders/intel-ethernet-controller-800-series-device-personalization-ddp-for-telecommunications-workloads-technology-guide.pdf
-#      # document above does not specify any min fw version needed for ddp feature. So, min_ddp_loadable_fw is the same as min_updatable_fw
-#     min_ddp_loadable_fw_version: "0.70"
-#     min_updatable_fw_version: "0.70"
-       # when downgrading only, the recommended below version is required to download the supported NVMupdate64E tool. Users should replace the tool at their own risk.
-#     supported_nvmupdate_tool_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
-#     supported_nvmupdate_tool_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
-#     supported_nvmupdate_tool_fw_version: "4.0"  
-{%- endif %}
-{%- if cloud_mode == 'on' %}
 
+{% if nic_drivers in ['on', 'optional'] %}
+# Set 'true' to update / downgrade i40e, ice and iavf kernel modules
+update_nic_drivers: {% if nic_drivers == 'on' %}true{% else %}false{% endif %}
+
+# The below options can be used to downgrade drivers. This is not recommended and users should proceed at their own risk.
+#i40e_driver_version: "2.22.18"
+#i40e_driver_checksum: "sha1:0c94bd91014a0d81bd6b99fb41d0e4f1c12b09ff"
+#ice_driver_version: "1.11.14"
+#ice_driver_checksum: "sha1:730cd04fcfd0ba1b33ba21aaf671d0e1654c999a"
+#iavf_driver_version: "4.8.2"
+#iavf_driver_checksum: "sha1:fcc997aebeee3744e621e0fd3290205bd18f6a45"
+
+{% endif %}
+# Set 'true' to upgrade / downgrade NIC firmware. This will be executed on all NICs listed in "dataplane_interfaces[*].bus_info".
+# Downgrading firmware is not recommended and users should proceed at their own risk.
+update_nic_firmware: false
+{% if nic == 'fvl' %}
+#nvmupdate:
+#  i40e:
+#    nvmupdate_pkg_url: "https://downloadmirror.intel.com/769287/700Series_NVMUpdatePackage_v9_20_Linux.tar.gz"
+#    nvmupdate_pkg_checksum: "sha1:87F0BDA58BAAEE0ADF1FADBBCC485AF0A2F0777F"
+#    required_fw_version: "9.20"
+#    # min fw version for ddp was taken from:
+#    # https://www.intel.com/content/www/us/en/developer/articles/technical/dynamic-device-personalization-for-intel-ethernet-700-series.html
+#    min_ddp_loadable_fw_version: "6.01"
+#    min_updatable_fw_version: "5.02"
+#    # when downgrading only, the recommended below version is required to download the supported NVMupdate64E tool. Users should replace the tool at their own risk.
+#    supported_nvmupdate_tool_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
+#    supported_nvmupdate_tool_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
+#    supported_nvmupdate_tool_fw_version: "4.0"
+
+{% endif %}
+{% if nic == 'cvl' %}
+#nvmupdate:
+#  ice:
+#    nvmupdate_pkg_url: "https://downloadmirror.intel.com/769278/E810_NVMUpdatePackage_v4_20_Linux.tar.gz"
+#    nvmupdate_pkg_checksum: "sha1:36CE159E53E6060F2AC4E3419DB8A21E3D982A85"
+#    required_fw_version: "4.20"
+#    # https://builders.intel.com/docs/networkbuilders/intel-ethernet-controller-800-series-device-personalization-ddp-for-telecommunications-workloads-technology-guide.pdf
+#    # document above does not specify any min fw version needed for ddp feature. So, min_ddp_loadable_fw is the same as min_updatable_fw
+#    min_ddp_loadable_fw_version: "0.70"
+#    min_updatable_fw_version: "0.70"
+#    # when downgrading only, the recommended below version is required to download the supported NVMupdate64E tool. Users should replace the tool at their own risk.
+#    supported_nvmupdate_tool_pkg_url: "https://downloadmirror.intel.com/738715/E810_NVMUpdatePackage_v4_00_Linux.tar.gz"
+#    supported_nvmupdate_tool_pkg_checksum: "sha1:7C168880082653B579FDF225A2E6E9301C154DD1"
+#    supported_nvmupdate_tool_fw_version: "4.0"
+
+{% endif %}
+{% if cloud_mode == 'on' %}
 # install Intel x700 & x800 series NICs DDP packages
 # For Cloud RA, the install_ddp_packages option must be false
 install_ddp_packages: false
-{%- endif %}
+{% endif %}
 {% if ddp in ['on', 'optional'] %}
 # install Intel x700 & x800 series NICs DDP packages
 install_ddp_packages: {% if ddp == 'on' and nic == 'fvl'%}true{% else %}false{% endif %}
+
 # If following error appears: "Flashing failed: Operation not permitted"
 # run deployment with update_nic_firmware: true
-# or
-# Disable ddp installation via install_ddp_packages: false
+# or Disable DDP installation via install_ddp_packages: false
 
-# set 'true' to enable custom ddp package to be loaded after reboot
-enable_ice_systemd_service: {% if ddp == "on" %}true{% else %}false{% endif %}
+enable_ice_systemd_service: {% if ddp == "on" %}true{% else %}false{% endif %}  # Enable custom ddp package to be loaded after reboot
+
 {% endif %}
+#######################
+## CNI Configuration ##
+#######################
 
-{%- if sriov_network_dp in ['on', 'optional'] %}
+{% if sriov_network_dp in ['on', 'optional'] %}
 sriov_cni_enabled: {% if sriov_network_dp == 'on' %}true{% else %}false{% endif %}
+
+
 {% endif %}
-
-{%- if sriov_operator in ['on', 'optional'] %}
-# Custom SriovNetworkNodePolicy manifests local path
-# custom_sriov_network_policies_dir: /tmp/sriov
-{%- endif %}
-
-{%- if bond_cni in ['on', 'optional'] %}
+{% if bond_cni in ['on', 'optional'] %}
 # Bond CNI
 bond_cni_enabled: {% if bond_cni == 'on' %}true{% else %}false{% endif %}
-{% endif %}
 
-{%- if dpdk in ['on', 'optional'] %}
-# Install DPDK (required for SR-IOV networking)
-install_dpdk: {% if dpdk == 'on' %}true{% else %}false{% endif %}
-# DPDK version (will be in action if install_dpdk: true)
-dpdk_version: {% if intel_flexran == 'on' %}"21.11"{% elif ovs_dpdk == 'on' %}"22.07"{% else %}"22.11.1"{% endif %} # ovs_version: "v3.0.3" does NOT support dpdk_version: "22.11.1"
-# Custom DPDK patches local path
-{% if intel_flexran == 'on' %}dpdk_local_patches_dir: "/tmp/flexran"{% else %}#dpdk_local_patches_dir: "/tmp/patches/dpdk"{% endif %}
-# It might be necessary to adjust the patch strip parameter, update as required.
-{% if intel_flexran == 'on' %}dpdk_local_patches_strip: 1{% else %}#dpdk_local_patches_strip: 0{% endif %}
-{%- endif %}
+
+{% endif %}
 {% if network_userspace in ['on', 'optional'] %}
-# Userspace networking
+# Userspace CNI
 userspace_cni_enabled: {% if network_userspace == 'on' %}true{% else %}false{% endif %}
-ovs_dpdk_enabled: {% if ovs_dpdk == 'on' %}true{% else %}false{% endif %} # Should be enabled with Userspace CNI, when VPP is set to "false"; 1G hugepages required
-ovs_version: "v3.0.3" # this version has to be compatible/functional with the DPDK version set by 'dpdk_version'
+
+
+ovs_dpdk_enabled: {% if ovs_dpdk == 'on' %}true{% else %}false{% endif %}          # Should be enabled with Userspace CNI, when VPP is set to "false"; 1G hugepages required
+ovs_version: "v3.1.1"           # OVS version has to be compatible/functional with the DPDK version set by 'dpdk_version'
 # CPU mask for OVS-DPDK PMD threads
 ovs_dpdk_lcore_mask: 0x1
-# Huge memory pages allocated by OVS-DPDK per NUMA node in megabytes
-# example 1: "256,512" will allocate 256MB from node 0 and 512MB from node 1
-# example 2: "1024" will allocate 1GB from node 0 on a single socket board, e.g. in a VM
-ovs_dpdk_socket_mem: "256,0"
-vpp_enabled: {% if vpp == 'on'%}true{% else %}false{% endif %} # Should be enabled with Userspace CNI, when ovs_dpdk is set to "false"; 2M hugepages required
+# Hugepages allocated by OVS-DPDK per NUMA node in megabytes
+ovs_dpdk_socket_mem: "256,0"    # Example 1: "256,512" allocates 256MB from node 0 and 512MB from node 1
+                                # Example 2: "1024" allocates 1GB from node 0 on a single socket board, e.g. in a VM
+
+vpp_enabled: {% if vpp == 'on'%}true{% else %}false{% endif %}  # Should be enabled with Userspace CNI, when ovs_dpdk is set to "false"; 2M hugepages required
+
 {% endif %}
+##################
+## CPU Features ##
+##################
 
-{%- if hugepages in ['on', 'optional'] %}
-# Enables hugepages support
-hugepages_enabled: {% if hugepages == 'on' %}true{% else %}false{% endif %}
-# Hugepage sizes available: 2M, 1G
-default_hugepage_size: {% if vpp == 'on' %}2M{% else %}1G{% endif %}
-# Sets how many hugepages should be created
-{%- if cloud_mode == 'on' %}
-number_of_hugepages_1G: 2
-number_of_hugepages_2M: 512
-{%- else %}
-number_of_hugepages_1G: 4
-number_of_hugepages_2M: 1024
-{%- endif %}
-{% endif %}
-{%- if dlb in ['on', 'optional'] and arch in ['spr'] %} 
-# Configure SIOV and Intel DLB devices - required for Intel DLB Device Plugin support
-configure_dlb_devices: {% if dlb == "on" %}true{% else %}false{% endif %}
-{% endif %}
-
-{%- if dsa in ['on', 'optional'] and arch in ['spr'] %}
-# Configure SIOV and Intel DSA devices - required for Intel DSA Device Plugin support
-configure_dsa_devices: {% if dsa == "on" %}true{% else %}false{% endif %}
-
-# Example DSA devices configuration list. If left empty and configure_dsa_devices is set to true then default configuration will be applied.
-# It is possible to configure more DSA devices by extending dsa_devices list based on example config.
-dsa_devices: []
-  # - name: dsa0  # name of DSA device from /sys/bus/dsa/devices/
-  #   groups: 1  # number of groups to configure. The maximum number of groups per device can be found on /sys/bus/dsa/devices/dsaX/max_groups
-  #   engines: 1  # number of engines to configure - one engine per group will be configured.
-  #               # The maximum number of engines can be found on /sys/bus/dsa/devices/dsa0/max_engines
-  #   wqs:  # work queues will be named as wq<dsa_id>.<wq_id>, for example wq0.0 - WQ with id 0 owned by dsa0 device
-  #     - id: 0  # work queue id
-  #       mode: "dedicated"  # [shared, dedicated]
-  #       type: "user"  # [kernel, user]
-  #       size: 8  # sum of all configured WQs size must be less than /sys/bus/dsa/devices/dsa0/max_workqueue_size
-  #       prio: 4  # must be set between 1 and 15
-  #       group_id: 0  # work queue will be assigned to specific group
-  #       max_batch_size: 1024  # specify the max batch size used by a work queue - powers of 2 are accetable
-  #       max_transfer_size: 2147483648  # specify the max transfer size used by a work queue - powers of 2 are accetable
-  #       block_on_fault: 0  # [0, 1] If block on fault is disabled,
-  #                          # if a page fault occurs on a source or destination memory access, the operation stops and the page fault is reported to the software
-  #     - id: 1
-  #       mode: "shared"
-  #       type: "user"
-  #       size: 8
-  #       prio: 5
-  #       threshold: 7  # only for Shared WQ, must be at least one less than size of WQ
-  #       group_id: 0
-  #       max_batch_size: 1024
-  #       max_transfer_size: 2147483648
-  #       block_on_fault: 0
-{% endif %}
-
-{%- if intel_ethernet_operator.enabled in ['on', 'optional'] %}
-# Intel Ethernet Operator for Intel E810 Series network interface cards
-intel_ethernet_operator:
-{%- if intel_ethernet_operator.ddp in ['on', 'optional'] %}
-  ddp_update: {% if intel_ethernet_operator.ddp == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                   # perform DDP update on PFs listed in dataplane_interfaces using selected DDP profile
-{%- endif %}
-  fw_update: {% if intel_ethernet_operator.fw_update == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                     # perform firmware update on PFs listed in dataplane_interfaces
-  # ClusterFlowConfig does not require additional configuration and can be used in conjunction with NodeFlowConfig
-  node_flow_config_enabled: false    # enable NodeFlowConfig
-  # NodeFlowConfig/ClusterFlowConfig manifests local path
-  # For more information refer to:
-  # https://github.com/intel/intel-ethernet-operator/blob/main/docs/flowconfig-daemon/creating-rules.md
-  # flow_config_dir: /tmp/flow_config
-{% endif %}
-
-{%- if intel_sriov_fec_operator in ['on', 'optional'] %}
-# Wireless FEC H/W Accelerator Device (e.g. ACC100) PCI ID
-fec_acc: "0000:6f:00.0" # must be string in [a-fA-F0-9]{4}:[a-fA-F0-9]{2}:[01][a-fA-F0-9].[0-7] format
-{% endif %}
-
-{%- if qat in ['on', 'optional'] %}
-# Enabling this feature will install QAT drivers + services
-update_qat_drivers: {% if qat == "on" %}true{% else %}false{% endif %}
-# Optional: uncomment and update qat_drivers_dir location as required. It will be used to store QAT drivers, QATLibs etc...
-# Default location is derived from "project_root_dir" variable, defined in group_vars. Default location is "<project_root_dir>/qat_drivers"
-#qat_drivers_dir: "/opt/intel/QAT/build"
-# There are two services on the system which can be used to start qat devices. They can't run in parallel. One of them needs to be enabled and the second one disabled.
-enabled_qat_service: "qat"
-disabled_qat_service: "qat_service"
-
-{%- if arch in ['spr'] %}
-# This package provides user space libraries that allow access to Intel(R) QuickAssist devices and expose the Intel(R) QuickAssist APIs and sample codes.
-enable_intel_qatlibs: {% if qat == "on" %}true{% else %}false{% endif %} # Make sure "openssl_install" is set to "true" else this feature will be skipped in deployment.
-enable_qat_svm: {% if qat == "on" %}true{% else %}false{% endif %} # Enable QAT Shared Virtual Memory (SVM).
-{% endif %}
-# qat parameters used by auto detection of qat devices
-qat_sriov_numvfs_required: 8
-qat_vf_driver_required: {% if arch == "spr" %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
-
-# qat interface configuration list
-qat_devices: []
-{%- if on_vms == 'on' %}
-#  - qat_id: "0000:0a:00.0"
-#    qat_sriov_numvfs: 0              # Have to be set to 0 here to not create any VFs inside VM.
-
-#  - qat_id: "0000:0b:00.0"
-#    qat_sriov_numvfs: 0              # Have to be set to 0 here to not create any VFs inside VM.
-{%- else %}
-#  - qat_id: "0000:ab:00.0"            # QAT device id one using DPDK compatible driver for VF devices to be used by vfio-pci kernel driver, replace as required
-#    qat_sriov_numvfs: 12              # Number of VFs per PF to create - cannot exceed the maximum number of VFs available for the device. Set to 0 to not create any VFs.
-#                                      # Note: Currently when trying to create fewer virtual functions than the maximum, the maximum number always gets created.
-#    qat_default_vf_driver: {% if arch == "spr" %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
-#    qat_vfs:                          # VFs drivers settings will be overridden by QAT device plugin.
-#      vf_00: "vfio-pci"
-#      vf_05: "vfio-pci"
-
-#  - qat_id: "0000:xy:00.0"
-#    qat_sriov_numvfs: 10
-#    qat_default_vf_driver: {% if arch == "spr" %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
-#    qat_vfs: {}
-
-#  - qat_id: "0000:yz:00.0"
-#    qat_sriov_numvfs: 10
-#    qat_default_vf_driver: {% if arch == "spr" %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
-#    qat_vfs: {}
-{%- endif %}
-{% endif %}
-
-{%- if openssl in ['on', 'optional'] %}
-# Install and configure OpenSSL cryptography
-openssl_install: {% if openssl == 'on' %}true{% else %}false{% endif %}
-{% endif -%}
-{%- if isolcpu in ["on", "optional"] %}
-# CPU isolation from Linux scheduler
-isolcpus_enabled: {% if isolcpu == 'on' %}true{% else %}false{% endif %}
-{%- if on_vms == 'on' %}
-isolcpus: "4-15"
-{%- else -%}
-{% if vm_mode == 'on' %}
-# isolcpus variable can't be enabled in case of VMRA deployment.
-# Its content is generated automatically.
-# isolcpus: "" 
-{%- else %}
-isolcpus: "4-11"
-{% endif %}
-{%- endif %}
-{%- endif %}
-{%- if cpusets in ["on", "optional"] %}
-# CPU shielding
-cpusets_enabled: {% if cpusets == 'on' %}true{% else %}false{% endif %}
-{%- if on_vms == 'on' %}
-cpusets: "4-15"
-{%- else %}
-cpusets: "4-11"
-{%- endif %}
-{% endif %}
-
-
-{%- if native_cpu_manager in ["on", "optional"] %}
+{% if native_cpu_manager in ["on", "optional"] %}
 # Native CPU Manager (Kubernetes built-in)
 # These settings are relevant only if in group_vars native_cpu_manager_enabled: true
-# Amount of CPU cores that will be reserved for the housekeeping (2000m = 2000 millicores = 2 cores)
-native_cpu_manager_system_reserved_cpus: 2000m
-# Amount of CPU cores that will be reserved for Kubelet
-native_cpu_manager_kube_reserved_cpus: 1000m
-# Explicit list of the CPUs reserved for the host level system threads and Kubernetes related threads
-#native_cpu_manager_reserved_cpus: "0,1,2"
-# Note: All remaining unreserved CPU cores will be consumed by the workloads.
+native_cpu_manager_system_reserved_cpus: 2000m    # Amount of CPU cores reserved for the housekeeping (2000m = 2000 millicores = 2 cores)
+native_cpu_manager_kube_reserved_cpus: 1000m      # Amount of CPU cores reserved for Kubelet
+#native_cpu_manager_reserved_cpus: "0,1,2"        # Explicit list of the CPUs reserved for the host level system threads and Kubernetes related threads
+                                                  # Note: All remaining unreserved CPU cores will be consumed by the workloads.
+
 {% endif %}
-{%- if (pstate in ['on', 'optional'] or sst in ['on', 'optional']) and arch in ['clx', 'icx', 'spr'] %}
-# Enable/Disable Intel PState scaling driver
-intel_pstate_enabled: {% if pstate == "on" or sst == "on" %}true{% else %}false{% endif %}
-# Config options for intel_pstate: disable, passive, force, no_hwp, hwp_only, support_acpi_ppc, per_cpu_perf_limits
-intel_pstate: {% if pstate == "on" or sst == "on" %}hwp_only{% else %}disable{% endif %}
-# Enable/Disable Intel Turbo Boost PState attribute
-turbo_boost_enabled: {% if on_vms != 'on' %}true{% else %}false{% endif %}
-{% endif -%}
-
-{% if cstate in ['on', 'optional'] %}
-cstate_enabled: {% if cstate == "on" %}true{% else %}false{% endif %}
-cstates:
-{%- if name == 'access' %}
-  C6: # default values: C6 for access, C1 for other profiles
-    cpu_range: '0-9' # change as needed, cpus to modify cstates on
-    enable: true # true - enable given cstate, false - disable given cstate
-{%- else %}
-  C1: # default values: C6 for access, C1 for other profiles
-    cpu_range: '0-9' # change as needed, cpus to modify cstates on
-    enable: true # true - enable given cstate, false - disable given cstate
-{% endif -%}
-{% endif -%}
-
-{% if ufs in ['on', 'optional'] %}
-ufs_enabled: {% if ufs == "on" %}true{% else %}false{% endif %}
-ufs: # uncore frequency scaling
-  min: 1000 # minimal uncore frequency
-  max: 2000 # maximal uncore frequency
-{% endif -%}
-
-{% if sst in ['on', 'optional'] %}
-{%- if arch in ['icx', 'spr'] %}
-# Intel(R) SST-PP (perf-profile) configuration
-# [true] Enable Intel(R) SST-PP (perf-profile)
-# [false] Disable Intel(R) SST-PP (perf-profile)
-sst_pp_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
-sst_pp_config_list:             # "enable" or "disable" list options per SST-PP setup requirements
-    - sst_bf: "enable"          # "enable" or "disable" Intel(R) SST-BF (base-freq) to configure with SST-PP
-    - sst_cp: "enable"          # "enable" or "disable" Intel(R) SST-CP (core-power) to configure with SST-PP.
-    - sst_tf: "enable"          # "enable" or "disable" Intel(R) SST-TF (turbo-freq) to configure with SST-PP.
-      online_cpus_range: "auto" # "auto" will config turbo-freq for all available online CPUs or else define specific CPUs such as "2,3,5" to prioritize among others.
-{% endif %}
-# Intel Speed Select Base-Frequency configuration.
-{%- if arch == 'clx' %}
-sst_bf_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
-# Intel Speed Select Base-Frequency configuration for Cascade Lake (CLX) Platforms.
-# CLX support of SST-BF requires 'intel_pstate' to be 'enabled'
-# Option clx_sst_bf_mode requires sst_bf_configuration_enabled to be set to 'true'.
-# There are three configuration modes:
-# [s] Set SST-BF config (set min/max to 2700/2700 and 2100/2100)
-# [m] Set P1 on all cores (set min/max to 2300/2300)
-# [r] Revert cores to min/Turbo (set min/max to 800/3900)
-clx_sst_bf_mode: s
-{%- endif %}
-{%- if arch == 'icx' %}
-# Intel Speed Select Base-Frequency configuration for Ice Lake (ICX) Platforms.
-# [true] Enable Intel Speed Select Base Frequency (SST-BF)
-# [false] Disable Intel Speed Select Base Frequency (SST-BF)
-# Requires `sst_bf_configuration_enabled` variable to be 'true'
-icx_sst_bf_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
-# Prioritze (SST-CP) power flow to high frequency cores in case of CPU power constraints.
-icx_sst_bf_with_core_priority: {% if sst == "on" %}true{% else %}false{% endif %}
-
-# SST CP config
-# Variables are only examples.
-# For more information, please visit:
-# https://www.kernel.org/doc/html/latest/admin-guide/pm/intel-speed-select.html#enable-clos-based-prioritization
-# Enabling this configuration overrides `icx_sst_bf_with_core_priority`.
-sst_cp_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
-sst_cp_priority_type: "1" # For Proportional select "0" and for Ordered select "1", update as required
-sst_cp_clos_groups: # configure up to 4 CLOS groups
-  - id: 0
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-  - id: 1
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-  - id: 2
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-  - id: 3
-    frequency_weight: 0 # used only with Proportional type
-    min_MHz: 0
-    max_MHz: 25500
-sst_cp_cpu_clos: # assign required values to CLOS group after priority type setup
-  - clos: 0      # associating CPUs with a CLOS group such as "clos: 3", update as required.
-    cpus: 2,3,5  # define specific CPUs per CLOS group such as "cpus: 2,6,9", update as required.  
-  - clos: 1
-    cpus: 12     
-
-# Intel(R) SST-TF (feature turbo-freq) configuration for Ice Lake (ICX) Platforms.
-# [true] Enable Intel Speed Select Turbo Frequency (SST-TF)
-# [false] Disable Intel Speed Select Turbo Frequency (SST-TF)
-sst_tf_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
-{%- endif %}
-{% endif %}
-
-{%- if sgx in ['on', 'optional'] and arch in ['icx', 'spr'] %}
-# Intel Software Guard Extensions (SGX)
-configure_sgx: {% if sgx == 'on' %}true{% else %}false{% endif %}
-{% endif %}
-
-{%- if gpu in ['on', 'optional'] %}
-# Intel custom GPU kernel - this is required to be true in order to
-# deploy Intel GPU Device Plugin on that node
-configure_gpu: {% if gpu == 'on' %}true{% else %}false{% endif %}
-{% endif %}
-
-{%- if telemetry.collectd in ['on', 'optional'] %}
-# Telemetry configuration
-# intel_pmu plugin collects information provided by Linux perf interface.
-enable_intel_pmu_plugin: false
-
-{%- if on_vms == 'on' %}
-
-# Temporary Fix for collectd startup issue on VMs
-enable_pkgpower_plugin: false
-{%- endif %}
-
-# CPU Threads to be monitored by Intel PMU Plugin.
-# If the field is empty, all available cores will be monitored.
-# Please refer to https://collectd.org/wiki/index.php/Plugin:Intel_PMU for configuration details.
-intel_pmu_plugin_monitored_cores: ""
-
-# CPU Threads to be monitored by Intel RDT Plugin.
-# If the field is empty, all available cores will be monitored.
-# Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
-intel_rdt_plugin_monitored_cores: ""
-
-# Additional list of plugins that will be excluded from collectd deployment.
-exclude_collectd_plugins: []
-{% endif %}
-
-{%- if cndp in ['on', 'optional'] %}
-# Intel Cloud Native Data Plane.
-cndp_enabled: {% if cndp == 'on' %}true{% else %}false{% endif %}
-{%- if cndp_dp in ['on', 'optional'] %}
-cndp_dp_pools:
-  - name: "e2e"
-    drivers: {% raw %}"{{ dataplane_interfaces | map(attribute='pf_driver') | list | unique }}"{% endraw %}   # List of NIC driver to be included in CNDP device plugin ConfigMap.
-{% endif %}
-{%- endif %}
-{%- if adq_dp in ['on', 'optional'] %}
-# Note: ADQ is experimental feature and enabling it may lead to unexpected results.
-# ADQ requires back-to-back connection between control plane and worker node on CVL interfaces.
-# Name of CVL interfaces must be the same on both nodes, IP address must be present.
-# In inventory.ini set "ip=" to IP address of CVL interface
-# Additional requirements and details can be found in docs/adq.md
-adq_dp:
-  enabled: false
-  # IP address of CVL interface located on the worker node
-  interface_address: "192.168.0.11"
-{% endif %}
-
-{%- if vm_mode in ['on'] and on_vms != 'on' %}
-# The only common VM image for all VMs inside deployment is supported at the moment
-#
-{%- if secondary_host == 'true' %}
-# Do not set VM image info here - do it just on the first vm_host
-# Secondary vm_host - do not change dhcp settings here
-dhcp: []
-{% else %}
-# Default VM image version is Ubuntu 22.04
-# Supported VM image distributions ['ubuntu', 'rocky']. Default is 'ubuntu'.
-#vm_image_distribution: "rocky"
-# Supported VM image ubuntu versions ['22.04']. Default version is '22.04'.
-#vm_image_version_ubuntu: "22.04"
-# Supported VM image rocky versions ['8.5', '9.0']. Default version is '8.5'.
-#vm_image_version_rocky: "9.0"
-# dhcp for vxlan have to be enabled just on the first vm_host
-dhcp:
-  - 120
-vxlan_gw_ip: "172.31.0.1/24"
-{% endif -%}
-# Set hashed password for root user inside VMs. Current value is just placeholder.
-# To create hashed password use e.g.: openssl passwd -6 -salt SaltSalt <your_password>
-vm_hashed_passwd: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-# Set hashed password for non root user inside VMs. Current value is just placeholder.
-# If value is not specified then vm_hashed_passwd value will be used for non root user as well
-#vm_hashed_passwd_non_root: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-# Set physical network subnet, which will be used to create VXLANs for VMs communication
-# This parameter is mandatory for VM multinode configuration
-vxlan_physical_network: "11.0.0.0/8"
-#cpu_host_os will change number of CPUs reserved for host OS. Default value is 16
-#cpu_host_os: 8
-# VM cluster name is used to group all VMs from single deployment together
-#vm_cluster_name: "cluster1.local"
-vms:
-{%- if secondary_host == 'true' %}
-#  - type: "ctrl"
-#    name: "vm-ctrl-1"
-#    cpu_total: 8
-#    memory: 20480
-#    vxlan: 120
-{% else %}
-  - type: "ctrl"
-    name: "vm-ctrl-1"
-    # Parameter cpus and numa can be uncommented and specified manually, but by default
-    # are CPUs and NUMA node allocated automatically.
-    # cpus: "8-11,64-67"
-    # numa: 0
-    # Parameter emu_cpus is DEPRECATED, uncommenting line below would not have
-    # any impact, as emulators CPUs are picked-up automatically.
-    # emu_cpus: "8,64"
-    # if you set cpu_total: to 0 then rest of unallocated CPUs from selected numa will be used
-    cpu_total: 8
-    # if 'alloc_all: true' is used then 'cpu_total' have to be set to '0'
-    # It will take all unallocated CPUs from all NUMA nodes on the vm_host.
-    # alloc_all: true
-    memory: 20480
-    vxlan: 120
-{% endif -%}
-#  - type: "ctrl"
-#    name: "vm-ctrl-2"
-#    cpu_total: 8
-#    memory: 20480
-#    vxlan: 120
-#  - type: "ctrl"
-#    name: "vm-ctrl-3"
-#    cpu_total: 8
-#    memory: 20480
-#    vxlan: 120
-{%- if secondary_host == 'true' %}
-#  - type: "work"
-#    name: "vm-work-1"
-#    cpu_total: 16
-#    memory: 61440
-#    vxlan: 120
-{%- if name not in ['build_your_own'] %}
-#    pci:
-#      - "18:02.2"
-#      - "18:02.3"
-#      - "18:02.4"
-#      - "18:02.5"
-{%- if qat == "on" %}
-##      - "3d:01.1"
-##      - "3f:01.1"
-{%- endif %}
-{%- else %}
-#    pci: []
-{%- endif %}
-{% else %}
-  - type: "work"
-    name: "vm-work-1"
-    # Parameter cpus and numa can be uncommented and specified manually, but by default
-    # are CPUs and NUMA node allocated automatically.
-    # cpus: "28-35,84-91"
-    # numa: 1
-    # Parameter emu_cpus is DEPRECATED, uncommenting line below would not have
-    # any impact, as emulators CPUs are picked-up automatically.
-    # emu_cpus: "28,84"
-    # if you set cpu_total: to 0 then rest of unallocated CPUs from selected numa will be used
-    cpu_total: 16
-    # if 'alloc_all: true' is used then 'cpu_total' have to be set to '0'
-    # It will take all unallocated CPUs from all NUMA nodes on the vm_host.
-    # alloc_all: true
-    memory: 61440
-    vxlan: 120
-{%- if name not in ['build_your_own'] %}
-    pci:
-      - "18:02.2"
-      - "18:02.3"
-      - "18:02.4"
-      - "18:02.5"
-{%- if qat == "on" %}
-#      - "3d:01.1"
-#      - "3f:01.1"
-{%- endif %}
-{%- else %}
-    pci: []
-{%- endif %}
-{% endif -%}
-{% if secondary_host == 'true' %}  - type: "work"
-    name: "vm-work-2"
-    cpu_total: 16
-    memory: 61440
-    vxlan: 120
-{%- if name not in ['build_your_own'] %}
-    pci:
-      - "18:02.0"
-      - "18:02.1"
-      - "18:02.6"
-      - "18:02.7"
-{%- if qat == "on" %}
-#      - "3d:01.2"
-#      - "3f:01.2"
-{%- endif %}
-{%- else %}
-    pci: []
-{%- endif %}
-{% else -%}
-#  - type: "work"
-#    name: "vm-work-2"
-#    cpu_total: 16
-#    memory: 61440
-#    vxlan: 120
-{%- if name not in ['build_your_own'] %}
-#    pci:
-#      - "18:02.0"
-#      - "18:02.1"
-#      - "18:02.6"
-#      - "18:02.7"
-{%- if qat == "on" %}
-##      - "3d:01.2"
-##      - "3f:01.2"
-{%- endif %}
-{%- else %}
-#    pci: []
-{%- endif %}
-{% endif -%}
-{% endif -%}
-{%- if power_manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] -%}
-# Power Manager Shared Profile/Workload settings.
-# It is possible to create node-specific Power Profile
-local_shared_profile:
-  enabled: false
-  node_max_shared_frequency: 2000
-  node_min_shared_frequency: 1500
-
-# Shared Workload is required to make use of Shared Power Profile
-shared_workload:
-  enabled: false
-  reserved_cpus: []   # The CPUs in reserved_cpus should match the value of the reserved system CPUs in your Kubelet config file, if none please
-                      # set here a dummy core - the last one to avoid AppQos bug
-  shared_workload_type: "global"  # set to node name to make use of node-specific Power Profile, 'global' means use cluster-specific custom Power Profile
-{% endif %}
-
-{%- if not cloud_mode == 'on' %}
-# Useful if system loses IP after reboot. Note: make sure IP is stable / system gets same IP after reboot else will cause failures.
-enable_dhclient_systemd_service: {% if enable_dhclient_systemd_service == "on" %}true{% else %}false{% endif %}
-{%- endif %}
+######################
+## Storage Features ##
+######################
 
 {% if minio in ['on', 'optional'] %}
 # MinIO storage configuration
 minio_pv: []
+#minio_pv:
 #  - name: "mnt-data-1"                         # PV identifier will be used for PVs names followed by node name(e.g., mnt-data-1-hostname)
 #    storageClassName: "local-storage"          # Storage class name to match with PVC
 #    accessMode: "ReadWriteOnce"                # Access mode when mounting a volume, e.g., ReadWriteOnce/ReadOnlyMany/ReadWriteMany/ReadWriteOncePod
@@ -720,4 +326,499 @@ minio_pv: []
 #    persistentVolumeReclaimPolicy: "Retain"
 #    mountPath: /mnt/data5
 #    device: /dev/nvme5n1
-{% endif -%}
+
+{% endif %}
+##########################
+## Device Configuration ##
+##########################
+
+# VMRA doest not support fpga yet.
+{% if fpga in ['on', 'optional'] and vm_mode != 'on' %}
+# Intel FPGA card
+configure_fpga: {% if fpga == 'on' %}true{% else %}false{% endif %}
+
+# When configure_fpga is set to true, uncomment below two lines and fit w/ correct values
+# fpga_driver_staging_folder: /tmp/intel_fpga/
+# fpga_install_script: fpga-ofs-2022-10-06-rc3-deb.sh
+
+{% endif %}
+
+{% if sgx in ['on', 'optional'] and arch in ['icx', 'spr'] %}
+# Intel Software Guard Extensions (SGX)
+configure_sgx: {% if sgx == 'on' %}true{% else %}false{% endif %}
+
+
+{% endif %}
+{% if gpu in ['on', 'optional'] %}
+# Intel custom GPU kernel - this is required to be true in order to deploy Intel GPU Device Plugin on that node
+configure_gpu: {% if gpu == 'on' %}true{% else %}false{% endif %}
+
+{% endif %}
+{% if dlb in ['on', 'optional'] and arch in ['spr', 'emr'] %}
+# Configure SIOV and Intel DLB devices - required for Intel DLB Device Plugin support
+configure_dlb_devices: {% if dlb == "on" %}true{% else %}false{% endif %}
+
+
+{% endif %}
+{% if dsa in ['on', 'optional'] and arch in ['spr', 'emr'] %}
+# Configure SIOV and Intel DSA devices - required for Intel DSA Device Plugin support
+configure_dsa_devices: {% if dsa == "on" %}true{% else %}false{% endif %}
+
+
+# Example DSA devices configuration list. If left empty and configure_dsa_devices is set to true then default configuration will be applied.
+# It is possible to configure more DSA devices by extending dsa_devices list based on example config.
+dsa_devices: []
+#dsa_devices:
+#  - name: dsa0                         # Name of DSA device from /sys/bus/dsa/devices/
+#    groups: 1                          # Number of groups to configure. The maximum number of groups per device can be found on /sys/bus/dsa/devices/dsaX/max_groups
+#    engines: 1                         # Number of engines to configure - one engine per group will be configured.
+#                                       # The maximum number of engines can be found on /sys/bus/dsa/devices/dsa0/max_engines
+#    wqs:                               # Work queues will be named as wq<dsa_id>.<wq_id>, for example wq0.0 - WQ with id 0 owned by dsa0 device
+#      - id: 0                          # Work queue id
+#        mode: "dedicated"              # Supported values: ["shared", "dedicated"]
+#        type: "user"                   # Supported values: ["kernel", "user"]
+#        size: 8                        # Sum of all configured WQs size must be less than /sys/bus/dsa/devices/dsa0/max_workqueue_size
+#        prio: 4                        # Must be set between 1 and 15
+#        threshold: 7                   # Only for WQ in mode "shared" - must be at least one less than size of WQ
+#        group_id: 0                    # Work queue will be assigned to specific group
+#        max_batch_size: 1024           # Specify the max batch size used by a work queue - powers of 2 are accetable
+#        max_transfer_size: 2147483648  # Specify the max transfer size used by a work queue - powers of 2 are accetable
+#        block_on_fault: 0              # Supported values: [0, 1] - enables (1) or disables (0) block on fault.
+#                                       # If a page fault occurs on a source or destination memory access, the operation stops and the page fault is reported to the software
+
+{% endif %}
+{% if intel_sriov_fec_operator in ['on', 'optional'] %}
+# Wireless FEC H/W Accelerator Device (e.g. ACC100) PCI ID
+fec_acc: "0000:6f:00.0"   # must be string in extended Bus:Device.Function (BDF) notation
+
+{% endif %}
+{% if qat in ['on', 'optional'] %}
+# Enabling this feature will install QAT drivers + services (OOT Drivers), otherwise Intree will be used.
+update_qat_drivers: {% if qat == "on" %}true{% else %}false{% endif %}
+
+{% if arch == "emr" and qat == "on" %}
+# EMR QAT driver version
+emr_qat_driver_package: QAT20.L.1.1.11-00016.tar.gz
+# SHA1 sum value for the driver package
+emr_qat_driver_pkg_checksum: 73ba41e63bc83f9437a34131ff5e8fb09b4746ae
+# Path to store the EMR QAT package on the ansible host.
+emr_qat_driver_staging_folder: /tmp/emr_qat/
+{% endif %}
+
+# Enabling the option will configure the QAT device. Must be enabled when qat is on.
+configure_qat: {% if qat == "on" %}true{% else %}false{% endif %}
+
+# There are two services on the system which can be used to start qat devices. They can't run in parallel. One of them needs to be enabled and the second one disabled.
+enabled_qat_service: "qat"
+disabled_qat_service: "qat_service"
+
+{% if arch in ['spr', 'emr'] %}
+enable_qat_svm: false         # Enable QAT Shared Virtual Memory (SVM). Only for OOT driver.
+
+{% endif %}
+# QAT parameters used by auto detection of qat devices
+qat_sriov_numvfs_required: {% if on_vms == 'on' %}0{% else %}8{% endif %}
+
+qat_vf_driver_required: {% if arch in ['spr', 'emr'] %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
+
+
+# QAT interface configuration list
+qat_devices: []
+#qat_devices:
+{% if on_vms == 'on' %}
+#  - qat_id: "0000:0a:00.0"
+#    qat_sriov_numvfs: 0                # Has to be set to 0 here to not create any VFs inside VM.
+
+#  - qat_id: "0000:0b:00.0"
+#    qat_sriov_numvfs: 0                # Has to be set to 0 here to not create any VFs inside VM.
+{% else %}
+#  - qat_id: "0000:ab:00.0"             # QAT device id one using DPDK compatible driver for VF devices to be used by vfio-pci kernel driver, replace as required
+#    qat_sriov_numvfs: 12               # Number of VFs per PF to create - cannot exceed the maximum number of VFs available for the device. Set to 0 to not create any VFs.
+#                                       # Note: Currently when trying to create fewer virtual functions than the maximum, the maximum number always gets created.
+#    qat_default_vf_driver: {% if arch in ['spr', 'emr'] %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
+
+#    qat_vfs:                           # Used to configure a non-default VF driver for individual VFs
+#      vf_00: "vfio-pci"                # Configures the 1st VF with "vfio-pci" driver
+#      vf_05: "vfio-pci"                # Configured the 6th VF with "vfio-pci" driver
+
+#  - qat_id: "0000:xy:00.0"
+#    qat_sriov_numvfs: 10
+#    qat_default_vf_driver: {% if arch in ['spr', 'emr'] %}"4xxxvf"{% else %}"c6xxvf"{% endif %}
+
+#    qat_vfs: {}                        # To use the default VF driver for all VFs
+{% endif %}
+
+{% endif %}
+###############
+## Operators ##
+###############
+
+{% if intel_ethernet_operator.enabled in ['on', 'optional'] %}
+# Intel Ethernet Operator for Intel E810 series ethernet network adapters
+intel_ethernet_operator:
+{% if intel_ethernet_operator.ddp in ['on', 'optional'] %}
+  ddp_update: {% if intel_ethernet_operator.ddp == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                 # Perform DDP update on PFs listed in dataplane_interfaces using selected DDP profile
+{% endif %}
+  fw_update: {% if intel_ethernet_operator.fw_update == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}                  # Perform firmware update on PFs listed in dataplane_interfaces
+  # ClusterFlowConfig does not require additional configuration and can be used in conjunction with NodeFlowConfig
+  node_flow_config_enabled: false   # Enable NodeFlowConfig
+  # NodeFlowConfig/ClusterFlowConfig manifests local path
+  # For more information refer to:
+  # https://github.com/intel/intel-ethernet-operator/blob/main/docs/flowconfig-daemon/creating-rules.md
+  #flow_config_dir: /tmp/flow_config
+
+{% endif %}
+{% if sriov_operator in ['on', 'optional'] %}
+# Custom SriovNetworkNodePolicy manifests local path
+#custom_sriov_network_policies_dir: /tmp/sriov
+
+{% endif %}
+###############################
+## Telemetry & Observability ##
+###############################
+
+{% if telemetry.collectd in ['on', 'optional'] %}
+# Telemetry configuration
+# intel_pmu plugin collects information provided by Linux perf interface.
+enable_intel_pmu_plugin: false
+{% if on_vms == 'on' %}
+
+# Temporary Fix for collectd startup issue on VMs
+enable_pkgpower_plugin: false
+{% endif %}
+
+# CPU Threads to be monitored by Intel PMU Plugin.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:Intel_PMU for configuration details.
+intel_pmu_plugin_monitored_cores: ""    # If the field is empty, all available cores will be monitored.
+
+# CPU Threads to be monitored by Intel RDT Plugin.
+# Please refer to https://collectd.org/wiki/index.php/Plugin:IntelRDT for configuration details.
+intel_rdt_plugin_monitored_cores: ""    # If the field is empty, all available cores will be monitored.
+
+# Additional list of plugins that will be excluded from collectd deployment.
+exclude_collectd_plugins: []
+
+{% endif %}
+######################
+## Power Management ##
+######################
+{% if power.manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr', 'emr'] %}
+# The performance profile is available for nodes that has CPU max MHz > 3500.0000 - use 'lscpu' command to see your node details
+# To use PowerProfiles in this list as sample pods on this node, please set 'deploy_example_pods' to true in group_vars 
+power_profiles: [balance-performance]    # Possible PowerProfiles are: [performance, balance-performance, balance-power]
+
+# Power Manager Shared Profile/Workload settings.
+# It is possible to create node-specific Power Profile
+local_shared_profile:
+  enabled: false # Enable/Disable local shared profile
+  local_max_frequency: 2000
+  local_min_frequency: 1500
+
+{% if power.pstate in ['on', 'optional'] and arch in ['icx', 'clx', 'spr', 'emr'] %}
+  # P-State governor decides what frequency within the CPUfreq policy should be used
+  # "powersave" - Lowest frequency within the borders of min_freq and max_freq.
+  # "performance" - Highest frequency within the borders of min_freq and max_freq.
+  local_pstate_governor: "powersave"
+{% endif %}
+
+# Shared Workload is required to make use of Shared Power Profile
+shared_workload:
+  enabled: true # Enable/Disable shared workload
+  reserved_cpus: []               # The CPUs in reserved_cpus should match the value of the reserved system CPUs in your Kubelet config file, if none please
+                                  # set a dummy core here - the last one to avoid AppQos bug.
+  shared_workload_type: "global"  # Set to node name to make use of node-specific Power Profile, 'global' means use cluster-specific custom Power Profile
+
+# EMR uncore_frequency has not supported in the kernel driver yet.
+{% if power.uncore_frequency in ['on', 'optional'] and arch in ['icx', 'clx', 'spr'] %}
+uncore_frequency:
+  enabled: {% if power.uncore_frequency == "on" %}true{% else %}false{% endif %} # Enable/Disable uncore frequency
+
+  # The min/max values must be within the range of values supported by the CPU model.
+  # Please refer to the documentation of your CPU model to check the supported uncore frequencies.
+  system_max_frequency: 2300000
+  system_min_frequency: 1300000
+
+  # If needed, you can choose specific frequency per die
+  die_selector: []
+  # die_selector:
+  #   - package: 0
+  #     die: 0
+  #     min: 1500000
+  #     max: 2400000
+{% endif %}
+
+{% if power.cstate in ['on', 'optional'] and arch in ['icx', 'clx', 'spr', 'emr'] %}
+cstates:
+  enabled: {% if power.cstate == "on" %}true{% else %}false{% endif %} # Enable/Disable cstates
+
+  shared:
+    C1: true
+  profile_exclusive:
+    balance-performance:
+      C1: false
+  
+  # If needed, you can choose specific C-State for each core:
+  core: {}
+  # core:
+  #   "3":
+  #     C1: true
+  #     C6: false
+{% endif %}
+
+{% endif %}
+{% if (power.pstate in ['on', 'optional'] or sst in ['on', 'optional']) and arch in ['icx', 'clx', 'spr', 'emr'] %}
+# Enable/Disable Intel PState scaling driver
+intel_pstate_enabled: {% if power.pstate == "on" or sst == "on" %}true{% else %}false{% endif %}
+
+intel_pstate: {% if power.pstate == "on" or sst == "on" %}hwp_only{% else %}disable{% endif %}    # Supported values: [disable, passive, force, no_hwp, hwp_only, support_acpi_ppc, per_cpu_perf_limits]
+
+# Enable/Disable Intel Turbo Boost PState attribute
+turbo_boost_enabled: {% if on_vms != 'on' %}true{% else %}false{% endif %}
+
+
+{% endif %}
+{% if sst in ['on', 'optional'] %}
+{% if arch in ['icx', 'spr', 'emr'] %}
+# Intel(R) SST-PP (perf-profile) configuration
+sst_pp_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
+
+sst_pp_config_list:             
+  - sst_bf: "enable"            # enable/disable Intel(R) SST-BF (base-freq) configured through SST-PP.
+  - sst_cp: "enable"            # enable/disable Intel(R) SST-CP (core-power) configured through SST-PP.
+  - sst_tf: "enable"            # enable/disable Intel(R) SST-TF (turbo-freq) configured through SST-PP.
+    online_cpus_range: "auto"   # "auto" configures turbo-freq for all available online CPUs.
+                                # Alternatively define specific CPUs such as "2,3,5" to prioritize among others.
+
+{% endif %}
+{% if arch == 'clx' %}
+# Intel Speed Select Base-Frequency configuration.
+sst_bf_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
+
+# Intel Speed Select Base-Frequency configuration for Cascade Lake (CLX) Platforms.
+# CLX support of SST-BF requires 'intel_pstate' to be 'enabled'
+# Option clx_sst_bf_mode requires sst_bf_configuration_enabled to be set to 'true'.
+# There are three configuration modes:
+# [s] Set SST-BF config (set min/max to 2700/2700 and 2100/2100)
+# [m] Set P1 on all cores (set min/max to 2300/2300)
+# [r] Revert cores to min/Turbo (set min/max to 800/3900)
+clx_sst_bf_mode: s
+{% endif %}
+{% if arch == 'icx' %}
+# Intel Speed Select Base-Frequency configuration for Ice Lake (ICX) Platforms.
+# Requires `sst_bf_configuration_enabled` variable to be 'true'
+icx_sst_bf_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
+
+# Prioritze (SST-CP) power flow to high frequency cores in case of CPU power constraints.
+icx_sst_bf_with_core_priority: {% if sst == "on" %}true{% else %}false{% endif %}
+
+
+# SST CP config
+# Variables are only examples. For more information, please visit:
+# https://www.kernel.org/doc/html/latest/admin-guide/pm/intel-speed-select.html#enable-clos-based-prioritization
+# Enabling this configuration overrides `icx_sst_bf_with_core_priority`.
+sst_cp_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
+
+sst_cp_priority_type: "1"   # For Proportional select "0" and for Ordered select "1", update as required
+sst_cp_clos_groups:         # configure up to 4 CLOS groups (id: 0-3)
+  - id: 0
+    frequency_weight: 0     # used only with Proportional type
+    min_MHz: 0
+    max_MHz: 25500
+  - id: 1
+    frequency_weight: 0
+    min_MHz: 0
+    max_MHz: 25500
+
+sst_cp_cpu_clos:  # Assign required values to CLOS group after priority type setup
+  - clos: 0       # Associate CPUs with a CLOS group 0 (id: 0)
+    cpus: 2,3,5   # List of CPUs to associate with CLOS group
+  - clos: 1
+    cpus: 12
+
+# Intel(R) SST-TF (feature turbo-freq) configuration for Ice Lake (ICX) Platforms.
+sst_tf_configuration_enabled: {% if sst == "on" %}true{% else %}false{% endif %}
+
+
+{% endif %}
+{% endif %}
+#######################
+## Workloads & Demos ##
+#######################
+
+{% if adq_dp in ['on', 'optional'] %}
+# Note: ADQ is experimental feature and enabling it may lead to unexpected results.
+# ADQ requires back-to-back connection between control plane and worker node on CVL interfaces.
+# Name of CVL interfaces must be the same on both nodes, IP address must be present.
+# In inventory.ini set "ip=" to IP address of CVL interface
+# Additional requirements and details can be found in docs/adq.md
+adq_dp:
+  enabled: false
+  # IP address of CVL interface located on the worker node
+  interface_address: "192.168.0.11"
+
+{% if intel_eci and (intel_eci.values() | reject('eq', 'off')) | list | length() > 0 %}
+# Intel ECI (Edge Controls for Industrial)
+intel_eci_enabled: {% if (intel_eci.values() | select('eq', 'on')) | list | length() > 0 %}true{% else %}false{% endif %} # if true, deploy Intel ECI
+intel_eci:
+  eci-process-automation: {% if intel_eci.process_automation == 'on' %}true{% else %}false{% endif %}
+
+  eci-manufacturing-equipment: {% if intel_eci.manufacturing_equipment == 'on' %}true{% else %}false{% endif %}
+
+  eci-discrete-manufacturing: {% if intel_eci.discrete_manufacturing == 'on' %}true{% else %}false{% endif %}
+
+  eci-realtime: {% if intel_eci.realtime == 'on' %}true{% else %}false{% endif %}
+
+  eci-connectivity: {% if intel_eci.connectivity == 'on' %}true{% else %}false{% endif %}
+
+  eci-infra-clients: {% if intel_eci.infra_clients == 'on' %}true{% else %}false{% endif %}
+
+  eci-inference: {% if intel_eci.inference == 'on' %}true{% else %}false{% endif %}
+
+  eci-softplc: {% if intel_eci.softplc == 'on' %}true{% else %}false{% endif %}
+
+  eci-acrn: {% if intel_eci.acrn == 'on' %}true{% else %}false{% endif %}
+
+# The following ECI meta-packages aren't included becuase they are NOT suported yet on Ubuntu (as of 05/2023):
+# eci-robotics-control
+# eci-robotics
+# eci-rth
+# eci-kvm
+# eci-xenomai
+
+opcua_framework:
+  codesys_opcua_client: {% if opcua_framework.codesys_opcua_client == 'on' %}true{% else %}false{% endif %}
+
+  standalone_opcua_server: {% if opcua_framework.standalone_opcua_server == 'on' %}true{% else %}false{% endif %}
+
+{% endif %}
+
+{% endif %}
+{% if vm_mode in ['on'] and on_vms != 'on' %}
+########################
+## VMRA Configuration ##
+########################
+
+# Only a common VM image for all VMs inside deployment is supported at the moment
+{% if secondary_host == 'true' %}
+# Secondary vm_host - VM image can only be changed on the first vm_host
+# Secondary vm_host - do not change dhcp settings here
+dhcp: []
+
+{% else %}
+# Default VM image version is Ubuntu 22.04. Uncomment relevant options below to modify.
+#vm_image_distribution: "rocky"     # VM image distribution. Supports ['ubuntu, 'rocky']. Default is 'ubuntu'
+#vm_image_version_ubuntu: "22.04"   # Ubuntu VM image version. Supoorts ['22.04'].
+#vm_image_version_rocky: "9.0"      # Rocky VM image version. Supports ['8.5', '9.0']. Default is '8.5'
+
+# DHCP for VXLAN has to be enabled only on the first vm_host
+dhcp:
+  - 120
+
+vxlan_gw_ip: "172.31.0.1/24"
+{% endif %}
+# Set hashed password for root user inside VMs. Current value is just placeholder.
+# To create hashed password use e.g.: openssl passwd -6 -salt SaltSalt <your_password>
+vm_hashed_passwd: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+
+# Set hashed password for non-root user inside VMs. Current value is just placeholder.
+# If value is not specified then vm_hashed_passwd value will be used for non root user as well
+#vm_hashed_passwd_non_root: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+
+# Set physical network subnet, which will be used to create VXLANs for VM communication
+# This parameter is required for VM multinode configuration
+vxlan_physical_network: "11.0.0.0/8"
+
+#cpu_host_os will change number of CPUs reserved for host OS. Default value is 16
+#cpu_host_os: 8
+
+# VM cluster name is used to group all VMs from single deployment together
+#vm_cluster_name: "cluster1.local"
+
+vms:
+{% if secondary_host == 'true' %}
+#  - type: "ctrl"       # Type of VM (controller, worker). Supported values: ["ctrl", "work"]
+#    name: "vm-ctrl-1"
+#    # By default CPU and NUMA node allocation is done automatically.
+#    # The 'cpus' and 'numa' options can be used to manually set values.
+#    #cpus: "8-11,64-67"
+#    #numa: 0
+#    # if you set cpu_total: to 0 then rest of unallocated CPUs from selected numa will be used
+#    cpu_total: 8
+#    # if 'alloc_all: true' is used then 'cpu_total' have to be set to '0'
+#    # It will take all unallocated CPUs from all NUMA nodes on the vm_host.
+#    #alloc_all: true
+#    memory: 20480
+#    vxlan: 120
+{% else %}
+  - type: "ctrl"        # Type of VM (controller, worker). Supported values: ["ctrl", "work"]
+    name: "vm-ctrl-1"
+    # By default CPU and NUMA node allocation is done automatically.
+    # The 'cpus' and 'numa' options can be used to manually set values.
+    #cpus: "8-11,64-67"
+    #numa: 0
+    # if you set cpu_total: to 0 then rest of unallocated CPUs from selected numa will be used
+    cpu_total: 8
+    # if 'alloc_all: true' is used then 'cpu_total' have to be set to '0'
+    # It will take all unallocated CPUs from all NUMA nodes on the vm_host.
+    #alloc_all: true
+    memory: 20480
+    vxlan: 120
+{% endif %}
+#  - type: "ctrl"
+#    name: "vm-ctrl-2"
+#    cpu_total: 8
+#    memory: 20480
+#    vxlan: 120
+#    name: "vm-ctrl-3"
+#    cpu_total: 8
+#    memory: 20480
+#    vxlan: 120
+  - type: "work"
+{% if secondary_host == 'true' %}
+    name: "vm-work-2"
+{% else %}
+    name: "vm-work-1"
+{% endif %}
+    #cpus: "28-35,84-91"
+    #numa: 1
+    cpu_total: 16
+    #alloc_all: true
+    memory: 61440
+    vxlan: 120
+{% if name not in ['build_your_own'] %}
+    pci:
+      - "18:02.2"       # 18:xx.x are example VFs for networking
+      - "18:02.3"
+      - "18:02.4"
+      - "18:02.5"
+{% if qat == "on" %}
+      - "3d:01.1"      # 3x:xx.x are example VFs for QAT
+      - "3f:01.1"
+{% endif %}
+{% else %}
+    pci: []
+{% endif %}
+#  - type: "work"
+{% if secondary_host == 'true' %}
+#    name: "vm-work-4"
+{% else %}
+#    name: "vm-work-3"
+{% endif %}
+#    cpu_total: 16
+#    memory: 61440
+#    vxlan: 120
+{% if name not in ['build_your_own'] %}
+#    pci:
+#      - "18:02.0"      # 18:xx.x are example VFs for networking
+#      - "18:02.1"
+#      - "18:02.6"
+#      - "18:02.7"
+{% if qat == "on" %}
+#      - "3d:01.2"      # 3x:xx.x are example VFs for QAT
+#      - "3f:01.2"
+{% endif %}
+{% else %}
+#    pci: []
+{% endif %}
+
+{% endif %}

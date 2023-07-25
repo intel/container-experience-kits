@@ -220,9 +220,10 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       securityContext:
-        fsGroup: 65534
         runAsNonRoot: true
-        runAsUser: 65534
+        runAsGroup: 472
+        runAsUser: 472
+        fsGroup: 472
       serviceAccountName: grafana
       volumes:
       - name: grafana-tls

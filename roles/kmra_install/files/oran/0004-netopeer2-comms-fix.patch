@@ -1,0 +1,13 @@
+diff --git a/src/common.c b/src/common.c
+index 8606869..4d03959 100644
+--- a/src/common.c
++++ b/src/common.c
+@@ -327,7 +327,7 @@ np2srv_new_session_cb(const char *UNUSED(client_name), struct nc_session *new_se
+     sr_session_set_orig_name(sr_sess, "netopeer2");
+     nc_id = nc_session_get_id(new_session);
+     sr_session_push_orig_data(sr_sess, sizeof nc_id, &nc_id);
+-    username = nc_session_get_username(new_session);
++    username = "netopeer2"; //nc_session_get_username(new_session);
+     sr_session_push_orig_data(sr_sess, strlen(username) + 1, username);
+ 
+     /* set NACM username for it to be applied */

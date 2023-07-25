@@ -19,6 +19,8 @@ telegraf:
   securityContext:
     privileged: true
     allowPrivilegeEscalation: true
+    seccompProfile:
+      type: "RuntimeDefault"
   resources:
     limits:
       cpu: 1000m
@@ -27,10 +29,16 @@ telegraf:
       cpu: 500m
       memory: 512Mi
   config: |
-    {{ telegraf_config | indent(4) -}}
-  {% if telegraf_dpdk_socket_path is defined and telegraf_dpdk_socket_path | length > 0 %}
+    {{ telegraf_config | indent(4) }}
+
+{% if pmu_event_definitions | default(false) %}
+  pmu_events: |
+    {{ pmu_event_definitions | to_json(indent=2) | indent(4) }}
+{% endif %}
+
+{% if telegraf_dpdk_socket_path is defined and telegraf_dpdk_socket_path | length > 0 %}
   dpdk_socket_path: {{ telegraf_dpdk_socket_path }}
-  {% endif %}
+{% endif %}
 
 # rbac-proxy container
 rbacproxy:

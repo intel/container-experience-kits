@@ -1,0 +1,582 @@
+resource "aws_iam_role" "eks-cluster-role" {
+  name = "cwdf-infra-{{ job_id }}-eks-cluster-role"
+  assume_role_policy = jsonencode({
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "eks.amazonaws.com"
+      }
+    }]
+    Version = "2012-10-17"
+  })
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-role"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-role-AmazonEKSClusterPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks-cluster-role.name
+}
+
+resource "aws_iam_role" "eks-cluster-nodegroup-role" {
+  name = "cwdf-infra-{{ job_id }}-eks-cluster-nodegroup-role"
+
+  assume_role_policy = jsonencode({
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+    Version = "2012-10-17"
+  })
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-nodegroup-role"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-nodegroup-role-AmazonEKSWorkerNodePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.eks-cluster-nodegroup-role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-nodegroup-role-AmazonEKS_CNI_Policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks-cluster-nodegroup-role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-nodegroup-role-AmazonEC2ContainerRegistryReadOnly" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks-cluster-nodegroup-role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks-cluster-nodegroup-role-CloudWatchAgentServerPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+  role       = aws_iam_role.eks-cluster-nodegroup-role.name
+}
+
+data "aws_iam_policy_document" "cluster_logs_kms" {
+  statement {
+    sid    = "Enable IAM User Permissions"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+
+    actions = [
+      "kms:*"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["logs.{{ region }}.amazonaws.com"]
+    }
+    actions = [
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+
+    resources = ["*"]
+    condition {
+      test = "ArnEquals"
+      values = [
+        "arn:aws:logs:{{ region }}:${data.aws_caller_identity.current.account_id}:log-group:/aws/eks/cwdf-infra-{{ job_id }}-eks-cluster/cluster"
+      ]
+      variable = "kms:EncryptionContext:aws:logs:arn"
+    }
+  }
+}
+
+data "aws_iam_policy_document" "performance_logs_kms" {
+  statement {
+    sid    = "Enable IAM User Permissions"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+
+    actions = [
+      "kms:*"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["logs.{{ region }}.amazonaws.com"]
+    }
+    actions = [
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+
+    resources = ["*"]
+    condition {
+      test = "ArnEquals"
+      values = [
+        "arn:aws:logs:{{ region }}:${data.aws_caller_identity.current.account_id}:log-group:/aws/containerinsights/cwdf-infra-{{ job_id }}-eks-cluster/performance"
+      ]
+      variable = "kms:EncryptionContext:aws:logs:arn"
+    }
+  }
+}
+
+resource "aws_kms_key" "cluster_logs" {
+  description             = "EKS Cluster {{ job_id }} Cluster Logs Key"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  policy                  = data.aws_iam_policy_document.cluster_logs_kms.json
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-logs-key"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_kms_key" "performance_logs" {
+  description             = "EKS Cluster {{ job_id }} Performance Logs Key"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  policy                  = data.aws_iam_policy_document.performance_logs_kms.json
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-performance-logs-key"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_cloudwatch_log_group" "cluster" {
+  # The log group name format is /aws/eks/<cluster-name>/cluster
+  name              = "/aws/eks/cwdf-infra-{{ job_id }}-eks-cluster/cluster"
+  retention_in_days = 7
+  skip_destroy      = false
+  kms_key_id        = aws_kms_key.cluster_logs.arn
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-cloudwatch-cluster-log-group"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_cloudwatch_log_group" "performance" {
+  # The log group name format is /aws/containerinsights/<cluster-name>/performance
+  name              = "/aws/containerinsights/cwdf-infra-{{ job_id }}-eks-cluster/performance"
+  retention_in_days = 7
+  skip_destroy      = false
+  kms_key_id        = aws_kms_key.performance_logs.arn
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-cloudwatch-performance-log-group"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_kms_key" "eks_secret" {
+  description             = "EKS Cluster {{ job_id }} Secrets Key"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-secrets-key"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_eks_cluster" "default" {
+  role_arn = aws_iam_role.eks-cluster-role.arn
+
+  name     = "cwdf-infra-{{ job_id }}-eks-cluster"
+  version  = "{{ eks.kubernetes_version }}"
+
+  enabled_cluster_log_types = ["api", "authenticator", "audit", "scheduler", "controllerManager"]
+
+  encryption_config {
+    resources = [ "secrets" ]
+    provider {
+      key_arn = aws_kms_key.eks_secret.arn
+    }
+  }
+
+  vpc_config {
+    subnet_ids = [{% for subnet in eks.subnets %}aws_subnet.{{ subnet }}.id,{% endfor %}]
+    public_access_cidrs = [{% for cidr_block in sg_whitelist_cidr_blocks %}"{{cidr_block}}",{% endfor %}]
+    endpoint_private_access = true
+  }
+
+  # Ensure that IAM Role permissions are created before and deleted after EKS Cluster handling.
+  # Otherwise, EKS will not be able to properly delete EKS managed EC2 infrastructure such as Security Groups.
+  depends_on = [
+    aws_cloudwatch_log_group.cluster,
+    aws_iam_role_policy_attachment.eks-cluster-role-AmazonEKSClusterPolicy
+  ]
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_security_group_rule" "access-sg-{{ job_id }}" {
+  description			= "HTTPS access from infra instance"
+  type 				= "ingress"
+  from_port 			= 443
+  to_port 			= 443
+  protocol 			= "tcp"
+  source_security_group_id 	= aws_security_group.sg-{{ job_id }}.id
+  security_group_id 		= aws_eks_cluster.default.vpc_config[0].cluster_security_group_id
+}
+
+{% for node_group in eks.node_groups %}
+{% if eks.custom_ami == "ubuntu" %}
+data "aws_ami" "eks_ubuntu" {
+  most_recent      = true
+  owners           = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu-eks/k8s_{{ eks.kubernetes_version }}/images/*"]
+  }
+
+  filter {
+    name  = "architecture"
+    values = ["x86_64"]
+  }
+}
+
+resource "aws_launch_template" "{{ node_group.name }}" {
+  image_id               = data.aws_ami.eks_ubuntu.id
+  instance_type          = "{{ node_group.instance_type }}"
+  key_name               = aws_key_pair.default.key_name
+
+  vpc_security_group_ids = [
+    aws_security_group.sg-{{ job_id }}.id,
+    aws_eks_cluster.default.vpc_config[0].cluster_security_group_id
+  ]
+
+  metadata_options {
+    http_endpoint = "enabled"
+	  http_tokens   = "required"
+	}
+
+  user_data              = base64encode(<<EOF
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+
+--==BOUNDARY==
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+/etc/eks/bootstrap.sh ${aws_eks_cluster.default.name} \
+  --b64-cluster-ca ${aws_eks_cluster.default.certificate_authority[0].data} \
+  --apiserver-endpoint ${aws_eks_cluster.default.endpoint} \
+  --dns-cluster-ip 172.20.0.10
+
+--==BOUNDARY==--
+EOF
+  )
+
+}
+{% endif %}
+
+resource "aws_eks_node_group" "{{ node_group.name }}" {
+  cluster_name    = aws_eks_cluster.default.name
+  node_group_name = "{{ node_group.name }}"
+  node_role_arn   = aws_iam_role.eks-cluster-nodegroup-role.arn
+  subnet_ids      = [{% for subnet in eks.subnets %}aws_subnet.{{ subnet }}.id,{% endfor %}]
+
+  scaling_config {
+    desired_size = {{ node_group.vm_count }}
+    max_size     = {{ node_group.vm_count }}
+    min_size     = {{ node_group.vm_count }}
+  }
+
+  {% if eks.custom_ami == "ubuntu" %}
+  ami_type = "CUSTOM"
+  launch_template {
+    id = aws_launch_template.{{ node_group.name }}.id
+    version = aws_launch_template.{{ node_group.name }}.latest_version
+  }
+  {% else %}
+  remote_access {
+    ec2_ssh_key = aws_key_pair.default.key_name
+    source_security_group_ids = [aws_security_group.sg-{{ job_id }}.id]
+  }
+
+  instance_types = ["{{ node_group.instance_type }}"]
+  {% endif %}
+
+  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
+  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+  depends_on = [
+    aws_iam_role_policy_attachment.eks-cluster-nodegroup-role-AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.eks-cluster-nodegroup-role-AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.eks-cluster-nodegroup-role-AmazonEC2ContainerRegistryReadOnly,
+    aws_iam_role_policy_attachment.eks-cluster-nodegroup-role-CloudWatchAgentServerPolicy,
+    {% if will_create_ansible_instance %}
+    kubernetes_config_map.aws-auth
+    {% endif %}
+  ]
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-nodegroup-{{ node_group.name }}"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+{% endfor %}
+
+# EKS Cluster OIDC Provider
+
+data "tls_certificate" "eks_cluster_oidc_issuer" {
+  url = aws_eks_cluster.default.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "eks_cluster_oidc" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks_cluster_oidc_issuer.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.default.identity[0].oidc[0].issuer
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-oidc"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+# AWS VPC CNI
+
+data "aws_iam_policy_document" "eks_cluster_vpc_cni" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks_cluster_oidc.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-node"]
+    }
+
+    principals {
+      identifiers = [aws_iam_openid_connect_provider.eks_cluster_oidc.arn]
+      type        = "Federated"
+    }
+  }
+}
+
+resource "aws_iam_role" "eks_cluster_vpc_cni" {
+  assume_role_policy = data.aws_iam_policy_document.eks_cluster_vpc_cni.json
+  name               = "cwdf-infra-{{ job_id }}-eks-cluster-vpc-cni-role"
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-vpc-cni-role"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_vpc_cni_AmazonEKS_CNI_Policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_cluster_vpc_cni.name
+}
+
+data "aws_eks_addon_version" "vpc_cni" {
+  addon_name         = "vpc-cni"
+  kubernetes_version = aws_eks_cluster.default.version
+  most_recent        = true
+}
+
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name                = aws_eks_cluster.default.name
+  addon_name                  = "vpc-cni"
+  service_account_role_arn    = aws_iam_role.eks_cluster_vpc_cni.arn
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  addon_version               = data.aws_eks_addon_version.vpc_cni.version
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_vpc_cni_AmazonEKS_CNI_Policy,
+    {% for node_group in eks.node_groups %}
+    aws_eks_node_group.{{node_group.name}},
+    {% endfor %}
+  ]
+}
+
+# EBS CSI Driver
+
+{% if eks.install_ebs_csi_driver %}
+
+data "aws_iam_policy_document" "eks_cluster_ebs_csi_controller" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks_cluster_oidc.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks_cluster_oidc.url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    principals {
+      identifiers = [aws_iam_openid_connect_provider.eks_cluster_oidc.arn]
+      type        = "Federated"
+    }
+  }
+}
+
+resource "aws_iam_role" "eks_cluster_ebs_csi_controller" {
+  assume_role_policy = data.aws_iam_policy_document.eks_cluster_ebs_csi_controller.json
+  name               = "cwdf-infra-{{ job_id }}-eks-cluster-ebs-csi-role"
+
+  tags = merge(
+    jsondecode("{{ extra_tags_json }}"),
+    {
+      Name  = "cwdf-infra-{{ job_id }}-eks-cluster-ebs-csi-role"
+      JobId = "{{ job_id }}"
+    }
+  )
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_ebs_csi_controller_AmazonEBSCSIDriverPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.eks_cluster_ebs_csi_controller.name
+}
+
+data "aws_eks_addon_version" "ebs_csi_driver" {
+  addon_name         = "aws-ebs-csi-driver"
+  kubernetes_version = aws_eks_cluster.default.version
+  most_recent        = true
+}
+
+resource "aws_eks_addon" "aws-ebs-csi-driver" {
+  cluster_name                = aws_eks_cluster.default.name
+  addon_name                  = "aws-ebs-csi-driver"
+  service_account_role_arn    = aws_iam_role.eks_cluster_ebs_csi_controller.arn
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  addon_version               = data.aws_eks_addon_version.ebs_csi_driver.version
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_ebs_csi_controller_AmazonEBSCSIDriverPolicy,
+    {% for node_group in eks.node_groups %}
+    aws_eks_node_group.{{node_group.name}},
+    {% endfor %}
+  ]
+}
+
+{% endif %}
+
+# AWS CloudWatch Metrics
+
+resource "helm_release" "cloudwatch_metrics" {
+  name             = "aws-cloudwatch-metrics"
+  repository       = "https://aws.github.io/eks-charts"
+  chart            = "aws-cloudwatch-metrics"
+  namespace        = "amazon-cloudwatch"
+  create_namespace = true
+
+  set {
+    name  = "clusterName"
+    value = aws_eks_cluster.default.name
+  }
+
+  set {
+    name  = "image.tag"
+    value = "1.247357.0b252275"
+  }
+
+  set {
+    name = "hostNetwork"
+    value = "true"
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.performance,
+    {% for node_group in eks.node_groups %}
+    aws_eks_node_group.{{node_group.name}},
+    {% endfor %}
+  ]
+}
+
+data "aws_instances" "eks-instances" {
+  filter {
+    name   = "tag:eks:cluster-name"
+    values = [aws_eks_cluster.default.name]
+  }
+
+  depends_on = [{% for node_group in eks.node_groups %} aws_eks_node_group.{{node_group.name}},  {% endfor %}]
+}
+
+locals {
+  k8s_worker_instances = [
+    for index, id in data.aws_instances.eks-instances.ids : {
+      id: id
+      public_ip: data.aws_instances.eks-instances.public_ips[index]
+      private_ip: data.aws_instances.eks-instances.private_ips[index]
+    }
+  ]
+}
+
+output "k8s_worker_instances" {
+  value = local.k8s_worker_instances
+}
+
+output "k8s_worker_username" {
+  value = "{{ 'ubuntu' if eks.custom_ami == "ubuntu" else 'ec2-user' }}"
+}

@@ -14,14 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-- name: determine machine type
-  include_role:
-    name: check_machine_type
-  when:
-    - inventory_hostname in groups['kube_node'] or
-      inventory_hostname in groups['vm_host']
-    - not on_vms | default (false)
-
 - name: setup turbo boost
   include_tasks: setup_turbo.yml
   when:

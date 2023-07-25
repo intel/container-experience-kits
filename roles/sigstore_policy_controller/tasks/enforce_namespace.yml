@@ -1,0 +1,128 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create enforce namespace if doesn't exist and mark the namespace to be enforced by policy-controller
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ cosign_enforce_namespace }}"
+        labels:
+          'policy.sigstore.dev/include': 'true'
+
+- name: create the cosign public/private key pair for enforce namespace
+  block:
+    - name: query existing cosign key pair
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: "{{ cosign_key_secret }}"
+        namespace: "{{ cosign_enforce_namespace }}"
+      register: cosign_secret
+
+    - name: Generate cosign password if not provided
+      ansible.builtin.set_fact:
+        cosign_password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+      no_log: true
+      run_once: true
+      when:
+        - (cosign_password is not defined) or (not cosign_password)
+        - cosign_secret.resources | length == 0
+
+    - name: create the cosign key pair
+      shell: >
+        export COSIGN_PASSWORD={{ cosign_password }} &&
+        source /etc/profile.d/golang.sh &&
+        cosign generate-key-pair k8s://{{ cosign_enforce_namespace }}/{{ cosign_key_secret }}
+      args:
+        executable: /bin/bash
+      changed_when: true
+      when: cosign_secret.resources | length == 0
+
+- name: import public key for policy-controller
+  block:
+    - name: get cosign secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: "{{ cosign_key_secret }}"
+        namespace: "{{ cosign_enforce_namespace }}"
+      register: cosign_secret
+      no_log: true
+
+    - name: create public key secret for policy-controller
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          api_version: v1
+          kind: Secret
+          metadata:
+            name: "{{ cosign_pubkey_secret }}"
+            namespace: "{{ cosign_namespace }}"
+          data:
+            cosign.pub: "{{ cosign_secret['resources'][0]['data']['cosign.pub'] }}"
+
+- name: create the registry auth secret in the enforce namespace to pull image
+  block:
+    - name: get registry auth
+      ansible.builtin.slurp:
+        src: "{{ registry_auth_path }}"
+      register: reg_auth
+      no_log: true
+
+    - name: create secret in enforce namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          api_version: v1
+          kind: Secret
+          metadata:
+            name: "{{ container_registry_secret }}"
+            namespace: "{{ cosign_enforce_namespace }}"
+          data:
+            .dockerconfigjson: "{{ reg_auth['content'] }}"
+          type: kubernetes.io/dockerconfigjson
+      no_log: true
+
+- name: create the enforce pubkey policy example
+  block:
+    - name: create enforce pubkey policy crd yaml
+      ansible.builtin.template:
+        src: "key-cosign-verification.yaml.j2"
+        dest: "{{ (policy_controller_dir, 'key-cosign-verification.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: apply enforce pubkey policy crd yaml
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (policy_controller_dir, 'key-cosign-verification.yaml') | path_join }}"
+
+- name: create the enforce keyless policy example
+  block:
+    - name: create enforce keyless policy crd yaml
+      ansible.builtin.template:
+        src: "keyless-cosign-verification.yaml.j2"
+        dest: "{{ (policy_controller_dir, 'keyless-cosign-verification.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: apply enforce keyless policy crd yaml
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (policy_controller_dir, 'keyless-cosign-verification.yaml') | path_join }}"

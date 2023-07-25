@@ -28,8 +28,7 @@
 
 - name: install packages
   action: "{{ ansible_pkg_mgr }} \
-    name={{ install_dependencies[ansible_os_family] | difference(['linux-headers-' + gpu_oem_kernel_version if gpu_oem_kernel_version is defined else '']) }} \
-    state=present"
+    name={{ install_dependencies[ansible_os_family] }} state=present"
   register: pkg_mgr_results
   retries: "{{ number_of_retries | default(5) }}"
   until: pkg_mgr_results is success

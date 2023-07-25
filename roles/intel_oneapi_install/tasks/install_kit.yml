@@ -1,0 +1,58 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create Intel oneAPI directory - {{ oneapi_kit }}
+  ansible.builtin.file:
+    path: "{{ intel_oneapi_dir }}"
+    state: directory
+    mode: 0755
+
+- name: download Intel oneAPI kit - {{ oneapi_kit }}
+  ansible.builtin.get_url:
+    url: "{{ intel_oneapi_url[oneapi_kit] }}"
+    dest: "{{ (intel_oneapi_dir, 'intel-oneapi-' + oneapi_kit + '-offline.sh') | path_join }}"
+    checksum: "sha384:{{ intel_oneapi_checksum[oneapi_kit] }}"
+    mode: 0755
+    use_proxy: yes
+
+- name: template selected components to be installed
+  ansible.builtin.set_fact:
+    oneapi_selected_components: >-
+      {%- if intel_oneapi_components[oneapi_kit] | default(false) -%}
+      --components {{ intel_oneapi_components[oneapi_kit] | list | join(':') }}
+      {%- endif -%}
+
+- name: install Intel oneAPI kit - {{ oneapi_kit }}
+  vars:
+    oneapi_cmd: >
+      {{ intel_oneapi_dir }}/intel-oneapi-{{ oneapi_kit }}-offline.sh -a
+      --silent --eula accept {{ oneapi_selected_components | default('') }} --install-dir {{ intel_oneapi_install_dir }}
+    oneapi_output_installed: "It is already installed."
+  block:
+    - name: try installation of Intel oneAPI - {{ oneapi_kit }}
+      ansible.builtin.command:
+        cmd: "sh {{ oneapi_cmd }}"
+      register: oneapi_install
+      changed_when: oneapi_output_installed not in oneapi_install.stdout
+      failed_when:
+        - oneapi_install.rc != 0
+        - oneapi_output_installed not in oneapi_install.stdout
+
+    - name: attempt to repair installation of Intel oneAPI kit - {{ oneapi_kit }}
+      ansible.builtin.command:
+        cmd: "sh {{ oneapi_cmd }} --action repair"
+      changed_when: true
+      when: oneapi_output_installed in oneapi_install.stdout

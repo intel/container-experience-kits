@@ -96,14 +96,3 @@
       changed_when: false
   when:
     - '"docker" not in container_runtime'
-
-# this task should be removed when TCS fix issue with containerd
-- name: change owner of tokens directory
-  file:
-    path: /var/lib/tcs-issuer/tokens
-    state: directory
-    recurse: yes
-    owner: 5000
-    group: 5000
-  when:
-    - container_runtime != "docker"

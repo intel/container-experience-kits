@@ -1,0 +1,12 @@
+{
+    "auths": {
+{% if intel_sriov_fec_operator_enabled | default(false) and container_runtime == "containerd" %}
+        "registry.redhat.io": {
+            "auth": "{{ (redhat_user + ':' + redhat_password) | b64encode }}"
+        },
+{% endif %}
+        "{{ registry_local_address }}": {
+            "auth": "{{ (registry_user + ':' + registry_password) | b64encode }}"
+        }
+    }
+}

@@ -14,21 +14,20 @@
 ##   limitations under the License.
 ##
 ---
-registry_secret_name: "container-registry-tls"
 registry_namespace: "kube-system"
-registry_proxy: 5043
-registry_port: 5000
-registry_addr: 127.0.0.1
+registry_nodeport: "30500"
+registry_user: docker
+# user can provide own password through group_vars
+registry_password:
 
-registry_image: "docker.io/library/registry:2.8.1"
-nginx_image: "docker.io/library/nginx:1.23.3-alpine"
+registry_size: 10Gi
 
-nginx_ssl_ciphers:
-  "AES128-CCM-SHA256:CHACHA20-POLY1305-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE\
-  -ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256"
-nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
+registry_image: "docker.io/library/registry"
+registry_version: 2.8.1
+registry_nginx_image: "docker.io/library/nginx"
+registry_nginx_version: 1.24.0
+docker_pip_pkg_version: 6.0.0
 
-release_name: container-registry
-
-registry_auth: "/var/lib/kubelet/config.json"
-registry_auth_env: "REGISTRY_AUTH_FILE=/var/lib/kubelet/config.json"
+registry_tls_secret_name: container-registry-tls
+registry_storage_dir: /var/lib/registry
+registry_auth_path: /var/lib/kubelet/config.json

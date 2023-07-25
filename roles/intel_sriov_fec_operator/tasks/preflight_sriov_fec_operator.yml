@@ -28,8 +28,8 @@
 
     - name: SRIOV-FEC Operator - check distro
       ansible.builtin.assert:
-        that: ansible_distribution_version == "22.04" or ansible_distribution_version == "8.6"
-        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04 or RHEL 8.6. Please change the o/s or correct group_vars configuration" # noqa yaml[line-length]
+        that: ansible_distribution_version == "22.04" or ansible_distribution_version == "9.2"
+        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04 or RHEL 9.2. Please change the o/s or correct group_vars configuration" # noqa yaml[line-length]
         success_msg: "Assertion passed. Intel SR-IOV FEC Operator is supported and can be deployed on '{{ ansible_distribution }}' distro"
 
     - name: SRIOV-FEC Operator - check h/w acc
@@ -45,9 +45,21 @@
 
     - name: FEC Operator - check runtime
       ansible.builtin.assert:
-        that: container_runtime == 'docker'
-        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only for docker runtime. Please correct the group_vars configuration"
+        that: container_runtime in ['docker', 'containerd']
+        fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only for docker/containerd runtime. Please correct the group_vars configuration"
         success_msg: "Assertion passed. Intel SR-IOV FEC Operator is supported and can be deployed on '{{ container_runtime }}' runtime"
+
+    - name: SRIOV-FEC Operator - check Red Hat Login Account for containerd runtime
+      assert:
+        that:
+          - redhat_user is defined
+          - redhat_user != "ffffffffffffffffffffffffffffff"
+          - redhat_password is defined
+          - redhat_password != "ffffffffffffffffffffffffffffff"
+        fail_msg: "update Red Hat Account in group_vars, refer to https://access.redhat.com/RegistryAuthentication."
+      when:
+        - intel_sriov_fec_operator_enabled | default(false) | bool
+        - container_runtime == 'containerd'
 
 # TODO
 #        - name: FEC Operator - check Cert Manager is enabled

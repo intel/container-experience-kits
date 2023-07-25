@@ -1,0 +1,55 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Load IPU common variables
+  ansible.builtin.debug:
+    msg: Load IPU common variables
+
+- name: check supported OS for IPU
+  ansible.builtin.assert:
+    that:
+      - (ansible_distribution == "Rocky" and ansible_distribution_version == "9.1") or
+        (ansible_distribution == "Fedora")
+    fail_msg:
+      - "Current OS - {{ ansible_distribution }} {{ ansible_distribution_version }} - is not supported for IPU"
+      - "Supported OSes are Rocky 9.1 and Fedora"
+
+- name: select the right connection host qroup
+  ansible.builtin.set_fact:
+    connection_host_group: "{% if ipu_1gbe_connected_to_linkp %}ipu_linkp{% else %}ipu_host{% endif %}"
+
+- name: setup 1GbE conncetion
+  when:
+    - inventory_hostname in groups[connection_host_group]
+  block:
+    - name: check IP address
+      ansible.builtin.shell: "set -o pipefail && ip a show eno2 |grep \"inet \""
+      args:
+        executable: /bin/bash
+      register: ip_status
+      changed_when: false
+      failed_when: '" does not exist." in ip_status.stderr'
+
+    - name: assign IP address to interface for 1GbE link from IPU
+      ansible.builtin.command:
+        cmd: "ip a add {{ ipu_1gbe_link_interface_ip }} dev {{ ipu_1gbe_link_interface }}"
+      when:
+        - ipu_1gbe_link_interface_ip not in ip_status.stdout
+
+    - name: bring 1GbE link interface up
+      ansible.builtin.command:
+        cmd: "ip link set dev {{ ipu_1gbe_link_interface }} up"
+      changed_when: true

@@ -59,6 +59,8 @@ intel_ethernet_operator_ddp_urls:
   'ice_comms-1.3.31.0.pkg': https://downloadmirror.intel.com/713853/800%20Series%20DDP%20Comms%20Package%201.3.31.0.zip
   'ice_comms-1.3.35.0.pkg': https://downloadmirror.intel.com/727568/ice_comms-1.3.35.0.zip
   'ice_comms-1.3.37.0.pkg': https://downloadmirror.intel.com/738733/800%20Series%20DDP%20Comms%20Package%201.3.37.0.zip
+  'ice_comms-1.3.40.0.pkg': https://downloadmirror.intel.com/772040/800%20Series%20DDP%20for%20Comms%20Package%201.3.40.0.zip
+
 
 # SHA-1 sums of DDP packages
 intel_ethernet_operator_ddp_sums:
@@ -72,3 +74,4 @@ intel_ethernet_operator_ddp_sums:
   'ice_comms-1.3.31.0.pkg': 5dbe3ae8d2ada5b78de05da150e5df5befb3bf75
   'ice_comms-1.3.35.0.pkg': c61189b98bb116e05853f67ba21ca915416aef46
   'ice_comms-1.3.37.0.pkg': e73d24bdf6b3c8fe46b52ccc31ee534034b0b3e0
+  'ice_comms-1.3.40.0.pkg': 8fcc3eab682f2a023ae49831669e42e63bf05f8f

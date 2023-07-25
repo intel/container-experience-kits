@@ -59,7 +59,6 @@
       when:
         - kube_network_plugin == "calico"
         - calico_network_backend == "vxlan"
-        - not calico_advanced_options
     - name: prepare calico CNI facts for bird backend
       set_fact:
         calico_ipip_mode: 'Always'
@@ -71,7 +70,6 @@
       when:
         - kube_network_plugin == "calico"
         - calico_network_backend == "bird"
-        - not calico_advanced_options
     - name: prepare ADQ facts
       set_fact:
         calico_ipv4pool_ipip: "Never"
@@ -111,22 +109,10 @@
         skip_downloads: false
         etcd_deployment_type: host
       when: container_runtime == "crio"
-    # this is workaround for crio as 1.25 currently doesn't work with SGX
-    # https://github.com/opencontainers/runtime-tools/issues/759
-    - name: change cri-o version when sgx is enabled
-      set_fact:
-        crio_version: v1.24.3
-      when: sgx_dp_enabled | default(false) and container_runtime == "crio"
-
-    # Workaround until kubespray will fix it
-    # Cillium operator has set 2 replicas by default which is not good for single-node deployment
-    - name: Set cillium replicas to 1 in single-node deployment
-      ansible.builtin.set_fact:
-        cilium_operator_replicas: 1
-      when: groups.k8s_cluster | length == 1
 
 # Run kubespray to deploy or scale cluster
-- import_playbook: "{% if scale | default(false) | bool %}kubespray/scale.yml{% else %}kubespray/cluster.yml{% endif %}"
+- name: Deploy cluster via Kubespray
+  ansible.builtin.import_playbook: "{% if scale | default(false) | bool %}kubernetes_sigs.kubespray.scale{% else %}kubernetes_sigs.kubespray.cluster{% endif %}"
   vars:
     any_errors_fatal: true
     kubeadm_enabled: true
@@ -137,9 +123,10 @@
     nginx_image_tag: 1.23.3-alpine
     calico_node_livenessprobe_timeout: 15
     calico_node_readinessprobe_timeout: 15
+    kube_proxy_mode: iptables
     enable_network_policy: true
     override_system_hostname: false
-    kube_proxy_mode: iptables
+    cilium_ipam_mode: kubernetes
     enable_nodelocaldns: false
     system_reserved: true
     dashboard_enabled: "{{ kube_dashboard_enabled | default(true) }}"
@@ -162,8 +149,6 @@
     kube_kubeadm_apiserver_extra_args:
       service-account-lookup: true
       service-account-key-file: "{{ kube_cert_dir }}/sa.key"
-    kube_kubeadm_scheduler_extra_args:
-      profiling: false
     kube_kubeadm_controller_extra_args:
       service-account-private-key-file: "{{ kube_cert_dir }}/sa.key"
     kubelet_config_extra_args:
@@ -359,5 +344,5 @@
   any_errors_fatal: true
 
 # Run certificate generation for mTLS in kubelet
-- import_playbook: kubelet-certificates.yml
+- ansible.builtin.import_playbook: kubelet-certificates.yml
   when: kubernetes | default(true)

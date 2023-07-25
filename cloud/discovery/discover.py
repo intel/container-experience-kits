@@ -1,20 +1,29 @@
-from asyncio.subprocess import DEVNULL
+import fnmatch
 import json
 import os
-import subprocess # nosec B404 # subrocess is set to shell=False
-import paramiko
-import sys
-import fnmatch
 import pathlib
+import subprocess  # nosec B404 # subprocess is set to shell=False
+import sys
+
+from asyncio.subprocess import DEVNULL
+
+import paramiko
 import yaml
+
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
-from ssh_connector import SSHConnector
+from ssh_connector import SSHConnector  # pylint:disable=C0413
 
 ARCH_FILE = os.path.join(pathlib.Path(__file__).absolute().parent.resolve(), "cpu_arch.yml")
 
 qat_pf_ids = ['0435', '37c8', '19e2', '18ee', '6f54', '18a0', '4940', '4942']
 qat_vf_ids = ['0443', '37c9', '19e3', '18ef', '6f55', '18a1', '4941', '4943']
 feature_flag_summary = ["sgx", "avx"]
+remote = None
+nic_sriov = None
+nic_ddp = None
+nic_types = []
+qat_sriov = None
+
 
 class Remote:
     def __init__(self, ip_addr, username, key_filename):
@@ -31,10 +40,10 @@ class Remote:
 
     def exec(self, cmd, split=False):
         try:
-            _stdin, output, stderr = self.session.exec_command(cmd)
+            _, output, stderr = self.session.exec_command(cmd)
             parse_out = output.read().decode("UTF-8").rstrip('\n')
         except paramiko.SSHException as e:
-            print("Command exec failed: ",e)
+            print("Command exec failed: ", e)
             return None
         if stderr.read(1):
             return None
@@ -44,26 +53,29 @@ class Remote:
             return parse_out
 
     def close(self):
-        self.close
+        pass
+
 
 def check_output(cmd, split=False):
     if remote is not None:
-        output = remote.exec(cmd, split=split)
+        exec_func = getattr(remote, 'exec')
+        output = exec_func(cmd, split=split)
         return output
     try:
         if split:
             output = subprocess.check_output(cmd, shell=True, stderr=DEVNULL).decode("UTF-8").splitlines()
         else:
             output = subprocess.check_output(cmd, shell=True, stderr=DEVNULL).decode("UTF-8")
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         return None
     return output
+
 
 def socket_update(orig: dict, update: dict):
     for i in set(update["Socket"].keys()):
         if i not in orig["Socket"]:
             orig["Socket"].update({i: {}})
-        if "Device" in list(set(orig["Socket"][i].keys())&set(update["Socket"][i].keys())):
+        if "Device" in list(set(orig["Socket"][i].keys()) & set(update["Socket"][i].keys())):
             orig["Socket"][i]["Device"].update(update["Socket"][i]["Device"])
         else:
             orig["Socket"][i].update(update["Socket"][i])
@@ -71,34 +83,34 @@ def socket_update(orig: dict, update: dict):
 
 
 def get_pci_net():
+    global nic_sriov  # pylint: disable=W0603
+    global nic_ddp  # pylint: disable=W0603
+
     socket_out = {"Socket": {}}
-    global nic_sriov
-    global nic_ddp
-    global nic_types
     try:
-        with open(os.path.join(sys.path[0],"ddp_devs"), 'r') as file:
+        with open(os.path.join(sys.path[0], "ddp_devs"), 'r') as file:
             for line in file:
                 if not line.strip().startswith("#"):
                     ddp_list = line.strip()
                     break
-    except IOError as e:
+    except IOError:
         print("Error loading ddp_devs - Exiting")
         sys.exit()
     net_devices = check_output("ls -1 /sys/class/net/*/device/numa_node", split=True)
-    if net_devices is None: return None
+    if net_devices is None:
+        return None
     net_numa = check_output("cat /sys/class/net/*/device/numa_node", split=True)
-    for (i, h) in zip(net_devices, net_numa):
+    for i, h in zip(net_devices, net_numa):
         h = int(h)
         dev_name = i.split("/")[4]
-        device = {dev_name: {}}
+        device_data = {}
         dev_path = os.path.split(i)
-        uevent_dump =  check_output("cat %s/uevent" % dev_path[0])
+        uevent_dump = check_output("cat %s/uevent" % dev_path[0])
         for line in uevent_dump.splitlines():
             linevals = list(map(str.strip, line.split('=', 1)))
-            device[dev_name].update({linevals[0].title(): linevals[1]})
-        pci_slot = device[dev_name]["Pci_Slot_Name"].split(':', 1)[1]
-        del device[dev_name]["Pci_Slot_Name"]
-        device[dev_name].update({"Interface": dev_name})
+            device_data.update({linevals[0].title(): linevals[1]})
+        pci_slot = device_data.pop("Pci_Slot_Name").split(':', 1)[1]
+        device_data["Interface"] = dev_name
         pci_subsystem = check_output("lspci -s %s -v | grep Subsystem" % pci_slot)
         if pci_subsystem:
             pci_subsystem = pci_subsystem.split(':')[1].strip()
@@ -111,9 +123,8 @@ def get_pci_net():
                     pci_subsystem = "Unknown"
             except AttributeError:
                 pci_subsystem = "Unknown"
-        device[dev_name].update({"Device": pci_subsystem})
-        device[pci_slot] = device[dev_name]
-        del device[dev_name]
+        device_data.update({"Device": pci_subsystem})
+        device = {pci_slot: device_data}
         if "Pci_Id" in device[pci_slot].keys():
             if device[pci_slot]["Pci_Id"] in ddp_list:
                 device[pci_slot].update({"Ddp_Support": True})
@@ -127,9 +138,9 @@ def get_pci_net():
                 if "fvl" not in nic_types:
                     nic_types.append("fvl")
 
-        ## Get information about PF/VF and SR-IOV
-        ## Check for SR-IOV Capabilities
-        ########## CONTINUE WORKING ON THIS, MAKE SURE ALL INTERFACES HAVE RELEVANT INFO
+        # Get information about PF/VF and SR-IOV
+        # Check for SR-IOV Capabilities
+        # CONTINUE WORKING ON THIS, MAKE SURE ALL INTERFACES HAVE RELEVANT INFO
         totalvfs = check_output("cat %s/sriov_totalvfs" % dev_path[0])
         if totalvfs is not None and int(totalvfs) > 0:
             # PF with SR-IOV enabled
@@ -163,11 +174,13 @@ def get_pci_net():
         socket_out["Socket"][h]["Device"]["Nic"].update(device)
     return socket_out
 
+
 def get_pci_qat():
+    global qat_sriov  # pylint: disable=W0603
+
     pf_ids = []
     vf_ids = []
     socket_out = {"Socket": {}}
-    global qat_sriov
     dev_path = "/sys/bus/pci/devices/0000:"
     pci_devices = check_output("lspci -nmm", split=True)
     if not pci_devices:
@@ -179,11 +192,12 @@ def get_pci_qat():
         for vf_id in qat_vf_ids:
             if vf_id in device:
                 vf_ids.append(device.split()[0])
-    if len(pf_ids) == 0 and len(vf_ids) == 0: return None
+    if len(pf_ids) == 0 and len(vf_ids) == 0:
+        return None
     for pf_id in pf_ids:
         device = {pf_id: {}}
         qat_numa = int(check_output("cat %s%s/numa_node" % (dev_path, pf_id)))
-        uevent_dump =  check_output("cat %s%s/uevent" % (dev_path, pf_id))
+        uevent_dump = check_output("cat %s%s/uevent" % (dev_path, pf_id))
         pci_subsystem = check_output("lspci -s %s -v | grep Subsystem" % pf_id)
         if pci_subsystem:
             pci_subsystem = pci_subsystem.split(':')[1].strip()
@@ -225,7 +239,7 @@ def get_pci_qat():
     for vf_id in vf_ids:
         device = {vf_id: {}}
         qat_numa = int(check_output("cat %s%s/numa_node" % (dev_path, vf_id)))
-        uevent_dump =  check_output("cat %s%s/uevent" % (dev_path, vf_id))
+        uevent_dump = check_output("cat %s%s/uevent" % (dev_path, vf_id))
         pci_subsystem = check_output("lspci -s %s -v | grep Subsystem" % vf_id)
         if pci_subsystem:
             pci_subsystem = pci_subsystem.split(':')[1].strip()
@@ -253,19 +267,23 @@ def get_pci_qat():
         socket_out["Socket"][qat_numa]["Device"]["Qat"].update(device)
     return socket_out
 
+
 def get_lscpu():
     lscpu_out = {}
     cpu_info_json = check_output("lscpu -J")
-    if cpu_info_json is None: return None
+    if cpu_info_json is None:
+        return None
     json_object = json.loads(cpu_info_json)
     for i in json_object['lscpu']:
-        lscpu_out[i['field'].replace(":","")] = i['data']
+        lscpu_out[i['field'].replace(":", "")] = i['data']
     return {"lscpu": lscpu_out}
+
 
 def get_core_info():
     socket_out = {"Socket": {}}
     core_info_csv = check_output("lscpu -p=cpu,core,socket,node,cache")
-    if core_info_csv is None: return None
+    if core_info_csv is None:
+        return None
     for i in core_info_csv.splitlines():
         # CPU, Core, Socket, Node, Cache
         if i and not i.startswith("#"):
@@ -283,7 +301,7 @@ def get_core_info():
                 socket_out["Socket"].update({socket_id: {"Cores": {}}})
             if core_id not in socket_out["Socket"][socket_id]["Cores"]:
                 socket_out["Socket"][socket_id]["Cores"].update({core_id: {"Cpus": []}})
-            #print(socket_out["Socket"][socket_id]["Core"][core_id])
+            # print(socket_out["Socket"][socket_id]["Core"][core_id])
             socket_out["Socket"][socket_id]["Cores"][core_id]["Cpus"].append(cpu_id)
             if node_id is not None and "Node" not in socket_out["Socket"][socket_id]["Cores"][core_id].keys():
                 socket_out["Socket"][socket_id]["Cores"][core_id].update({"Node": node_id})
@@ -291,10 +309,12 @@ def get_core_info():
                 socket_out["Socket"][socket_id]["Cores"][core_id].update({"Cache": cache})
     return socket_out
 
+
 def get_socket_mem_info():
     socket_out = {"Socket": {}}
     mem_nodes = check_output("ls -1 /sys/devices/system/node/node*/meminfo", split=True)
-    if mem_nodes is None: return None
+    if mem_nodes is None:
+        return None
     for i in mem_nodes:
         socket = int(i.split("/")[5].lstrip('node'))
         socket_out["Socket"].update({socket: {"Memory": {}}})
@@ -304,37 +324,39 @@ def get_socket_mem_info():
             socket_out["Socket"][socket]["Memory"].update({valpair[0].lstrip(':'): valpair[1]})
     return socket_out
 
+
 def get_mem_info():
     # Add to full output
     meminfo_out = {"Memory": {}}
     mem_info = check_output("cat /proc/meminfo", split=True)
-    if mem_info is None: return None
+    if mem_info is None:
+        return None
     for i in mem_info:
         valpair = i.split()[0:2]
         meminfo_out["Memory"].update({valpair[0].rstrip(':'): valpair[1]})
     return meminfo_out
 
+
 def get_host_info():
-    hostinfo_out = {"Host": {}}
+    host_data = {}
     # consider changing to /etc/os-release if hostnamectl is not common
     host_info = check_output("hostnamectl", split=True)
     if host_info:
         for i in host_info:
             value = i.split(':', 1)[1].strip()
             if "Static hostname" in i:
-                hostinfo_out["Host"].update({"Hostname": value})
+                host_data.update({"Hostname": value})
             elif "Operating System" in i:
-                hostinfo_out["Host"].update({"OS": value})
+                host_data.update({"OS": value})
             elif "Kernel" in i:
-                hostinfo_out["Host"].update({"Kernel": value})
+                host_data.update({"Kernel": value})
             elif "Architecture" in i:
-                hostinfo_out["Host"].update({"Arch": value})
+                host_data.update({"Arch": value})
     codename = check_output("cat /sys/devices/cpu/caps/pmu_name")
     if codename:
-        codename = codename.strip()
-        hostinfo_out["Host"].update({"Codename": codename.title()})
-    if not hostinfo_out["Host"].keys(): return None
-    return hostinfo_out
+        host_data.update({"Codename": codename.strip().title()})
+    return {"Host": host_data} if host_data else None
+
 
 def get_cpu_arch_codename(cpu_model):
     cpu_codename_arch = ''
@@ -345,11 +367,12 @@ def get_cpu_arch_codename(cpu_model):
         except yaml.YAMLError as exc:
             print(exc)
     if cpu_models is not None:
-        for arch, obj in cpu_models['architectures'].items():
-            for model in cpu_models['architectures'][arch]['models']:
+        for arch_name, arch_data in cpu_models['architectures'].items():
+            for model in arch_data['models']:
                 if model in cpu_model:
-                    cpu_codename_arch = arch
+                    cpu_codename_arch = arch_name
     return cpu_codename_arch
+
 
 def get_summary(info: dict):
     summary = {}
@@ -364,7 +387,7 @@ def get_summary(info: dict):
                 elif info["Memory"]["Hugepagesize"] == "2048":
                     summary["Hugepage_Size"] = "2M"
                 else:
-                    summary["Hugepage_Size"] = info["Memory"]["Hugepagesize"]+"K"
+                    summary["Hugepage_Size"] = info["Memory"]["Hugepagesize"] + "K"
     if "lscpu" in info.keys():
         if "Model name" in info["lscpu"]:
             summary["Cpu_Model"] = info["lscpu"]["Model name"]
@@ -381,11 +404,11 @@ def get_summary(info: dict):
             summary["Numa_Nodes"] = info["lscpu"]["NUMA node(s)"]
             if int(summary["Numa_Nodes"]) != 0:
                 for i in range(int(summary["Numa_Nodes"])):
-                    summary["Numa_Node"+str(i)+"_Cpus"] = info["lscpu"]["NUMA node"+str(i)+" CPU(s)"]
+                    summary["Numa_Node" + str(i) + "_Cpus"] = info["lscpu"]["NUMA node" + str(i) + " CPU(s)"]
         if "Flags" in info["lscpu"]:
             flags = info["lscpu"]["Flags"].split()
             for i in feature_flag_summary:
-                matches = fnmatch.filter(flags,i+"*")
+                matches = fnmatch.filter(flags, i + "*")
                 if matches:
                     summary[i.title()] = matches
             if "Virtualization" in info["lscpu"]:
@@ -406,18 +429,20 @@ def get_summary(info: dict):
     summary_out = {"Summary": summary}
     return summary_out
 
+
 def main(ip_addr, username, key_filename):
-    global remote
+    global remote  # pylint: disable=W0603
+    global nic_sriov  # pylint: disable=W0603
+    global nic_types  # pylint: disable=W0603
+    global qat_sriov  # pylint: disable=W0603
+    global nic_ddp  # pylint: disable=W0603
+
     remote = Remote(ip_addr, username, key_filename)
     remote.connect()
     output = {"Socket": {}}
-    global nic_sriov
     nic_sriov = False
-    global nic_types
     nic_types = []
-    global qat_sriov
     qat_sriov = False
-    global nic_ddp
     nic_ddp = False
     pci_net = get_pci_net()
     pci_qat = get_pci_qat()

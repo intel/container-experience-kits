@@ -16,25 +16,34 @@
 ---
 # Needs to be fixed in Kubespray Repo.
 - name: skip RHEL subscription manager processing
-  replace:
-    path: "{{ playbook_dir }}/kubespray/roles/bootstrap-os/tasks/main.yml"
+  ansible.builtin.replace:
+    path: "{{ kubespray_dir }}/roles/bootstrap-os/tasks/main.yml"
     regexp: "(.*)bootstrap-redhat.yml(.*)"
     replace: "\\1bootstrap-centos.yml\\2"
     mode: 0600
-  when: target_distribution == "RedHat"
-
-- name: check Host Vars for WA
-  stat:
-    path: "{{ inventory_dir }}/host_vars/{{ item }}.yml"
-  register: host_vars_details
-  with_items: "{{ groups['vm_host'] | default([]) }}"
-
-- name: read Host Vars for WA
-  include_vars: "{{ item.stat.path }}"
-  with_items: "{{ host_vars_details.results }}"
-  when: item.stat.exists
 
 - name: apply kubespray patch for crio cleanup
   ansible.posix.patch:
     src: "files/kubespray_crio.patch"
-    dest: "{{ playbook_dir }}/kubespray/roles/container-engine/cri-o/tasks/cleanup.yaml"
+    dest: "{{ kubespray_dir }}/roles/container-engine/cri-o/tasks/cleanup.yaml"
+
+- name: apply kubespray patch to delay wait for apiserver after restart
+  ansible.posix.patch:
+    src: "files/kubespray_delay_wait.patch"
+    dest: "{{ kubespray_dir }}/roles/kubernetes/preinstall/handlers/main.yml"
+
+- name: apply kubespray patch for DNSStubListener
+  ansible.posix.patch:
+    src: "files/kubespray_dnsstublistener.patch"
+    dest: "{{ kubespray_dir }}/roles/kubernetes/preinstall/templates/resolved.conf.j2"
+  when:
+    - dns_disable_stub_listener | default(true) | bool
+
+- name: Load patch checksum
+  ansible.builtin.include_tasks: load_checksum.yml
+
+- name: Write checksum to kubespray directory
+  ansible.builtin.copy:
+    dest: "{{ patch_checksum_file }}"
+    content: "{{ patch_checksum }}"
+    mode: preserve

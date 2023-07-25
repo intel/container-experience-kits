@@ -14,49 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-# workaround to be removed once component will be updated to version, which supports higher golang version
-# Required golang version here is 1.17.8
-- name: check current golang version
-  ansible.builtin.shell: "set -o pipefail && /usr/local/go/bin/go version|sed -e 's/go version go//g'|cut -d' ' -f1"
-  args:
-    executable: /bin/bash
-  failed_when: false
-  changed_when: false
-  register: go_version
-
-- name: set intel_power_manager - 'ipm' go version
-  ansible.builtin.set_fact:
-    ipm_go_version: 1.17.8
-
-- name: install ipm specific golang version
-  when: go_version.stdout > ipm_go_version
-  block:
-    - name: workaround for old golang version needed for IPM
-      vars:
-        golang_version: "{{ ipm_go_version }}"
-        golang_download_checksum: "sha256:980e65a863377e69fd9b67df9d8395fd8e93858e7a24c9f55803421e453f4f99"
-        additional_go_version: "go_{{ ipm_go_version }}"
-      ansible.builtin.include_role:
-        name: bootstrap/golang_install # noqa role-name[path] - role in bootstrap
-
-    - name: set gopath for ipm go version
-      ansible.builtin.set_fact:
-        ipm_go_root_path: "/usr/local/go_{{ ipm_go_version }}/go"
-        ipm_go_path: "/root/go_{{ ipm_go_version }}/go"
-
-- name: set gopath for ipm go version
-  ansible.builtin.set_fact:
-    ipm_go_root_path: "/usr/local/go"
-    ipm_go_path: "/root/go"
-  when: go_version.stdout == ipm_go_version
-
-- name: show remote PATH variable
-  ansible.builtin.command: echo $PATH
-  changed_when: false
-  register: remote_path
-
-# NOTE(pklimowx): repo must be cloned to the controller and, if we want to build
-# images locally, to the first node as well.
 - name: clone Intel Kubernetes Power Manager repository
   ansible.builtin.git:
     repo: "{{ intel_power_manager_git_url }}"
@@ -64,64 +21,60 @@
     dest: "{{ intel_power_manager_dir }}"
     force: yes
   when:
-    - inventory_hostname == groups['kube_control_plane'][0] or
-      (inventory_hostname == groups['kube_node'][0] and intel_power_manager.build_image_locally | default(false) | bool)
-
-- name: set facts for Intel Kubernetes Power Manager templates
-  ansible.builtin.set_fact:
-    power_operator_image: "{{ registry_local_address }}/intel-power-operator"
-    power_operator_image_version: "{{ intel_power_manager_git_ref }}"
-    node_agent_image: "{{ registry_local_address }}/intel-power-node-agent"
-    node_agent_image_version: "{{ intel_power_manager_git_ref }}"
-  when:
-    - intel_power_manager.build_image_locally | default(false) | bool
+    - inventory_hostname == groups['kube_control_plane'][0]
 
 # NOTE(pklimowx): node-agent DS is deployed automatically via Power Manager after providing
 # PowerProfile. The yaml file needs to be patched before building image to provide correct source for it.
-# Both images depend on intel_power_manager* variable as there is no public image for AppQoS
-- name: patch Node Agent DaemonSet yaml
+- name: patch image to use local registry
+  ansible.builtin.lineinfile:
+    path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
+    regexp: "^.*image: {{ intel_power_node_agent_image }}:{{ intel_power_manager_git_ref }}"
+    line: "        - image: {{ intel_power_node_agent_image_local }}:{{ intel_power_manager_git_ref }}"
   when:
     - intel_power_manager.build_image_locally | default(false) | bool
-    - inventory_hostname == groups['kube_node'][0]
-  block:
-    - name: use node-agent image from local registry
-      ansible.builtin.lineinfile:
-        path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
-        regexp: "^        - image: intel/power-node-agent:{{ intel_power_manager_git_ref }}"
-        line: "        - image: {{ node_agent_image }}:{{ node_agent_image_version }}"
+    - inventory_hostname == groups['kube_control_plane'][0]
 
-    - name: use appqos image from local registry
-      ansible.builtin.lineinfile:
-        path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
-        regexp: "^        - image: 'appqos:latest'"
-        line: "        - image: {{ app_qos_image }}"
+- name: count cpu quota
+  set_fact:
+    cpu_quota: "{{ 200 + ( 200 * multiplier | float ) | int | abs }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: patch cpu quota
+  ansible.builtin.lineinfile:
+    path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
+    regexp: "^.*cpu: 100m"
+    line: "               cpu: {{ cpu_quota }}m"
+  loop: [1, 2]
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: count memory quota
+  set_fact:
+    memory_quota: "{{ 300 + ( 300 * multiplier | float ) | int | abs }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: patch memory quota
+  ansible.builtin.lineinfile:
+    path: "{{ intel_power_manager_dir }}/build/manifests/power-node-agent-ds.yaml"
+    regexp: "^.*memory: 64Mi"
+    line: "               memory: {{ memory_quota }}Mi"
+  loop: [1, 2]
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 # docker runtime is in use
 - name: prepare images for Intel Kubernetes Power Manager
   when:
     - container_runtime == "docker"
     - intel_power_manager.build_image_locally | default(false) | bool
-    - inventory_hostname == groups['kube_node'][0]
-  environment:
-    GOROOT: "{{ ipm_go_root_path }}"
-    GOPATH: "{{ ipm_go_path }}"
-    PATH: "{{ ipm_go_root_path }}/bin:{{ remote_path.stdout }}"
+    - inventory_hostname == groups['kube_control_plane'][0]
   block:
     - name: build images for Intel Kubernetes Power Manager
-      ansible.builtin.command: docker build -f build/{{ item.file }} -t {{ item.name }}:latest .
+      ansible.builtin.command: docker build -f build/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_power_manager_git_ref }} .
       changed_when: true
       args:
         chdir: "{{ intel_power_manager_dir }}"
       with_items:
         - {file: Dockerfile, name: intel-power-operator}
         - {file: Dockerfile.nodeagent, name: intel-power-node-agent}
-
-    - name: tag Intel Kubernetes Power Manager images
-      ansible.builtin.command: docker tag {{ item }}:latest {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
-      changed_when: true
-      with_items:
-        - intel-power-operator
-        - intel-power-node-agent
 
     - name: push Intel Kubernetes Power Manager images to local registry
       ansible.builtin.command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_power_manager_git_ref }}
@@ -135,11 +88,7 @@
   when:
     - container_runtime in ["crio", "containerd"]
     - intel_power_manager.build_image_locally | default(false) | bool
-    - inventory_hostname == groups['kube_node'][0]
-  environment:
-    GOROOT: "{{ ipm_go_root_path }}"
-    GOPATH: "{{ ipm_go_path }}"
-    PATH: "{{ ipm_go_root_path }}/bin:{{ remote_path.stdout }}"
+    - inventory_hostname == groups['kube_control_plane'][0]
   block:
     - name: build and tag images for Intel Kubernetes Power Manager
       ansible.builtin.command: podman build -f build/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_power_manager_git_ref }} .
@@ -159,10 +108,6 @@
 
 - name: prepare and deploy Intel Power Manager
   when: inventory_hostname == groups['kube_control_plane'][0]
-  environment:
-    GOROOT: "{{ ipm_go_root_path }}"
-    GOPATH: "{{ ipm_go_path }}"
-    PATH: "{{ ipm_go_root_path }}/bin:{{ remote_path.stdout }}"
   block:
     - name: create Intel Power Manager namespace
       kubernetes.core.k8s:
@@ -179,21 +124,28 @@
         state: present
         src: "{{ (intel_power_manager_dir, 'config', 'rbac', 'rbac.yaml') | path_join }}"
 
+    # WA: go mod tidy is needed, until upstream issue is fixed.
+    - name: run go mod tidy
+      ansible.builtin.command: "go mod tidy -v"
+      args:
+        chdir: "{{ intel_power_manager_dir }}"
+      changed_when: true
+
     - name: create and install Intel Power Manager CRDs
       community.general.make:
         chdir: "{{ intel_power_manager_dir }}"
 
     - name: populate Intel Kubernetes Power Manager Controller Manager template
       ansible.builtin.template:
-        src: controller_manager.yml.j2
-        dest: "{{ (intel_power_manager_dir, 'controller_manager.yml') | path_join }}"
+        src: controller_manager.yaml.j2
+        dest: "{{ (intel_power_manager_dir, 'controller_manager.yaml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: deploy Intel Kubernetes Power Manager Controller Manager
       kubernetes.core.k8s:
         state: present
-        src: "{{ (intel_power_manager_dir, 'controller_manager.yml') | path_join }}"
+        src: "{{ (intel_power_manager_dir, 'controller_manager.yaml') | path_join }}"
 
     - name: wait for Power Manager to be up and running
       kubernetes.core.k8s_info:
@@ -206,17 +158,23 @@
           reason: MinimumReplicasAvailable
         wait_timeout: 300
 
+    - name: combine power profiles from each power node
+      set_fact:
+        combined_profiles: "{{ combined_profiles + hostvars[item]['power_profiles'] }}"
+      loop: "{{ intel_power_manager.power_nodes }}"
+      when: inventory_hostname == groups['kube_control_plane'][0]
+
     - name: populate Power Config template
       ansible.builtin.template:
-        src: power_config.yml.j2
-        dest: "{{ (intel_power_manager_dir, 'power_config.yml') | path_join }}"
+        src: power_config.yaml.j2
+        dest: "{{ (intel_power_manager_dir, 'power_config.yaml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: apply Power Config
       kubernetes.core.k8s:
         state: present
-        src: "{{ (intel_power_manager_dir, 'power_config.yml') | path_join }}"
+        src: "{{ (intel_power_manager_dir, 'power_config.yaml') | path_join }}"
 
     - name: check that all pods are running
       ansible.builtin.include_role:

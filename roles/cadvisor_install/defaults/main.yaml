@@ -16,10 +16,14 @@
 ---
 cadvisor_application_name: "cadvisor"  # cAdvisor Main application name
 cadvisor_release_name: "cadvisor"     # cAdvisor Helm Charts release name
-perf_events_config_filename: "sample-perf-event.json"
+
+cadvisor_image: gcr.io/cadvisor/cadvisor # cAdvisor Docker image
+cadvisor_image_version: 0.44.0 # cAdvisor Version
 
 cadvisor_helm_repo_url: "https://ckotzbauer.github.io/helm-charts"  # cAdvisor Helm Repo URL
-cadvisor_helm_chart_repo_name: "ckotzbauer"         # cAdvisor Repo Name
-cadvisor_helm_charts_ref: "ckotzbauer/cadvisor"     # cAdvisor Helm Chart Reference
-cadvisor_helm_charts_version: "2.2.4"               # cAdvisor Version
-cadvisor_helm_release_namespace: "kube-system"      # cAdvisor Namespace
+cadvisor_helm_repo_name: "ckotzbauer"         # cAdvisor Repo Name
+cadvisor_helm_chart_ref: "ckotzbauer/cadvisor"     # cAdvisor Helm Chart Reference
+cadvisor_helm_chart_version: "2.2.4"               # cAdvisor Helm Chart Version
+cadvisor_namespace: "cadvisor"      # cAdvisor Namespace
+
+cadvisor_perf_config_filename: "perf-events.json"

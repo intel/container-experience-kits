@@ -1,0 +1,66 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set CPU ID
+  ansible.builtin.set_fact:
+    cpu_id: "{{ ansible_processor[2] | regex_search('\\$?\\d\\d\\d\\d\\%?\\@?\\w?|\\d\\d/\\d\\w') }}" # noqa jinja[spacing]
+
+- name: print CPU ID
+  ansible.builtin.debug:
+    msg: "CPU ID: {{ cpu_id }}"
+
+- name: check if CPU has confirmed support
+  ansible.builtin.assert:
+    that: "cpu_id in {{ lookup('ansible.builtin.vars', 'confirmed_' + configured_arch + '_cpus') }} \
+           {% if configured_arch == 'clx' %} or cpu_id in {{ confirmed_clx_ncpus }} {% endif %} \
+           or cpu_id in {{ unconfirmed_cpu_models }}"
+    fail_msg:
+      "CPU model '{{ cpu_id }}' present on target is not in the confirmed CPUs list.\n
+      To proceed, please add  '{{ cpu_id }}' to the list of unconfirmed CPUs in variable 'unconfirmed_cpu_models' in group_vars.\n
+      Please be aware that by using CPU model that is not confirmed, some features may not work properly."
+
+- name: set skl, icx, clx, spr to false
+  ansible.builtin.set_fact:
+    is_skl: false
+    is_clx: false
+    is_clx_ncpu: false
+    is_icx: false
+    is_spr: false
+
+- name: set is_skl architecture variable
+  ansible.builtin.set_fact:
+    is_skl: true
+  when: cpu_id in confirmed_skl_cpus
+
+- name: set is_clx architecture variable
+  ansible.builtin.set_fact:
+    is_clx: true
+  when: cpu_id in confirmed_clx_cpus
+
+- name: set is_icx architecture variable
+  ansible.builtin.set_fact:
+    is_icx: true
+  when: cpu_id in confirmed_icx_cpus
+
+- name: set is_spr architecture variable
+  ansible.builtin.set_fact:
+    is_spr: true
+  when: cpu_id in confirmed_spr_cpus
+
+- name: check if clx_ncpu mode
+  ansible.builtin.set_fact:
+    is_clx_ncpu: true
+  when: cpu_id in confirmed_clx_ncpus

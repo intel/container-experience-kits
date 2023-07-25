@@ -1,0 +1,352 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: copy nvm image from ansible host
+  ansible.builtin.copy:
+    src: "{{ (ipu_tmp_dir, ipu_nvm_image_tarball) | path_join }}"
+    dest: "{{ (ipu_project_root_dir, ipu_nvm_image_tarball) | path_join }}"
+    mode: 0644
+
+- name: unarchive nvm image
+  ansible.builtin.unarchive:
+    src: "{{ (ipu_project_root_dir, ipu_nvm_image_tarball) | path_join }}"
+    dest: "{{ ipu_project_root_dir }}"
+    remote_src: yes
+    mode: 0755
+
+- name: list USB device binding
+  ansible.builtin.find:
+    path: "{{ ftdi_sio_driver_dir }}"
+    file_type: "link"
+  register: ftdi_sio_out
+
+- name: unbind USB1 and USB3 from ftdi_sio driver
+  ansible.builtin.shell: "set -o pipefail && echo '{{ item }}' > /sys/bus/usb/drivers/ftdi_sio/unbind"
+  args:
+    executable: /bin/bash
+  with_items: "{{ usb_addresses }}"
+  when: ftdi_sio_out.files|selectattr("path", "search", item)|list|length == 1
+
+- name: add executable permission for EthProgrammer
+  ansible.builtin.file:
+    path: "{{ (eth_programmer_dir, 'EthProgrammer') | path_join }}"
+    state: touch
+    mode: a+x
+
+- name: flash nvm image
+  ansible.builtin.command:
+    cmd: "./EthProgrammer --flash {{ ipu_nvm_image_file }} --no-preservation"
+    chdir: "{{ eth_programmer_dir }}"
+  become: true
+  register: flash_nvm_out
+  changed_when: true
+  async: 1200 # Maximum allowed timeout in Seconds
+  poll: 10 # Polling Interval in Seconds
+  environment:
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: 1
+
+# ipmi ansible module does not support power cycle
+- name: power off IPU host
+  ansible.builtin.command:
+    cmd: "ipmitool -I lan -H {{ ipmi_ip }} -U {{ ipmi_user }} -P '{{ ipma_password }}' chassis power off"
+  changed_when: true
+
+- name: wait before power on again
+  ansible.builtin.pause:
+    prompt: "Waiting before power on..."
+    seconds: 10
+
+- name: power on IPU host
+  ansible.builtin.command:
+    cmd: "ipmitool -I lan -H {{ ipmi_ip }} -U {{ ipmi_user }} -P '{{ ipma_password }}' chassis power on"
+  changed_when: true
+
+- name: wait for ssh connection to IPU host
+  ansible.builtin.wait_for:
+    port: 22
+    host: "{{ hostvars[groups['ipu_host'][0]]['ansible_default_ipv4']['address'] }}"
+    search_regex: OpenSSH
+    delay: 1
+
+- name: wait for ssh connection to IPU-IMC
+  ansible.builtin.wait_for:
+    port: 22
+    host: '{{ imc_static_ip }}'
+    search_regex: OpenSSH
+    delay: 1
+
+- name: get IMC hostname
+  ansible.builtin.command:
+    cmd: "ssh {{ ssh_options }} root@{{ imc_static_ip }} hostname"
+  changed_when: false
+  register: imc_hostname
+
+- name: Update /etc/hosts with ipu_linkp
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    block: |
+      {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} {{ inventory_hostname }}
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ inventory_hostname }}"
+  delegate_to: localhost
+  become: false
+
+- name: Set login_user fact
+  ansible.builtin.set_fact:
+    login_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER, True) }}"
+
+- name: Set local_login_user fact
+  ansible.builtin.set_fact:
+    local_login_user: "{{ lookup('ansible.builtin.env', 'SUDO_USER')|default( lookup('ansible.builtin.env', 'USER'), True) }}"
+
+- name: Get login_user home dir
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ login_user }}"
+
+- name: Set login_user_dir fact
+  ansible.builtin.set_fact:
+    login_user_dir: "{{ ansible_facts.getent_passwd[login_user][4] }}"
+
+- name: Get local_login_user home dir
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ local_login_user }}"
+  delegate_to: localhost
+  become: false
+
+- name: Set local_login_user_dir fact
+  ansible.builtin.set_fact:
+    local_login_user_dir: "{{ ansible_facts.getent_passwd[local_login_user][4] }}"
+
+- name: Prepare ipu invetory file name
+  ansible.builtin.set_fact:
+    ipu_inventory_name: "{{ inventory_file | splitext | first + '_mev' + inventory_file | splitext | last }}"
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Copy invetory file {{ inventory_file }} to new file {{ ipu_inventory_name }}
+  ansible.builtin.copy:
+    src: "{{ inventory_file }}"
+    dest: "{{ ipu_inventory_name }}"
+    mode: '0644'
+    force: yes
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Prepare bastion host configuration in ~/.ssh/config for IMC
+  ansible.builtin.blockinfile:
+    path: "{{ local_login_user_dir }}/.ssh/config"
+    block: |
+      Host {{ imc_hostname.stdout }}
+        ProxyCommand ssh {{ ssh_options }} {{ login_user }}@{{ inventory_hostname }} -p 22 -W %h:%p
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ imc_hostname.stdout }}"
+    create: yes
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
+    mode: '0644'
+  delegate_to: localhost
+  become: false
+
+- name: Add IMC to inventory - all
+  ansible.builtin.add_host:
+    hostname: "{{ imc_hostname.stdout }}"
+    ansible_host: "{{ imc_static_ip }}"
+    ip: "{{ imc_static_ip }}"
+    ansible_user: "root" # IMC user - the only root user is available in flashed image
+    ansible_ssh_common_args: '{{ ssh_options }} -o ProxyCommand="ssh -p 22 -W %h:%p {{ ssh_options }} -q {{ inventory_hostname }}"'
+    ansible_ssh_user: '{{ ansible_user }}'
+    ansible_ssh_password: '{{ ansible_password }}'
+    inventory_dir: '{{ inventory_dir }}'
+    groups: all
+
+- name: Add IMC to inventory - ipu_imc
+  ansible.builtin.add_host:
+    hostname: "{{ imc_hostname.stdout }}"
+    groups: "ipu_imc"
+    inventory_dir: '{{ inventory_dir }}'
+
+- name: Update ipu inventory file for IMC - all
+  community.general.ini_file:
+    dest: "{{ ipu_inventory_name }}"
+    section: "all"
+    option: >-
+      {{ imc_hostname.stdout }} ansible_host={{ imc_static_ip }} ip={{ imc_static_ip }} ansible_user={{ login_user }}
+      ansible_ssh_user={{ ansible_user }} ansible_ssh_password='{{ ansible_password }}' inventory_dir={{ inventory_dir }}
+      ansible_ssh_common_args='{{ ssh_options }} -o ProxyCommand="ssh -p 22 -W %h:%p {{ ssh_options }} -q {{ inventory_hostname }}"'
+    no_extra_spaces: yes
+    allow_no_value: yes
+    mode: '0644'
+    state: present
+    backup: no
+  delegate_to: localhost
+  become: false
+
+- name: Update ipu inventory file for IMC - ipu_imc
+  community.general.ini_file:
+    dest: "{{ ipu_inventory_name }}"
+    section: "ipu_imc"
+    option: "{{ imc_hostname.stdout }}"
+    no_extra_spaces: yes
+    allow_no_value: yes
+    mode: '0644'
+    state: present
+    backup: no
+  delegate_to: localhost
+  become: false
+
+- name: Update /etc/hosts with ipu_imc
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    block: |
+      {{ imc_static_ip }} {{ imc_hostname.stdout }}
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ imc_hostname.stdout }}"
+
+- name: check hostname of machine where we delegate to
+  ansible.builtin.command:
+    cmd: "hostname"
+  changed_when: false
+  delegate_to: '{{ imc_hostname.stdout }}'
+  ignore_unreachable: true
+  register: imc_connection_result
+
+- name: wait for ssh connection from IPU-IMC to IPU-ACC
+  ansible.builtin.wait_for:
+    port: 22
+    host: '{{ acc_static_ip }}'
+    search_regex: OpenSSH
+    delay: 1
+    timeout: 3600
+  delegate_to: '{{ imc_hostname.stdout }}'
+  ignore_unreachable: true
+  register: acc_connection_result
+
+- name: handle one IMC restart based on watchdog
+  block:
+    - name: IMC restart detected
+      ansible.builtin.debug:
+        msg: "IMC is not reachable - it is restarted because of ACC"
+
+    - name: clear host error caused by reboot
+      ansible.builtin.meta: clear_host_errors
+
+    - name: wait for ssh connection to IPU-IMC after restart
+      ansible.builtin.wait_for:
+        port: 22
+        host: '{{ imc_static_ip }}'
+        search_regex: OpenSSH
+        delay: 1
+
+    - name: wait for ssh connection from IPU-IMC to IPU-ACC after restart
+      ansible.builtin.wait_for:
+        port: 22
+        host: '{{ acc_static_ip }}'
+        search_regex: OpenSSH
+        delay: 1
+        timeout: 3600
+      delegate_to: '{{ imc_hostname.stdout }}'
+  when:
+    - acc_connection_result.unreachable | default(false) or imc_connection_result.unreachable | default(false)
+
+- name: get ACC hostname
+  ansible.builtin.command:
+    cmd: "ssh {{ ssh_options }} root@{{ acc_static_ip }} hostname"
+  register: acc_hostname
+  changed_when: false
+  delegate_to: '{{ imc_hostname.stdout }}'
+
+- name: Prepare bastion host configuration in ~/.ssh/config for ACC
+  ansible.builtin.blockinfile:
+    path: "{{ local_login_user_dir }}/.ssh/config"
+    block: |
+      Host {{ acc_hostname.stdout }}
+        ProxyCommand ssh {{ ssh_options }} {{ login_user }}@{{ imc_hostname.stdout }} -p 22 -W %h:%p
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ acc_hostname.stdout }}"
+    create: yes
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
+    mode: '0644'
+  delegate_to: localhost
+  become: false
+
+- name: Add ACC to inventory - all
+  ansible.builtin.add_host:
+    hostname: "{{ acc_hostname.stdout }}"
+    ansible_host: "{{ acc_static_ip }}"
+    ip: "{{ acc_static_ip }}"
+    ansible_user: "root" # ACC user - the only root user is available in flashed image
+    ansible_ssh_common_args: >-
+      '{{ ssh_options }} -o ProxyCommand="ssh -W %h:%p {{ ssh_options }} -o ProxyCommand=\"ssh -W {{ imc_static_ip }}:22 {{ ssh_options }}
+      {{ inventory_hostname }}\" {{ imc_static_ip }}"'
+    ansible_ssh_user: '{{ ansible_user }}'
+    ansible_ssh_password: '{{ ansible_password }}'
+    inventory_dir: '{{ inventory_dir }}'
+    groups: all
+
+- name: Add ACC to inventory - ipu_acc
+  ansible.builtin.add_host:
+    hostname: "{{ acc_hostname.stdout }}"
+    groups: "ipu_acc"
+    inventory_dir: '{{ inventory_dir }}'
+
+- name: Update ipu inventory file for ACC - all
+  community.general.ini_file:
+    dest: "{{ ipu_inventory_name }}"
+    section: "all"
+    option: >-
+      {{ acc_hostname.stdout }} ansible_host={{ acc_static_ip }} ip={{ acc_static_ip }} ansible_user=root
+      ansible_ssh_user={{ ansible_user }} ansible_ssh_password='{{ ansible_password }}' inventory_dir={{ inventory_dir }}
+      ansible_ssh_common_args='{{ ssh_options }} -o ProxyCommand="ssh -W %h:%p {{ ssh_options }} -o ProxyCommand=\"ssh -W {{ imc_static_ip }}:22
+      {{ ssh_options }} {{ inventory_hostname }}\" {{ imc_static_ip }}"'
+    no_extra_spaces: yes
+    allow_no_value: yes
+    mode: '0644'
+    state: present
+    backup: no
+  delegate_to: localhost
+  become: false
+
+- name: Update ipu inventory file for ACC - ipu_acc
+  community.general.ini_file:
+    dest: "{{ ipu_inventory_name }}"
+    section: "ipu_acc"
+    option: "{{ acc_hostname.stdout }}"
+    no_extra_spaces: yes
+    allow_no_value: yes
+    mode: '0644'
+    state: present
+    backup: no
+  delegate_to: localhost
+  become: false
+
+- name: Update /etc/hosts with ipu_acc
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    block: |
+      {{ acc_static_ip }} {{ acc_hostname.stdout }}
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ acc_hostname.stdout }}"
+  delegate_to: '{{ imc_hostname.stdout }}'
+
+- name: IPU is up and running
+  ansible.builtin.debug:
+    msg: "IPU is up and running"

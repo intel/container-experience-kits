@@ -16,18 +16,100 @@
 ---
 # Installing the RT kernel is intended only for FlexRAN support
 
-- debug: msg="NOP. Until Ubuntu 22.04 RT patch is made public by Canonical, realtime image is expected to be pre-built by user"
+- name: Get the candidate version of pro tool
+  shell: "set -o pipefail && apt-cache policy ubuntu-advantage-tools | grep Candidate |awk '{print $NF}'"
+  args:
+    executable: /bin/bash
+  register: candidate_version
+  changed_when: false
 
-# - name: Install realtime headers from the local DEB packages
-#   shell: "apt install -y /opt/rt-kits/*.deb"
-#   ignore_errors: True
+- debug:
+    msg: "pro tool candidate version is {{ candidate_version.stdout }}"
 
-# - name: Find existing local DEB files
-#   find:
-#     paths: /opt/rt-kits/
-#     patterns: "*.deb"
-#   register: found_debs
-# - name: Install the local DEB packages
-#   apt:
-#     deb: "{{ item.path }}"
-#   with_items: "{{ found_debs.files }}"
+- name: Get the Installed version of pro tool
+  shell: "set -o pipefail && apt-cache policy ubuntu-advantage-tools | grep Installed |awk '{print $NF}'"
+  args:
+    executable: /bin/bash
+  register: installed_version
+  changed_when: false
+
+- debug:
+    msg: "pro tool installed version is {{ installed_version.stdout }}"
+
+- name: Install the pro tool
+  ansible.builtin.apt:
+    name: ubuntu-advantage-tools={{ candidate_version.stdout }}
+    state: present
+  when: installed_version.stdout != candidate_version.stdout
+
+- name: Configure the proxy settings for pro tool
+  command: "{{item}}"
+  with_items:
+    - pro config set http_proxy={{ http_proxy }}
+    - pro config set https_proxy={{ https_proxy }}
+    - pro config set apt_http_proxy={{ http_proxy }}
+    - pro config set apt_https_proxy={{ https_proxy }}
+    - pro config set ua_apt_http_proxy={{ http_proxy }}
+    - pro config set ua_apt_https_proxy={{ https_proxy }}
+  changed_when: false
+
+- name: Attach Ubuntu Pro token
+  command: "pro attach {{ ubuntu_pro_token }}"
+  no_log: True
+  changed_when: false
+
+- name: Enable Ubuntu RT kernel install
+  command: "echo y | pro enable realtime-kernel --access-only"
+  changed_when: false
+
+- name: Install Ubuntu RT kernel and related packages
+  ansible.builtin.apt:
+    name:
+      - linux-image-{{ realtime_kernel_version }}
+      - linux-headers-{{ realtime_kernel_version }}
+      - linux-modules-extra-{{ realtime_kernel_version }}
+      - linux-tools-{{ realtime_kernel_version }}
+      - linux-cloud-tools-{{ realtime_kernel_version }}
+    state: present
+
+- name: Fetch kernel first entry
+  shell: "set -o pipefail && cat /boot/grub/grub.cfg | grep submenu | awk -F \"'\" '{print $2}'"
+  args:
+    executable: /bin/bash
+  register: kernel_fisrt_entry
+  failed_when: kernel_fisrt_entry.rc > 1
+  changed_when: false
+
+- debug: msg={{ kernel_fisrt_entry.stdout }}
+
+- name: Fetch kernel second entry
+  shell: "set -o pipefail && cat /boot/grub/grub.cfg | grep menuentry | grep {{ realtime_kernel_version }} | grep -v recovery | awk -F \"'\" '{print $2}'"
+  args:
+    executable: /bin/bash
+  register: kernel_second_entry
+  failed_when: kernel_second_entry.rc > 1
+  changed_when: false
+
+- debug: msg={{ kernel_second_entry.stdout }}
+
+- name: Set RT kernel(2-level entries) as default boot kernel
+  lineinfile:
+    path: /etc/default/grub
+    regexp: "^GRUB_DEFAULT"
+    line: GRUB_DEFAULT="{{ kernel_fisrt_entry.stdout }}>{{ kernel_second_entry.stdout }}"
+  when: kernel_fisrt_entry.stdout != ""
+
+- name: Set RT kernel(1-level entry) as default boot kernel
+  lineinfile:
+    path: /etc/default/grub
+    regexp: "^GRUB_DEFAULT"
+    line: GRUB_DEFAULT="{{ kernel_second_entry.stdout }}"
+  when: kernel_fisrt_entry.stdout == ""
+
+- name: Update boot configure
+  command: "update-grub"
+  changed_when: false
+
+- name: Reboot to updated kernel
+  reboot:
+    reboot_timeout: 1200

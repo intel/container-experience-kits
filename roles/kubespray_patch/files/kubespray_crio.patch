@@ -1,8 +1,8 @@
 diff --git a/roles/container-engine/cri-o/tasks/cleanup.yaml b/roles/container-engine/cri-o/tasks/cleanup.yaml
-index 28c0c3af2..c7e9237bc 100644
+index ab06ca01a..c7e9237bc 100644
 --- a/roles/container-engine/cri-o/tasks/cleanup.yaml
 +++ b/roles/container-engine/cri-o/tasks/cleanup.yaml
-@@ -9,6 +9,11 @@
+@@ -9,6 +9,10 @@
    apt_key:
      url: "https://{{ crio_download_base }}/{{ crio_kubic_debian_repo_name }}/Release.key"
      state: absent
@@ -10,7 +10,6 @@ index 28c0c3af2..c7e9237bc 100644
 +  until: kubic_repo_key_result is succeeded
 +  retries: 4
 +  delay: "{{ retry_stagger | d(3) }}"
-+  environment: "{{ proxy_env | d({}) }}"
+   environment: "{{ proxy_env }}"
    when: crio_kubic_debian_repo_name is defined
- 
- - name: Remove legacy CRI-O kubic apt repo
+

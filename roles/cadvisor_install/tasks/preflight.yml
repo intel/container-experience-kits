@@ -1,0 +1,26 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Check requirements for perf events metrics
+  ansible.builtin.assert:
+    that:
+      - not on_vms | default(false)
+      - not on_cloud | default(false)
+    fail_msg:
+      cAdvisor perf events counting can only be enabled on BMRA.
+      Please disable perf events counting in group_vars.
+  when:
+    - inventory_hostname == groups["kube_control_plane"][0]
+    - cadvisor_pik_perf_events_enabled | default(false) or cadvisor_sample_perf_events_enabled | default(false)

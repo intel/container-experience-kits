@@ -15,7 +15,7 @@ awsConfig:
   sg_whitelist_cidr_blocks: []
   ecr_repositories: []
   eks:
-    kubernetes_version: "1.24"
+    kubernetes_version: "1.26"
     subnets: ["subnet_a", "subnet_b"]
     custom_ami: "ubuntu" # Comment out this line to use Amazon Linux 2 OS
     node_groups:

@@ -1,44 +1,36 @@
 """Class for Docker images management"""
-import os
-from pathlib import Path
-import configparser
 import base64
-import validators
+import configparser
+import json
+import os
+import subprocess  # nosec B404 # subprocess is set to shell=False
+
+from pathlib import Path
+
+import boto3
 import click
 import docker
-import boto3
-import subprocess # nosec B404 # subrocess is set to shell=False
-import json
+import validators
+
+
+def subprocess_run(*args, **kwargs):
+    return subprocess.run(*args, **kwargs)  # pylint: disable=W1510
 
 
 class DockerManagement:
     """
     Class contains methods for copy docker images between registries.
     """
-    docker_client = None
-    CLOUD = None
-    to_registry = None
-    from_registry = None
-    show_log = False
-    images_to_replicate = None
-    tagged_images = []
-
-    AWS_ACCESS_KEY_ID = None
-    AWS_ACCESS_SECRET_KEY = None
-    AWS_REGION = None
-    CR_PASSWORD = None
-    CR_USERNAME = None
-    CR_URL = None
 
     def __init__(self, from_registry, to_registry, images_to_replicate, region, cloud=None, show_log=False):
         """
         Init method for class.
 
         Parameters:
-        from_registry (string): URL adress of source registry
+        from_registry (string): URL address of source registry
         to_registry (string): URL address of target registry
         images_to_duplicate (list): List of images to copy between registries
-        cloud (string): [Not required] Type of cloud with targer registry. Currently supported: ['aws']
+        cloud (string): [Not required] Type of cloud with target registry. Currently supported: ['aws']
         show_log (bool): [Not required] Show log of push image
 
         Return:
@@ -46,24 +38,29 @@ class DockerManagement:
 
         """
         self.docker_client = docker.from_env()
-        self.CLOUD = cloud
-        self.AWS_REGION = region
+        self.cloud = cloud
+        self.aws_region = region
+        self.aws_access_key_id = None
+        self.aws_access_secret_key = None
+        self.cr_password = None
+        self.cr_username = None
+        self.cr_url = None
         self.show_log = show_log
         self.to_registry = to_registry
         self.images_to_replicate = images_to_replicate
+        self.tagged_images = []
 
         if not validators.url(from_registry):
             click.secho('The source registry does not have a valid URL!', fg='red')
             return
-        else:
-            self.from_registry = from_registry.replace('https://', '')
 
+        self.from_registry = from_registry.replace('https://', '')
         self.images_to_replicate = images_to_replicate
         click.echo(f"Images to replicate: {self.images_to_replicate}")
 
-        if self.CLOUD == "aws":
+        if self.cloud == "aws":
             self.initialize_ecr()
-        elif self.CLOUD == "azure":
+        elif self.cloud == "azure":
             self.initialize_acr()
 
     def copy_images(self):
@@ -80,21 +77,21 @@ class DockerManagement:
         """
         for image in self.images_to_replicate:
             self.pull_image(registry_url=self.from_registry,
-                                image_name=image)
+                            image_name=image)
             new_image = self.tag_image(image_name=image,
-                                       registry_old= self.from_registry,
+                                       registry_old=self.from_registry,
                                        registry_new=self.to_registry)
             self.tagged_images.append(new_image)
             self.push_image(image=new_image['repository'],
                             tag=new_image['tag'],
-                            registry=self.CR_URL,
-                            username=self.CR_USERNAME,
-                            password=self.CR_PASSWORD)
+                            registry=self.cr_url,
+                            username=self.cr_username,
+                            password=self.cr_password)
 
     def initialize_ecr(self):
         """
-        Initializing ECR and getting AWS credentials for autentification in ECR.
-        Method using local AWS credentials and config files for autentification.
+        Initializing ECR and getting AWS credentials for authentication in ECR.
+        Method using local AWS credentials and config files for authentication.
         Method set the global variables used in previous method.
 
         Parameters:
@@ -109,37 +106,37 @@ class DockerManagement:
         try:
             config.read(aws_credentials)
             credentials = config['default']
-            self.AWS_ACCESS_KEY_ID = credentials['aws_access_key_id']
-            self.AWS_ACCESS_SECRET_KEY = credentials['aws_secret_access_key']
+            self.aws_access_key_id = credentials['aws_access_key_id']
+            self.aws_access_secret_key = credentials['aws_secret_access_key']
         except configparser.ParsingError as parser_error:
             click.secho(parser_error, fg='red')
 
-        aws_session = boto3.Session(region_name=self.AWS_REGION)
-        ecr_client = aws_session.client('ecr', aws_access_key_id=self.AWS_ACCESS_KEY_ID, 
-                                        aws_secret_access_key=self.AWS_ACCESS_SECRET_KEY, 
-                                        region_name=self.AWS_REGION)
+        aws_session = boto3.Session(region_name=self.aws_region)
+        ecr_client = aws_session.client('ecr', aws_access_key_id=self.aws_access_key_id,
+                                        aws_secret_access_key=self.aws_access_secret_key,
+                                        region_name=self.aws_region)
 
         ecr_credentials = (ecr_client.get_authorization_token()['authorizationData'][0])
-        self.CR_USERNAME = "AWS"
-        self.CR_PASSWORD = (base64.b64decode(ecr_credentials['authorizationToken'])
+        self.cr_username = "AWS"
+        self.cr_password = (base64.b64decode(ecr_credentials['authorizationToken'])
                             .replace(b'AWS:', b'').decode('utf-8'))
-        self.CR_URL = self.to_registry
+        self.cr_url = self.to_registry
 
     def initialize_acr(self):
         acr_name = self.to_registry.split(".")[0]
         command = f'az acr login --name {acr_name} --expose-token'
-        result = subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+        result = subprocess_run(command.split(' '), stdout=subprocess.PIPE)
         access_token = json.loads(result.stdout)["accessToken"]
-        self.CR_PASSWORD = access_token
-        self.CR_USERNAME = "00000000-0000-0000-0000-000000000000"
-        self.CR_URL = self.to_registry
+        self.cr_password = access_token
+        self.cr_username = "00000000-0000-0000-0000-000000000000"
+        self.cr_url = self.to_registry
 
     def pull_image(self, registry_url, image_name, username=None, password=None):
         """
         Downloading image from remote to local registry.
 
-        Parametes:
-        registry_url (string): URL adress of source registry
+        Parameters:
+        registry_url (string): URL address of source registry
         image_name (string): Name of downloaded image
         username (string): User name for source registry
         password (string): Password for source registry
@@ -172,7 +169,7 @@ class DockerManagement:
 
         """
         image = self.docker_client.images.get(f"{registry_old}/{image_name}")
-        if self.CLOUD == 'aws':
+        if self.cloud == 'aws':
             target_image = registry_new
             tag = image_name.replace('/', '-').replace(':', '-')
         else:
@@ -196,13 +193,14 @@ class DockerManagement:
         None
 
         """
-        auth_config = None
         click.echo("Pushing image:")
+        auth_config = None
         if registry is not None and username is not None and password is not None:
             self.docker_client.login(username=username,
                                      password=password,
                                      registry=registry)
             auth_config = {'username': username, 'password': password}
+
         if auth_config is not None:
             push_log = self.docker_client.images.push(image, tag=tag, auth_config=auth_config)
             if not self.show_log:

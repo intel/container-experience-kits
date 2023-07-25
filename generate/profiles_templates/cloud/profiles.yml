@@ -23,6 +23,8 @@
 # - sgx
 # - sgx_dp
 # - kmra:
+#     sbx
+#     oran
 #     pccs
 #     apphsm
 #     ctk_demo
@@ -39,11 +41,12 @@
 # - network_userspace
 # - dpdk
 # - ovs_dpdk
-# - pstate
-# - cstate
-# - ufs - uncore frequency scaling
 # - sst
-# - power_manager
+# - power:
+#     manager
+#     pstate
+#     cstate
+#     uncore_frequency
 # - telemetry:
 #     prometheus
 #     collectd
@@ -72,10 +75,12 @@
 #     ddp
 #     fw_update
 # - intel_sriov_fec_operator
+# - intel_oneapi
+#     base
+#     ai
 # - intel_flexran
 # - tadk
-# - remove_kubespray_host_dns_settings
-# - enable_dhclient_systemd_service
+# - cadvisor
 ---
 access:
   name: access
@@ -104,6 +109,8 @@ access:
   sgx: off
   sgx_dp: off
   kmra:
+    sbx: off
+    oran: off
     pccs: off
     apphsm: off
     ctk_demo: off
@@ -115,11 +122,12 @@ access:
   network_userspace: off
   dpdk: on
   ovs_dpdk: off
-  pstate: off
-  cstate: off
-  ufs: off
   sst: off
-  power_manager: off
+  power:
+    manager: off
+    pstate: off
+    cstate: off
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: off
@@ -149,10 +157,12 @@ access:
     ddp: off
     fw_update: off
   intel_sriov_fec_operator: off
+  intel_oneapi:
+    base: off
+    ai: off
   intel_flexran: off
   adq_dp: off
-  remove_kubespray_host_dns_settings: off
-  enable_dhclient_systemd_service: off
+  cadvisor: on
 
 basic:
   name: basic
@@ -168,8 +178,11 @@ basic:
   sriov_network_dp: off
   nic_drivers: off
   dpdk: optional
-  cstate: optional
-  ufs: off
+  power:
+    manager: off
+    pstate: optional
+    cstate: optional
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: off
@@ -189,8 +202,10 @@ basic:
     flow_config: off
     fw_update: off
   adq_dp: off
-  remove_kubespray_host_dns_settings: off
-  enable_dhclient_systemd_service: off
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 full_nfv:
   name: full_nfv
@@ -220,6 +235,8 @@ full_nfv:
   sgx: off
   sgx_dp: off
   kmra:
+    sbx: off
+    oran: off
     pccs: off
     apphsm: off
     ctk_demo: off
@@ -231,11 +248,12 @@ full_nfv:
   network_userspace: on
   dpdk: on
   ovs_dpdk: on
-  pstate: optional
-  cstate: optional
-  ufs: off
   sst: off
-  power_manager: off
+  power:
+    manager: off
+    pstate: optional
+    cstate: optional
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: off
@@ -265,11 +283,13 @@ full_nfv:
     ddp: off
     fw_update: off
   intel_sriov_fec_operator: off
+  intel_oneapi:
+    base: optional
+    ai: optional
   intel_flexran: off
   tadk: on
   adq_dp: off
-  remove_kubespray_host_dns_settings: off
-  enable_dhclient_systemd_service: off
+  cadvisor: on
 
 on_prem:
   name: on_prem
@@ -288,6 +308,8 @@ on_prem:
   sgx: off
   sgx_dp: off
   kmra:
+    sbx: off
+    oran: off
     pccs: off
     apphsm: off
     ctk_demo: off
@@ -303,11 +325,12 @@ on_prem:
   tas: off
   dpdk: on
   bond_cni: off
-  pstate: off
-  cstate: optional
-  ufs: off
   sst: off
-  power_manager: off
+  power:
+    manager: off
+    pstate: off
+    cstate: optional
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: off
@@ -335,8 +358,10 @@ on_prem:
     flow_config: off
     fw_update: off
   adq_dp: off
-  remove_kubespray_host_dns_settings: off
-  enable_dhclient_systemd_service: off
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 regional_dc:
   name: regional_dc
@@ -357,6 +382,8 @@ regional_dc:
   sgx: off
   sgx_dp: off
   kmra:
+    sbx: off
+    oran: off
     pccs: off
     apphsm: off
     ctk_demo: off
@@ -365,8 +392,11 @@ regional_dc:
   tas: off
   gas: off
   dpdk: optional
-  cstate: optional
-  ufs: off
+  power:
+    manager: off
+    pstate: optional
+    cstate: optional
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: off
@@ -394,8 +424,10 @@ regional_dc:
     flow_config: off
     fw_update: off
   adq_dp: off
-  remove_kubespray_host_dns_settings: off
-  enable_dhclient_systemd_service: off
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 remote_fp:
   name: remote_fp
@@ -415,6 +447,8 @@ remote_fp:
   sgx: off
   sgx_dp: off
   kmra:
+    sbx: off
+    oran: off
     pccs: off
     apphsm: off
     ctk_demo: off
@@ -432,11 +466,12 @@ remote_fp:
   bond_cni: off
   network_userspace: optional
   dpdk: on
-  pstate: off
-  cstate: optional
-  ufs: off
   sst: off
-  power_manager: off
+  power:
+    manager: off
+    pstate: off
+    cstate: optional
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: off
@@ -465,8 +500,10 @@ remote_fp:
     ddp: off
     fw_update: off
   adq_dp: off
-  remove_kubespray_host_dns_settings: off
-  enable_dhclient_systemd_service: off
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: optional
 
 build_your_own:
   name: build_your_own
@@ -494,6 +531,8 @@ build_your_own:
   sgx: off
   sgx_dp: off
   kmra:
+    sbx: off
+    oran: off
     pccs: off
     apphsm: off
     ctk_demo: off
@@ -505,11 +544,12 @@ build_your_own:
   network_userspace: optional
   dpdk: optional
   ovs_dpdk: optional
-  pstate: off
-  cstate: optional
-  ufs: off
   sst: off
-  power_manager: off
+  power:
+    manager: off
+    pstate: off
+    cstate: optional
+    uncore_frequency: off
   telemetry:
     prometheus: optional
     collectd: off
@@ -539,8 +579,10 @@ build_your_own:
     ddp: off
     fw_update: off
   intel_sriov_fec_operator: off
+  intel_oneapi:
+    base: optional
+    ai: optional
   intel_flexran: off
   tadk: optional
   adq_dp: off
-  remove_kubespray_host_dns_settings: off
-  enable_dhclient_systemd_service: off
+  cadvisor: optional

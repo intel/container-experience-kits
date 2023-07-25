@@ -14,15 +14,33 @@
 ##   limitations under the License.
 ##
 ---
+confirmed_atom_cpus:
+  - "x6200FE"
+  - "x6212RE"
+  - "x6414RE"
+  - "x6425RE"
+  - "x6427FE"
+
+confirmed_core_cpus:
+  - "1115GRE"
+  - "1145GRE"
+  - "1185GRE"
+  - "12100E"
+  - "12500E"
+  - "12700E"
+  - "12900E"
+
 confirmed_skl_cpus:
   # Sky Lake Xeon Gold (quad)
   - "6152"
   # Sky Lake Xeon Platinum (octa)
   - "8176"
+
 confirmed_clx_ncpus:
   - "5218N"
   - "6252N"
   - "6230N"
+
 confirmed_clx_cpus:
   - "6252"
 
@@ -49,3 +67,6 @@ confirmed_spr_cpus:
   - "8487C"
   - "8490H"
   - "0000%@"
+
+confirmed_emr_cpus:
+  - "0000"

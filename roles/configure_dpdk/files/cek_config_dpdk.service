@@ -1,0 +1,13 @@
+[Unit]
+Description=CEK Config DPDK Service
+AssertPathExists=/usr/local/bin/cek_config_dpdk.sh
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+#ExecStartPre=/bin/sleep 10
+ExecStart=/usr/local/bin/cek_config_dpdk.sh
+
+[Install]
+WantedBy=multi-user.target

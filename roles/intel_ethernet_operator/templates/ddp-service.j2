@@ -5,9 +5,7 @@ Before=kubelet.service
 
 [Service]
 Type=oneshot
-{% if (not hostvars[node_name]['update_nic_drivers'] and
-((hostvars[node_name]['ansible_distribution'] == "Ubuntu" and hostvars[node_name]['ansible_distribution_version'] >= "22.04") or
-(hostvars[node_name]['ansible_os_family'] == "RedHat" and hostvars[node_name]['ansible_distribution_version'] >= "8.6"))) %}
+{% if 'irdma' in ieo_lsmod.stdout %}
 ExecStart=/sbin/modprobe -r irdma ice
 ExecStart=/sbin/modprobe -a ice irdma
 {% else %}

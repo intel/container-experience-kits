@@ -1,0 +1,70 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- ansible.builtin.debug:
+    msg: "Starting to remove rke2 cluster"
+
+- name: remove rke2 cluster
+  block:
+    - name: check if rke2-uninstall.sh exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/rke2-uninstall.sh
+      register: rke2_uninstall_sh
+      when:
+        - inventory_hostname == groups['kube_control_plane'][0]
+
+    - name: use rke2-uninstall.sh to uninstall rke2
+      ansible.builtin.command: >-
+        /usr/local/bin/rke2-uninstall.sh
+      when:
+        - rke2_uninstall_sh.stat.exists
+        - inventory_hostname == groups['kube_control_plane'][0]
+      register: result
+      failed_when: "'error' in result.stderr"
+
+- name: remove rke2 cluster files
+  ansible.builtin.import_tasks: remove_files.yml
+  vars:
+    files_to_delete: "{{ rke2_dirs_to_remove }}"
+  changed_when: false
+
+- name: remove copied file
+  block:
+    - name: remove binary copied from rke2
+      ansible.builtin.file:
+        path: /usr/local/bin/{{ item }}
+        state: absent
+      with_items:
+        - "kubelet"
+        - "kubectl"
+        - "containerd"
+        - "containerd-shim"
+        - "containerd-shim-runc-v1"
+        - "containerd-shim-runc-v2"
+        - "crictl"
+        - "ctr"
+        - "runc"
+
+    - name: remove crictl config copied during rke2
+      ansible.builtin.file: path="/etc/crictl.yaml" state=absent
+
+- name: uninstall helm
+  ansible.builtin.file:
+    path: /usr/local/bin/helm
+    state: absent
+
+- ansible.builtin.debug:
+    msg: "Done removing rke2 cluster ..."

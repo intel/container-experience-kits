@@ -32,6 +32,15 @@
 #   args:
 #     chdir: "{{ intel_flexran_dir }}"
 
+# As the path to the libnuma library is different with Ubuntu, a soft link is created to avoid multiple changes to the makefiles
+# (FlexRAN hardcoded the path for libnuma)
+- name: create libnuma symlink
+  file:
+    src: "/usr/lib/x86_64-linux-gnu/libnuma.so"
+    dest: "/usr/lib64/libnuma.so"
+    state: link
+  when: ansible_distribution in ['Ubuntu']
+
 - name: patch Intel FlexRAN for xx.yy.z release
   block:
     - name: copy Intel FlexRAN patch file
@@ -60,10 +69,14 @@
     content: "{{ intel_flexran_dpdk_dir }}"
     mode: '0755'
 
+- name: include oneAPI vars
+  ansible.builtin.include_vars:
+    file: ../intel_oneapi_install/vars/main.yml
+
 - name: set oneAPI path for Intel FlexRAN
   copy:
     dest: "{{ (intel_flexran_dir, '.flexran_icx.path') | path_join }}"
-    content: "{{ intel_oneapi_dir }}"
+    content: "{{ intel_oneapi_install_dir }}"
     mode: '0755'
 
 - debug: msg="Intel FlexRAN mode is '{{ intel_flexran_mode }}'"

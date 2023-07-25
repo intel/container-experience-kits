@@ -1,0 +1,54 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Install rancher
+  block:
+    - name: Add Rancher repo
+      kubernetes.core.helm_repository:
+        name: rancher-stable
+        repo_url: https://releases.rancher.com/server-charts/stable
+
+    - name: Create rancher namespace
+      kubernetes.core.k8s:
+        kind: Namespace
+        state: present
+        name: "{{ rancher_namespace}}"
+
+    - name: Generate rancher bootstrap password if not provided
+      ansible.builtin.set_fact:
+        bootstrap_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits']) }}"
+      no_log: true
+      when:
+        - (bootstrap_password is not defined) or (not bootstrap_password)
+      run_once: true
+
+    - name: Install rancher
+      kubernetes.core.helm:
+        chart_ref: "rancher-stable/rancher"
+        chart_version: "{{ rancher_version }}"
+        release_name: rancher
+        release_namespace: "{{ rancher_namespace }}"
+        values:
+          hostname: "{{ ansible_default_ipv4.address }}.sslip.io"
+          bootstrapPassword: "{{ bootstrap_password }}"
+          replicas: 1
+          global:
+            cattle:
+              psp:
+                enabled: false
+        state: present
+        wait: true
+        timeout: 15m0s

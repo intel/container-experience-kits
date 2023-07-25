@@ -19,22 +19,21 @@
     state: directory
     mode: 0755
     path: "{{ (intel_power_manager_dir, 'sample_power_pods') | path_join }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
-# NOTE(pklimowx):
 # this task will generate yaml files for each PowerProfile from
-# intel_power_manager.power_profiles list for each node in
-# intel_power_manager.power_nodes list
+# power_profiles list for each node in intel_power_manager.power_nodes list
 - name: generate templates for each available profile for the node
   ansible.builtin.include_tasks: power_pod_template_helper.yml
-  loop: "{{ intel_power_manager.power_profiles }}"
+  loop: "{{ intel_power_manager.power_nodes }}"
   loop_control:
-    loop_var: profile_name
+    loop_var: power_node
 
 - name: get yaml files to deploy
   ansible.builtin.find:
     path: "{{ (intel_power_manager_dir, 'sample_power_pods') | path_join }}"
     file_type: file
-    patterns: "*.yml"
+    patterns: "*.yaml"
   register: sample_pod_files
 
 - name: deploy sample power pods
@@ -43,3 +42,4 @@
     src: "{{ item.path }}"
     wait: true
   loop: "{{ sample_pod_files.files }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]

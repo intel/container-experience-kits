@@ -35,6 +35,8 @@
         port: 22
         state: stopped
         timeout: 60
+      delegate_to: localhost
+      become: false
 
     - name: Wait for node after reboot
       ansible.builtin.wait_for:
@@ -42,11 +44,15 @@
         port: 22
         connect_timeout: 5
         timeout: 1200
+      delegate_to: localhost
+      become: false
 
     # Update could be started on master node
     - name: Wait for kube-apiserver to be up
       ansible.builtin.uri:
         url: "https://127.0.0.1:6443/healthz"
+        client_cert: "{{ kube_apiserver_cert }}"
+        client_key: "{{ kube_apiserver_key }}"
         validate_certs: no
         use_proxy: no
       register: ddp_update_api_info
@@ -59,11 +65,16 @@
         kind: EthernetNodeConfig
         name: "{{ hostvars[node_name]['ansible_hostname'] }}"
         namespace: "{{ intel_ethernet_operator_namespace }}"
-        wait: true
-        wait_timeout: 1200
-        wait_condition:
-          type: Updated
-          reason: Succeeded
+      retries: 60
+      delay: 5
+      register: enc_status
+      until: |
+        enc_status.failed or
+        (
+          enc_status.resources[0].status.conditions[0].status == "True"
+          and
+          enc_status.resources[0].status.conditions[0].reason == "Succeeded"
+        )
 
     - name: Check cluster after reboot
       ansible.builtin.include_role:

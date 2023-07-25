@@ -23,6 +23,10 @@
 - debug:
     msg: "Currently installed iavf version: {{ iavf_installed_version.stdout }}"
 
+- name: set iavf driver build status
+  set_fact:
+    iavf_driver_build_failed: false
+
 - name: unload iavf module
   modprobe:
     name: iavf
@@ -62,6 +66,14 @@
       with_items:
         - clean
         - install
+  rescue:
+    - name: handle driver build error
+      debug:
+        msg: "iavf driver build or installation failed. Rolling back to use inbox driver - functionality might be limited"
+
+    - name: set iavf driver build failed status
+      set_fact:
+        iavf_driver_build_failed: true
   when: iavf_installed_version.stdout != iavf_driver_version
 
 - name: reboot if driver is used by management interface
@@ -69,6 +81,7 @@
   reboot:
     reboot_timeout: 1200 # wait up to 20 minutes
   when:
+    - not iavf_driver_build_failed
     - mgmt_interface_driver.stdout == iavf_driver_name
     - iavf_installed_version.stdout != iavf_driver_version
 

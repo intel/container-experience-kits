@@ -1,0 +1,152 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# preflight already make sure container_manager == 'docker'
+- name: check if oran container exists
+  community.docker.docker_image_info:
+    name: "{{ kmra.oran_netopeer2_server.oran_image_repo }}/{{ kmra.oran_netopeer2_server.oran_image_name }}:\
+           {{ kmra.oran_netopeer2_server.oran_image_tag | default(kmra.image_tag) }}"
+  register: result
+
+- name: load pre-built oran container image
+  when:
+    - result.images | length != 1
+    - not (kmra.oran.local_build | default(false))
+  block:
+    - name: create tmp dir for container import
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: docker-load
+      register: tmp_dir
+
+    - name: copy oran image to controller node
+      ansible.builtin.copy:
+        src: "{{ kmra.oran.oran_image_staging_location }}"
+        dest: "{{ (tmp_dir.path, 'oran.tar') | path_join }}"
+        mode: 0755
+
+    - name: load oran image from archive and push to local registry
+      community.docker.docker_image:
+        name: "oran:latest"
+        repository: "{{ kmra.oran_netopeer2_server.oran_image_repo }}/{{ kmra.oran_netopeer2_server.oran_image_name }}:\
+                     {{ kmra.oran_netopeer2_server.oran_image_tag | default(kmra.image_tag) }}"
+        push: yes
+        source: load
+        load_path: "{{ (tmp_dir.path, 'oran.tar') | path_join }}"
+
+    - name: clean up tmp directory
+      ansible.builtin.file:
+        path: "{{ tmp_dir.path }}"
+        state: absent
+
+- name: build local oran container image
+  when:
+    - result.images | length != 1
+    - kmra.oran.local_build | default(false)
+  block:
+    - name: create tmp dir for container build
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: docker-build
+      register: tmp_dir
+
+    - name: copy oran dockerfiles to the controller node
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ tmp_dir.path }}"
+        mode: 0644
+      with_fileglob:
+        - ./oran/*
+
+    - name: build oran container and push to local registry
+      community.docker.docker_image:
+        name: "{{ kmra.oran_netopeer2_server.oran_image_repo }}/{{ kmra.oran_netopeer2_server.oran_image_name }}:\
+               {{ kmra.oran_netopeer2_server.oran_image_tag | default(kmra.image_tag) }}"
+        repository: "{{ kmra.oran_netopeer2_server.oran_image_repo }}/{{ kmra.oran_netopeer2_server.oran_image_name }}:\
+                     {{ kmra.oran_netopeer2_server.oran_image_tag | default(kmra.image_tag) }}"
+        push: yes
+        source: build
+        build:
+          path: "{{ tmp_dir.path }}"
+          use_config_proxy: yes
+
+    - name: clean up tmp directory
+      ansible.builtin.file:
+        path: "{{ tmp_dir.path }}"
+        state: absent
+
+- name: check if local ctk_loadkey exists
+  community.docker.docker_image_info:
+    name: "{{ kmra.oran_netopeer2_server.image_repo }}/{{ kmra.oran_netopeer2_server.image_name }}:\
+           {{ kmra.oran_netopeer2_server.image_tag | default(kmra.image_tag) }}"
+  register: result
+
+- name: pull and tag ctk_loadkey image
+  when: result.images | length != 1
+  community.docker.docker_image:
+    name: "{{ kmra.ctk_loadkey_demo.image_repo }}/{{ kmra.ctk_loadkey_demo.image_name}}:\
+           {{ kmra.ctk_loadkey_demo.image_tag | default(kmra.image_tag) }}"
+    push: yes
+    source: pull
+    repository: "{{ kmra.oran_netopeer2_server.image_repo }}/{{ kmra.oran_netopeer2_server.image_name }}:\
+                 {{ kmra.oran_netopeer2_server.image_tag | default(kmra.image_tag) }}"
+
+- name: check if local busybox exists
+  community.docker.docker_image_info:
+    name: "{{ kmra.oran_netopeer2_server.init_image_repo }}/{{ kmra.oran_netopeer2_server.init_image_name }}:\
+           {{ kmra.oran_netopeer2_server.init_image_tag | default(kmra.image_tag) }}"
+  register: result
+
+- name: pull and tag busybox image
+  when: result.images | length != 1
+  community.docker.docker_image:
+    name: "{{ kmra.ctk_loadkey_demo.init_image_repo }}/{{ kmra.ctk_loadkey_demo.init_image_name}}:\
+           {{ kmra.ctk_loadkey_demo.init_image_tag | default(kmra.image_tag) }}"
+    push: yes
+    source: pull
+    repository: "{{ kmra.oran_netopeer2_server.init_image_repo }}/{{ kmra.oran_netopeer2_server.init_image_name }}:\
+                 {{ kmra.oran_netopeer2_server.init_image_tag | default(kmra.image_tag) }}"
+
+- name: get GOPATH
+  ansible.builtin.command: go env GOPATH
+  register: gopath
+  changed_when: false
+
+- name: signing local registry images with sw provider key
+  ansible.builtin.command: >-
+     {{ gopath.stdout }}/bin/cosign sign -y
+     --key k8s://{{ cosign_enforce_namespace }}/{{ kmra.oran.sw_provider_name }}-cosign {{ item }}
+  with_items:
+    - "{{ kmra.oran_netopeer2_server.image_repo }}/{{ kmra.oran_netopeer2_server.image_name }}:\
+       {{ kmra.oran_netopeer2_server.image_tag | default(kmra.image_tag) }}"
+    - "{{ kmra.oran_netopeer2_server.oran_image_repo }}/{{ kmra.oran_netopeer2_server.oran_image_name }}:\
+       {{ kmra.oran_netopeer2_server.oran_image_tag | default(kmra.image_tag) }}"
+    - "{{ kmra.oran_netopeer2_server.init_image_repo }}/{{ kmra.oran_netopeer2_server.init_image_name }}:\
+       {{ kmra.oran_netopeer2_server.init_image_tag | default(kmra.image_tag) }}"
+  changed_when: true
+
+- name: signing local registry images with sw operator key
+  ansible.builtin.command: >-
+    {{ gopath.stdout }}/bin/cosign sign -y
+    --key k8s://{{ cosign_enforce_namespace }}/{{ kmra.oran.sw_operator_name }}-cosign {{ item }}
+  with_items:
+    - "{{ kmra.oran_netopeer2_server.image_repo }}/{{ kmra.oran_netopeer2_server.image_name }}:\
+       {{ kmra.oran_netopeer2_server.image_tag | default(kmra.image_tag) }}"
+    - "{{ kmra.oran_netopeer2_server.oran_image_repo }}/{{ kmra.oran_netopeer2_server.oran_image_name }}:\
+       {{ kmra.oran_netopeer2_server.oran_image_tag | default(kmra.image_tag) }}"
+    - "{{ kmra.oran_netopeer2_server.init_image_repo }}/{{ kmra.oran_netopeer2_server.init_image_name }}:\
+       {{ kmra.oran_netopeer2_server.init_image_tag | default(kmra.image_tag) }}"
+  changed_when: true

@@ -99,7 +99,7 @@
 - name: wait for SriovNetworkNodeState CR to be created and sync completed
   k8s_info:
     kind: SriovNetworkNodeState
-    name: "{{ item }}"
+    name: "{{ hostvars[item]['ansible_hostname'] }}"
     namespace: "{{ sriov_network_operator_namespace }}"
   register: cr_status
   retries: 30

@@ -24,7 +24,7 @@ sriov_network_operator_helm_release_name: "sriov-network-operator"
 
 sriov_network_operator_version: "v1.2.0"
 network_resources_injector_version: "v1.5"
-ib_sriov_cni_version: "v1.0.2"
+ib_sriov_cni_version: "v1.0.3"
 
 # helm values defaults
 sriov_network_operator_images:

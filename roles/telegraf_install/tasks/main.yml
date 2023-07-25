@@ -28,8 +28,6 @@
 
 - name: remove existing telegraf deployment
   include_tasks: cleanup.yml
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: configure msr
   include_tasks: msr-config.yml

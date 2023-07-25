@@ -17,7 +17,7 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
-      hostNetwork: true
+      hostNetwork: false
       serviceAccountName: {{ .Release.Name }}
       initContainers:
       - name: init-tmpfs
@@ -25,10 +25,17 @@ spec:
         command: ['sh', '-c', "rm -rf /var/lib/softhsm/tokens/*"]
       containers:
       - name: {{ .Release.Name }}
+        ports:
+          - name: apphsm
+            containerPort: {{ .Values.apphsm.main.port }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.apphsm.main.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          successThreshold: 2
         image: "{{ .Values.apphsm.main.image.repo }}/{{ .Values.apphsm.main.image.name }}:{{ .Values.apphsm.main.image.tag }}"
         imagePullPolicy: {{ .Values.apphsm.main.image.pullPolicy }}
-        command:
-          - /workspace/apphsm_commands.sh
         envFrom:
         - configMapRef:
             name: {{ .Release.Name }}-env
@@ -46,14 +53,34 @@ spec:
         - name: tmpfs
           mountPath: /var/lib/softhsm/tokens
           subPath: tokens
-        - name: appshm-conf
+{{- if not (eq .Values.apphsm.oran "true") }}
+        - name: apphsm-conf
           mountPath: /opt/intel/apphsm/apphsm.conf
           subPath: apphsm.conf
           readOnly: true
-        - name: appshm-cmd
-          mountPath: /workspace/apphsm_commands.sh
-          subPath: apphsm_commands.sh
+{{- else }}
+        - name: apphsm-conf
+          mountPath: /opt/apphsm_config/apphsm.conf
+          subPath: apphsm.conf
           readOnly: true
+# we have to mount these keys one by one, since apphsm doesn't like symbol links
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/server.key
+          subPath: server.key
+          readOnly: true
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/server.crt
+          subPath: server.crt
+          readOnly: true
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/client.key
+          subPath: client.key
+          readOnly: true
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/client.crt
+          subPath: client.crt
+          readOnly: true
+{{ end }}
         resources:
           limits:
             cpu: 500m
@@ -88,10 +115,15 @@ spec:
       - name: sgx-qcnl-conf
         configMap:
           name: {{ .Release.Name }}-qcnl-conf
-      - name: appshm-conf
+      - name: apphsm-conf
         configMap:
           name: {{ .Release.Name }}-config
-      - name: appshm-cmd
+{{- if eq .Values.apphsm.oran "true" }}
+      - name: custom-config
+        configMap:
+          name: {{ .Release.Name }}-custom-config
+{{ end }}
+      - name: apphsm-cmd
         configMap:
           name: {{ .Release.Name }}-entrypoint
           defaultMode: 0777

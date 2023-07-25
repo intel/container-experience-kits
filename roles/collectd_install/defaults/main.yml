@@ -63,7 +63,7 @@ pkgpower_dir: "{{ (project_root_dir, 'commspowermanagement') | path_join }}"
 # currently excluded plugins were not delivered with latest stable
 # opnfv/barometer-collectd image (digest sha256:ed5c574f653e)
 collectd_plugins:
-  basic:
+  basic: &basic
     - logfile
     - cpu
     - cpufreq
@@ -80,120 +80,29 @@ collectd_plugins:
     - turbostat
     # - write_http
     # - smart
-  on_prem:
-    - logfile
-    - cpu
-    - cpufreq
-    - disk
-    - ipmi
-    - numa
-    - ethstat
-    - netlink
-    - intel_pmu
-    - rdt
-    - pkgpower
-    - unixsock
-    - network
-    - turbostat
-    # - write_http
-    # - smart
+  on_prem: &on_prem
+    - *basic
   access:
-    - logfile
-    - cpu
-    - cpufreq
-    - disk
-    - ipmi
-    - numa
-    - ethstat
-    - netlink
-    - intel_pmu
-    - rdt
-    - pkgpower
+    - *basic
     - dpdk_telemetry
     - hugepages
-    - unixsock
-    - network
-    - turbostat
-    # - write_http
-    # - smart
   remote_fp:
-    - logfile
-    - cpu
-    - cpufreq
-    - disk
-    - ipmi
-    - numa
-    - ethstat
-    - netlink
-    - intel_pmu
-    - rdt
-    - pkgpower
-    - unixsock
-    - network
-    - turbostat
-    # - write_http
-    # - smart
+    - *basic
   regional_dc:
-    - logfile
-    - cpu
-    - cpufreq
-    - disk
-    - ipmi
-    - numa
-    - ethstat
-    - netlink
-    - intel_pmu
-    - rdt
-    - pkgpower
-    - unixsock
-    - network
-    - turbostat
-    # - write_http
-    # - smart
-  full_nfv:
-    - logfile
-    - cpu
-    - cpufreq
-    - disk
-    - ipmi
-    - numa
-    - ethstat
-    - netlink
-    - intel_pmu
-    - rdt
-    - pkgpower
+    - *basic
+  full_nfv: &full_nfv
+    - *basic
     - dpdk_telemetry
     - hugepages
     - ovs_events
     - ovs_pmd_stats
     - ovs_stats
-    - unixsock
-    - network
-    - turbostat
-    # - write_http
-    # - smart
   build_your_own:
-    - logfile
-    - cpu
-    - cpufreq
-    - disk
-    - ipmi
-    - numa
-    - ethstat
-    - netlink
-    - intel_pmu
-    - rdt
-    - pkgpower
-    - dpdk_telemetry
-    - hugepages
-    - ovs_events
-    - ovs_pmd_stats
-    - ovs_stats
-    - unixsock
-    - network
-    - turbostat
-    # - write_http
-    # - smart
+    - *full_nfv
+  on_prem_vss:
+    - *on_prem
+  on_prem_industrial:
+    - *on_prem
 
 # List of plugins that will be excluded from collectd deployment.
 exclude_collectd_plugins: []

@@ -15,12 +15,10 @@
 ##
 ---
 intel_power_manager_git_url: "https://github.com/intel/kubernetes-power-manager.git"
-intel_power_manager_git_ref: "v1.0.2"  # project is consistent with git ref and image version
+intel_power_manager_git_ref: "v2.2.0"  # project is consistent with git ref and image version
 intel_power_manager_dir: "{{ (project_root_dir, 'intel-power-manager') | path_join }}"
 intel_power_manager_namespace: "intel-power"
-
-intel_appqos_git_url: "https://github.com/intel/intel-cmt-cat.git"
-intel_appqos_git_ref: "v4.4.1"
-intel_appqos_version: "v4.4.1"
-intel_appqos_dir: "{{ (project_root_dir, 'intel-appqos') | path_join }}"
-intel_appqos_cert_dir: "/etc/certs/public"
+intel_power_operator_image: "docker.io/intel/power-operator"
+intel_power_operator_image_local: "{{ registry_local_address }}/intel-power-operator"
+intel_power_node_agent_image: "intel/power-node-agent"
+intel_power_node_agent_image_local: "{{ registry_local_address }}/intel-power-node-agent"

@@ -1,0 +1,94 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create directory {{ fpga_drivers_dir }} for fpga
+  file:
+    path: "{{ fpga_drivers_dir }}"
+    state: directory
+    mode: 0755
+
+- name: copy fpga installation script from ansible host to node
+  ansible.builtin.copy:
+    src: "{{ (fpga_driver_staging_folder, fpga_install_script) | path_join }}"
+    dest: "{{ (fpga_drivers_dir, fpga_install_script) | path_join }}"
+    mode: 0755
+
+- name: run fpga installation script
+  ansible.builtin.command: >-
+    sh -c {{ (fpga_drivers_dir, fpga_install_script) | path_join }}
+  register: installation_register
+  changed_when: true
+
+- debug: msg={{ installation_register.stdout }}
+
+- name: check whether the OPAE SDK and DFL packages installed
+  block:
+    - name: check whether opae sdk is installed
+      ansible.builtin.shell: set -o pipefail && dpkg --list |grep -i opae
+      args:
+        executable: /bin/bash
+      register: opae_register
+      failed_when: opae_register.rc != 0
+      changed_when: false
+
+    - name: check whether dfl package is installed
+      ansible.builtin.shell: set -o pipefail && dpkg --list |grep -i dfl
+      args:
+        executable: /bin/bash
+      register: dfl_register
+      failed_when: dfl_register.rc != 0
+      changed_when: false
+
+- name: block check fpga environment
+  block:
+    - name: check fme info via fpgainfo tool
+      ansible.builtin.command: "fpgainfo fme"
+      register: fme_register
+      changed_when: false
+      failed_when:
+        - "'error' in fme_register.stdout"
+
+    - name: check bmc info via fpgainfo tool
+      ansible.builtin.command: "fpgainfo bmc"
+      register: bmc_register
+      changed_when: false
+      failed_when:
+        - "'error' in bmc_register.stdout"
+
+    - name: check ethernet PHY info via fpgainfo tool
+      ansible.builtin.command: "fpgainfo phy"
+      register: phy_register
+      changed_when: false
+      failed_when:
+        - "'error' in phy_register.stdout"
+
+- name: check the fpgad service file exists
+  ansible.builtin.stat:
+    path: /etc/opae/fpgad.cfg
+  register: stat_register
+  failed_when:
+    - not stat_register.stat.exists
+
+- debug: msg="fpgad.cfg file exists {{ stat_register.stat.exists }}"
+
+- name: start the fgpad service
+  ansible.builtin.systemd:
+    state: started
+    name: fpgad
+    enabled: true
+  register: fpgad_register
+  failed_when:
+    - fpgad_register.status.ActiveState != 'active'

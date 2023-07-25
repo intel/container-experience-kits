@@ -1,0 +1,53 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Apply cert manager CRD
+  block:
+    - name: download cert manager CRD yaml file
+      ansible.builtin.get_url:
+        url: "{{ cert_manager_crd_url }}"
+        dest: "{{ (rke2_root_dir, 'cert_manager_crd.yaml') | path_join }}"
+        mode: 0640
+      register: cert_manager_downloaded
+      retries: "{{ number_of_retries | default(10) }}"
+      until: cert_manager_downloaded is succeeded
+      delay: "{{ retry_delay | default(3) }}"
+
+    - name: Apply cert manager CRD
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (rke2_root_dir, 'cert_manager_crd.yaml') | path_join }}"
+
+- name: Add Jetstack Helm Repository
+  kubernetes.core.helm_repository:
+    name: jetstack
+    repo_url: https://charts.jetstack.io
+
+- name: Create cert manager namespace
+  kubernetes.core.k8s:
+    kind: Namespace
+    state: present
+    name: cert-manager
+
+- name: deploy cert manager
+  kubernetes.core.helm:
+    chart_ref: "jetstack/cert-manager"
+    chart_version: "{{ cert_manager_version }}"
+    release_name: cert-manager
+    release_namespace: cert-manager
+    state: present
+    wait: true
+    timeout: 15m0s

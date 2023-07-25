@@ -26,7 +26,7 @@
   import_playbook: infra/prepare_vms.yml
 - name: deploy CEK on VMs
   vars:
-    on_vms: True
+    on_vms: true
     group_vars_content: "{{ lookup('file', '../group_vars/all.yml') | from_yaml }}"
   import_playbook: "{{ group_vars_content['profile_name'] }}.yml"
   become: false

@@ -16,65 +16,37 @@
 ---
 - name: combine defaults and user provided vars
   set_fact:
+    kmra: "{{ kmra_oran | combine(kmra | default({}), recursive=True) }}"
+  no_log: true
+  when:
+    - kmra.oran.enabled | default(false)
+
+- name: combine defaults and user provided vars
+  set_fact:
     kmra: "{{ kmra_defaults | combine(kmra | default({}), recursive=True) }}"
   no_log: true
 
-- name: determine machine type
-  include_role:
-    name: check_machine_type
+- name: include sigstore variables when needed
+  include_vars: "{{ (role_path, '../', 'sigstore_policy_controller/defaults/main.yml') | path_join }}"
   when:
-    - inventory_hostname in groups['kube_node'] or
-      inventory_hostname in groups['vm_host']
-    - not on_vms | default (false)
+    - kmra.oran.enabled | default(false)
 
 - name: prepare worker node
   block:
-    - name: create sgx_prv group
-      group:
+    - name: ensure sgx_prv group exist
+      ansible.builtin.group:
         name: sgx_prv
         state: present
       when:
         - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
           or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
 
-    - name: add user to sgx_prv group
-      user:
-        name: "{{ ansible_user_id }}"
-        groups: sgx_prv
-        append: yes
-      when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
-          or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
-
-    - name: create udev rules
-      blockinfile:
-        path: /etc/udev/rules.d/10-sgx.rules
-        create: yes
-        mode: '0644'
-        block: |
-          SUBSYSTEM=="misc",KERNEL=="enclave",MODE="0666"
-          SUBSYSTEM=="misc",KERNEL=="provision",GROUP="sgx_prv",MODE="0660"
-          SUBSYSTEM=="sgx",KERNEL=="sgx/enclave",MODE="0666"
-          SUBSYSTEM=="sgx",KERNEL=="sgx/provision",MODE="0660"
-          SUBSYSTEM=="misc",KERNEL=="sgx_enclave",MODE="0666",SYMLINK+="sgx/enclave"
-          SUBSYSTEM=="misc",KERNEL=="sgx_provision",GROUP="sgx_prv",MODE="0660",SYMLINK+="sgx/provision"
-      when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
-          or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
-
-    - name: load udev rules
-      # noqa command-instead-of-shell - shell is used intentionally here
-      shell: udevadm trigger
-      when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04')
-          or (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.4')
-
     - name: determine sgx_prv GID
-      getent:
+      ansible.builtin.getent:
         database: group
         key: sgx_prv
   when:
-    - kmra.ctk_loadkey_demo.enabled | bool
+    - kmra.ctk_loadkey_demo.enabled or kmra.oran.enabled | default (false)
     - inventory_hostname == groups['kube_node'][0]
 
 - name: update aesmd/qcnl host settings
@@ -164,6 +136,23 @@
             subj: "{{ kmra.ctk_loadkey_demo.crt_subj }}",
             deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"
           }
+          - {
+            name: "{{ kmra.oran_netopeer2_server.release_name | default('') }}",
+            namespace: "{{ cosign_enforce_namespace | default('default') }}",
+            subj: "{{ kmra.oran_netopeer2_server.crt_subj | default('') }}",
+            deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}",
+          }
+          - {
+            name: "{{ kmra.oran_netopeer2_client.release_name | default('') }}",
+            namespace: "{{ cosign_enforce_namespace | default('default')}}",
+            subj: "{{ kmra.oran_netopeer2_client.crt_subj | default('')}}",
+            deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}",
+          }
+
+    - name: prepare sbx apphsm images for pre-PRQ sgx
+      include_tasks: prepare_sbx_apphsm.yml
+      when:
+        - kmra.sbx | default(false)
 
     - name: create Helm charts directory if needed
       file:
@@ -180,6 +169,8 @@
         - {chart: 'kmra-pccs', deploy: "{{ kmra.pccs.enabled | default(false) }}"}
         - {chart: 'kmra-apphsm', deploy: "{{ kmra.apphsm.enabled | default(false) }}"}
         - {chart: 'kmra-ctk', deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"}
+        - {chart: 'kmra-oran-netopeer2-server', deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"}
+        - {chart: 'kmra-oran-netopeer2-client', deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}"}
       when:
         - item.deploy
 
@@ -220,6 +211,28 @@
           dest: "{{ (kmra.ctk_loadkey_demo.chart_path, 'templates', 'kmra-ctk-loadkey-rbac-cluster-role.yml') | path_join }}",
           deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"
         }
+        - {
+          src: "kmra-oran-netopeer2-server-values.yaml.j2",
+          dest: "{{ (project_root_dir, 'charts', 'kmra-oran-netopeer2-server-values.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"
+        }
+        - {
+          src: "kmra-oran-netopeer2-server-rbac-cluster-role.yml.j2",
+          dest: "{{ (kmra.oran_netopeer2_server.chart_path | default(project_root_dir), \
+                'templates', 'kmra-oran-netopeer2-server-rbac-cluster-role.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"
+        }
+        - {
+          src: "kmra-oran-netopeer2-client-values.yaml.j2",
+          dest: "{{ (project_root_dir, 'charts', 'kmra-oran-netopeer2-client-values.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}"
+        }
+        - {
+          src: "kmra-oran-netopeer2-client-rbac-cluster-role.yml.j2",
+          dest: "{{ (kmra.oran_netopeer2_client.chart_path | default(project_root_dir), \
+                 'templates', 'kmra-oran-netopeer2-client-rbac-cluster-role.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}"
+        }
       when:
         - item.deploy
 
@@ -231,6 +244,22 @@
         {{ kmra.pccs.chart_path }}
       when:
         - kmra.pccs.enabled | default(false)
+
+    - name: Wait for pccs to start
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: kmra-pccs
+        namespace: "{{ kmra.namespace }}"
+        wait: true
+        wait_condition:
+          reason: MinimumReplicasAvailable
+          type: Available
+        wait_timeout: 600
+
+    - name: create apphsm custom_tls for oran case
+      include_tasks: create_custom_tls_configmap.yml
+      when:
+        - kmra.oran.enabled | default(false)
 
     - name: install KMRA AppHSM helm chart
       command: >-
@@ -260,5 +289,107 @@
         {{ kmra.ctk_loadkey_demo.chart_path }}
       when:
         - kmra.ctk_loadkey_demo.enabled | default(false)
+
+    - name: Wait for ctk_loadkey to start
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: kmra-ctk
+        namespace: "{{ kmra.namespace }}"
+        wait: true
+        wait_condition:
+          reason: MinimumReplicasAvailable
+          type: Available
+        wait_timeout: 600
+      when:
+        - kmra.ctk_loadkey_demo.enabled | default(false)
   when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: deploy the oran ctk_loadkey based apps
+  block:
+    - name: create k8s tls secrets for oran apps cosign usage
+      include_tasks: create_cosign_tls_secrets.yml
+      vars:
+        secrets:
+          - {
+            name: "{{ kmra.oran.sw_provider_name }}",
+            namespace: "{{ cosign_enforce_namespace }}",
+            subj: "{{ kmra.oran.sw_provider_crt_subj }}",
+            deploy: true,
+          }
+          - {
+            name: "{{ kmra.oran.sw_operator_name }}",
+            namespace: "{{ cosign_enforce_namespace }}",
+            subj: "{{ kmra.oran.sw_operator_crt_subj }}",
+            deploy: true,
+          }
+
+    - name: create enforce pubkey policy crd yaml
+      ansible.builtin.template:
+        src: "kmra-oran-key-cosign-verification.yaml.j2"
+        dest: "{{ (policy_controller_dir, 'kmra-oran-key-cosign-verification.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: apply enforce pubkey policy crd yaml
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (policy_controller_dir, 'kmra-oran-key-cosign-verification.yaml') | path_join }}"
+
+    - name: prepare image for oran case
+      include_tasks: prepare_oran_image.yml
+
+    - name: populate oran helm charts values templates and push to controller node
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        force: yes
+        mode: preserve
+      loop:
+        - {
+          src: "kmra-oran-netopeer2-server-values.yaml.j2",
+          dest: "{{ (project_root_dir, 'charts', 'kmra-oran-netopeer2-server-values.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"
+        }
+        - {
+          src: "kmra-oran-netopeer2-server-rbac-cluster-role.yml.j2",
+          dest: "{{ (kmra.oran_netopeer2_server.chart_path, 'templates', 'kmra-oran-netopeer2-server-rbac-cluster-role.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"
+        }
+        - {
+          src: "kmra-oran-netopeer2-client-values.yaml.j2",
+          dest: "{{ (project_root_dir, 'charts', 'kmra-oran-netopeer2-client-values.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}"
+        }
+        - {
+          src: "kmra-oran-netopeer2-client-rbac-cluster-role.yml.j2",
+          dest: "{{ (kmra.oran_netopeer2_client.chart_path, 'templates', 'kmra-oran-netopeer2-client-rbac-cluster-role.yml') | path_join }}",
+          deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}"
+        }
+      when:
+        - item.deploy
+
+    - name: install KMRA oran netopeer2 server helm chart
+      kubernetes.core.helm:
+        chart_ref: "{{ kmra.oran_netopeer2_server.chart_path }}"
+        release_name: "{{ kmra.oran_netopeer2_server.release_name }}"
+        release_namespace: "{{ cosign_enforce_namespace }}"
+        values_files: "{{ kmra.oran_netopeer2_server.helm_values_file }}"
+        wait: true
+        timeout: 4m0s
+      when:
+        - kmra.oran_netopeer2_server.enabled | default(false)
+
+    - name: install KMRA oran netopeer2 client helm chart
+      kubernetes.core.helm:
+        chart_ref: "{{ kmra.oran_netopeer2_client.chart_path }}"
+        release_name: "{{ kmra.oran_netopeer2_client.release_name }}"
+        release_namespace: "{{ cosign_enforce_namespace }}"
+        values_files: "{{ kmra.oran_netopeer2_client.helm_values_file }}"
+        wait: true
+        timeout: 4m0s
+      when:
+        - kmra.oran_netopeer2_client.enabled | default(false)
+  when:
+    - kmra.oran.enabled | default(false)
     - inventory_hostname == groups['kube_control_plane'][0]

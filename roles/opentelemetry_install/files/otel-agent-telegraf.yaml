@@ -1,0 +1,185 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-agent-telegraf
+  namespace: monitoring
+spec:
+  mode: daemonset
+  serviceAccount: otel-agent
+  volumeMounts:
+    - name: telegraf-ca
+      mountPath: "/var/run/secrets/telegraf-tls"
+    - name: otel-agent-telegraf-tls
+      mountPath: "/var/run/secrets/otel-agent-telegraf"
+    - mountPath: /var/log
+      name: varlog
+      readOnly: true
+    - mountPath: /var/lib/docker/containers
+      name: varlibdockercontainers
+      readOnly: true
+  volumes:
+    - name: telegraf-ca
+      secret:
+        secretName: telegraf-tls
+    - name: otel-agent-telegraf-tls
+      secret:
+        secretName: otel-agent-telegraf
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+  env:
+    - name: API_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+  config: |
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: "otel-telegraf-collector"
+              scrape_interval: 5s
+              kubernetes_sd_configs:
+                - role: endpoints
+              relabel_configs:
+                - source_labels:
+                    - '__meta_kubernetes_namespace'
+                  action: keep
+                  regex: monitoring
+                - source_labels:
+                    - '__meta_kubernetes_endpoint_node_name'
+                  action: keep
+                  regex: ${API_NODE_NAME}
+                - source_labels:
+                    - '__meta_kubernetes_service_name'
+                  action: keep
+                  regex: telegraf
+              authorization:
+                credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+              scheme: https
+              tls_config:
+                ca_file: "/var/run/secrets/telegraf-tls/ca.crt"
+                server_name: telegraf
+
+      filelog:
+        include:
+          - /var/log/pods/monitoring_telegraf-*/*/*.log
+        start_at: beginning
+        include_file_path: true
+        include_file_name: true
+        operators:
+          # Find out which format is used by kubernetes
+          - type: router
+            id: get-format
+            routes:
+              - output: parser-docker
+                expr: 'body matches "^\\{"'
+              - output: parser-crio
+                expr: 'body matches "^[^ Z]+ "'
+              - output: parser-containerd
+                expr: 'body matches "^[^ Z]+Z"'
+          # Parse CRI-O format
+          - type: regex_parser
+            id: parser-crio
+            regex: '^(?P<time>[^ Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout_type: gotime
+              layout: '2006-01-02T15:04:05.000000000-07:00'
+          # Parse CRI-Containerd format
+          - type: regex_parser
+            id: parser-containerd
+            regex: '^(?P<time>[^ ^Z]+Z) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+          # Parse Docker format
+          - type: json_parser
+            id: parser-docker
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+          - type: move
+            from: attributes.log
+            to: body
+          # Extract metadata from file path
+          - type: regex_parser
+            id: extract_metadata_from_filepath
+            regex: '^.*\/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})\/(?P<container_name>[^\._]+)\/(?P<restart_count>\d+)\.log$'
+            parse_from: attributes["log.file.path"]
+          # Rename attributes
+          - type: move
+            from: attributes.stream
+            to: attributes["log.iostream"]
+          - type: move
+            from: attributes.container_name
+            to: resource["k8s.container.name"]
+          - type: move
+            from: attributes.namespace
+            to: resource["k8s.namespace.name"]
+          - type: move
+            from: attributes.pod_name
+            to: resource["k8s.pod.name"]
+          - type: move
+            from: attributes.restart_count
+            to: resource["k8s.container.restart_count"]
+          - type: move
+            from: attributes.uid
+            to: resource["k8s.pod.uid"]
+
+    processors:
+      batch:
+        send_batch_size: 10000
+        timeout: 5s
+
+      # k8sattributes processor to get the metadata from K8s
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.pod.start_time
+        # Pod association using resource attributes and connection
+        pod_association:
+          - sources:
+            - from: resource_attribute
+              name: k8s.pod.uid
+          - sources:
+            - from: resource_attribute
+              name: k8s.pod.ip
+          - sources:
+            - from: connection
+
+    exporters:
+      logging:
+        loglevel: info
+
+      otlp:
+        endpoint: otel-gateway-collector-headless.monitoring.svc:4317
+        tls:
+          insecure: false
+          ca_file: "/var/run/secrets/otel-agent-telegraf/ca.crt"
+          cert_file: "/var/run/secrets/otel-agent-telegraf/tls.crt"
+          key_file: "/var/run/secrets/otel-agent-telegraf/tls.key"
+
+    service:
+      pipelines:
+        logs:
+          receivers: [filelog]
+          processors: [k8sattributes]
+          exporters: [logging,otlp]
+        metrics:
+          receivers: [prometheus]
+          processors: [batch]
+          exporters: [logging,otlp]

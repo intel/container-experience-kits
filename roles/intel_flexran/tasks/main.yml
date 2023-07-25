@@ -52,9 +52,6 @@
   include_tasks: power.yml
   when: inventory_hostname == groups['kube_node'][0]
 
-- name: deploy Intel oneAPI
-  include_tasks: oneapi.yml
-
 - name: deploy Intel FlexRAN
   include_tasks: flexran.yml
   when: intel_flexran_type == "host"

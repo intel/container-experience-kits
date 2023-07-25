@@ -10,3 +10,21 @@ Pin-Priority: -1
 Package: libvirt-daemon
 Pin: release *
 Pin-Priority: -1
+Package: qemu-system-x86
+Pin: release n=jammy
+Pin-Priority: -1
+Package: qemu-system-x86
+Pin: release n=kinetic
+Pin-Priority: 20
+Package: python3-libvirt
+Pin: release n=jammy
+Pin-Priority: -1
+Package: python3-libvirt
+Pin: release n=kinetic
+Pin-Priority: 20
+Package: libvirt-daemon-driver-qemu
+Pin: release n=jammy
+Pin-Priority: -1
+Package: libvirt-daemon-driver-qemu
+Pin: release n=kinetic
+Pin-Priority: 20

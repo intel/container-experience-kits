@@ -1,7 +1,9 @@
-import click
-from cwdf import compose_terraform, compose_cloudcli
 import os
+
+import click
 import paramiko
+
+from cwdf_util import compose_terraform, compose_cloudcli
 
 
 @click.group()
@@ -44,6 +46,7 @@ def generate_terraform(cwdf_config, ssh_public_key, generate_keys, job_id, creat
 
     tf_manifest = compose_terraform(cwdf_config, job_id, ssh_public_key, create_ansible_host, create_container_registry)
     click.echo(tf_manifest)
+
 
 @click.command()
 @click.option('--deployment_dir', help='Path to deployment directory', required=True)

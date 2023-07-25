@@ -1,0 +1,46 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# This playbook contains those tasks can be executed separatedly after
+# RA installation,  to dynamically adjust some system configurations.
+
+# Preflight check for config dpdk link operaton
+- hosts: "{{node | default('kube_node')}}"
+  tasks:
+    - name: check config dpdk link nodes count
+      vars:
+        link_node_count: "{{ groups['kube_node'] | length }}"
+
+      assert:
+        that: "{{ link_node_count }}  == 2"
+        msg: "Config dpdk link is a 2 nodes operation, but current nodes count is {{ link_node_count }}"
+      tags:
+        - dyna_config_dpdk
+      when:
+        - dyna_config_dpdk_link | default(false) | bool
+
+# Execute config dpdk role tasks according to tag and conditions
+- hosts: "{{node | default('kube_node')}}"
+  roles:
+    - role: configure_dpdk
+      dpdk_link_node1: "{{ groups.kube_node[0] }}"
+      dpdk_link_node2: "{{ groups.kube_node[1] }}"
+      tags:
+        - dyna_config_dpdk
+      when:
+        - dyna_config_dpdk_bind | default(false) | bool or
+          dyna_config_dpdk_link | default(false) | bool or
+          dyna_config_dpdk_unbind | default(false) | bool

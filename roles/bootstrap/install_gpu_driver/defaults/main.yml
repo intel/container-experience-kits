@@ -17,91 +17,69 @@
 gpu_repo_key_url: https://repositories.intel.com/graphics/intel-graphics.key
 gpu_key_text_path: /tmp/intel-graphic-key.txt
 gpu_usr_key_path: /usr/share/keyrings/intel-graphics.gpg
-gpu_oem_kernel_image: linux-image-{{ gpu_oem_kernel_version }}
 
-gpu_tool_packages:
+
+# repo for different OS and different GPU type
+gpu_repo_ubuntu_url: https://repositories.intel.com/graphics/ubuntu
+gpu_repo_list_path: /etc/apt/sources.list.d/intel.gpu.list
+
+gpu_repo_spec_u2204_flex: "jammy flex"
+gpu_repo_spec_u2204_arc: "jammy arc"
+
+kernel_dkms_packages:
+  - gawk
+  - dkms
+  - libc6-dev
+
+# intel dgpu release 20230526 for Ubuntu 22.04
+gpu_kmd_packages_u2204_20230526:
+  - {pkg: intel-platform-vsec-dkms, ver: 2023.20.0-3}
+  - {pkg: intel-platform-cse-dkms, ver: 2023.11.1-36}
+  - {pkg: intel-i915-dkms, ver: 1.23.4.15.230307.15.5.17.0.1030+i28-1}
+  - {pkg: intel-fw-gpu, ver: 2023.12.2+207}
+
+gpu_umd_rt_packages_u2204_20230526:
+  - {pkg: intel-opencl-icd, ver: 23.13.26032.26-627~22.04}
+  - {pkg: intel-level-zero-gpu, ver: 1.3.26032.26-627~22.04}
+  - {pkg: level-zero, ver: 1.9.9-625~22.04}
+  - {pkg: intel-media-va-driver-non-free, ver: 23.1.6-622~22.04}
+  - {pkg: libmfx1, ver: 23.1.6-622~22.04}
+  - {pkg: libmfxgen1, ver: 23.1.5-622~22.04}
+  - {pkg: libvpl2, ver: 2023.1.3.0-622~22.04}
+  - {pkg: libegl-mesa0, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libegl1-mesa, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libegl1-mesa-dev, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libgbm1, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libgl1-mesa-dev, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libgl1-mesa-dri, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libglapi-mesa, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libgles2-mesa-dev, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libglx-mesa0, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: libigdgmm12, ver: 22.3.5-622~22.04}
+  - {pkg: libxatracker2, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: mesa-va-drivers, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: mesa-vdpau-drivers, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: mesa-vulkan-drivers, ver: 23.2.0.20230414.1+2061~u22.04}
+  - {pkg: va-driver-all, ver: 2.18.0.2-60~u22.04}
+
+gpu_dev_packages_u2204_20230526:
+  - {pkg: libigc1, ver: 1.0.13700.13-627~22.04}
+  - {pkg: libigc-dev, ver: 1.0.13700.13-627~22.04}
+  - {pkg: intel-igc-cm, ver: 1.0.176+i600~22.04}
+  - {pkg: libigdfcl1, ver: 1.0.13700.13-627~22.04}
+  - {pkg: libigdfcl-dev, ver: 1.0.13700.13-627~22.04}
+  - {pkg: libigfxcmrt7, ver: 23.1.6-622~22.04}
+  - {pkg: libigfxcmrt-dev, ver: 23.1.6-622~22.04}
+  - {pkg: level-zero-dev, ver: 1.9.9-625~22.04}
+
+gpu_tool_packages_u2204_20230526:
+  - {pkg: xpu-smi, ver: 1.2.3-13~u22.04}
+
+# intel dgpu release independent test packages
+gpu_test_packages:
   - hwinfo
   - vainfo
   - clinfo
-
-# Variables for Ubuntu 20.04
-gpu_repo_list_path_focal: /etc/apt/sources.list.d/intel.gpu.focal.list
-gpu_repo_spec_focal: "focal main"
-gpu_repo_focal_url: https://repositories.intel.com/graphics/ubuntu
-
-gpu_dkms_packages_focal:
-  - gawk
-  - dkms
-  - linux-headers-{{ gpu_oem_kernel_version }}
-  - libc-dev
-  - intel-i915-dkms
-  - intel-platform-cse-dkms
-  - pmt
-
-gpu_runtime_packages_focal:
-  - intel-opencl-icd
-  - intel-level-zero-gpu
-  - level-zero
-  - intel-media-va-driver-non-free
-  - libmfx1
-  - libmfxgen1
-  - libvpl2
-  - libegl-mesa0
-  - libegl1-mesa
-  - libegl1-mesa-dev
-  - libgbm1
-  - libgl1-mesa-dev
-  - libgl1-mesa-dri
-  - libglapi-mesa
-  - libgles2-mesa-dev
-  - libglx-mesa0
-  - libigdgmm11
-  - libxatracker2
-  - mesa-va-drivers
-  - mesa-vdpau-drivers
-  - mesa-vulkan-drivers
-  - va-driver-all
-
-# Variables for Ubuntu 22.04
-gpu_repo_list_path_jammy: /etc/apt/sources.list.d/intel.gpu.jammy.list
-gpu_repo_spec_jammy: "jammy flex"
-
-gpu_dkms_packages_jammy:
-  - gawk
-  - dkms
-  - linux-headers-{{ gpu_oem_kernel_version }}
-  - libc6-dev
-  - intel-platform-vsec-dkms
-  - intel-platform-cse-dkms
-  - intel-i915-dkms
-  - intel-fw-gpu
-  - linux-modules-extra-{{ gpu_oem_kernel_version }}
-
-gpu_runtime_packages_jammy:
-  - intel-opencl-icd
-  - intel-level-zero-gpu
-  - level-zero
-  - intel-media-va-driver-non-free
-  - libmfx1
-  - libmfxgen1
-  - libvpl2
-  - libegl-mesa0
-  - libegl1-mesa
-  - libegl1-mesa-dev
-  - libgbm1
-  - libgl1-mesa-dev
-  - libgl1-mesa-dri
-  - libglapi-mesa
-  - libgles2-mesa-dev
-  - libglx-mesa0
-  - libigdgmm12
-  - libxatracker2
-  - mesa-va-drivers
-  - mesa-vdpau-drivers
-  - mesa-vulkan-drivers
-  - va-driver-all
-  - libigc-dev
-  - intel-igc-cm
-  - libigdfcl-dev
-  - libigfxcmrt-dev
-  - level-zero-dev
+  - mesa-utils
+  - vulkan-tools
+  - intel-gpu-tools

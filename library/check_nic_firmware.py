@@ -13,10 +13,11 @@ from __future__ import (absolute_import, division, print_function)
 # Severity: Low   Confidence: High
 # More Info: https://bandit.readthedocs.io/en/latest/blacklists/blacklist_imports.html#b404-import-subprocess # pylint: disable=line-too-long
 # -> considered
-import subprocess # nosec B404
+import subprocess  # nosec B404
+
 from ansible.module_utils.basic import AnsibleModule
 
-__metaclass__ = type # pylint: disable=invalid-name
+__metaclass__ = type  # pylint: disable=invalid-name
 
 DOCUMENTATION = r'''
 ---
@@ -155,12 +156,12 @@ def run_module():
     # Severity: High   Confidence: High
     # More Info: https://bandit.readthedocs.io/en/latest/plugins/b602_subprocess_popen_with_shell_equals_true.html # pylint: disable=line-too-long
     # -> considered
-    nic_name_result = subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE) # nosec
+    nic_name_result = subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE)  # nosec
 
     if not nic_name_result.stdout:
-        module.fail_json(msg="Name for the requested nic interface '" + module.params['pci_id'] +
-                             "' not found. Update 'dataplane_interfaces' accordingly and run " +
-                             "deployment again.", **result)
+        module.fail_json(msg=(f"Name for the requested nic interface '{module.params['pci_id']}"
+                              "' not found. Update 'dataplane_interfaces' accordingly and run "
+                              "deployment again."), **result)
     nic_name = str(nic_name_result.stdout.rstrip(), encoding)
     result['interface_name'] = nic_name
 
@@ -174,30 +175,29 @@ def run_module():
     # Severity: Low   Confidence: High
     # More Info: https://bandit.readthedocs.io/en/latest/plugins/b603_subprocess_without_shell_equals_true.html # pylint: disable=line-too-long
     # -> considered
-    sub_result = subprocess.Popen(["ethtool", "-i", nic_name], stdout=subprocess.PIPE) # pylint: disable=consider-using-with # nosec
-
-    if not sub_result.stdout.readline():
-        module.fail_json(msg="Requested nic interface '" + module.params['pci_id'] +
-                             "' with name '" + nic_name + "' not found. " +
-                             "Update 'dataplane_interfaces' accordingly and run deployment again.",
+    with subprocess.Popen(["ethtool", "-i", nic_name], stdout=subprocess.PIPE) as sub_result:  # nosec
+        if not sub_result.stdout.readline():
+            module.fail_json(msg=(f"Requested nic interface '{module.params['pci_id']}"
+                                  f"' with name '{nic_name}' not found. "
+                                  "Update 'dataplane_interfaces' accordingly and run deployment again."),
                              **result)
 
-    for line in sub_result.stdout:
-        if b'firmware-version' in line:
-            result['current_firmware_version'] = str(line.rstrip().split()[1], encoding)
-            if float(result['current_firmware_version']) < float(module.params['min_fw_version']):
-                if module.params['ddp']:
-                    module.fail_json(msg="Current nic firmware version doesn't allow loading of " +
-                                         "DDP profile. Set 'update_nic_firmware' " +
-                                         "to 'true' and run deployment again.", **result)
-                else:
-                    module.fail_json(msg="Current nic firmware version is lower than minimum " +
-                                         "version needed for automatic firmware update. " +
-                                         "Update nic firmware manually and run deployment again.",
+        for line in sub_result.stdout:
+            if b'firmware-version' in line:
+                result['current_firmware_version'] = str(line.rstrip().split()[1], encoding)
+                if float(result['current_firmware_version']) < float(module.params['min_fw_version']):
+                    if module.params['ddp']:
+                        module.fail_json(msg=("Current nic firmware version doesn't allow loading of "
+                                              "DDP profile. Set 'update_nic_firmware' "
+                                              "to 'true' and run deployment again."), **result)
+                    else:
+                        module.fail_json(msg=("Current nic firmware version is lower than minimum "
+                                              "version needed for automatic firmware update. "
+                                              "Update nic firmware manually and run deployment again."),
                                          **result)
-            else:
-                result['msg'] = "nic firmware version is sufficient to proceed"
-                module.exit_json(**result)
+                else:
+                    result['msg'] = "nic firmware version is sufficient to proceed"
+                    module.exit_json(**result)
 
     module.exit_json(**result)
 

@@ -5,8 +5,9 @@
   <dns enable="no"/>
   <ip address='{{ vxlan_gw_ip | ansible.utils.ipaddr('address') }}' netmask='{{ vxlan_gw_ip | ansible.utils.ipaddr('netmask') }}'>
     <dhcp>
-      <range start='{{ vxlan_gw_ip | ansible.utils.ipaddr('network') | ansible.utils.ipmath(vxlan_dhcp_start) }}' end='{{ vxlan_gw_ip | ansible.utils.ipaddr('network') | ansible.utils.ipmath(vxlan_dhcp_end) }}'/>
+      <range start='{{ vxlan_gw_ip | ansible.utils.ipaddr('network') | ansible.utils.ipmath(vxlan_dhcp_start) }}' end='{{ vxlan_gw_ip | ansible.utils.ipaddr('network') | ansible.utils.ipmath(vxlan_dhcp_end) }}'>
         <lease expiry='0'/>
+      </range>
     </dhcp>
   </ip>
 </network>

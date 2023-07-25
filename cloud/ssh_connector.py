@@ -1,9 +1,11 @@
 """Class for SSH connection"""
-import sys
-import os
 import io
+import os
+import sys
+import time
+
 import click
-from time import sleep
+
 from paramiko import SSHClient, SSHConfig, ProxyCommand, AutoAddPolicy, SSHException, AuthenticationException
 from scp import SCPClient, SCPException
 
@@ -22,14 +24,14 @@ class SSHConnector:
 
         Parameters:
         ip_address (string): IP address of the remote instance
-        username (string): User name for autentication in remote instance
+        username (string): User name for authentication in remote instance
         port (int): SSH port
-        priv_key (string): Path to private RSA key for autentication in remote instance
+        priv_key (string): Path to private RSA key for authentication in remote instance
         gateway (SSHConnector obj): [optional] SSHConnector object with active SSH connection
                                                to gateway for create proxy jump
-        try_lopp (bool): When connection fails 
+        try_loop (bool): When connection fails
 
-        Rerurn:
+        Return:
         None
 
         """
@@ -76,18 +78,18 @@ class SSHConnector:
                 try:
                     self.client.connect(**cfg)
                     ssh_connected = True
-                except SSHException as e:
+                except SSHException:
                     click.echo("SSH not available yet. Retrying in 10 seconds.")
-                    sleep(10)
+                    time.sleep(10)
         else:
             try:
                 self.client.connect(**cfg)
-            except AuthenticationException as e:
-                click.echo("Auth failed: ",e)
+            except AuthenticationException as exc:
+                click.echo("Auth failed: ", exc)
                 sys.exit()
-            except SSHException as ssh_excep:
+            except SSHException as ssh_exc:
                 click.echo("Cannot connect to instance via SSH", err=True)
-                click.echo(f"Error message: {ssh_excep}", err=True)
+                click.echo(f"Error message: {ssh_exc}", err=True)
                 sys.exit()
 
     def exec_command(self, command, print_output=False, return_parsed_output=False):
@@ -109,7 +111,7 @@ class SSHConnector:
             stdin, stdout, stderr = self.client.exec_command(command)
         except SSHException:
             click.echo(f"During command: {stdin}")
-            click.echo(f"Error ocured: {stderr}")
+            click.echo(f"Error occurred: {stderr}")
         if print_output:
             for line in iter(lambda: stdout.readline(2048), ""):
                 click.echo(line, nl=False)
@@ -133,8 +135,8 @@ class SSHConnector:
 
         """
         with click.progressbar(length=100,
-                       label=f"Uploading {filename} progress") as prog_bar:
-            prog_bar.update(float(sent)/float(size)*100)
+                               label=f"Uploading {filename} progress") as prog_bar:
+            prog_bar.update(float(sent) / float(size) * 100)
 
     def copy_file(self, file_path, destination_path, recursive=False):
         """
@@ -151,8 +153,8 @@ class SSHConnector:
         scp = SCPClient(self.client.get_transport(), progress=self.progress)
         try:
             scp.put(file_path, destination_path, recursive)
-        except SCPException as error:
-            click.echo(f"Error during uploading host_var file: {error}", err=True)
+        except SCPException as exc:
+            click.echo(f"Error during uploading host_var file: {exc}", err=True)
         scp.close()
 
     def close_connection(self):

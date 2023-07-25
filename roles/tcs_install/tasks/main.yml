@@ -31,6 +31,17 @@
     - inventory_hostname in groups['kube_node']
     - tcs.build_image_locally | default(false)
 
+# this task should be removed when TCS fix issue with containerd
+- name: change owner of tokens directory
+  ansible.builtin.file:
+    path: /var/lib/tcs-issuer/tokens
+    state: directory
+    recurse: yes
+    owner: 5000
+    group: 5000
+  when:
+    - container_runtime != "docker"
+
 - name: install TCS
   include_tasks: tcs_install.yml
   when:

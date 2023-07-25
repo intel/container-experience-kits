@@ -1,0 +1,52 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies
+  ansible.builtin.include_role:
+    name: install_dependencies
+
+- name: Ensure etcd is configured properly
+  block:
+    - name: Ensure group "etcd" exists
+      ansible.builtin.group:
+        name: etcd
+        state: present
+    - name: Add the user 'etcd' with a primary group of 'etcd'
+      ansible.builtin.user:
+        name: etcd
+        comment: etcd user
+        create_home: false
+        system: true
+        shell: /sbin/nologin
+        group: etcd
+  become: true
+  when: inventory_hostname in groups['etcd']
+
+- name: set kubelet requirements in sysctl
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/90-kubelet.conf
+    content: |
+      vm.panic_on_oom=0
+      vm.overcommit_memory=1
+      kernel.panic=10
+      kernel.panic_on_oops=1
+    mode: 0755
+  become: true
+
+- name: apply kubelet sysctl changes
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/90-kubelet.conf
+  become: true
+  changed_when: true

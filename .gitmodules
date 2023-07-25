@@ -1,3 +1,0 @@
-[submodule "playbooks/k8s/kubespray"]
-	path = playbooks/k8s/kubespray
-	url = https://github.com/kubernetes-sigs/kubespray.git

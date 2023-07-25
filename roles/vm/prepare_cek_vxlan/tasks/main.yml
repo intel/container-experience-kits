@@ -117,6 +117,9 @@
   delegate_to: "{{ groups['vm_host'][0] }}"
   become: false
   register: ssh_result
+  retries: 5
+  delay: 1
+  until: ssh_result.stdout | length > 0
   changed_when: '"Warning: Permanently added " in ssh_result.stderr'
   when:
     - (not item.key in current_vms.stdout) or

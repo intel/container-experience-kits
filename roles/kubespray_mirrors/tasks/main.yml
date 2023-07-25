@@ -15,7 +15,7 @@
 ##
 - name: Patch kubespray url mirrors
   replace:
-    path: "{{ playbook_dir }}/kubespray/roles/download/defaults/main.yml"
+    path: "{{ kubespray_dir }}/roles/download/defaults/main.yml"
     regexp: "(.*){{ item.original }}(.*)"
     replace: "\\1{{ item.mirror }}\\2"
     mode: 0644

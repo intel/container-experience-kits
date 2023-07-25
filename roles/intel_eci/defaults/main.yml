@@ -1,0 +1,23 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# Intel Edge Controls for Industrial (ECI)
+
+intel_eci_version: "3.0.2"
+# Please contact eci-support@intel.com on how to access this repo.
+# Also refer to ESH (https://www.intel.com/content/www/us/en/edge-computing/edge-software-hub.html)
+intel_eci_repo: "<link_to_eci_apt_repo_from_ESH>"
+intel_eci_repo_checksum: "4c397b998e18a88e9a918742c27d3c0bff4c67c4"

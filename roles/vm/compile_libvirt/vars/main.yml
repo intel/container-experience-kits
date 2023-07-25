@@ -15,6 +15,7 @@
 ##
 install_dependencies:
   Debian:
+    - dconf-service
     - virt-manager
     - libxml2-utils
     - xsltproc
@@ -44,5 +45,4 @@ install_dependencies:
     - librados-dev
     - librbd-dev
     - libsasl2-dev
-    - libsystemd-dev
-    - dnsmasq
+    - dnsmasq-base

@@ -55,9 +55,11 @@ spec:
             vendor: {op: In, value: ["8086"]}
             device: {op: In, value: {{ qat_supported_pf_dev_ids | list + qat_supported_vf_dev_ids | list }}}
             class: {op: In, value: ["0b40"]}
+{% if not (on_vms | default(false) and not update_qat_drivers | default(false) and configure_qat | default(false)) %}
         - feature: kernel.loadedmodule
           matchExpressions:
             intel_qat: {op: Exists}
+{% endif %}
 {% endif %}
 {% if sgx_dp_enabled | d(false) %}
     - name: "intel.sgx"

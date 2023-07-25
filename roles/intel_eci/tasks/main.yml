@@ -1,0 +1,160 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- debug: msg="Entering Intel ECI Role"
+
+- name: add the ECI APT key
+  ansible.builtin.apt_key:
+    url: "{{ intel_eci_repo }}/repos/gpg-keys/GPG-PUB-KEY-INTEL-ECI.gpg"
+    keyring: /usr/share/keyrings/eci-archive-keyring.gpg
+    state: present
+
+- name: add the ECI APT repo
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/eci-archive-keyring.gpg] {{ intel_eci_repo }}/repos/{{ ansible_distribution_release }} isar main"
+    state: present
+    filename: eci
+
+- name: add the ECI APT source repo
+  ansible.builtin.apt_repository:
+    repo: "deb-src [signed-by=/usr/share/keyrings/eci-archive-keyring.gpg] {{ intel_eci_repo }}/repos/{{ ansible_distribution_release }} isar main"
+    state: present
+    filename: eci
+
+- name: set ECI APT repo priority above all
+  ansible.builtin.copy:
+    dest: /etc/apt/preferences.d/isar
+    content: |
+      Package: *
+      Pin: "origin {{ intel_eci_repo }}"
+      Pin-Priority: 1000
+    mode: '0644'
+
+- name: install dependencies for Intel ECI (including RT kernel)
+  include_role:
+    name: install_dependencies
+
+- name: reboot into RT kernel
+  ansible.builtin.reboot:
+
+- name: re-gather o/s facts
+  ansible.builtin.setup:
+    filter:
+      - 'ansible_kernel'
+
+- name: check RT kernel
+  ansible.builtin.assert:
+    that: "'intel-ese-standard-lts-rt' in ansible_kernel"
+    fail_msg: "System failed to boot the RT kernel.  Detected '{{ ansible_kernel }}' kernel"
+    success_msg: "Assertion passed.  Kernel is now '{{ ansible_kernel }}'"
+
+- name: install ECI meta-packages
+  ansible.builtin.apt:
+    name: "{{ item.key }}"
+    state: present
+    update_cache: true
+  with_items: "{{ intel_eci | dict2items }}"
+  when: item.value
+
+- name: deploy Codesys OPC UA Client
+  block:
+    - name: install packages for Codesys OPC UA Client
+      ansible.builtin.apt:
+        name:
+          - codesys-opcua-benchmark
+          - codesys-benchmark-scripts
+        state: present
+        update_cache: true
+
+    # sudo /opt/benchmarking/codesys/utility/start_codesys_native.sh
+    - name: start the Codesys runtime
+      ansible.builtin.command: /opt/benchmarking/codesys/utility/start_codesys_native.sh
+      register: codesys_runtime
+      changed_when: '"Changing affinity of Codesys Runtime tasks" in codesys_runtime.stdout'
+      failed_when:
+        - codesys_runtime.rc != 0
+        - '"Codesys preparation complete" not in codesys_runtime.stdout'
+
+    - name: restart docker service (codesys_native script killed it)
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: gather service facts
+      ansible.builtin.service_facts:
+
+    # sudo systemctl status codesyscontrol
+    - name: print codesyscontrol status
+      debug:
+        var: ansible_facts.services.codesyscontrol.state
+
+    - name: check codesyscontrol status
+      ansible.builtin.assert:
+        that: ansible_facts.services.codesyscontrol.state == "running"
+        success_msg: "Assertion passed. The codesyscontrol service is active (running)"
+        fail_msg: "The codesyscontrol service is in {{ ansible_facts.services.codesyscontrol.state }} state (not running)"
+
+    - debug: msg="Intel ECI with Codesys OPC UA Client is ready on target '{{ inventory_hostname }}'"
+  when: opcua_framework.codesys_opcua_client | bool
+
+- name: deploy Standalone OPC UA Server
+  block:
+    - name: install packages for Standalone OPC UA Server
+      ansible.builtin.apt:
+        name: eci-connectivity-ec-bridge
+        state: present
+        update_cache: true
+
+    - name: scan for existing opcsvr process(es)
+      ansible.builtin.shell: "set -o pipefail && ps -A | grep -i opcsvr | awk '{print $1}'" # noqa command-instead-of-shell
+      args:
+        executable: /bin/bash
+      register: opcsvr_pids
+      changed_when: false
+      failed_when: false
+
+    - name: kill any existing opcsvr process(es)
+      ansible.builtin.shell: "kill -9 {{ item }}" # noqa command-instead-of-shell
+      with_items: "{{ opcsvr_pids.stdout_lines }}"
+      changed_when: true
+      when: opcsvr_pids.stdout | length() != 0
+
+    # sudo chrt -f 37 /opt/ec-protocol-bridge/opcsvr /opt/ec-protocol-bridge/config/opcsvr-pubsub.yaml
+    - name: start the EC-Protocol OPC UA Server
+      ansible.builtin.command: "chrt -f 37 /opt/ec-protocol-bridge/opcsvr /opt/ec-protocol-bridge/config/opcsvr-pubsub.yaml"
+      async: 9999999 # run "forever" (untill killed)
+      poll: 0
+      register: opcsvr
+      changed_when: true
+
+    - name: scan for new opcsvr process
+#      community.general.pids: # needs psutil(python module)
+#        name: opcsvr
+      ansible.builtin.shell: "set -o pipefail && ps -A | grep -i opcsvr | awk '{print $1}'" # noqa command-instead-of-shell
+      args:
+        executable: /bin/bash
+      register: opcsvr_pid
+      changed_when: false
+      failed_when: false
+
+    - name: check opcsvr status
+      ansible.builtin.assert:
+        that: opcsvr_pid.stdout | length() != 0
+        success_msg: "Assertion passed. The OPC UA Server is running as 'opcsvr' process with PID {{ opcsvr_pid.stdout }}"
+        fail_msg: "The OPC UA Server failed to start. No 'opcsvr' process is running"
+
+    - debug: msg="Intel ECI with Standalone OPC UA Server is ready on target '{{ inventory_hostname }}'"
+  when: opcua_framework.standalone_opcua_server | bool

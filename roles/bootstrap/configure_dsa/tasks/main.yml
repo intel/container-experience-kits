@@ -33,7 +33,7 @@
 - name: apply default configuration for DSA devices
   include_tasks: dsa_default_config.yml
   vars:
-    dsa_id: "{{ item.path[-1] }}"
+    dsa_id: "{{ item.path | basename | replace('dsa', '') }}"
   with_items: "{{ found_dsa_devices.files }}"
   when:
     - configure_dsa_devices | default(false) | bool
@@ -54,9 +54,25 @@
     - configure_dsa_devices | default(false) | bool
     - dsa_devices | default([])  | length > 0
 
+# config will be saved to /etc/accel-config/accel-config.conf as default.
 - name: save accel-config configuration
   command: accel-config save-config
   changed_when: true
+
+# WA for configuring DSA devices
+# in some CPU SKUs with specific BIOS version, wq_cap.wq_ats_support is disabled, so wq_ats_disable cannot be written.
+- name: modify accel-config.conf
+  block:
+    - name: remove ats_disable parameter
+      ansible.builtin.lineinfile:
+        path: /etc/accel-config/accel-config.conf
+        regexp: "ats_disable"
+        state: absent
+    - name: remove extra comma
+      ansible.builtin.replace:
+        path: /etc/accel-config/accel-config.conf
+        regexp: "\"threshold\":0,"
+        replace: "\"threshold\":0"
 
 - name: create systemd unit file
   copy:

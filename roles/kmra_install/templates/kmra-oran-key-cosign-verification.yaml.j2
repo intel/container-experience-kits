@@ -1,0 +1,14 @@
+apiVersion: policy.sigstore.dev/v1alpha1
+kind: ClusterImagePolicy
+metadata:
+  name: oran-cosign-image-policy-pubkey
+spec:
+  images:
+    - glob: "{{ cosign_registry_address }}/oran/*"
+  authorities:
+    - key:
+        secretRef:
+          name: "{{ kmra.oran.sw_provider_name }}-cosign-pubkey"
+    - key:
+        secretRef:
+          name: "{{ kmra.oran.sw_operator_name }}-cosign-pubkey"

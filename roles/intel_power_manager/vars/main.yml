@@ -21,3 +21,9 @@ install_dependencies:
   RedHat:
     - git
     - make
+
+# need union of all profiles for power config
+combined_profiles: []
+
+# used in calculating Cpu or Mem quotas
+multiplier: '{{ [intel_power_manager.power_nodes | length / 20, 1.0] | min }}' # 20+ nodes will double the max basic value

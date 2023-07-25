@@ -68,7 +68,7 @@
 - hosts: "{{ node | default('k8s_cluster') }}"
   roles:
     - role: redeploy_cleanup
-      tag: cleanup
+      tags: cleanup
   handlers:
     - name: reboot server
       reboot: {reboot_timeout: 1200}

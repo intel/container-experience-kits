@@ -18,20 +18,22 @@
 
 intel_cpu_controlplane:
   image:
-    repository: "intel.io/intel_cpu_controlplane"
-    tag: "v0.1"
+    repository: ""
+    tag: ""
     pullPolicy: IfNotPresent
 
   # container runtime: one of ['contianerd', 'docker']
-  runtime: "containerd"
+  runtime: ""
 
   namespace: "ctlplane"
 
   # NUMA allocator: one of ['default', 'numa', 'numa-namespace', 'numa-namespace-exclusive']
-  # https://github.com/intel-innersource/libraries.orchestrators.resourcemanagement.controlplane.daemon/blob/master/README.md
-  allocator: "numa-namespace-exclusive=2"
+  # https://github.com/intel/cpu-control-plane-plugin-for-kubernetes/blob/main/README.md
+  allocator: "default"
 
   # control plane agent namespace
   agent_namespace_prefix: "test-"
+
+  enable_memory_pinning: false
 
   imagePullSecrets: []

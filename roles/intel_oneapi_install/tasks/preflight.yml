@@ -1,0 +1,35 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: load enabled oneAPI kits
+  ansible.builtin.set_fact:
+    enabled_kits: "{{ intel_oneapi | default({}) | dict2items | rejectattr('value', 'false') | map(attribute='key') | list }}"
+
+# STORY basekit must be enabled if at least one other kit is enabled
+- name: Check oneAPI basekit is enabled
+  ansible.builtin.assert:
+    that: default_intel_oneapi_kit in enabled_kits
+    fail_msg:
+      Intel oneAPI basekit not enabled.
+      Intel oneAPI basekit must be enabled when at least one other Intel oneAPI kit is enabled.
+
+# STORY all enabled kits must be supported by role
+- name: Check all defined kits are supported
+  ansible.builtin.assert:
+    that: enabled_kits | difference(supported_intel_oneapi_kits) | length == 0
+    fail_msg: >
+      There are intel oneAPI kits enabled in group_vars that are not supported in RA deployment.
+      Please check roles/intel_oneapi_install/defaults/main.yml:supported_intel_oneapi_kits for a list of supported kits.

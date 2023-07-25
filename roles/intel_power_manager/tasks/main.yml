@@ -23,8 +23,11 @@
   loop: "{{ intel_power_manager.power_nodes }}"
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: prepare App QoS
-  ansible.builtin.include_tasks: app_qos.yml
+- name: enable power manager drivers
+  ansible.builtin.include_tasks: enable_drivers.yml
+  loop: "{{ intel_power_manager.power_nodes }}"
+  loop_control:
+    loop_var: power_node
 
 - name: prepare Intel Kubernetes Power Manager
   ansible.builtin.include_tasks: power_manager.yml
@@ -35,19 +38,25 @@
     - intel_power_manager.deploy_example_pods
     - inventory_hostname == groups['kube_control_plane'][0]
 
+- name: deploy power manager features
+  ansible.builtin.include_tasks: deploy_features.yml
+  loop: "{{ intel_power_manager.power_nodes }}"
+  loop_control:
+    loop_var: power_node
+
 # The Shared Profiles and Workloads deployment starts here
 - name: prepare and deploy Global Shared Power Profile
   block:
     - name: populate Global Shared Profile template to the controller node
       ansible.builtin.template:
-        src: global_shared_profile.yml.j2
-        dest: "{{ (intel_power_manager_dir, 'global_shared_profile.yml') | path_join }}"
+        src: global_shared_profile.yaml.j2
+        dest: "{{ (intel_power_manager_dir, 'global_shared_profile.yaml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: deploy Global Shared Profile
       kubernetes.core.k8s:
-        src: "{{ (intel_power_manager_dir, 'global_shared_profile.yml') | path_join }}"
+        src: "{{ (intel_power_manager_dir, 'global_shared_profile.yaml') | path_join }}"
         state: present
   when:
     - intel_power_manager.global_shared_profile_enabled

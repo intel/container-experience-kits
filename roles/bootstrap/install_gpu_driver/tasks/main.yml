@@ -14,30 +14,56 @@
 ##   limitations under the License.
 ##
 ---
-- name: Set fact for the installation for Ubuntu 22.04
-  set_fact:
-    gpu_repo_list_path: "{{ gpu_repo_list_path_jammy }}"
-    gpu_repo_spec: "{{ gpu_repo_spec_jammy }}"
-    gpu_dkms_packages: "{{ gpu_dkms_packages_jammy }}"
-    gpu_runtime_packages: "{{ gpu_runtime_packages_jammy }}"
-  when: ansible_distribution_version == "22.04"
+- name: Install gpu type detection script to /usr/local/bin
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/"
+    mode: 0700
+    owner: root
+    group: root
+    force: true
+  with_items:
+    - 'cek_detect_gpu_type.py'
+  become: true
 
-- name: Set fact for the installation for Ubuntu 20.04
-  set_fact:
-    gpu_repo_list_path: "{{ gpu_repo_list_path_focal }}"
-    gpu_repo_spec: "{{ gpu_repo_spec_focal }}"
-    gpu_dkms_packages: "{{ gpu_dkms_packages_focal }}"
-    gpu_runtime_packages: "{{ gpu_runtime_packages_focal }}"
-  when: ansible_distribution_version == "20.04"
+- name: Detect gpu type
+  command: "python /usr/local/bin/cek_detect_gpu_type.py"
+  register: gpu_type_result
+  changed_when: false
 
-# Based on Release Site: Only Ubuntu 22.04, 20.04 and RHEL 8.5, 8.6 are supported.
-# https://dgpu-docs.intel.com/installation-guides/index.html#intel-data-center-gpu-flex-series
-- name: install GPU drivers on RHEL 8.5
-  include_tasks: rhel.yml
+- name: Output gpu type detection result
+  debug:
+    msg: "{{ gpu_type_result.stdout_lines }}"
+
+- name: Set repo for Flex GPU installation on Ubuntu 22.04
+  set_fact:
+    gpu_repo_spec: "{{ gpu_repo_spec_u2204_flex }}"
   when:
-    - (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.5")
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
+    - gpu_type_result.stdout_lines[0] == "Flex"
 
-- name: install GPU drivers on Ubuntu
+- name: Set repo for Arc GPU installation on Ubuntu 22.04
+  set_fact:
+    gpu_repo_spec: "{{ gpu_repo_spec_u2204_arc }}"
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
+    - gpu_type_result.stdout_lines[0] == "Arc"
+
+- name: Set gpu package version to specific release on Ubuntu 22.04
+  set_fact:
+    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20230526 }}"
+    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20230526 }}"
+    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20230526 }}"
+    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20230526 }}"
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
+
+- name: Install GPU drivers on Ubuntu
   include_tasks: debian.yml
   when:
     - (ansible_distribution == 'Ubuntu')
+
+- name: Install GPU drivers on RHEL 8.x
+  include_tasks: rhel.yml
+  when:
+    - (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.6")

@@ -28,6 +28,11 @@
   when: item.bus_info is not regex (".*0$")
   loop: "{{ dataplane_interfaces }}"
 
+- name: check if irdma is loaded
+  ansible.builtin.command: "lsmod"
+  register: ldddp_lsmod
+  changed_when: false
+
 - name: template the ddp-ice systemd service
   template:
     src: ddp_ice_service.j2

@@ -1,0 +1,14 @@
+---
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: {{ registry_csr_name }}
+  labels:
+    app: {{ registry_release_name }}
+spec:
+  signerName: kubernetes.io/kubelet-serving
+  request: {{ registry_csr_base64 }}
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth

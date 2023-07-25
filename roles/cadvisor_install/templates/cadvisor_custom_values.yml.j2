@@ -1,6 +1,6 @@
 image:
-  repository: gcr.io/cadvisor/cadvisor
-  tag: v0.44.0
+  repository: {{ cadvisor_image }}
+  tag: v{{ cadvisor_image_version }}
   pullPolicy: IfNotPresent
 
   ## Reference to one or more secrets to be used when pulling images
@@ -16,11 +16,16 @@ container:
     - --event_storage_event_limit=default=0
     - --event_storage_age_limit=default=0
     - --disable_metrics=percpu,process,sched,tcp,udp    # enable only diskIO, cpu, memory, network, disk
-    {% if cadvisor_custom_events_config_on | default(false) -%}
-    - --perf_events_config={{ (project_root_dir, 'charts', 'cadvisor', 'temp', perf_events_config_filename) | path_join }}
+    {% if cadvisor_perf_events | default(false) -%}
+    - --perf_events_config={{ ('/mnt/perf-config', cadvisor_perf_config_filename) | path_join }}
     {% endif -%}
     - --docker_only
   hostPaths:
+    {% if cadvisor_perf_events | default(false) -%}
+    - name: custom-events
+      path: "{{ (project_root_dir, 'charts', 'cadvisor', 'perf_config') | path_join }}"
+      mount: "/mnt/perf-config"
+    {% endif -%}
     - name: varrun
       path: "/var/run"
     - name: sys
@@ -63,8 +68,8 @@ podSecurityPolicy:
 
 # Specifies whether a securityContext should be created. Required for privileged operations.
 podSecurityContext:
-  create: false
-  privileged: false
+  create: true
+  privileged: true
 
 nodeSelector: {}
 

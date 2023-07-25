@@ -15,5 +15,3 @@ spec:
     intel.feature.node.kubernetes.io/gpu: "true"
     # check if node has required PCI IDs
     feature.node.kubernetes.io/pci-0380_8086.present: 'true'
-    # check if node custom gpu kernel installed
-    feature.node.kubernetes.io/kernel-version.full: '{{ gpu_oem_kernel_version }}'

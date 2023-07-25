@@ -13,7 +13,10 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-- block:
+- name: Deploy kibana
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+  block:
     - name: create kibana folder
       ansible.builtin.file:
         state: directory
@@ -37,4 +40,3 @@
         create_namespace: true
         wait: true
         timeout: 15m0s
-  when: inventory_hostname == groups['kube_control_plane'][0]

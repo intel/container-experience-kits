@@ -14,6 +14,11 @@
 ##   limitations under the License.
 ##
 ---
+- name: remove existing grafana and prometheus deployment
+  include_tasks: cleanup.yml
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+
 - name: install dependencies
   ansible.builtin.include_role:
     name: install_dependencies
@@ -118,16 +123,23 @@
   when:
     - tas_enable_demo_policy | d(false)
 
-- name: create persistent folder for grafana and prometheus
+- name: create persistent folder for prometheus
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "/etc/prometheus"
     state: directory
-    owner: root
-    group: root
+    owner: 1000
+    group: 1000
     mode: 0744
-  loop:
-    - /etc/grafana
-    - /etc/prometheus
+  when:
+    - inventory_hostname == groups['kube_node'][0]
+
+- name: create persistent folder for grafana
+  ansible.builtin.file:
+    path: "/etc/grafana"
+    state: directory
+    owner: 472
+    group: 472
+    mode: 0744
   when:
     - inventory_hostname == groups['kube_node'][0]
 

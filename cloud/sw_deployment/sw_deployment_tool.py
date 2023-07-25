@@ -1,14 +1,16 @@
 """Script for deploying Reference Architecture (RA) on Cloud solutions"""
 import os
-import tarfile
-import click
-import yaml
-import jinja2
 import pathlib
 import sys
+import tarfile
+
+import click
+import jinja2
+import yaml
+
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
-from ssh_connector import SSHConnector
-from docker_management import DockerManagement
+from ssh_connector import SSHConnector  # pylint:disable=C0413,E0401
+from docker_management import DockerManagement  # pylint:disable=C0413,E0401
 
 configuration = {
     'cloud_settings': {
@@ -45,6 +47,7 @@ DEFAULT_CONFIG = os.path.join(ROOT_DIR, '../deployment/sw.yaml')
 
 nodes_list = []
 
+
 @click.command()
 @click.option('-c', '--config',
               type=click.Path(dir_okay=False),
@@ -76,19 +79,21 @@ def start_deploy(config):
     None
 
     """
-    configuration = None
+    found_config = {}
     if os.path.exists(config):
-        configuration = _parse_configuration_file(config)
+        found_config = _parse_configuration_file(config)
 
-    configuration['ra_profile'] = _validate_ra_profile()
+    if not found_config:
+        return
+
+    found_config['ra_profile'] = _validate_ra_profile()
 
     _tar_repository(output_filename=TAR_PATH, source_dir=RA_DIR)
-
-    _deploy(provider=configuration['cloud_settings']['provider'],
-           ansible_host_ip=configuration['ansible_host_ip'],
-           ssh_key=configuration['ssh_key'],
-           ssh_user=configuration['ssh_user'],
-           custom_ami=configuration['custom_ami'])
+    _deploy(provider=found_config['cloud_settings']['provider'],
+            ansible_host_ip=found_config['ansible_host_ip'],
+            ssh_key=found_config['ssh_key'],
+            ssh_user=found_config['ssh_user'],
+            custom_ami=found_config['custom_ami'])
 
 
 def _validate_ra_profile():
@@ -106,8 +111,15 @@ def _validate_ra_profile():
             exit()
         return group_vars.get('profile_name')
 
+def _tar_archive_filter(tarinfo):
+    exclude = ['venv', '.terraform']
+    if tarinfo.isdir() and any(substring in tarinfo.name for substring in exclude):
+        return None
+    else:
+        return tarinfo
+
 def _tar_repository(output_filename, source_dir):
-    '''
+    """
     Making tar.gz file that contains the RA repository.
     Creating a tar file is more convenient for submitting the
     repo to a cloud instance.
@@ -119,14 +131,15 @@ def _tar_repository(output_filename, source_dir):
     Return:
     None
 
-    '''
+    """
     if os.path.exists(output_filename):
         os.remove(output_filename)
     with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.basename(source_dir))
+        tar.add(source_dir, arcname=os.path.basename(source_dir), filter=_tar_archive_filter)
+
 
 def _parse_configuration_file(config):
-    '''
+    """
     Get configuration from configuration.yaml
     If some of the parameters are set through cli,
     this settings have higher priority.
@@ -136,9 +149,7 @@ def _parse_configuration_file(config):
 
     Return:
     dict:Configuration dictionary
-
-    '''
-    file_configuration = None
+    """
     if not os.path.exists(config):
         return None
     with open(config, 'r', encoding="UTF-8") as stream:
@@ -152,8 +163,9 @@ def _parse_configuration_file(config):
                 configuration[item] = file_configuration[item]
     return configuration
 
+
 def _remove_ssh_banner(ssh_client, node_ips_array, user):
-    '''
+    """
     Remove SSH for enabling root login via SSH.
     Using root is necessary for Ansible playbooks.
 
@@ -165,7 +177,7 @@ def _remove_ssh_banner(ssh_client, node_ips_array, user):
     Return:
     None
 
-    '''
+    """
     for node_ip in node_ips_array:
         ssh_client.exec_command(f"ssh-keyscan -H {node_ip} >> /home/ubuntu/.ssh/known_hosts")
         if node_ip != "127.0.0.1":
@@ -184,7 +196,7 @@ def _remove_ssh_banner(ssh_client, node_ips_array, user):
 
 
 def _install_dependencies_on_nodes(ssh_client, node_ips_array):
-    '''
+    """
     Installing lspci and golang as RA dependencies.
 
     Parameters:
@@ -194,7 +206,7 @@ def _install_dependencies_on_nodes(ssh_client, node_ips_array):
     Return:
     None
 
-    '''
+    """
     for node_ip in node_ips_array:
         if node_ip != "127.0.0.1":
             ssh_node = SSHConnector(ip_address=node_ip,
@@ -209,8 +221,9 @@ def _install_dependencies_on_nodes(ssh_client, node_ips_array):
             ssh_client.exec_command(command='yum makecache && yum -y install pciutils.x86_64 golang',
                                     print_output=True)
 
+
 def _discovery_nodes(ssh_client, root_user, node_ips, node_type):
-    '''
+    """
     Creating array with information of Ansible nodes.
 
     Parameters:
@@ -220,7 +233,7 @@ def _discovery_nodes(ssh_client, root_user, node_ips, node_type):
     Return:
     None
 
-    '''
+    """
     for node_ip in node_ips:
         ssh_client.exec_command(f"ssh-keyscan -H {node_ip} >> /home/ubuntu/.ssh/known_hosts")
         if node_ip != "127.0.0.1":
@@ -239,6 +252,7 @@ def _discovery_nodes(ssh_client, root_user, node_ips, node_type):
         }
 
         nodes_list.append(node)
+
 
 def _create_inventory_file(ssh_client, nodes):
     """
@@ -279,6 +293,7 @@ def _create_host_var_files(ssh_client, hosts):
         ssh_client.copy_file(file_path=os.path.join(RA_DIR, "host_vars", "node1.yml"),
                              destination_path=f"{RA_REMOTE_PATH}/host_vars/{host['host_name']}.yml")
 
+
 def _docker_login(node_ips, ssh_client, user, registry, registry_username, password):
     """
     Login to private AWS ECR.
@@ -299,6 +314,7 @@ def _docker_login(node_ips, ssh_client, user, registry, registry_username, passw
         ssh_node = SSHConnector(node_ip, user, 22, configuration['ssh_key'], ssh_client.client)
         ssh_node.exec_command(command=f"docker login {registry} --username {registry_username} --password {password}", print_output=True)
         ssh_node.close_connection()
+
 
 def cleanup(config):
     """
@@ -321,12 +337,13 @@ def cleanup(config):
     client = SSHConnector(ip_address=configuration['ansible_host_ip'], username='ubuntu', priv_key=configuration['ssh_key'])
 
     for image in configuration['exec_containers']:
-        image_name = image.replace('/','-')
+        image_name = image.replace('/', '-')
         click.echo(f"Deleting pod: {image_name}")
         client.exec_command(command=f"kubectl delete {image_name}", print_output=True)
 
     client.exec_command(f"cd {RA_REMOTE_PATH} && ansible-playbook -i inventory.ini ./playbooks/redeploy_cleanup.yml")
     client.exec_command(f"rm {RA_REMOTE_PATH} -rf")
+
 
 def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     """
@@ -348,9 +365,9 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
 
     click.echo("-------------------")
     click.secho("Copy private SSH key to Ansible instance", fg="yellow")
-    client.copy_file(file_path=ssh_key, destination_path=f"/home/ubuntu/cwdf_deployment/ssh/id_rsa")
+    client.copy_file(file_path=ssh_key, destination_path="/home/ubuntu/cwdf_deployment/ssh/id_rsa")
 
-    client.exec_command(f"sudo chmod 600 /home/ubuntu/cwdf_deployment/ssh/id_rsa")
+    client.exec_command("sudo chmod 600 /home/ubuntu/cwdf_deployment/ssh/id_rsa")
 
     click.echo("-------------------")
     click.secho("Copy RA repo as tar.gz file to Ansible instance", fg="yellow")
@@ -376,21 +393,22 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
 
     click.echo("-------------------")
     click.secho("Install cert-manager in EKS cluster", fg="yellow")
-    commands = f"""helm repo add jetstack https://charts.jetstack.io && \
-       helm repo update && \
-       helm install cert-manager jetstack/cert-manager \
-       --namespace cert-manager \
-       --create-namespace \
-       --version v1.10.0 \
-       --set installCRDs=true
-       """
+    commands = (
+        "helm repo add jetstack https://charts.jetstack.io && "
+        "helm repo update && "
+        "helm install cert-manager jetstack/cert-manager "
+        "--namespace cert-manager"
+        "--create-namespace"
+        "--version v1.10.0"
+        "--set installCRDs=true"
+    )
 
     client.exec_command(commands, print_output=True)
 
     click.echo("-------------------")
     click.secho("Install Multus in EKS cluster", fg="yellow")
-    commands= f"""kubectl apply -f \
-       https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v3.9.2/deployments/multus-daemonset.yml
+    commands = """kubectl apply -f \
+       https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.0.2/deployments/multus-daemonset-thick.yml
        """
 
     client.exec_command(commands, print_output=True)
@@ -398,7 +416,7 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     if provider == 'aws':
         click.echo("-------------------")
         click.secho("Install Kubernetes Metrics Server", fg="yellow")
-        commands= f"""kubectl apply -f \
+        commands = """kubectl apply -f \
         https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
         """
 
@@ -410,36 +428,36 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
         client.copy_file(file_path=EKS_PATCH_PATH, destination_path=f"/tmp/{EKS_PATCH_NAME}")
         client.exec_command(f"kubectl patch ds aws-node -n kube-system --patch-file /tmp/{EKS_PATCH_NAME}")
 
-    registry_local_address = ""
     if provider == 'aws':
-        registry_local_address = "/".join(configuration['replicate_to_container_registry'].split("/")[:-1])
+        registry_local_address = str(configuration['replicate_to_container_registry']).rsplit("/", maxsplit=1)[0]
+        commands = (
+            f'aws ecr get-login-password --region {configuration["cloud_settings"]["region"]} | '
+            'REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" '
+            f'podman login -u AWS --password-stdin {registry_local_address}'
+        )
     else:
-        registry_local_address = configuration['replicate_to_container_registry']
+        registry_local_address = str(configuration['replicate_to_container_registry'])
+        commands = (
+            f'az acr login --name {registry_local_address.split(".", maxsplit=1)[0]} --expose-token --output tsv --query accessToken | '
+            'REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" '
+            'podman login -u 00000000-0000-0000-0000-000000000000 --password-stdin {registry_local_address}'
+        )
 
     click.echo("-------------------")
     click.secho("Update container registry credentials", fg="yellow")
-    if provider == 'aws':
-        region = configuration['cloud_settings']['region']
-        commands = f"""aws ecr get-login-password --region {region} | \
-            REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" podman login -u AWS --password-stdin {registry_local_address}
-        """
-    else:
-        registry_name = registry_local_address.split(".")[0]
-        commands = f"""az acr login --name {registry_name} --expose-token --output tsv --query accessToken | \
-            REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" podman login -u 00000000-0000-0000-0000-000000000000 --password-stdin {registry_local_address}
-        """
+    client.exec_command(command=commands, print_output=True)
 
     click.echo("-------------------")
-    click.secho("Creating invenotry file", fg="yellow")
+    click.secho("Creating inventory file", fg="yellow")
     _create_inventory_file(client, nodes_list)
 
     click.secho("\nInitializing RA repository", fg="yellow")
     commands = f"""cd {RA_REMOTE_PATH} && \
-       git submodule update --init && \
        python3 -m venv --copies --clear venv && \
-       venv/bin/pip install -r requirements.txt
+       venv/bin/pip install -r requirements.txt && \
+       venv/bin/ansible-galaxy install -r collections/requirements.yml
        """
-    
+
     client.exec_command(command=commands, print_output=True)
 
     click.secho("\nCreating host_var files", fg="yellow")
@@ -456,20 +474,21 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     click.secho("Selected profile:", fg="yellow")
     click.secho(configuration['ra_profile'], fg="green")
 
-    ansible_playbook_commnads = f"""cd {RA_REMOTE_PATH} && \
+    ansible_playbook_commands = f"""cd {RA_REMOTE_PATH} && \
+        venv/bin/ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
         venv/bin/ansible-playbook -i inventory.ini -e registry_local_address={registry_local_address} playbooks/{configuration['ra_profile']}.yml
     """
-    client.exec_command(command=ansible_playbook_commnads, print_output=True)
+    client.exec_command(command=ansible_playbook_commands, print_output=True)
 
     click.echo("-------------------")
     click.secho("Remove private SSH key from Ansible instance", fg="yellow")
-    client.exec_command(f"sudo rm /home/ubuntu/cwdf_deployment/ssh/id_rsa")
+    client.exec_command("sudo rm /home/ubuntu/cwdf_deployment/ssh/id_rsa")
 
     client.close_connection()
 
     if (configuration['replicate_from_container_registry'] is not None and
-        configuration['replicate_to_container_registry'] is not None and
-        configuration['exec_containers']):
+            configuration['replicate_to_container_registry'] is not None and
+            configuration['exec_containers']):
         click.echo("-------------------")
         click.secho("Copy Docker images to cloud registry")
         ssh_client = SSHConnector(ip_address=ansible_host_ip, username='ubuntu', priv_key=ssh_key)
@@ -487,8 +506,8 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
                       ssh_client=ssh_client,
                       user='root',
                       registry=configuration['replicate_to_container_registry'],
-                      registry_username=docker_mgmt.CR_USERNAME,
-                      password=docker_mgmt.CR_PASSWORD)
+                      registry_username=docker_mgmt.cr_username,
+                      password=docker_mgmt.cr_password)
 
         for image in configuration['exec_containers']:
             image_name = docker_mgmt.tagged_images[configuration['exec_containers'].index(image)]['repository']
@@ -497,5 +516,7 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
             ssh_client.exec_command(command=f"kubectl run {pod_name} --image={image_name} -n default", print_output=True)
         ssh_client.close_connection()
 
+
 if __name__ == '__main__':
-    main()
+    # TODO get the config from... where?
+    main(config=None)

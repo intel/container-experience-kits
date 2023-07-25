@@ -1,0 +1,51 @@
+---
+{% if "http_proxy" in proxy_env %}
+http_proxy: "{{ proxy_env.http_proxy }}"
+{% endif %}
+{% if "https_proxy" in proxy_env %}
+https_proxy: "{{ proxy_env.https_proxy }}"
+{% endif %}
+{% if "no_proxy" in proxy_env %}
+no_proxy: "{{ proxy_env.no_proxy }}"
+{% endif %}
+
+oran_netopeer2_server:
+  main:
+    image:
+      repo: "{{ kmra.oran_netopeer2_server.image_repo }}"
+      name: "{{ kmra.oran_netopeer2_server.image_name }}"
+      tag: "{{ kmra.oran_netopeer2_server.image_tag | default(kmra.image_tag) }}"
+      pullPolicy: IfNotPresent
+  init:
+    image:
+      repo: "{{ kmra.oran_netopeer2_server.init_image_repo }}"
+      name: "{{ kmra.oran_netopeer2_server.init_image_name }}"
+      tag: "{{ kmra.oran_netopeer2_server.init_image_tag }}"
+      pullPolicy: IfNotPresent
+  oran:
+    type: server
+    hostname: "{{ kmra.oran_netopeer2_server.oran_netopeer2_server_hostname }}"
+    servicePort: "{{ kmra.oran_netopeer2_server.oran_netopeer2_server_port }}"
+    image:
+      repo: "{{ kmra.oran_netopeer2_server.oran_image_repo }}"
+      name: "{{ kmra.oran_netopeer2_server.oran_image_name }}"
+      tag: "{{ kmra.oran_netopeer2_server.oran_image_tag | default(kmra.image_tag) }}"
+      pullPolicy: IfNotPresent
+  pullSecret: "{{ container_registry_secret }}"
+  pccs_port: "{{ kmra.pccs.upstream_port }}"
+  pccs_hostname: "{{ kmra.pccs.dns_name }}"
+  apphsm_port: "{{ kmra.apphsm.upstream_port }}"
+  apphsm_hostname: "{{ kmra.apphsm.crt_subj.CN }}"
+  sgx_prv_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx_prv'][1] | default('1002')}}"
+  sgx_gid: "{{ hostvars[groups['kube_node'][0]]['getent_group']['sgx'][1] | default('107')}}"
+  use_secure_cert: "{{ kmra.oran_netopeer2_server.use_secure_cert | quote }}"
+  client_token: "{{ kmra.oran_netopeer2_server.client_token }}"
+  client_key_label: "{{kmra.oran_netopeer2_server.client_key_label }}"
+  test_unique_uid: "{{ kmra.oran_netopeer2_server.test_unique_uid }}"
+  default_user_pin: "{{ kmra.oran_netopeer2_server.default_user_pin }}"
+  default_so_pin: "{{ kmra.oran_netopeer2_server.default_so_pin }}"
+  default_client_token_id: "{{ kmra.oran_netopeer2_server.default_client_token_id }}"
+  pkcs11_proxy_tls_psk: "{{ kmra.oran_netopeer2_server.pkcs11_proxy_tls_psk }}"
+  pkcs11_proxy_tls_psk_file: "{{ kmra.oran_netopeer2_server.pkcs11_proxy_tls_psk_file }}"
+  pkcs11_daemon_socket_hostname: "{{ kmra.oran_netopeer2_server.pkcs11_daemon_socket_hostname }}"
+  pkcs11_daemon_socket_port: "{{ kmra.oran_netopeer2_server.pkcs11_daemon_socket_port }}"

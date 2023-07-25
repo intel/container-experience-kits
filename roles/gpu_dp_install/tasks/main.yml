@@ -79,19 +79,12 @@
         intel_gpu_dp_init_image: "{{ registry_local_address }}/intel-gpu-initcontainer:{{ intel_dp_version }}"
       when: gpu_dp_build_image_locally
 
-    - name: Set GPU oem kernel version based on OS version
-      include_role:
-        name: bootstrap/install_gpu_driver # noqa role-name[path] - role in bootstrap
-        tasks_from: set_oem_kernel_version
-
     - name: populate Intel GPU Device Plugin yaml file and push to controller node
       template:
         src: "intel-gpu-plugin.yml.j2"
         dest: "{{ (intel_dp_templates_dir, 'intel-gpu-plugin.yml') | path_join }}"
         force: yes
         mode: preserve
-      # vars:
-      #   target_kernel_version: "{{ gpu_oem_kernel_version }}"
 
     - name: deploy Intel GPU Device Plugin with the Intel Device Plugin Operator
       k8s:

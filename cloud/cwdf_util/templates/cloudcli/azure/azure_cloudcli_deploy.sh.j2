@@ -1,0 +1,517 @@
+#!/usr/bin/env bash
+
+KEYPAIR_PATH="{{ cloud_config.ssh_pub_key_path }}"
+
+# Support files
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+DATA_FILE="${SCRIPT_DIR}/azure_running_ids"
+OUTPUT_FILE="${SCRIPT_DIR}/provision_output.json"
+
+# Resource group name variables
+AZ_GROUP_NAME="cwdf-infra-{{ cloud_config.job_id }}-rg"
+PPG_GROUP_NAME="cwdf-infra-{{ cloud_config.job_id }}-ppg"
+
+# Networking name variables
+VN_NAME="cwdf-infra-{{ cloud_config.job_id }}-default-network"
+NET_SEC_GROUP_NAME="cwdf-infra-{{ cloud_config.job_id }}-default-sg"
+
+# Azure Managed Kubernetes Service name
+AKS_NAME="cwdf-infra-{{ cloud_config.job_id }}-aks"
+
+# Analytics monitor workspace name
+MONITOR_ANALYTICS_WORKSPACE_NAME="cwdf-infra-{{ cloud_config.job_id }}-default-law"
+
+# Azure Container Registry name
+ACR_NAME="cwdf{{ cloud_config.job_id }}acr"
+
+# Ansible instance name variables
+PUBLIC_IP_NAME="cwdf-infra-{{ cloud_config.job_id }}-ansible-instance-public-ip"
+NIC_NAME="cwdf-infra-{{ cloud_config.job_id }}-ansible-instance-nic"
+ANSIBLE_INSTANCE_NAME="cwdf-infra-{{ cloud_config.job_id }}-ansible-instance"
+ANSIBLE_INSTANCE_IMAGE="Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
+
+# Ansible instance entrypoint script
+ANSIBLE_INSTANCE_ENTRYPOINT="$(cat <<- "EOM"
+#!/usr/bin/env bash
+mkdir -p /etc/apt/keyrings
+curl -sLS https://packages.microsoft.com/keys/microsoft.asc |
+  gpg --dearmor |
+  tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+chmod go+r /etc/apt/keyrings/microsoft.gpg
+AZ_REPO=$(lsb_release -cs)
+echo "deb [arch=`dpkg --print-architecture` signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" |
+  tee /etc/apt/sources.list.d/azure-cli.list
+apt-get -qq -y update
+apt-get -qq -y -o DPkg::Lock::Timeout=60 upgrade
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install python3-pip python3-venv
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install zip unzip net-tools apache2-utils
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install ca-certificates curl apt-transport-https lsb-release gnupg
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install podman
+apt-get -qq -y -o DPkg::Lock::Timeout=60 install azure-cli
+az aks install-cli
+sudo -H -u ubuntu bash -c 'az login --identity'
+sudo -H -u ubuntu bash -c 'az aks get-credentials --resource-group cwdf-infra-{{ cloud_config.job_id }}-rg --name cwdf-infra-{{ cloud_config.job_id }}-aks'
+az login --identity
+az aks get-credentials --resource-group cwdf-infra-{{ cloud_config.job_id }}-rg --name cwdf-infra-{{ cloud_config.job_id }}-aks
+echo -e "unqualified-search-registries = [\"docker.io\"]" | tee -a /etc/containers/registries.conf
+systemctl restart podman
+TOKEN=$(az acr login --name cwdf{{ cloud_config.job_id }}acr --expose-token --output tsv --query accessToken)
+echo $TOKEN | REGISTRY_AUTH_FILE="/home/ubuntu/.crauth" podman login -u 00000000-0000-0000-0000-000000000000 --password-stdin cwdf{{ cloud_config.job_id }}acr.azurecr.io
+cp -r /home/ubuntu/.kube /root/
+curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 /tmp/get_helm.sh
+/bin/bash /tmp/get_helm.sh
+rm /tmp/get_helm.sh
+mkdir /home/ubuntu/cwdf_deployment
+mkdir /home/ubuntu/cwdf_deployment/ssh
+echo "{{ cloud_config.ssh_public_key }}" >> /home/ubuntu/cwdf_deployment/ssh/id_rsa.pub
+chown ubuntu /home/ubuntu/cwdf_deployment -R
+sudo -H -u ubuntu bash -c 'pip install --user paramiko scp'
+EOM
+)"
+
+# Check that the file with the active names and IDs of the cloud components is present
+if test -f "$DATA_FILE"; then
+    printf 'File azure_running_ids was detected.'
+    printf 'This may mean that there are running instances in MS Azure.'
+    printf 'If you choose to continue, the script will try to delete the previous instances.'
+    printf 'Do you want to continue (y/n)? '
+    old_stty_cfg=$(stty -g)
+    stty raw -echo ; answer=$(head -c 1) ; stty $old_stty_cfg
+    if echo "$answer" | grep -iq "^y" ;then
+        ./azure_cloudcli_cleanup.sh
+    else
+        exit 0
+    fi
+fi
+
+# Save IDs of created instances and network stuff
+touch $DATA_FILE
+
+#Show JOB ID
+echo "Running Azure CloudCLI job with ID: {{ cloud_config.job_id }}"
+
+# Create Azure group
+echo "--------------------------------------------------"
+echo "Create AZ group"
+GROUP_ID=$(az group create \
+            --name $AZ_GROUP_NAME \
+            --location '{{ cloud_config.location }}' \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %} | jq '.id' | tr -d '"')
+echo "AZ_GROUP_NAME=$(echo $AZ_GROUP_NAME)" >> $DATA_FILE
+echo "GROUP_ID=$(echo $GROUP_ID)" >> $DATA_FILE
+
+{% if cloud_config.enable_proximity_placement == true %}
+# Create Proximity placement group if enabled
+PPG_RESOURCE_ID=$(az ppg create \
+            --name $PPG_GROUP_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %} | jq '.id' | tr -d '"')
+{% endif %}
+
+# Create network security group
+echo "--------------------------------------------------"
+echo "Create Network Security Group"
+NSG_ID=$(az network nsg create \
+            --resource-group $AZ_GROUP_NAME \
+            --name $NET_SEC_GROUP_NAME \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %} | jq '.NewNSG.id' | tr -d '"')
+echo "NSG_ID=$(echo $NSG_ID)" >> $DATA_FILE
+
+# Create security policy (enable SSH)
+echo "--------------------------------------------------"
+echo "Create security policy SSH"
+RULE_SSH_ID=$(az network nsg rule create \
+            --resource-group $AZ_GROUP_NAME \
+            --nsg-name $NET_SEC_GROUP_NAME \
+            --name Allow-SSH-All \
+            --access Allow \
+            --protocol Tcp \
+            --direction Inbound \
+            --priority 1001 \
+            --source-address-prefixes {% for ip in cloud_config.sg_whitelist_cidr_blocks %}{{ ip }}{{ " " }}{% endfor %}\
+            --source-port-range "*" \
+            --destination-port-range 22 | jq '.id' | tr -d '"')
+echo "RULE_SSH_ID=$(echo $RULE_SSH_ID)" >> $DATA_FILE
+
+# Create security policy (enable ICMP)
+echo "--------------------------------------------------"
+echo "Create security policy ICMP"
+RULE_ICMP_ID=$(az network nsg rule create \
+            --resource-group $AZ_GROUP_NAME \
+            --nsg-name $NET_SEC_GROUP_NAME \
+            --name Allow-PING-All \
+            --access Allow \
+            --protocol Icmp \
+            --direction Inbound \
+            --priority 1000 \
+            --source-address-prefixes {% for ip in cloud_config.sg_whitelist_cidr_blocks %}{{ ip }}{{ " " }}{% endfor %}\
+            --source-port-range "8" \
+            --destination-port-range "*" | jq '.id' | tr -d '"')
+echo "RULE_ICMP_ID=$(echo $RULE_ICMP_ID)" >> $DATA_FILE
+
+# Create Virtual Network
+echo "--------------------------------------------------"
+echo "Create Virtual Network"
+VNET_ID=$(az network vnet create \
+            --name $VN_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --address-prefixes '{{ cloud_config.vpc_cidr_block }}' \
+            --network-security-group $NET_SEC_GROUP_NAME \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %}| jq '.newVNet.id' | tr -d '"')
+echo "VNET_ID=$(echo $VNET_ID)" >> $DATA_FILE
+
+{%- for subnet in cloud_config.subnets %}
+SUBNET_NAME="cwdf-infra-{{ cloud_config.job_id }}-subnet-{{ subnet.name }}"
+echo "--------------------------------------------------"
+echo "Create subnet {{ subnet.name }}"
+SUBNET_ID_{{ subnet.name }}=$(az network vnet subnet create \
+            --name $SUBNET_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --vnet-name $VN_NAME \
+            --address-prefixes "{{ subnet.cidr_block }}" | jq '.id' | tr -d '"')
+{% endfor %}
+
+# Create Azure log analytics workspace
+echo "--------------------------------------------------"
+echo "Create Azure log analytics workspace"
+AZ_MONITOR_ID=$(az monitor log-analytics workspace create \
+            --name $MONITOR_ANALYTICS_WORKSPACE_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --location '{{ cloud_config.location }}' \
+            --sku "PerGB2018" \
+            --retention-time 30 \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %} | jq '.id' | tr -d '"')
+echo "AZ_MONITOR_ID=$(echo $AZ_MONITOR_ID)" >> $DATA_FILE
+
+# Create AKS (Azure Kubernetes Service)
+echo "--------------------------------------------------"
+echo "Create Azure Kubernetes Service"
+az aks create \
+            --name $AKS_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --location '{{ cloud_config.location }}' \
+            --dns-name-prefix "cwdf" \
+            --kubernetes-version {{ cloud_config.aks.kubernetes_version }} \
+            --enable-managed-identity \
+            --enable-addons monitoring \
+            --workspace-resource-id $AZ_MONITOR_ID \
+            --ssh-key-value '{{ cloud_config.ssh_public_key }}' \
+            --nodepool-name "default" \
+            --node-count {{ cloud_config.aks.default_node_pool.vm_count }} \
+            --node-vm-size "{{ cloud_config.aks.default_node_pool.vm_size }}" \
+            --vnet-subnet-id $SUBNET_ID_{{ cloud_config.aks.default_node_pool.subnet_name }} \
+            --os-sku ubuntu \
+            --output tsv \
+            --enable-addons monitoring {%- if cloud_config.aks.enable_sgx == true %},confcom{%- endif %} \
+{%- if cloud_config.enable_proximity_placement == true %}
+            --ppg $PPG_RESOURCE_ID \
+{%- endif %}
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %} \
+{%- if cloud_config.aks.cni == 'cilium' %}
+            --network-plugin azure \
+            --network-dataplane cilium \
+            --network-plugin-mode overlay
+{%- else %}
+            --network-plugin {{ cloud_config.aks.cni }} \
+{%- endif -%}
+{%- if cloud_config.aks.cni == "kubenet" %}
+            --network-policy calico
+{% endif %}
+echo "AKS_NAME=$(echo $AKS_NAME)" >> $DATA_FILE
+
+{%- if 'additional_node_pools' in cloud_config.aks %}
+{%- for node_pool in cloud_config.aks.additional_node_pools %}
+echo "--------------------------------------------------"
+echo "Adding Nodepool {{ node_pool.name }} to AKS"
+
+az aks wait \
+    --resource-group $AZ_GROUP_NAME \
+    --name $AKS_NAME \
+    --updated \
+    --interval 10 \
+    --timeout 1800
+
+az aks nodepool add \
+            --cluster-name $AKS_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --name "{{ node_pool.name }}" \
+            --node-count {{ node_pool.vm_count }} \
+            --node-vm-size "{{ node_pool.vm_size }}" \
+            --vnet-subnet-id $SUBNET_ID_{{ node_pool.subnet_name }} \
+            --os-sku ubuntu \
+            --output tsv \
+{%- if cloud_config.enable_proximity_placement == true %}
+            --ppg $PPG_RESOURCE_ID \
+{%- endif %}
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %}
+{%- endfor %}
+{%- endif %}
+
+# Create Azure Container Registry
+echo "--------------------------------------------------"
+echo "Create Azure Container Registry"
+az acr create \
+            --name $ACR_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --location '{{ cloud_config.location }}' \
+            --sku Standard \
+            --output tsv \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %}
+echo "ACR_NAME=$(echo $ACR_NAME)" >> $DATA_FILE
+
+# Create public IP for Ansible instance
+echo "--------------------------------------------------"
+echo "Create public IP for Ansible instance"
+az network public-ip create \
+            --name $PUBLIC_IP_NAME \
+            --location '{{ cloud_config.location }}' \
+            --resource-group $AZ_GROUP_NAME \
+            --allocation-method Static \
+            --sku Standard \
+            --output tsv \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %}
+echo "PUBLIC_IP_NAME=$(echo $PUBLIC_IP_NAME)" >> $DATA_FILE
+
+# Create network interface for Ansible instance
+echo "--------------------------------------------------"
+echo "Create network interface for ansible instance"
+az network nic create \
+            --resource-group $AZ_GROUP_NAME \
+            --name $NIC_NAME \
+            --location '{{ cloud_config.location }}' \
+            --subnet  "cwdf-infra-{{ cloud_config.job_id }}-subnet-{{ cloud_config.subnets[0].name }}" \
+            --private-ip-address-version IPv4 \
+            --vnet-name $VN_NAME \
+            --public-ip-address $PUBLIC_IP_NAME \
+            --network-security-group $NET_SEC_GROUP_NAME \
+            --output tsv \
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %}
+echo "NIC_NAME=$(echo $NIC_NAME)" >> $DATA_FILE
+
+# Get public IP of Ansible instance
+echo "--------------------------------------------------"
+echo "Get public IP of Ansible instance"
+ANSIBLE_INSTANCE_PUBLIC_IP=$(az network public-ip show \
+                                    --resource-group $AZ_GROUP_NAME \
+                                    --name $PUBLIC_IP_NAME \
+                                    --query "ipAddress" \
+                                    --output tsv)
+
+# Add access to AKS for created ansible instance and user
+echo "--------------------------------------------------"
+az aks wait \
+    --resource-group $AZ_GROUP_NAME \
+    --name $AKS_NAME \
+    --updated \
+    --interval 10 \
+    --timeout 1800
+
+echo "Add access AKS for ACR"
+az aks update \
+    --resource-group $AZ_GROUP_NAME \
+    --name $AKS_NAME \
+    --attach-acr $ACR_NAME \
+    --output tsv
+    
+az aks wait \
+    --resource-group $AZ_GROUP_NAME \
+    --name $AKS_NAME \
+    --updated \
+    --interval 10 \
+    --timeout 1800
+
+echo "Add access to AKS for whitelisted subnets"
+
+az aks update \
+    --resource-group $AZ_GROUP_NAME \
+    --name $AKS_NAME \
+    --output tsv \
+    --api-server-authorized-ip-ranges $ANSIBLE_INSTANCE_PUBLIC_IP/32,{% for cidr_block in cloud_config.sg_whitelist_cidr_blocks %}{{ cidr_block }}{{ "," if not loop.last else "" }}{% endfor %}
+
+az aks wait \
+    --resource-group $AZ_GROUP_NAME \
+    --name $AKS_NAME \
+    --updated \
+    --interval 10 \
+    --timeout 1800
+
+# Update AKS nodepools with custom SSH key
+echo "--------------------------------------------------"
+echo "Update AKS nodepools with custom SSH key"
+CLUSTER_RG=$(az aks show \
+    --resource-group $AZ_GROUP_NAME \
+    --name $AKS_NAME \
+    --query nodeResourceGroup \
+    -o tsv)
+
+for ss_name in $(az vmss list --resource-group "$CLUSTER_RG" --query "[*].name" -o tsv); do
+    az vmss extension set \
+        --resource-group $CLUSTER_RG \
+        --vmss-name $ss_name \
+        --name VMAccessForLinux \
+        --publisher Microsoft.OSTCExtensions \
+        --version 1.4 \
+        --output tsv \
+        --protected-settings "{\"reset_ssh\": true, \"username\":\"azureuser\", \"ssh_key\":\"{{ cloud_config.ssh_public_key }}\"}"
+
+    az vmss update-instances \
+        --instance-ids '*' \
+        --resource-group $CLUSTER_RG \
+        --name $ss_name \
+        --output tsv
+done
+
+# Create Ansible instance VM
+echo "--------------------------------------------------"
+echo "Create Ansible instance"
+az vm create \
+            --name $ANSIBLE_INSTANCE_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --location '{{ cloud_config.location }}' \
+            --size "{{ cloud_config.ansible_instance_size }}" \
+            --admin-username 'ubuntu' \
+            --ssh-key-values $KEYPAIR_PATH \
+            --security-type TrustedLaunch \
+            --enable-secure-boot true \
+            --os-disk-caching ReadWrite \
+            --storage-sku StandardSSD_LRS \
+            --data-disk-sizes-gb 64 \
+            --image 'Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest' \
+            --public-ip-sku Standard \
+            --nics $NIC_NAME \
+            --custom-data "${ANSIBLE_INSTANCE_ENTRYPOINT}" \
+            --output tsv \
+{%- if cloud_config.enable_proximity_placement == true %}
+            --ppg $PPG_GROUP_NAME \
+{%- endif %}
+            --tags {% for tag in cloud_config.extra_tags %}{{ tag }}={{ cloud_config.extra_tags[tag] }}{{ " " if not loop.last else "" }}{% endfor %}
+echo "ANSIBLE_INSTANCE_NAME=$(echo $ANSIBLE_INSTANCE_NAME)" >> $DATA_FILE
+
+echo "--------------------------------------------------"
+echo "Get Ansible instance principal ID"
+ANSIBLE_INSTANCE_PRINCIPAL_ID=$(az vm show \
+            --name $ANSIBLE_INSTANCE_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --query "identity.principalId" \
+            --output tsv)
+
+echo "--------------------------------------------------"
+echo "Get AKS principal ID"
+AKS_PRINCIPAL_ID=$(az aks show \
+            --name $AKS_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --query "identity.principalId" \
+            --output tsv)
+
+echo "--------------------------------------------------"
+echo "Get AKS ID"
+AKS_ID=$(az aks show \
+            --name $AKS_NAME \
+            --resource-group $AZ_GROUP_NAME \
+            --query "identityProfile.kubeletidentity.resourceId" \
+            --output tsv)
+
+echo "--------------------------------------------------"
+echo "Get ACR ID"
+ACR_ID=$(az acr show \
+            --name $ACR_NAME \
+            --query "id" \
+            --output tsv)
+
+# Assign contributor role for Ansible instance for accessing resources in resource group
+echo "--------------------------------------------------"
+echo "Assign contributor role for Ansible instance for accessing resources in resource group"
+az role assignment create \
+            --assignee $ANSIBLE_INSTANCE_PRINCIPAL_ID \
+            --resource-group $AZ_GROUP_NAME \
+            --role contributor \
+            --output tsv
+
+# Assign ACR role for pulling images
+echo "--------------------------------------------------"
+echo "Assign ACR role for pulling images"
+az role assignment create \
+            --role "AcrPull" \
+            --assignee $AKS_PRINCIPAL_ID \
+            --scope $ACR_ID \
+            --output tsv
+
+# Assign ACR role to Ansible instance
+echo "--------------------------------------------------"
+echo "Assign ACR role to Ansible instance"
+az role assignment create \
+            --role "AcrPush" \
+            --assignee $ANSIBLE_INSTANCE_PRINCIPAL_ID \
+            --scope $AKS_ID \
+            --output tsv
+
+# Assign AKS role to Ansible instance
+echo "--------------------------------------------------"
+echo "Assign AKS role to Ansible instance"
+az role assignment create \
+            --role "Owner" \
+            --assignee $ANSIBLE_INSTANCE_PRINCIPAL_ID \
+            --scope $AKS_ID \
+            --output tsv
+
+# Get private IP of Ansible instance
+echo "--------------------------------------------------"
+echo "Get private IP of Ansible instance"
+ANSIBLE_INSTANCE_PRIVATE_IP=$(az vm list-ip-addresses \
+                                    --resource-group $AZ_GROUP_NAME \
+                                    --name $ANSIBLE_INSTANCE_NAME \
+                                    --query "[].virtualMachine.network.privateIpAddresses[0]" --output tsv)
+
+# Get subscriber ID
+SUBSCRIPTION_ID=$(az account show --query id --output tsv)
+
+# Get name of AKS Resource Group
+AKS_RG=$(az aks show --name "$AKS_NAME" --resource-group "$AZ_GROUP_NAME" --query "nodeResourceGroup" -o tsv)
+
+# Create output JSON
+JSON_OUTPUT=$(jq -n \
+                 --arg aks_name "$AKS_NAME" \
+                 --arg aks_scale_set "$AKS_RG" \
+                 --arg ansible_host_ip "$ANSIBLE_INSTANCE_PUBLIC_IP" \
+                 --arg cloud_provider "azure" \
+                 --arg cr_url "cwdf{{ cloud_config.job_id }}acr.azurecr.io" \
+                 --arg k8s_worker_username "azureuser" \
+                 --arg rg_name "$AZ_GROUP_NAME" \
+                 --arg sub_id "$SUBSCRIPTION_ID" \
+                 '{aks_cluster_name: 
+                    {value: $aks_name},
+                   aks_scale_sets_rg: 
+                    {value: $aks_scale_set},
+                   ansible_host_public_ip:
+                    {value: $ansible_host_ip},
+                   cloud_provider: 
+                    {value: $cloud_provider},
+                   cr_url: 
+                    {value: $cr_url},
+                   k8s_worker_username: 
+                    {value: $k8s_worker_username},
+                   resource_group_name: 
+                    {value: $rg_name},
+                   subscription_id: 
+                    {value: $sub_id},
+                   k8s_worker_instances: []}')
+
+# Get info about K8s nodes
+for instance in $(az vmss list --resource-group "$AKS_RG" --query "[*].name" -o tsv); do
+        WORKER_ID=$(az vmss nic list --resource-group "$AKS_RG" --vmss-name "$instance" --query "[0].id" -o tsv)
+        PRIVATE_IP=$(az vmss nic list --resource-group "$AKS_RG" --vmss-name "$instance" --query "[0].ipConfigurations[0].privateIPAddress" -o tsv)
+        PUBLIC_IP=$(az vmss list-instance-public-ips --resource-group "$AKS_RG" --name "$instance")
+        JSON_OUTPUT=$( echo $JSON_OUTPUT | jq \
+                --arg w_id "$WORKER_ID" \
+                --arg pr_ip "$PRIVATE_IP" \
+                --arg pub_ip "$PUBLIC_IP" \
+                '.k8s_worker_instances += [{
+                id: $w_id,
+                private_ip: $pr_ip,
+                public_ip: $pub_ip}]')
+done
+
+# Create output file
+touch $OUTPUT_FILE
+echo $JSON_OUTPUT >> $OUTPUT_FILE

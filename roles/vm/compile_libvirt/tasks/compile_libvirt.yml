@@ -20,15 +20,19 @@
     dest: /etc/apt/preferences
     mode: '0644'
 
+- name: add 'kinetic' apt repository for qemu packages
+  apt_repository:
+    repo: "deb http://archive.ubuntu.com/ubuntu kinetic main"
+
 - name: Install dependencies
   include_role:
     name: install_dependencies
 
 - name: Clone libvirt fork with sgx support
   git:
-    repo: 'https://github.com/hhb584520/libvirt.git'
+    repo: 'https://github.com/libvirt/libvirt.git'
     dest: "{{ (project_root_dir, 'libvirt') | path_join }}"
-    version: sgx-dev
+    version: v{{ libvirt_tag }}
 
 - name: Disabling apparmor
   systemd:

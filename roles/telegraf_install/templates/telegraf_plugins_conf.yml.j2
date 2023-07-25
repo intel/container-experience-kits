@@ -1,0 +1,145 @@
+agent: |
+  [agent]
+    interval = "5s"
+    round_interval = true
+    metric_batch_size = 10000
+    metric_buffer_limit = 100000
+    collection_jitter = "0s"
+    flush_interval = "5s"
+    flush_jitter = "0s"
+    precision = ""
+    debug = true
+    quiet = false
+    logfile = ""
+    hostname = "$HOSTNAME"
+    omit_hostname = false
+
+prometheus_client: |
+  [[outputs.prometheus_client]]
+    listen = "127.0.0.1:9272"
+    metric_version = 2
+    export_timestamp = true
+
+output_to_file: |
+  [[outputs.file]]
+    files = ["/tmp/metrics.out"]
+    data_format = "prometheus"
+
+intel_rdt: |
+  [[inputs.intel_rdt]]
+    pqos_path = "/usr/local/bin/pqos"
+    cores = ["0-{{ ansible_processor_vcpus - 1 }}"]
+
+ras: |
+  [[inputs.ras]]
+
+intel_pmu: |
+{% if not vm_enabled | default(false) and pmu_event_definitions | default(false) %}
+  [[inputs.intel_pmu]]
+    event_definitions = ["/etc/telegraf-pmu/event_definitions.json"]
+    [[inputs.intel_pmu.core_events]]
+      events = ["INST_RETIRED.ANY"]
+{% if (cstates_events_available | default(false)) %}
+    [[inputs.intel_pmu.core_events]]
+      events = ["CPU_CLK_UNHALTED.THREAD", "{{ cstates_events_available | join('", "') }}"]
+      events_tag = "c0wait"
+      perf_group = true
+{%- endif %}
+{% endif %}
+
+intel_powerstat: |
+  [[inputs.intel_powerstat]]
+    package_metrics = [
+      "current_power_consumption",
+      "current_dram_power_consumption"
+    ]
+    cpu_metrics = [
+      "cpu_frequency",
+      "cpu_busy_frequency",
+      "cpu_temperature",
+      "cpu_c1_state_residency",
+      "cpu_c6_state_residency",
+      "cpu_busy_cycles"
+    ]
+
+smart: |
+  [[inputs.smart]]
+    use_sudo = true
+    attributes = true
+
+cpu: |
+  [[inputs.cpu]]
+    percpu = true
+    totalcpu = true
+    collect_cpu_time = true
+    report_active = false
+
+diskio: |
+  [[inputs.diskio]]
+    device_tags = ["ID_FS_TYPE", "ID_FS_USAGE"]
+
+ethtool: |
+  [[inputs.ethtool]]
+
+net: |
+  [[inputs.net]]
+
+iptables: |
+  [[inputs.iptables]]
+    use_sudo = true
+    use_lock = false
+    table = "filter"
+    chains = [ "INPUT" ]
+
+system: |
+  [[inputs.system]]
+
+kernel_vmstat: |
+  [[inputs.kernel_vmstat]]
+
+cgroups: |
+  [[inputs.cgroup]]
+    paths = [
+      "/sys/fs/cgroup/cpu",
+      "/sys/fs/cgroup/cpu/*",
+      "/sys/fs/cgroup/cpu/*/*",
+    ]
+    files = ["cpuacct.usage", "cpu.cfs_period_us", "cpu.cfs_quota_us", "cpu.shares", "cpu.stat"]
+
+disk: |
+  [[inputs.disk]]
+    ignore_fs = ["tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs"]
+
+ping: |
+  [[inputs.ping]]
+    urls = ["google.com"]
+    method = "exec"
+    count = 1
+    ping_interval = 1.0
+    timeout = 1.0
+    deadline = 10
+    interface = ""
+    percentiles = [50, 95, 99]
+    binary = "ping"
+
+dns_query: |
+  [[inputs.dns_query]]
+    servers = ["8.8.8.8"]
+    network = "tcp"
+    domains = ["google.com"]
+    record_type = "A"
+    port = 53
+    timeout = 2
+
+mem: |
+  [[inputs.mem]]
+
+temp: |
+  [[inputs.temp]]
+
+ipmi_sensor: |
+  [[inputs.ipmi_sensor]]
+    use_sudo = true
+    interval = "30s"
+    timeout = "20s"
+    metric_version = 1

@@ -39,6 +39,20 @@ spec:
                   - signers
                   verbs:
                   - approve
+              - path: rules[-1]
+                value: |
+                  apiGroups:
+                  - certificates.k8s.io
+                  resources:
+                  - certificatesigningrequests/approval
+                  - certificatesigningrequests/status
+                  - certificatesigningrequests
+                  verbs:
+                  - update
+                  - create
+                  - get
+                  - delete
+                  - watch
   meshConfig:
     defaultConfig:
       proxyMetadata:

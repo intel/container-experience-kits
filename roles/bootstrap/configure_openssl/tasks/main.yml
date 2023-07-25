@@ -18,8 +18,8 @@
   include_role:
     name: install_dependencies
 
-# Block for QAT check
-- name: block for QAT check
+# Block for OOT drivers status check
+- name: block for QAT OOT drivers status check
   block:
     - name: confirm module before OpenSSL installation
       shell: "set -o pipefail && lsmod | grep qat"
@@ -111,9 +111,3 @@
 - name: reload the dynamic linker cache
   command: "ldconfig"
   changed_when: true
-
-- name: QATLibs and SVM configuration
-  include_tasks: intel_qatlibs_and_qatsvm_configuration.yml
-  when:
-    - configured_arch == "spr"
-    - enable_intel_qatlibs is defined and enable_intel_qatlibs

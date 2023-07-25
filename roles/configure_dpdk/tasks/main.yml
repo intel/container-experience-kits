@@ -1,0 +1,110 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+
+# dpdk dev bind block
+- block:
+    - name: install config dpdk scripts to /usr/local/bin
+      copy:
+        src: "{{ item }}"
+        dest: "/usr/local/bin/"
+        mode: 0700
+        owner: root
+        group: root
+        force: true
+      with_items:
+        - 'cek_config_dpdk_bind.py'
+        - 'cek_config_dpdk_rebind.py'
+        - 'cek_config_dpdk_link.py'
+        - 'cek_config_dpdk_unbind.py'
+        - 'cek_config_dpdk_util.py'
+        - 'cek_config_dpdk.sh'
+      become: true
+
+    - name: execute dpdk bind script
+      command: "python /usr/local/bin/cek_config_dpdk_bind.py
+                {{ config_dpdk_bind_nic_type }}
+                {{ config_dpdk_bind_drv_type }}
+                {{ config_dpdk_bind_port_offset }}
+                {{ config_dpdk_bind_port_count }}"
+      register: dpdk_bind_result
+      changed_when: false
+
+    - name: output dpdk bind result
+      debug:
+        msg: "{{ dpdk_bind_result.stdout_lines }}"
+
+    - name: install config dpdk service to /lib/systemd/system
+      copy:
+        src: "cek_config_dpdk.service"
+        dest: /lib/systemd/system/
+        owner: root
+        group: root
+        mode: '0644'
+      become: true
+
+    - name: enable the service which will do dpdk rebind after reboot
+      systemd:
+        name: cek_config_dpdk
+        state: started
+        enabled: true
+        daemon_reload: true
+      become: true
+
+  when:
+    - dyna_config_dpdk_bind | default(false) | bool
+
+
+# dpdk dev link block, to match the real network connection
+- block:
+    - name: push network_env.conf from node2 to node1
+      synchronize:
+        src: /etc/network_env.conf
+        dest: /etc/network_dst.conf
+        mode: push
+      delegate_to: "{{ dpdk_link_node2 }}"
+
+    - name: execute dpdk like script on node1
+      command: "python /usr/local/bin/cek_config_dpdk_link.py
+              /etc/network_env.conf  /etc/network_dst.conf"
+      register: dpdk_link_result
+      changed_when: false
+
+    - name: output dpdk link result
+      debug:
+        msg: "{{ dpdk_link_result.stdout_lines }}"
+
+    - name: pull network_dst.conf from node1 to node2
+      synchronize:
+        src: /etc/network_dst.conf
+        dest: /etc/network_env.conf
+        mode: pull
+      delegate_to: "{{ dpdk_link_node2 }}"
+
+    - name: remove network_dst.conf on node1
+      file:
+        path: /etc/network_dst.conf
+        state: absent
+
+  when:
+    - dyna_config_dpdk_link | default(false) | bool
+    - inventory_hostname == dpdk_link_node1
+
+# dpdk dev unbind block
+- block:
+    - import_tasks: cleanup.yml
+  when:
+    - dyna_config_dpdk_unbind | default(false) | bool

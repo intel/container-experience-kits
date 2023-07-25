@@ -56,4 +56,4 @@
 #     - rook_install is defined and rook_install.enabled
 #   any_errors_fatal: true
 #   tags:
-#     - rook_ceph
+#     - rook-ceph

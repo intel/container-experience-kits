@@ -39,7 +39,8 @@
 
     - name: Show variable values
       block:
-        - shell: "echo -n '{{ item.description }}', && scripts/yaml_version_reader {{ item.var_file_path }} {{ item.shortname }}"
+        - name: Extract versions
+          shell: "echo -n '{{ item.description }}', && scripts/yaml_version_reader {{ item.var_file_path }} {{ item.shortname }}"
           changed_when: false
           args:
             chdir: ".."
@@ -49,8 +50,16 @@
                 'shortname'     : 'telegraf_image_tag',
                 'var_file_path' : 'roles/telegraf_install/defaults/main.yml'
               }
+            - { 'description'   : 'PMU Tools',
+                'shortname'     : 'telegraf_pmu_tools_version',
+                'var_file_path' : 'roles/telegraf_install/defaults/main.yml'
+              }
             - { 'description'   : 'Prometheus',
                 'shortname'     : 'prometheus_stack_version',
+                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml'
+              }
+            - { 'description'   : 'Kube State Metrics',
+                'shortname'     : 'kube_state_metrics_version',
                 'var_file_path' : 'roles/kube_prometheus/defaults/main.yml'
               }
             - { 'description'   : 'Grafana',
@@ -59,7 +68,7 @@
               }
             - { 'description'   : 'CollectD',
                 'shortname'     : "image_collectd\\'\\]\\[\\'digest",
-                'var_file_path' : 'playbooks/k8s/roles/collectd_install/defaults/main.yml'
+                'var_file_path' : 'roles/collectd_install/defaults/main.yml'
               }
             - { 'description'   : 'Docker',
                 'shortname'     : 'docker_version',
@@ -67,19 +76,29 @@
               }
             - { 'description'   : 'Docker CLI',
                 'shortname'     : 'docker_cli_version',
-                'var_file_path' : 'roles/container_engine/docker/defaults/main.yml'
+                'var_file_path' : 'roles/container_engine/docker/defaults/main.yml',
+                'optional'      : 'true',
+                'reason'        : 'version is the same as for Docker'
               }
             - { 'description'   : 'Kubernetes',
                 'shortname'     : 'kube_version',
-                'var_file_path' : 'examples/vm/full_nfv/group_vars/all.yml'
+                'var_file_path' : 'examples/k8s/full_nfv/group_vars/all.yml'
+              }
+            - { 'description'   : 'RKE2',
+                'shortname'     : 'rke2_version',
+                'var_file_path' : 'examples/k8s/full_nfv/group_vars/all.yml'
+              }
+            - { 'description'   : 'Rancher',
+                'shortname'     : 'rancher_version',
+                'var_file_path' : 'roles/rke2_kubernetes_apps/rancher/defaults/main.yml'
               }
             - { 'description'   : 'k8s node-exporter',
                 'var_file_path' : 'roles/kube_prometheus/defaults/main.yml',
                 'shortname'     : 'node_exporter_version'
               }
             - { 'description'   : 'k8s prometheus-operator',
-                'var_file_path' : 'roles/kube_prometheus/files/kube-prometheus-stack/prometheusOperator-clusterRole.yaml',
-                'shortname'     : "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
+                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml',
+                'shortname'     : "prometheus_operator_version"
               }
             - { 'description'   : 'k8s prometheus-adapter',
                 'var_file_path' : 'roles/kube_prometheus/files/kube-prometheus-stack/prometheusAdapter-clusterRole.yaml',
@@ -99,27 +118,31 @@
               }
             - { 'description'   : 'CNI plugins',
                 'shortname'     : 'cni_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'calico',
                 'shortname'     : 'calico_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'flannel',
                 'shortname'     : 'flannel_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'coredns',
                 'shortname'     : 'coredns_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'krew',
                 'shortname'     : 'krew_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'helm',
                 'shortname'     : 'helm_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'helm on rke2',
+                'shortname'     : 'helm_version',
+                'var_file_path' : 'roles/rke2_kubernetes_apps/helm/defaults/main.yml'
               }
             - { 'description'   : 'SR-IOV CNI',
                 'var_file_path' : 'roles/sriov_shared_versions/defaults/main.yml',
@@ -217,17 +240,9 @@
                 'var_file_path' : 'roles/openssl_engine_install/defaults/main.yml',
                 'shortname'     : 'intel_ipsec_version'
               }
-            - { 'description'   : 'Intel® SGX DCAP Drivers (ubuntu)',
-                'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
-                'shortname'     : 'dcap_driver_series_ubuntu_20'
-              }
-            - { 'description'   : 'Intel® SGX DCAP Drivers (rhel)',
-                'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
-                'shortname'     : 'dcap_driver_series_rhel'
-              }
             - { 'description'   : 'Intel® SGX SDK (ubuntu)',
                 'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
-                'shortname'     : 'sgx_sdk_version_ubuntu_20'
+                'shortname'     : 'sgx_sdk_version_ubuntu'
               }
             - { 'description'   : 'Intel® SGX SDK (rhel)',
                 'var_file_path' : 'roles/bootstrap/configure_sgx/defaults/main.yml',
@@ -265,19 +280,27 @@
                 'shortname'     : 'tadk_version',
                 'var_file_path' : 'roles/tadk_install/defaults/main.yml'
               }
-            - { 'description'   : 'IstIO operator',
+            - { 'description'   : 'IstIO Service Mesh - istio',
+                'var_file_path' : 'roles/istio_service_mesh/vars/main.yml',
+                'shortname'     : "istio_service_mesh_defaults\\'\\]\\[\\'version"
+              }
+            - { 'description'   : 'IstIO Service Mesh - istio intel_preview',
+                'var_file_path' : 'roles/istio_service_mesh/vars/main.yml',
+                'shortname'     : "istio_service_mesh_defaults\\'\\]\\[\\'intel_preview\\'\\]\\[\\'version"
+              }
+            - { 'description'   : 'IstIO operator - default',
                 'var_file_path' : 'roles/istio_service_mesh/charts/istioctl/values.yaml',
                 'shortname'     : "image\\'\\]\\[\\'tag"
               }
-            - { 'description'   : 'IstIO pilot-cryptomb (internal)',
+            - { 'description'   : 'IstIO pilot-cryptomb (internal) - default',
                 'var_file_path' : 'roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
                 'shortname'     : "spec\\'\\]\\[\\'tag"
               }
-            - { 'description'   : 'IstIO proxyv2-cryptomb (internal)',
+            - { 'description'   : 'IstIO proxyv2-cryptomb (internal) - default',
                 'var_file_path' : 'roles/istio_service_mesh/files/profiles/intel-cryptomb.yaml',
                 'shortname'     : "spec\\'\\]\\[\\'tag"
               }
-            - { 'description'   : 'IstIO proxyv2-openssl (internal)',
+            - { 'description'   : 'IstIO proxyv2-openssl (internal) - default',
                 'var_file_path' : 'roles/istio_service_mesh/files/profiles/intel-qat-sw.yaml',
                 'shortname'     : "spec\\'\\]\\[\\'tag"
               }
@@ -292,14 +315,6 @@
             - { 'description'   : 'Intel® Trusted Certificate Issuer',
                 'var_file_path' : 'roles/tcs_install/defaults/main.yml',
                 'shortname'     : 'tcs_git_version'
-              }
-            - { 'description'   : 'Intel® CNDP DP',
-                'var_file_path' : 'roles/cndp_dp_install/defaults/main.yml',
-                'shortname'     : 'intel_cndp_dp_version'
-              }
-            - { 'description'   : 'Intel® CNDP CNI',
-                'var_file_path' : 'roles/cndp_install/defaults/main.yml',
-                'shortname'     : 'intel_cndp_version'
               }
             - { 'description'   : 'MinIO Operator',
                 'var_file_path' : 'roles/minio_install/defaults/main.yaml',
@@ -316,10 +331,6 @@
             - { 'description'   : 'Power Manager Operator',
                 'var_file_path' : 'roles/intel_power_manager/defaults/main.yml',
                 'shortname'     : 'intel_power_manager_git_ref'
-              }
-            - { 'description'   : 'Intel® RDT telemetry plugin',
-                'var_file_path' : 'roles/intel_power_manager/defaults/main.yml',
-                'shortname'     : 'intel_appqos_git_ref'
               }
             - { 'description'   : 'Intel SR-IOV FEC Operator',
                 'var_file_path' : 'roles/intel_sriov_fec_operator/defaults/main.yml',
@@ -357,17 +368,21 @@
                 'var_file_path' : 'roles/bootstrap/configure_openssl/defaults/main.yml',
                 'shortname'     : 'openssl_version'
               }
-            - { 'description'   : 'Kubernetes',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/kubespray-defaults/defaults/main.yaml',
+            - { 'description'   : 'Kubernetes - kubespray defaults',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/kubespray-defaults/defaults/main.yaml',
                 'shortname'     : 'kube_version'
               }
             - { 'description'   : 'LinkerD',
                 'var_file_path' : 'roles/linkerd_service_mesh/defaults/main.yml',
                 'shortname'     : 'linkerd_version'
               }
-            - { 'description'   : 'cadvisor helm charts',
+            - { 'description'   : 'cAdvisor helm chart',
                 'var_file_path' : 'roles/cadvisor_install/defaults/main.yaml',
-                'shortname'     : 'cadvisor_helm_charts_version'
+                'shortname'     : 'cadvisor_helm_chart_version'
+              }
+            - { 'description'   : 'cAdvisor',
+                'var_file_path' : 'roles/cadvisor_install/defaults/main.yaml',
+                'shortname'     : 'cadvisor_image_version'
               }
             - { 'description'   : 'Intel® adq dp',
                 'var_file_path' : 'roles/adq_dp_install/defaults/main.yml',
@@ -378,12 +393,20 @@
                 'shortname'     : 'adq_ice_fw_required_version'
               }
             - { 'description'   : 'cilium',
-                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml',
                 'shortname'     : 'cilium_version'
               }
             - { 'description'   : 'cert manager',
-                'var_file_path' : 'playbooks/k8s/kubespray/extra_playbooks/roles/download/defaults/main.yml',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml',
                 'shortname'     : 'cert_manager_version'
+              }
+            - { 'description'   : 'cert manager on rke2',
+                'var_file_path' : 'roles/rke2_kubernetes_apps/cert_manager_install/defaults/main.yml',
+                'shortname'     : 'cert_manager_version'
+              }
+            - { 'description'   : 'kube dashboard on rke2',
+                'var_file_path' : 'roles/rke2_kubernetes_apps/dashboard/defaults/main.yml',
+                'shortname'     : 'dashboard_image_tag'
               }
             - { 'description'   : 'Telemetry aware scheduling',
                 'var_file_path' : 'roles/platform_aware_scheduling_install/defaults/main.yml',
@@ -393,16 +416,20 @@
                 'var_file_path' : 'roles/platform_aware_scheduling_install/defaults/main.yml',
                 'shortname'     : 'gas_extender_image_tag_default'
               }
+            - { 'description'   : 'Intel CPU Control Plane',
+                'var_file_path' : 'roles/intel_cpu_controlplane/defaults/main.yml',
+                'shortname'     : 'cpu_ctlplane_version'
+              }
             - { 'description'   : 'crio',
                 'var_file_path' : 'roles/container_engine/crio/defaults/main.yml',
                 'shortname'     : 'crio_version'
               }
             - { 'description'   : 'registry',
-                'shortname'     : 'registry_image',
+                'shortname'     : 'registry_version',
                 'var_file_path' : 'roles/container_registry/defaults/main.yml'
               }
             - { 'description'   : 'nginx',
-                'shortname'     : 'nginx_image',
+                'shortname'     : 'registry_nginx_version',
                 'var_file_path' : 'roles/container_registry/defaults/main.yml'
               }
             - { 'description'   : 'Open Telemetry Operator',
@@ -418,7 +445,7 @@
                 'var_file_path' : 'roles/bootstrap/golang_install/defaults/main.yml'
               }
             - { 'description'   : 'cluster_name',
-                'var_file_path' : 'playbooks/k8s/kubespray/roles/kubespray-defaults/defaults/main.yaml',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/kubespray-defaults/defaults/main.yaml',
                 'shortname'     : 'cluster_name'
               }
             - { 'description'   : 'containerd',
@@ -426,7 +453,7 @@
                 'shortname'     : 'containerd_version'
               }
             - { 'description'   : 'multus',
-                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml',
                 'shortname'     : 'multus_version'
               }
             - { 'description'   : 'nfd',
@@ -435,11 +462,11 @@
               }
             - { 'description'   : 'weave',
                 'shortname'     : 'weave_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'kube-vip',
                 'shortname'     : 'kube_vip_image_tag',
-                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'nginx-ingress',
                 'shortname'     : 'kubernetes_ingress_helm_chart_version',
@@ -447,11 +474,11 @@
               }
             - { 'description'   : 'argocd',
                 'shortname'     : 'argocd_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/roles/kubernetes-apps/argocd/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/kubernetes-apps/argocd/defaults/main.yml'
               }
             - { 'description'   : 'metallb',
                 'shortname'     : 'metallb_version',
-                'var_file_path' : 'playbooks/k8s/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
               }
             - { 'description'   : 'kibana',
                 'shortname'     : 'kibana_chart_version',
@@ -460,6 +487,22 @@
             - { 'description'   : 'Rook/Ceph',
                 'var_file_path' : 'roles/rook_install/defaults/main.yml',
                 'shortname'     : "rook_git_tag"
+              }
+            - { 'description'   : 'FFmpeg',
+                'var_file_path' : 'roles/ffmpeg_install/defaults/main.yml',
+                'shortname'     : "ffmpeg_commit_hash"
+              }
+            - { 'description'   : 'Intel oneAPI Base kit',
+                'var_file_path' : 'roles/intel_oneapi_install/defaults/main.yml',
+                'shortname'     : "oneapi_basekit_version"
+              }
+            - { 'description'   : 'Intel oneAPI AI kit',
+                'var_file_path' : 'roles/intel_oneapi_install/defaults/main.yml',
+                'shortname'     : "oneapi_ai_version"
+              }
+            - { 'description'   : 'jaeger',
+                'var_file_path' : 'roles/jaeger_install/defaults/main.yml',
+                'shortname'     : "jaeger_version"
               }
         - name: Remove old version parsing results
           file:
@@ -472,7 +515,9 @@
         - name: Write versions into output file
           lineinfile:
             path: "{{ versions_output_file }}"
-            line: "{{ item.stdout }}{% if item.stderr and item.item.optional | default(false) %} {{ item.item.reason }}{% endif %}"
+            line: >-
+              "{{ item.stdout }}{% if (item.stderr and item.item.optional | default(false)) or (item.stdout and item.item.optional | default(false) and
+              item.stdout is regex('^.*,{{ .* }}')) %} {{ item.item.reason }}{% endif %}"
             mode: 0644
             create: yes
           loop: "{{ item_value.results }}"
@@ -494,11 +539,3 @@
       lineinfile:
         path: "{{ versions_output_file }}"
         line: "ddp_profile,{{ ddp_profile.stdout }}"
-    - name: Add jaeger_version variable
-      shell: grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' roles/jaeger_install/defaults/main.yml
-      changed_when: false
-      register: jaeger_version
-    - name: Add jaeger version variable
-      lineinfile:
-        path: "{{ versions_output_file }}"
-        line: "jaeger,{{ jaeger_version.stdout }}"

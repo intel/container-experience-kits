@@ -15,7 +15,7 @@
 ##
 ---
 tcs_git_repo_url: https://github.com/intel/trusted-certificate-issuer
-tcs_git_version: 0.4.0
+tcs_git_version: 0.5.0
 tcs_git_path: "{{ (project_root_dir, 'tcs') | path_join }}"
 tcs_image_tag: "{{ tcs_git_version }}"
 tac_image_name: intel/trusted-certificate-issuer

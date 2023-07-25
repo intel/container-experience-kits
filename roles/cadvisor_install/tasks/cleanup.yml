@@ -1,0 +1,36 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Cleanup cAdvisor
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: Uninstall cAdvisor Helm Chart
+      kubernetes.core.helm:
+        name: "{{ cadvisor_release_name }}"
+        namespace: "{{ cadvisor_namespace }}"
+        state: absent
+    - name: Remove cAdvisor Helm Repo
+      kubernetes.core.helm_repository:
+        name: "{{ cadvisor_helm_repo_name }}"
+        state: absent
+  tags:
+    - cadvisor
+
+- name: Delete cAdvisor directory
+  ansible.builtin.file:
+    path: "{{ (project_root_dir, 'charts', 'cadvisor') | path_join }}"
+    state: absent

@@ -18,12 +18,17 @@ spec:
       annotations:
         sgx.intel.com/quote-provider: {{ .Release.Name }}
     spec:
-      hostNetwork: true
+      hostNetwork: false
       serviceAccountName: {{ .Release.Name }}
       initContainers:
       - name: init-tmpfs
         image: "{{ .Values.ctk_loadkey.init.image.repo }}/{{ .Values.ctk_loadkey.init.image.name }}:{{ .Values.ctk_loadkey.init.image.tag }}"
         command: ['sh', '-c', "rm -rf /opt/intel/cryptoapitoolkit/tokens/*"]
+      securityContext:
+        runAsUser: 65333
+        runAsGroup: {{ .Values.ctk_loadkey.sgx_prv_gid }}
+        supplementalGroups:
+        - {{ .Values.ctk_loadkey.sgx_gid }}
       containers:
       - name: {{ .Release.Name }}
         image: "{{ .Values.ctk_loadkey.main.image.repo }}/{{ .Values.ctk_loadkey.main.image.name }}:{{ .Values.ctk_loadkey.main.image.tag }}"
@@ -61,10 +66,6 @@ spec:
             cpu: 200m
             memory: 200Mi
         securityContext:
-          runAsUser: 65333
-          runAsGroup: {{ .Values.ctk_loadkey.sgx_prv_gid }}
-          supplementalGroups:
-          - {{ .Values.ctk_loadkey.sgx_gid }}
           readOnlyRootFilesystem: true
       - name: {{ .Release.Name }}-nginx
         image: "{{ .Values.ctk_loadkey.nginx.image.repo }}/{{ .Values.ctk_loadkey.nginx.image.name }}:{{ .Values.ctk_loadkey.nginx.image.tag }}"
@@ -91,7 +92,6 @@ spec:
             cpu: 100m
             memory: 200Mi
         securityContext:
-          runAsUser: 65333
           runAsGroup: 65333
           readOnlyRootFilesystem: true
       affinity:

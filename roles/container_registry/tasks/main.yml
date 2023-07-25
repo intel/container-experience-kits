@@ -14,165 +14,179 @@
 ##   limitations under the License.
 ##
 ---
-- name: install dependencies
-  include_role:
+- name: Install dependencies
+  ansible.builtin.include_role:
     name: install_dependencies
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: wait for kube-apiserver to be up
-  uri:
+- name: Wait for kube-apiserver to be up
+  ansible.builtin.uri:
     url: "https://127.0.0.1:6443/healthz"
-    client_cert: "/etc/kubernetes/ssl/ca.crt"
-    client_key: "/etc/kubernetes/ssl/ca.key"
-    validate_certs: no
-  register: result
-  until: result.status == 200
+    client_cert: "{{ kube_apiserver_cert }}"
+    client_key: "{{ kube_apiserver_key }}"
+    validate_certs: false
+  register: kube_api
+  until: kube_api.status == 200
   retries: 15
   delay: 5
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: generate server and client certificates
-  include_tasks: tls.yml
-
-- name: load user-provided registry password or generate a random one
-  set_fact:
-    password: "{{ registry_password | default(lookup('password', 'registry_htpasswd')) }}"
-
-- name: clean up temporary files
-  file: path=registry_htpasswd state=absent
-  delegate_to: localhost
-  become: false
-  run_once: yes
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: generate htpasswd file
-  command: htpasswd -Bbn docker {{ password }}
-  register: htpasswd
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: create container registry directory
-  file:
-    path: "{{ container_registry_path }}"
+- name: Create container registry directory
+  ansible.builtin.file:
+    path: "{{ registry_root_dir }}"
     state: directory
     mode: 0755
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: create persistent volume
-  k8s:
-    state: present
-    definition: "{{ lookup('file', '../files/pv.yml') | from_yaml }}"
-  when: inventory_hostname == groups['kube_control_plane'][0]
+- name: Generate server and client certificates
+  ansible.builtin.include_tasks: tls.yml
 
-- name: create persistent volume claim
-  k8s:
-    state: present
-    definition: "{{ lookup('file', '../files/pvc.yml') | from_yaml }}"
-  when: inventory_hostname == groups['kube_control_plane'][0]
+- name: Generate registry password if not provided
+  ansible.builtin.set_fact:
+    registry_password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+  no_log: true
+  when:
+    - (registry_password is not defined) or (not registry_password)
+  run_once: true
 
-- name: copy probe.sh
-  copy:
-    src: probe.sh
-    dest: /etc/probe.sh
-    owner: root
-    group: root
-    mode: u+rwx,g-rwx,o-
+- name: Prepare registry htpasswd configuration
   when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: template container-registry
-  template:
-    src: "{{ item }}"
-    dest: "{{ container_registry_path }}/{{ item | basename | regex_replace('.j2','') }}"
-    owner: root
-    group: root
-    mode: u+rwx,g-rwx,o-
-  with_fileglob:
-    - ../templates/container-registry/*.j2
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: delete old container registry
-  command: "kubectl delete -f {{ container_registry_path }} --namespace {{ registry_namespace }}"
-  register: delete_result
-  changed_when: delete_result is not failed
-  failed_when: false
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: install container registry application
-  command: "kubectl apply -f {{ container_registry_path }} --namespace {{ registry_namespace }}"
-  changed_when: true
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: clean up any certs/key/CSR files
-  file: path=/etc/ssl/registry state=absent
-  when: inventory_hostname == groups['kube_control_plane'][0]
-  failed_when: false
-  become: yes
-
-- name: create registry storage directory
-  file:
-    path: /var/lib/registry
-    owner: '1000'
-    group: root
-    mode: '0700'
-    state: directory
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: check nodes status
   block:
-    - name: check nodes status
-      # noqa command-instead-of-shell - shell is used intentionally here
-      shell: kubectl get nodes
-      register: status
-      changed_when: false
-    - debug:
-        var: status.stdout_lines
-      failed_when: status.stdout is search ("NotReady") or status.stdout is search ("Unknown")
+    - name: Generate htpasswd contents
+      ansible.builtin.command: >-
+        htpasswd -Bbn {{ registry_user }} {{ registry_password }}
+      changed_when: true
+      register: registry_htpasswd
+      no_log: true
+
+    - name: Crate htpasswd secret
+      kubernetes.core.k8s:
+        state: present
+        template: registry_htpasswd.yaml.j2
+        wait: true
+      no_log: true
+
+
+- name: Prepare registry storage
+  when: inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: Create registry storage directory
+      ansible.builtin.file:
+        path: "{{ registry_storage_dir }}"
+        owner: '1000'
+        group: root
+        mode: '0700'
+        state: directory
+
+    - name: Create registry persistent volume
+      kubernetes.core.k8s:
+        state: present
+        template: registry_pv.yaml.j2
+        wait: true
+
+    - name: Create registry persistent volume claim
+      kubernetes.core.k8s:
+        state: present
+        template: registry_pvc.yaml.j2
+        wait: true
+
+
+- name: Copy container-registry helm chart
+  copy:
+    src: "{{ (role_path, 'charts', 'container-registry/') | path_join }}"
+    dest: "{{ registry_chart_dir }}"
+    mode: 0644
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: wait for container registry to come up on all nodes
-  uri:
+- name: Template Chart appVersion
+  replace:
+    path: "{{ (registry_chart_dir, 'Chart.yaml') | path_join }}"
+    regexp: "<app-version>"
+    replace: "{{ registry_version }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Template container registry helm values
+  ansible.builtin.template:
+    src: values_registry.yaml.j2
+    dest: "{{ (registry_chart_dir, 'values_registry.yaml') | path_join }}"
+    force: yes
+    mode: preserve
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Deploy container registry
+  kubernetes.core.helm:
+    chart_ref: "{{ registry_chart_dir }}"
+    release_name: "{{ registry_release_name }}"
+    release_namespace: "{{ registry_namespace }}"
+    values_files: "{{ (registry_chart_dir, 'values_registry.yaml') | path_join }}"
+    create_namespace: true
+    force: true
+    wait: true
+    timeout: 10m0s
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Wait for container registry to be reachable by all nodes
+  ansible.builtin.uri:
     url: "https://{{ registry_local_address }}"
-    validate_certs: no
-    user: docker
-    password: "{{ password }}"
+    user: "{{ registry_user }}"
+    password: "{{ registry_password }}"
     method: GET
-    force_basic_auth: yes
+    ca_path: /etc/kubernetes/ssl/ca.crt
+    force_basic_auth: true
+    force: true
   register: result
   until: result.status == 200
-  retries: 600
-  delay: 1
+  retries: 20
+  delay: 5
 
-- name: install Python docker module
-  pip:
-    name:
-      - docker==4.3.1
+- name: Check docker config file exists
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.docker/config.json"
+  register: docker_conf_stat
 
-- name: grant access to the registry to Docker on all nodes
-  docker_login:
-    username: docker
-    password: "{{ password }}"
-    registry_url: "{{ registry_local_address }}"
-    tls_hostname: "{{ hostvars[inventory_hostname]['ansible_hostname'] }}"
-    validate_certs: yes
-  when: container_runtime == "docker"
-
-- name: copy auth file
-  copy:
+- name: Fetch existing docker config
+  ansible.builtin.slurp:
     src: "{{ ansible_env.HOME }}/.docker/config.json"
-    dest: /var/lib/kubelet/config.json
-    remote_src: yes
-    mode: '0755'
-  when: container_runtime == "docker"
+  register: docker_conf_content
+  no_log: true
+  when: docker_conf_stat.stat.exists
 
-- name: grant access to the registry
-  command: podman login --authfile="{{ registry_auth }}" -u docker -p "{{ password }}" "{{ registry_local_address }}"
-  changed_when: false
-  when: '"docker" not in container_runtime'
+- name: Add auth to docker config
+  vars:
+    original_conf: |-
+     {%- if docker_conf_stat.stat.exists -%}
+     {{ (docker_conf_content.content | b64decode | from_json) }}
+     {%- else -%}
+     {}
+     {%- endif -%}
+    auth_section: "{{ lookup('template', 'docker_auth.json.j2') }}"
+  ansible.builtin.copy:
+    content: "{{ original_conf | combine(auth_section) | to_nice_json(indent=8) }}"
+    dest: "{{ ansible_env.HOME }}/.docker/config.json"
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    mode: 0640
+  no_log: true
 
-- name: add registry environment variable to /etc/environment
-  lineinfile:
+- name: Copy config file to Kubelet config dir
+  ansible.builtin.copy:
+    src: "{{ ansible_env.HOME }}/.docker/config.json"
+    dest: "{{ registry_auth_path }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Add registry environment variable to /etc/environment
+  ansible.builtin.lineinfile:
     path: /etc/environment
     line: "{{ registry_auth_env }}"
     owner: root
     group: root
-    mode: '0644'
-  when: '"docker" not in container_runtime'
+    mode: 0644
+
+- name: Setup registry config file for rke2 provisioner
+  ansible.builtin.include_role:
+    name: rke2_defaults
+    tasks_from: rke2_registries
+  when: kube_provisioner == 'rke2'

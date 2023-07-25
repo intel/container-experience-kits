@@ -16,12 +16,10 @@
 ---
 - name: check if libvirt is already compiled
   command: "libvirtd --version"
-  args:
-    executable: /bin/bash
   register: libvirtd_version
   changed_when: false
   failed_when: false
 
 - name: Compile libvirt
   include_tasks: compile_libvirt.yml
-  when: "'8.4.0' not in libvirtd_version.stdout"
+  when: "libvirt_tag not in libvirtd_version.stdout"

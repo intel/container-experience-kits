@@ -15,7 +15,7 @@
 ##
 ---
 nfd_image: "registry.k8s.io/nfd/node-feature-discovery"
-nfd_image_tag: "v0.12.1-minimal"
+nfd_image_tag: "v0.13.1-minimal"
 
 nfd_namespace: "kube-system"
 

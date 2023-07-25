@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-env-cm
+  namespace: {{ .Release.Namespace }}
+data:
+  http_proxy: {{ .Values.http_proxy | default "" | quote }}
+  https_proxy: {{ .Values.https_proxy | default "" | quote }}
+  no_proxy: {{ .Values.no_proxy | default "" | quote }}
+  PCCS_PORT: {{ .Values.oran_netopeer2_client.pccs_port | quote }}
+  PCCS_HOSTNAME: {{ .Values.oran_netopeer2_client.pccs_hostname | quote }}
+  APPHSM_PORT: {{ .Values.oran_netopeer2_client.apphsm_port | quote }}
+  APPHSM_HOSTNAME: {{ .Values.oran_netopeer2_client.apphsm_hostname | quote }}
+  CLIENT_TOKEN: {{ .Values.oran_netopeer2_client.client_token | quote }}
+  CLIENT_KEY_LABEL: {{ .Values.oran_netopeer2_client.client_key_label | quote }}
+  TEST_UNIQUE_UID: {{ .Values.oran_netopeer2_client.test_unique_uid | quote }}
+  DEFAULT_USER_PIN: {{ .Values.oran_netopeer2_client.default_user_pin | quote }}
+  DEFAULT_SO_PIN: {{ .Values.oran_netopeer2_client.default_so_pin | quote }}
+  DEFAULT_CLIENT_TOKEN_ID: {{ .Values.oran_netopeer2_client.default_client_token_id | quote }}
+  PKCS11_PROXY_TLS_PSK_FILE: {{ .Values.oran_netopeer2_client.pkcs11_proxy_tls_psk_file | quote }}

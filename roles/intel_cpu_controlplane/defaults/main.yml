@@ -19,7 +19,6 @@ cpu_ctlplane_release_name: "intel-cpu-controlplane"   # CPU control plane releas
 cpu_ctlplane_golang_version: "1.19.1"                 # CPU control plane golang version
 
 cpu_ctlplane_git_url: "https://github.com/intel/cpu-control-plane-plugin-for-kubernetes.git"
-cpu_ctlplane_commit_hash: "a2b5f286cfa0ae05b0504fa0085023ea0e1fbdea" # "7e843ea8742d93759fe34a1a7d1d00293c58efd0"
+cpu_ctlplane_version: "0.1.2"
 cpu_ctlplane_local_build_dir: "{{ (project_root_dir, 'intel-cpu-controlplane') | path_join }}"
 cpu_ctlplane_local_build_name: "intel-cpu-controlplane"
-cpu_ctlplane_local_tag_name: "v0.1"

@@ -21,17 +21,20 @@ and inventory files using Jinja templates.
 
 import argparse
 import importlib
-from render.common.cli import parse_cli
-from render.renderers.playbook import render_playbooks
+
+from render_util.common.cli import parse_cli
+from render_util.renderers.playbook import render_playbooks
+
 
 def main():
     args = parse_cli()
 
-    # render profiles in given mode
+    # render_util profiles in given mode
     _render_mode(args)
 
-    # render playbooks
+    # render_util playbooks
     render_playbooks(args.profile)
+
 
 def _render_mode(args: argparse.Namespace) -> None:
     # determine function name based on passed mode
@@ -43,11 +46,12 @@ def _render_mode(args: argparse.Namespace) -> None:
     # try to import module and then
     # obtain and call required method
     try:
-        renderer_module = importlib.import_module("render.renderers.{}".format(renderer), package=None)
+        renderer_module = importlib.import_module("render_util.renderers.{}".format(renderer), package=None)
         method = getattr(renderer_module, mode_to_render)
         method(args)
     except (ImportError, NameError) as e:
         print("The method '{}' is not defined or cannot be imported... \nError: {}".format(method, e))
+
 
 if __name__ == "__main__":
     main()

@@ -27,21 +27,33 @@
     - {type: 'https', value: "{{ https_proxy | default('') }}"}
   when: http_proxy is defined or https_proxy is defined
 
-- name: reconfigure unattended-upgrades package
-  command: dpkg-reconfigure --priority=low -f noninteractive unattended-upgrades
-  args:
-    creates: "/etc/apt/apt.conf.d/20auto-upgrades"
-
 - name: disable automatic package updates
-  replace:
-    path: "{{ item }}"
-    regexp: "(APT::Periodic::.* )\"1\";$"
-    replace: "\\1\"0\";"
-    mode: 0600
+  apt:
+    name: unattended-upgrades
+    purge: true
+    state: absent
+    lock_timeout: 120
+  when: ansible_os_family == "Debian"
+
+- name: disable daily apt timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
   with_items:
-    - "/etc/apt/apt.conf.d/20auto-upgrades"
-    - "/etc/apt/apt.conf.d/10periodic"
-  failed_when: false
+    - "apt-daily-upgrade.timer"
+    - "apt-daily.timer"
+  when: ansible_os_family == "Debian"
+
+- name: disable all periodic routines by apt
+  copy:
+    dest: "/etc/apt/apt.conf.d/99periodic-disable"
+    content: |
+      APT::Periodic::Enable "0";
+    owner: root
+    group: root
+    mode: 0644
+  when: ansible_os_family == "Debian"
 
 - name: install build-essential package
   apt:
@@ -130,6 +142,13 @@
     link: /usr/bin/python
   when: ansible_os_family == "Debian"
 
+- name: WA for libudev-dev version issue on Ubuntu
+  apt:
+    state: latest # noqa package-latest
+    name: udev
+  when:
+    - ansible_os_family == "Debian"
+
 - name: perform dist-upgrade on Debian OS family
   apt:
     upgrade: dist
@@ -141,6 +160,12 @@
 - name: ensure git is installed
   apt:
     name: git
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: ensure iptables is installed
+  apt:
+    name: iptables
     state: present
   when: ansible_os_family == "Debian"
 

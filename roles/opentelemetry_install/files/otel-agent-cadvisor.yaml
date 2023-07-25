@@ -1,0 +1,87 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-agent-cadvisor
+  namespace: monitoring
+spec:
+  mode: daemonset
+  serviceAccount: otel-agent
+  volumeMounts:
+    - name: otel-agent-cadvisor
+      mountPath: "/var/run/secrets/otel-agent-tls"
+    - mountPath: /var/log
+      name: varlog
+      readOnly: true
+    - mountPath: /var/lib/docker/containers
+      name: varlibdockercontainers
+      readOnly: true
+  volumes:
+    - name: otel-agent-cadvisor
+      secret:
+        secretName: otel-agent-cadvisor
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+  env:
+    - name: API_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+  config: |
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: "otel-cadvisor-collector"
+              scrape_interval: 5s
+              scheme: http
+              kubernetes_sd_configs:
+                - role: endpoints
+              relabel_configs:
+                - source_labels:
+                    - '__meta_kubernetes_namespace'
+                  action: keep
+                  regex: cadvisor
+                - source_labels:
+                    - '__meta_kubernetes_endpoint_node_name'
+                  action: keep
+                  regex: ${API_NODE_NAME}
+
+    processors:
+      batch:
+        # cAdvisor can have metrics huge spans and maximum exported byte size cannot exceed GRPC 4MB size
+        send_batch_size: 1000
+        send_batch_max_size: 1000
+        timeout: 5s
+
+      metricstransform:
+        transforms:
+          - include: .*
+            match_type: regexp
+            action: update
+            operations:
+              - action: add_label
+                new_label: node_name
+                new_value: "${API_NODE_NAME}"
+
+    exporters:
+      logging:
+        loglevel: info
+
+      otlp:
+        endpoint: otel-gateway-collector-headless.monitoring.svc:4317
+        tls:
+          insecure: false
+          ca_file: "/var/run/secrets/otel-agent-tls/ca.crt"
+          cert_file: "/var/run/secrets/otel-agent-tls/tls.crt"
+          key_file: "/var/run/secrets/otel-agent-tls/tls.key"
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          processors: [metricstransform, batch]
+          exporters: [logging,otlp]

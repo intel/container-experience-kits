@@ -1,0 +1,88 @@
+---
+apiVersion: apiserver.config.k8s.io/v1
+kind: AdmissionConfiguration
+plugins:
+  - name: EventRateLimit
+    configuration:
+      apiVersion: eventratelimit.admission.k8s.io/v1alpha1
+      kind: Configuration
+      limits:
+      - type: Server
+        qps: 10
+        burst: 50
+      - type: Namespace
+        qps: 50
+        burst: 100
+      - type: User
+        qps: 10
+        burst: 50
+      - type: SourceAndObject
+        qps: 10
+        burst: 50
+  - name: PodSecurity
+    configuration:
+{% if kube_pod_security_use_default is defined and kube_pod_security_use_default %}
+      apiVersion: pod-security.admission.config.k8s.io/v1beta1
+      kind: PodSecurityConfiguration
+      defaults:
+        enforce: "privileged"
+        enforce-version: "latest"
+        audit: "privileged"
+        audit-version: "latest"
+        warn: "privileged"
+        warn-version: "latest"
+      exemptions:
+        usernames: []
+        runtimeClasses: []
+        namespaces: []
+{% else %}
+      apiVersion: pod-security.admission.config.k8s.io/v1
+      kind: PodSecurityConfiguration
+      defaults:
+        enforce: "restricted"
+        enforce-version: "latest"
+        audit: "restricted"
+        audit-version: "latest"
+        warn: "restricted"
+        warn-version: "latest"
+      exemptions:
+        usernames: []
+        runtimeClasses: []
+        namespaces: [calico-apiserver,
+                     calico-system,
+                     cattle-alerting,
+                     cattle-csp-adapter-system,
+                     cattle-elemental-system,
+                     cattle-epinio-system,
+                     cattle-externalip-system,
+                     cattle-fleet-local-system,
+                     cattle-fleet-system,
+                     cattle-gatekeeper-system,
+                     cattle-global-data,
+                     cattle-global-nt,
+                     cattle-impersonation-system,
+                     cattle-istio,
+                     cattle-istio-system,
+                     cattle-logging,
+                     cattle-logging-system,
+                     cattle-monitoring-system,
+                     cattle-neuvector-system,
+                     cattle-prometheus,
+                     cattle-resources-system,
+                     cattle-sriov-system,
+                     cattle-system,
+                     cattle-ui-plugin-system,
+                     cattle-windows-gmsa-system,
+                     cert-manager,
+                     cis-operator-system,
+                     fleet-default,
+                     ingress-nginx,
+                     istio-system,
+                     kube-node-lease,
+                     kube-public,
+                     kube-system,
+                     longhorn-system,
+                     rancher-alerting-drivers,
+                     security-scan,
+                     tigera-operator]
+{% endif %}

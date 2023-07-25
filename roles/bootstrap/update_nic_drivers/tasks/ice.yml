@@ -23,6 +23,10 @@
 - debug:
     msg: "Currently installed ice version: {{ ice_installed_version.stdout }}"
 
+- name: set ice driver build status
+  set_fact:
+    ice_driver_build_failed: false
+
 # unloading before update is probably not necessay and does not work anyway when irdma is using ice
 # - name: unload ice module
 #   modprobe:
@@ -69,7 +73,7 @@
         - install
       when: not adq_dp.enabled |d(false) | bool
 
-    - name: build and install ice driver
+    - name: build and install ice driver with adq
       make:
         chdir: "{{ (ice_untar.dest, ice_untar.files[0], 'src') | path_join }}"
         target: "{{ item }}"
@@ -80,6 +84,14 @@
         - clean
         - install
       when: adq_dp.enabled |d(false) | bool
+  rescue:
+    - name: handle driver build error
+      debug:
+        msg: "ice driver build or installation failed. Rolling back to use inbox driver - functionality might be limited"
+
+    - name: set ice driver build failed status
+      set_fact:
+        ice_driver_build_failed: true
   when: ice_installed_version.stdout != ice_driver_version
 
 - name: reboot node after driver update
@@ -87,6 +99,7 @@
   reboot:
     reboot_timeout: 1200
   when:
+    - not ice_driver_build_failed
     - (ice_installed_version.stdout != ice_driver_version and mgmt_interface_driver.stdout == ice_driver_name) or
       (ice_installed_version.stdout != ice_driver_version and ((ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0") or
       (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04") or update_kernel))

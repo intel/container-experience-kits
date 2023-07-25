@@ -13,7 +13,8 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-jaeger_version: v1.42.0
+jaeger_version: v1.44.0
 jaeger_crd_url: https://github.com/jaegertracing/jaeger-operator/releases/download/{{ jaeger_version }}/jaeger-operator.yaml
+jaeger_annotations_key_to_remove: 'sidecar.jaegertracing.io/inject'
 jaeger_query_remove: >-
   -p='[{"op": "remove", "path": /metadata/annotations/sidecar.jaegertracing.io~1inject}]'

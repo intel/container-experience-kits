@@ -26,6 +26,24 @@
   register: gopath
   changed_when: false
 
+# /sys is mounted as ro in privileged container(sysfs /sys sysfs ro,nosuid,nodev,noexec,relatime 0 0) under containerd runtime
+# which leads to reset FEC PF failure. The issue is reported in https://github.com/containerd/containerd/issues/8445.
+# Here we manually mount /sys as WA to solve.
+- name: Workaround for /sys mounted as ro in privileged container under containerd runtime
+  block:
+    - name: Add /sys to volumeMounts
+      ansible.builtin.lineinfile:
+        path: "{{ intel_sriov_fec_operator_dir }}/assets/300-daemon.yaml"
+        insertafter: "mountPath: /lib/modules"
+        line: "            - name: sys\n              mountPath: /sys"
+    - name: Add /sys to volumes
+      ansible.builtin.lineinfile:
+        path: "{{ intel_sriov_fec_operator_dir }}/assets/300-daemon.yaml"
+        insertafter: "path: /lib/modules"
+        line: "          - name: sys\n            hostPath:\n              path: /sys"
+  when:
+    - container_runtime == "containerd"
+
 # Workaoround to get SRIOV-FEC Operator daemon image build working
 - name: patch Intel Smart Edge Open (SEO) SRIOV-FEC Operator Dockerfile
   ansible.builtin.replace:

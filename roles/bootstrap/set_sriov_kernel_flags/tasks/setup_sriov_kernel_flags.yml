@@ -28,18 +28,6 @@
       (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.04") or
       (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.4")
 
-- name: set vfio default kernel flags for noiommu mode
-  set_fact:
-    vfio_noiommu_cmdline: ""
-
-- name: set vfio kernel flags for noiommu mode
-  set_fact:
-    vfio_noiommu_cmdline: " vfio.enable_unsafe_noiommu_mode=1"
-  when:
-    - qat_devices is defined and (qat_devices|length>0)
-    - install_dpdk | default(false)
-    - on_vms is defined and on_vms
-
 - name: set noiommu default kernel flags
   set_fact:
     iommu_cmdline: ""
@@ -52,7 +40,7 @@
 
 - name: set sriov kernel flags
   set_fact:
-    sriov_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX}{{ iommu_cmdline }}{{ vfio_noiommu_cmdline }}{{ vfio_cmdline }}" {{ sriov_marker }}'
+    sriov_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX}{{ iommu_cmdline }}{{ vfio_cmdline }}" {{ sriov_marker }}'
 
 - name: set sriov kernel flags in /etc/default/grub
   lineinfile:

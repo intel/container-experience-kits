@@ -23,6 +23,10 @@
 - debug:
     msg: "Currently installed i40e version: {{ i40e_installed_version.stdout }}"
 
+- name: set i40e driver build status
+  set_fact:
+    i40e_driver_build_failed: false
+
 - name: unload i40e module
   modprobe:
     name: i40e
@@ -65,6 +69,14 @@
       with_items:
         - clean
         - install
+  rescue:
+    - name: handle driver build error
+      debug:
+        msg: "i40e driver build or installation failed. Rolling back to use inbox driver - functionality might be limited"
+
+    - name: set i40e driver build failed status
+      set_fact:
+        i40e_driver_build_failed: true
   when: i40e_installed_version.stdout != i40e_driver_version
 
 - name: reboot node after driver update
@@ -72,6 +84,7 @@
   reboot:
     reboot_timeout: 1200
   when:
+    - not i40e_driver_build_failed
     - (i40e_installed_version.stdout != i40e_driver_version and mgmt_interface_driver.stdout == i40e_driver_name) or
       (i40e_installed_version.stdout != i40e_driver_version and ((ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0") or
       (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04") or update_kernel))

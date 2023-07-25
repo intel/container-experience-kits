@@ -17,6 +17,7 @@
 
 # Make coding more python3-ish, this is required for contributions to Ansible
 from __future__ import (absolute_import, division, print_function)
+
 __metaclass__ = type
 
 import re
@@ -37,6 +38,7 @@ MINIMUM_HOST_OS_VCPUS = 2
 
 class ActionModule(ActionBase):
     """cpupin action plugin implementation"""
+
     def __init__(self, task, connection, play_context, loader, templar, shared_loader_obj):
         super().__init__(task, connection, play_context, loader, templar, shared_loader_obj)
         # CPUs allocated for host OS
@@ -165,7 +167,7 @@ class ActionModule(ActionBase):
         if not self.pinning and self.alloc_all and int(self.number) != 0:
             msg = "You have to set parameter 'cpu_total:' to '0' when 'alloc_all: true' is used"
 
-        if not self.pinning and self.alloc_all and ( self.cpus or self.numa ):
+        if not self.pinning and self.alloc_all and (self.cpus or self.numa):
             msg = "'cpus' and 'numa' can't be used with 'alloc_all: true'"
 
         if self.pinning and not self.alloc_all and (not self.cpus or not self.numa):
@@ -179,8 +181,8 @@ class ActionModule(ActionBase):
 
         if self.pinning and self.alloc_all and (not self.cpus or self.numa):
             msg = ("When using parameters pinning=true and alloc_all=true, 'numa' parameter is None"
-                ", 'cpus' parameter have to be prepared in advance e.g.: via running module with "
-                "pinning=false")
+                   ", 'cpus' parameter have to be prepared in advance e.g.: via running module with "
+                   "pinning=false")
 
         if msg:
             raise AnsibleActionFail(msg)
@@ -475,7 +477,6 @@ class ActionModule(ActionBase):
         self.cpu_list.sort()
         return task_vars
 
-
     def _allocate_cpus(self, task_vars):
         """ Allocate required number of CPUs
 
@@ -485,7 +486,7 @@ class ActionModule(ActionBase):
 
         # Select random NUMA
         if not self.numa:
-            self.numa = random.choice(self.numa_nodes) # nosec B311 # pseudo random is not used for security purposes
+            self.numa = random.choice(self.numa_nodes)  # nosec B311 # pseudo random is not used for security purposes
 
         if not self.cpus:
             self.cpu_list = self._select_cpus(task_vars['numa_nodes_cpus'], self.number, self.numa)
@@ -622,7 +623,7 @@ class ActionModule(ActionBase):
                                   f"{to_native(emupin_result['stderr'].strip())}'")
 
         if not self.alloc_all:
-        # Update VM NUMA alignment
+            # Update VM NUMA alignment
             cmd_numa = f"virsh numatune {self.name} --nodeset {self.numa} --live --config"
             numa_result = self._low_level_execute_command(cmd_numa)
             if numa_result['rc'] != 0:

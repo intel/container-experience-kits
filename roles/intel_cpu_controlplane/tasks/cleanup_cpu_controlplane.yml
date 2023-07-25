@@ -42,7 +42,7 @@
       community.docker.docker_image:
         state: absent
         name: "{{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}"
-        tag: "{{ cpu_ctlplane_local_tag_name }}"
+        tag: "{{ cpu_ctlplane_version }}"
       changed_when: false
       failed_when: false
 
@@ -50,7 +50,7 @@
       containers.podman.podman_image:
         state: absent
         name: "{{ registry_local_address }}/{{ cpu_ctlplane_local_build_name }}"
-        tag: "{{ cpu_ctlplane_local_tag_name }}"
+        tag: "{{ cpu_ctlplane_version }}"
       changed_when: false
       failed_when: false
 
@@ -66,4 +66,4 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
   tags:
-    - cpu_ctlplane
+    - cpu-ctlplane

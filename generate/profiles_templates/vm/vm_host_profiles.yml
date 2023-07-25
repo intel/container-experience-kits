@@ -21,6 +21,8 @@
 # - sgx
 # - sgx_dp
 # - kmra:
+#     sbx
+#     oran
 #     pccs
 #     apphsm
 #     ctk_demo
@@ -36,9 +38,11 @@
 # - network_userspace
 # - dpdk
 # - ovs_dpdk
-# - pstate
-# - cstate
-# - ufs - uncore frequency scaling
+# - power:
+#     manager
+#     pstate
+#     cstate
+#     uncore_frequency
 # - sst
 # - telemetry:
 #     prometheus
@@ -66,12 +70,14 @@
 #     flow_config
 #     ddp
 #     fw_update
-# - remove_kubespray_host_dns_settings
-# - enable_dhclient_systemd_service
+# - sigstore_policy_controller
+# - intel_oneapi
+#     base
+#     ai
+# - cadvisor
 
 # sriov_operator is permanently disabled in VM mode
 # sriov_network_dp and dpdk are enabled for all VM mode profiles except build_your_own
-# kmra is temporary disabled in VM mode - needs to be tested
 # sst is temporary disabled in VM mode
 # gpu and gpu_dp are temporary disabled in VM mode
 # flow_config of intel_ethernet_operator is permanently disabled in VM mode since it depends on sriov_network_operator
@@ -94,9 +100,11 @@ access:
   qat_dp: on
   openssl: on
   dpdk: on
-  pstate: optional
-  cstate: optional
-  ufs: optional
+  power:
+    manager: off
+    pstate: off
+    cstate: off
+    uncore_frequency: off
   telemetry:
     prometheus: on
     collectd: optional
@@ -123,8 +131,11 @@ access:
     enabled: optional
     flow_config: optional
     fw_update: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: on
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 basic:
   name: basic
@@ -139,8 +150,11 @@ basic:
   sriov_network_dp: on
   nic_drivers: on
   dpdk: on
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -159,8 +173,11 @@ basic:
     enabled: optional
     flow_config: optional
     fw_update: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 full_nfv:
   name: full_nfv
@@ -184,20 +201,24 @@ full_nfv:
   sgx: on
   sgx_dp: on
   kmra:
-    pccs: optional
-    apphsm: optional
-    ctk_demo: optional
-  tcs: optional
-  tac: optional
+    sbx: optional
+    oran: optional
+    pccs: on
+    apphsm: on
+    ctk_demo: on
+  tcs: on
+  tac: on
   tas: on
   gas: optional
   ddp: on
   network_userspace: on
   dpdk: on
   ovs_dpdk: on
-  pstate: optional
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   sst: optional
   telemetry:
     prometheus: on
@@ -211,7 +232,7 @@ full_nfv:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
-    sgx_signer: optional
+    sgx_signer: on
     intel_preview: optional
   linkerd_service_mesh:
     enabled: optional
@@ -226,8 +247,11 @@ full_nfv:
     flow_config: optional
     ddp: optional
     fw_update: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 on_prem:
   name: on_prem
@@ -245,20 +269,24 @@ on_prem:
   sgx: on
   sgx_dp: on
   kmra:
-    pccs: optional
-    apphsm: optional
-    ctk_demo: optional
-  tcs: optional
-  tac: optional
+    sbx: optional
+    oran: optional
+    pccs: on
+    apphsm: on
+    ctk_demo: on
+  tcs: on
+  tac: on
   qat: on
   qat_dp: on
   openssl: on
   tas: on
   dpdk: on
   bond_cni: optional
-  pstate: optional
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   sst: optional
   telemetry:
     prometheus: on
@@ -272,7 +300,7 @@ on_prem:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
-    sgx_signer: optional
+    sgx_signer: on
     intel_preview: optional
   linkerd_service_mesh:
     enabled: optional
@@ -286,8 +314,11 @@ on_prem:
     enabled: optional
     flow_config: optional
     fw_update: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 regional_dc:
   name: regional_dc
@@ -304,11 +335,24 @@ regional_dc:
   native_cpu_manager: on
   gpu: optional
   gpu_dp: optional
+  sgx: on
+  sgx_dp: on
+  kmra:
+    sbx: optional
+    oran: optional
+    pccs: on
+    apphsm: on
+    ctk_demo: on
+  tcs: on
+  tac: on
   tas: on
-  gas: on
+  gas: optional
   dpdk: on
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -321,7 +365,7 @@ regional_dc:
     enabled: on
     tcpip_bypass_ebpf: on
     tls_splicing: on
-    sgx_signer: optional
+    sgx_signer: on
     intel_preview: optional
   linkerd_service_mesh:
     enabled: optional
@@ -335,8 +379,11 @@ regional_dc:
     enabled: optional
     flow_config: optional
     fw_update: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: on
 
 remote_fp:
   name: remote_fp
@@ -354,22 +401,26 @@ remote_fp:
   sgx: on
   sgx_dp: on
   kmra:
+    sbx: optional
+    oran: optional
     pccs: optional
     apphsm: optional
     ctk_demo: optional
   tcs: optional
   tac: optional
   qat: on
-  qat_dp: optional
+  qat_dp: on
   openssl: on
   tas: on
   ddp: on
   bond_cni: optional
   network_userspace: optional
   dpdk: on
-  pstate: on
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   sst: optional
   telemetry:
     prometheus: on
@@ -398,8 +449,11 @@ remote_fp:
     flow_config: optional
     ddp: optional
     fw_update: optional
-  remove_kubespray_host_dns_settings: on
-  enable_dhclient_systemd_service: on
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: optional
 
 build_your_own:
   name: build_your_own
@@ -423,6 +477,8 @@ build_your_own:
   sgx: optional
   sgx_dp: optional
   kmra:
+    sbx: optional
+    oran: optional
     pccs: optional
     apphsm: optional
     ctk_demo: optional
@@ -434,9 +490,11 @@ build_your_own:
   network_userspace: optional
   dpdk: optional
   ovs_dpdk: optional
-  pstate: optional
-  cstate: optional
-  ufs: optional
+  power:
+    manager: optional
+    pstate: optional
+    cstate: optional
+    uncore_frequency: optional
   sst: optional
   telemetry:
     prometheus: optional
@@ -465,5 +523,8 @@ build_your_own:
     flow_config: optional
     ddp: optional
     fw_update: optional
-  remove_kubespray_host_dns_settings: optional
-  enable_dhclient_systemd_service: optional
+  sigstore_policy_controller: optional
+  intel_oneapi:
+    base: optional
+    ai: optional
+  cadvisor: optional

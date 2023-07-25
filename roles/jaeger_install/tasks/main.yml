@@ -14,7 +14,8 @@
 ##   limitations under the License.
 ##
 - name: Deploy Jaeger
-  when: inventory_hostname == groups['kube_control_plane'][0]
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
   block:
     - name: Create monitoring and observability namespace
       kubernetes.core.k8s:
@@ -52,16 +53,28 @@
         - jaeger_operator.yml
         - jaeger_rolebinding.yml
 
-    - name: Create secret with Elasticsearch credentials
+    - name: Get Elasticsearch credentials
       ansible.builtin.shell: >-
-          kubectl create secret generic jaeger-secret
-          --from-literal=ES_PASSWORD=$(kubectl get secrets --namespace=monitoring
-          elasticsearch-master-credentials -ojsonpath='{.data.password}' | base64 -d)
-          --from-literal=ES_USERNAME=elastic
-          -n monitoring
-      changed_when: true
+          kubectl get secrets --namespace=monitoring
+          elasticsearch-master-credentials -ojsonpath='{.data.password}' | base64 -d
+      changed_when: false
+      register: elastic_pass
       args:
         executable: /bin/bash
+
+    - name: Create secret with Elasticsearch credentials
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          type: Opaque
+          metadata:
+            name: "jaeger-secret"
+            namespace: "monitoring"
+          stringData:
+            ES_USERNAME: "elastic"
+            ES_PASSWORD: "{{ elastic_pass.stdout }}"
 
     - name: Wait for jaeger operator CRD
       kubernetes.core.k8s_info:
@@ -101,6 +114,15 @@
       retries: 30
       delay: 10
 
+    - name: Get jaeger-query deployment info
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Deployment
+        name: jaeger-query
+        namespace: monitoring
+      register: jaeger_query_deployment
+
     - name: Remove annotation from jaeger-query
       ansible.builtin.command: "kubectl patch deployment jaeger-query -n monitoring --type=json {{ jaeger_query_remove }}"
       changed_when: true
+      when: "jaeger_annotations_key_to_remove in (jaeger_query_deployment.resources | map(attribute='metadata') | map(attribute='annotations'))[0].keys()"

@@ -1,143 +1,136 @@
-# Check Intel Power Manager (Balance Performance Power-Profile & Sample Power-Pods)
-Sample pods can be deployed by setting `deploy_example_pods: true` in group vars. Following are the results that can be obtained from Power Manager work
+# This Power Manager guide should describe what exactly can be configured in group vars and host vars
+
+# group vars
+In group vars, you can enable/disable the whole power manager feature. If the feature is enabled, you need to fill power_nodes list. You can also choose to build power manager locally, to deploy sample pods, or to turn on the cluster-wide shared profile.
+
+# host vars
+In host vars, there are more options for power manager. You can configure your desired power profiles here, which are needed for power-config or sample pods. There is also configuration for node-specific shared profile and shared workload uncore frequency and c-states configuration.
+
+# sample pods deployment
+Sample pods are requesting cpu cores, which will be part of exclusive pool. To function properly, you will also need to have shared pool configured in your cluster (read more below). For this example, we are using balance-performance profile:
 ```
 # kubectl get pods -n intel-power
-NAME                                 READY   STATUS    RESTARTS   AGE
-balance-performance-power-pod        1/1     Running   0          33m
-balance-power-power-pod              1/1     Running   0          33m
-controller-manager-f584c9458-p5llp   1/1     Running   0          34m
-performance-power-pod                1/1     Running   0          33m
-power-node-agent-9dkch               2/2     Running   0          34m
+NAME                                        READY   STATUS    RESTARTS   AGE
+balance-performance-power-pod-node1         1/1     Running   0          71s
+balance-performance-power-pod-node2         1/1     Running   0          97s
+controller-manager-6f95578567-g74lw         1/1     Running   0          114s
+power-node-agent-2xnd5                      1/1     Running   0          106s
+power-node-agent-cptbd                      1/1     Running   0          106s
 ```
-**Note:** each profile was deployed in a separate pod
+**Note:** You can also request different profile for each node
 
-Check the power profiles:
+You need to enable global/local shared profile and shared workload to enable the Shared Pool, 
 ```
-# kubectl get powerprofiles -n intel-power
-NAME                              AGE
-balance-performance               30m
-balance-performance-node1         30m
-balance-power                     30m
-balance-power-node1               30m
-performance                       30m
-performance-node1                 30m
-```
+# default in group_vars
+global_shared_profile_enabled: true # default in group_vars
 
-You can check the frequencies that will be set by balance-performance Power Profile
-```
-# kubectl get PowerProfiles -n intel-power balance-performance-node1 -o yaml
-apiVersion: power.intel.com/v1alpha1
-kind: PowerProfile
-metadata:
-  creationTimestamp: "2022-02-07T20:50:44Z"
-  generation: 1
-  name: balance-performance-node1
-  namespace: intel-power
-  resourceVersion: "4790"
-  uid: 3bc5d223-f31e-4fdc-8c49-8a87148a014d
-spec:
-  epp: balance_performance
-  max: 2700
-  min: 2500
-  name: balance-performance-node1
+# default in host_vars
+local_shared_profile:
+  enabled: true
+shared_workload:
+  enabled: true
+
 ```
 
-To obtain balance-performance cores, apply the Power Profile
-```
-# kubectl get PowerWorkloads -n intel-power balance-performance-node1-workload -o yaml
-apiVersion: power.intel.com/v1alpha1
-kind: PowerWorkload
-metadata:
-  creationTimestamp: "2022-02-07T20:51:43Z"
-  generation: 1
-  name: balance-performance-node1-workload
-  namespace: intel-power
-  resourceVersion: "5090"
-  uid: 19de2932-6ab6-4863-b664-764cc555e23d
-spec:
-  name: balance-performance-node1-workload
-  nodeInfo:
-    containers:
-    - exclusiveCpus:
-      - 4
-      - 68
-      id: 870e1d2eb4f971328d5030f97a647b8ee5fb7dae52daebec4714588e9a563667
-      name: balance-performance-container
-      pod: balance-performance-power-pod
-      powerProfile: balance-performance-node1
-    cpuIds:
-    - 4
-    - 68
-    name: node1
-  powerProfile: balance-performance-node1
-```
-
-If you want to check all the cores in your Power Nodes, you can use the following command
+If you want to check all the cores in your Power Nodes, or frequencies, which will be set by your desired profile, you can use the following command
 ```
 # kubectl get PowerNodes -A -o yaml
 apiVersion: v1
 items:
-- apiVersion: power.intel.com/v1alpha1
+- apiVersion: power.intel.com/v1
   kind: PowerNode
   metadata:
-    creationTimestamp: "2022-02-07T20:50:40Z"
-    generation: 1018
+    creationTimestamp: "2023-07-12T12:06:46Z"
+    generation: 4
     name: node1
     namespace: intel-power
-    resourceVersion: "44835"
-    uid: 2aa0f908-2f18-473f-989e-12c46ad2811a
+    resourceVersion: "3514623"
+    uid: 6990a520-4ea6-4cde-91e0-eef6ac058fda
   spec:
-    activeProfiles:
-      balance-performance-node1: true
-      balance-power-node1: true
-      performance-node1: true
-    activeWorkloads:
-    - cores:
-      - 2
-      - 66
-      name: performance-node1-workload
-    - cores:
-      - 4
-      - 68
-      name: balance-performance-node1-workload
-    - cores:
-      - 3
-      - 67
-      name: balance-power-node1-workload
     nodeName: node1
-    powerContainers:
-    - exclusiveCpus:
-      - 2
-      - 66
-      id: c152e29f49db457417beca958133e7d8d995ea7302f76073b96c5797fd20d770
-      name: performance-container
-      pod: performance-power-pod
-      powerProfile: performance-node1
-      workload: performance-node1-workload
-    - exclusiveCpus:
-      - 4
-      - 68
-      id: 870e1d2eb4f971328d5030f97a647b8ee5fb7dae52daebec4714588e9a563667
-      name: balance-performance-container
-      pod: balance-performance-power-pod
-      powerProfile: balance-performance-node1
-      workload: balance-performance-node1-workload
-    - exclusiveCpus:
-      - 3
-      - 67
-      id: 3ea83bf1369946fbe625e7fec4355de4760a1b8a1528959cd7eacb87c3e046a9
-      name: balance-power-container
-      pod: balance-power-power-pod
-      powerProfile: balance-power-node1
-      workload: balance-power-node1-workload
-    sharedPools:
-    - name: Default
-      sharedPoolCpuIds:
-      - 0
-      - 1
-      - 2
-      - 3
-      - 4
-      - 5
-...
+    powerProfiles:
+    - 'balance-performance: 2825000 || 2625000 || '
+    sharedPool: shared-global || 1500000 || 1000000 || 0,2-72,74-143
+    unaffectedCores: 0-143
+- apiVersion: power.intel.com/v1
+  kind: PowerNode
+  metadata:
+    creationTimestamp: "2023-07-12T12:06:46Z"
+    generation: 1
+    name: ar09-28-cyp
+    namespace: intel-power
+    resourceVersion: "3514271"
+    uid: e76eb4ae-be6a-4dea-b6d1-5c1ae2a12ad0
+  spec:
+    nodeName: ar09-28-cyp
+- apiVersion: power.intel.com/v1
+  kind: PowerNode
+  metadata:
+    creationTimestamp: "2023-07-12T12:06:46Z"
+    generation: 4
+    name: node2
+    namespace: intel-power
+    resourceVersion: "3514603"
+    uid: a70c4b99-e27e-4811-b85e-7aad6ad8dab6
+  spec:
+    nodeName: node2
+    powerProfiles:
+    - 'balance-performance: 2825000 || 2625000 || '
+    sharedPool: shared-global || 1500000 || 1000000 || 0,2-64,66-127
+    unaffectedCores: 0-127
+kind: List
+metadata:
+  resourceVersion: ""
+```
+**Note:** As there is only one power config in whole cluster, all PowerProfiles from each node are applied cluster-wide
+**Note:** Exclusive pool cores aren't displayed by power manager in time of making this guide, but you can see them absent in shared pool. In this case cores 1,73 for node1 and cores 1,65 for node2.
+
+To setup Uncore Frequency, you can choose from two options:
+```
+# You can set up system-wide uncore frequency with:
+  system_max_frequency: 2300000
+  system_min_frequency: 1300000
+
+# Or you can use die/package specific settings:
+  die_selector:
+    - package: 0
+      die: 0
+      min: 1500000
+      max: 2400000
+```
+To check Uncore Frequency, you can use following path:
+```
+/sys/devices/system/cpu/intel_uncore_frequency/package_XY_die_XY
+```
+You can then check files 'max_freq_khz' or 'min_freq_khz' which should store your desired Uncore Frequency values.
+**Note:** Valid min and max values are determined by hardware. Die config will precede Package config, which will precede system-wide config.
+
+To set up C-States, you can choose from three different options:
+```
+# First option will enable/disable desired_state for all cores in shared pool
+  shared:
+    desired_state: true
+
+# Second option will enable/disable desired_state for balance-performance exclusive pool
+  profile_exclusive:
+    balance-performance:
+      desired_state: false
+  
+# Third option will enable/disable desired_state for specific_core
+  core:
+    "specific_core":
+      desired_state: true
+```
+
+To check C-States, you can use following path:
+```
+# /sys/devices/system/cpu/cpuX/cpuidle/stateY
+```
+You can check all C-State information there. For example:
+```
+# cat /sys/devices/system/cpu/cpu3/cpuidle/state3/name
+C6
+
+# cat /sys/devices/system/cpu/cpu3/cpuidle/state3/disable
+1
 ```

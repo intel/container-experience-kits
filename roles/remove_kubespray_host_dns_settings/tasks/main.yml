@@ -32,6 +32,13 @@
     marker: "# Ansible inventory hosts {mark}"
   failed_when: false
 
+- name: reset entries in /etc/systemd/resolved.conf
+  lineinfile:
+    path: "/etc/systemd/resolved.conf"
+    state: absent
+    regexp: "^[A-Z#].*"
+  failed_when: false
+
 - name: run dhclient to get IP after restarting network in case of failure
   command: "dhclient"
   changed_when: true

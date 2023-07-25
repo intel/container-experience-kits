@@ -1,0 +1,40 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+ipu_project_root_dir: "{{ (project_root_dir, 'ipu') | path_join }}"
+ipu_tmp_dir: "/tmp/ipu"
+
+ipu_1gbe_connected_to_linkp: true
+ipu_1gbe_link_interface: "eno2"
+ipu_1gbe_link_interface_ip: "100.0.0.1/24"
+
+ipu_flavor: "release"
+ipu_build: "ci"
+ipu_build_number: "4988"
+
+# IPU host or IPU linkp based on variable ipu_1gbe_connected_to_linkp
+ipu_ssd_image_tarball: "mev-hw-b0-{{ ipu_build }}-ts.{{ ipu_flavor }}.{{ ipu_build_number }}-mev-rl.tgz"
+
+# IPU linkp
+ipu_nvm_image_tarball: "mev-hw-b0-{{ ipu_build }}-ts.{{ ipu_flavor }}.{{ ipu_build_number }}-imc.tgz"
+ipu_eth_programmer_version: "2.0.1"
+ipu_eth_programmer_zip: "EthProgrammer-{{ ipu_eth_programmer_version }}.zip"
+
+ssh_options: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+imc_ssh_port: "22"
+imc_user: "root"
+imc_static_ip: "100.0.0.100"
+acc_static_ip: "192.168.0.2"
