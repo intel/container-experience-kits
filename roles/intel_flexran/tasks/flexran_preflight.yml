@@ -256,13 +256,33 @@
         - rt_kernel_enabled is not defined or
           not rt_kernel_enabled | default(false) | bool
 
-    # check CPU for FlexRAN in Docker POD
+    # check CPU for FlexRAN in Docker POD on ICX-SP(Ice Lake Scalable Performance)
     - debug: msg="CPU={{ ansible_processor[2] }} cores={{ ansible_processor_cores }} count={{ ansible_processor_count }} nproc={{ ansible_processor_nproc }} tpc={{ ansible_processor_threads_per_core }} vcpus={{ ansible_processor_vcpus }}" # noqa yaml[line-length]
-    - name: check CPU for FlexRAN in Docker POD
+    - name: check CPU for FlexRAN in Docker POD on ICX-SP
       ansible.builtin.assert:
         that: "ansible_processor_count == 1 and ansible_processor_cores == 32 and cpu_id == '6338N'"
-        fail_msg: "Intel FlexRAN in Docker POD requires worker with single 32-cores ICX 6338N CPU"
-        success_msg: "Assertion passed. Intel FlexRAN in Docker POD is supported and can be deployed on target with {{ cpu_id }} CPU"
+        fail_msg: "Intel FlexRAN in Docker POD on ICL-SP requires worker with single 32-cores ICX 6338N CPU"
+        success_msg: "Assertion passed. Intel FlexRAN in Docker POD is supported and can be deployed on target with ICX {{ cpu_id }} CPU"
+      when:
+        - configured_arch == "icx"
+
+    # check CPU for FlexRAN in Docker POD on SPR-EE MCC
+    - name: check CPU for FlexRAN in Docker POD on SPR-EE MCC
+      ansible.builtin.assert:
+        that: "ansible_processor_count == 1 and ansible_processor_cores == 32"
+        fail_msg: "Intel FlexRAN in Docker POD on SPR-EE MCC requires worker with single 32-cores CPU"
+        success_msg: "Assertion passed. Intel FlexRAN in Docker POD is supported on target with SPR-EE MCC"
+      when:
+        - configured_arch == "spr"
+
+    # FlexRAN pod for SPR-EE MCC do not support core pinning. So need to disable k8s cpu manager.
+    - name: check k8s cpu manager is disabled for FlexRAN Pod on SPR-EE MCC
+      ansible.builtin.assert:
+        that: native_cpu_manager_enabled == false
+        fail_msg: "Please set 'native_cpu_manager_enabled' to 'false' in group vars to run FlexRAN pod on SPR-EE MCC"
+      when:
+        - configured_arch == "spr"
+        - native_cpu_manager_enabled is defined
 
     # check runtime for FlexRAN in Docker POD
     - debug: msg="Container runtime is set to {{ container_runtime }}"

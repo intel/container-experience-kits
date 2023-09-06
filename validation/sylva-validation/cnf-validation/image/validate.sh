@@ -82,7 +82,9 @@ function podCheckSRIOV {
     # find name SR-IOV VF devices
     cont="true"
     if [[ "${sriovName}" == "null" ]]; then
-        cm=$( kubectl get ConfigMap -n "${configMapNS}" "${configMapName}" \
+        cmName=$( kubectl get ConfigMap -n "${configMapNS}" | grep \
+            "${configMapName}" | awk -F' ' '{print $1}' )
+        cm=$( kubectl get ConfigMap -n "${configMapNS}" "${cmName}" \
             -o json 2>&1 )
         if [[ "$( echo "${cm}" | grep -c "Error from server (NotFound)" \
             || true )" -eq 1 ]]; then
@@ -94,14 +96,14 @@ function podCheckSRIOV {
                 contains(\"${configMapSearch}\") ) " || true )
             sn=$( echo "${s}" | jq -r " .resourceName " )
             v=$( echo "${s}" | jq -r " .selectors.vendors[] " )
-            case "${v}" in
-                "8086")
-                    vn="intel.com"
-                    ;;
-                *)
-                    vn="unknown"
-                    ;;
-            esac
+            pciids=$( wget --timeout=20 -qO - \
+                https://pciids.sourceforge.net/v2.2/pci.ids )
+            vn=$( echo "${pciids}" | sed "/^#/d; /^\t/d;" | \
+                    awk -vvid="${v}" \
+                    ' $1==vid { printf("%s.com",tolower($2)) } ' )
+            if [ "${vn}" == "" ]; then
+                vn="unknown"
+            fi
             sriovName="${vn}/${sn}"
         fi
     fi

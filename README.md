@@ -46,6 +46,12 @@ The software provided here is for reference only and not intended for production
         export PROFILE=on_prem_vss
         ```
 
+    - For **Kubernetes Infrastructure On Customer Premises for AI Box** deployment:
+
+        ```bash
+        export PROFILE=on_prem_aibox
+        ```
+
     - For **Kubernetes Infrastructure On Customer Premises for SW-Defined Factory** deployment:
 
         ```bash
@@ -171,6 +177,11 @@ The software provided here is for reference only and not intended for production
               
     ```bash
     ansible-playbook -i inventory.ini playbooks/${PROFILE}.yml
+    ```
+
+    > **_NOTE:_** For on_prem_aibox case, need to add "-b -K" flags for localhost deployment.
+    ```bash
+    ansible-playbook -i inventory.ini -b -K playbooks/on_prem_aibox.yml
     ```
 
     or, for VM case:

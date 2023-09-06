@@ -1,0 +1,3 @@
+#!/bin/bash
+docker build -t {{container_name}}:latest --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy --build-arg no_proxy=$no_proxy -f {{container_filename}} .
+docker tag {{container_name}}:latest {{container_name}}:{{container_version}}

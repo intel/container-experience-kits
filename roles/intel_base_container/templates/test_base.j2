@@ -1,0 +1,32 @@
+#!/bin/bash
+
+docker build -t {{container_name}}:latest --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
+             --build-arg no_proxy=$no_proxy -f {{container_filename}} .
+
+docker tag {{container_name}}:latest {{container_name}}:{{container_version}}
+
+if [[ ! -d ${HOME}/nep_validator_data ]]
+then
+    mkdir -p ${HOME}/nep_validator_data
+fi
+
+XAUTHORITY=$(xauth info | grep "Authority file" | awk '{print $3}')
+RENDER_GROUP_ID=$(stat -c '%g' /dev/dri/renderD128)
+
+INSTANCE_ID=0
+INSTANCE_NAME={{container_name}}-${INSTANCE_ID}
+
+docker run -ti --rm \
+    --device /dev/dri \
+    --group-add ${RENDER_GROUP_ID} \
+    --volume /tmp/.X11-unix:/tmp/.X11-unix:ro \
+    --volume ${HOME}/.Xauthority:/home/{{container_user}}/.Xauthority:ro \
+    --volume ${HOME}/nep_validator_data:/home/{{container_user}}/data \
+    --volume ${PWD}/test_data:/home/{{container_user}}/test_data \
+    --env DISPLAY=:0 \
+    --env XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR} \
+    --env http_proxy=$http_proxy \
+    --env https_proxy=$https_proxy \
+    --env no_proxy=$no_proxy \
+    --name ${INSTANCE_NAME} \
+    {{container_name}}

@@ -104,11 +104,20 @@
     name: "{{ item }}"
   with_items: "{{ kernel_dkms_packages }}"
 
+- name: Detect kernel version
+  command: uname -r
+  register: kernel_version_result
+  changed_when: false
+
+# AXG 20230714 out of tree driver can't pass compilation on kernel 6.2,
+# use kernel in tree driver as workaround when kernel version > 6.2.
 - name: Install gpu kernel mode driver packages
   ansible.builtin.apt:
     name: "{{ item.pkg }}={{ item.ver }}"
     allow_downgrade: true
   with_items: "{{ gpu_kmd_packages }}"
+  when:
+    - kernel_version_result.stdout is version('6.2', '<')
 
 - name: Install gpu user mode driver and runtime packages
   ansible.builtin.apt:
@@ -137,6 +146,8 @@
 - name: Reboot the system for these changes to take effect
   ansible.builtin.reboot:
     reboot_timeout: 1200
+  when:
+    - inventory_hostname != 'localhost'
 
 - name: Create render group if it doesn't exist
   group:

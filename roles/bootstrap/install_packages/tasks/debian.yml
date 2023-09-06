@@ -55,6 +55,26 @@
     mode: 0644
   when: ansible_os_family == "Debian"
 
+- name: set ubuntu APT Source to tsinghua source
+  set_fact:
+    ubuntu_apt_source: "https://mirrors.aliyun.com/ubuntu/"
+  when: prc_network | bool
+
+- name: set ubuntu APT Source to default source
+  set_fact:
+    ubuntu_apt_source: "http://archive.ubuntu.com/ubuntu/"
+  when: not prc_network | bool
+
+- name: ensure that main, restricted, universe and multiverse repositories are enabled
+  apt_repository:
+    repo: "{{ item }}"
+  with_items:
+    - "deb {{ ubuntu_apt_source }} {{ ansible_distribution_release }} main restricted universe multiverse"
+    - "deb {{ ubuntu_apt_source }} {{ ansible_distribution_release }}-updates main restricted universe multiverse"
+    - "deb {{ ubuntu_apt_source }} {{ ansible_distribution_release }}-backports main restricted universe multiverse"
+    - "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse"
+  when: ansible_distribution == "Ubuntu"
+
 - name: install build-essential package
   apt:
     name: build-essential
@@ -69,16 +89,6 @@
   apt:
     name: software-properties-common
   when: ansible_os_family == "Debian"
-
-- name: ensure that main, restricted, universe and multiverse repositories are enabled
-  apt_repository:
-    repo: "{{ item }}"
-  with_items:
-    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} main restricted universe multiverse"
-    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates main restricted universe multiverse"
-    - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-backports main restricted universe multiverse"
-    - "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse"
-  when: ansible_distribution == "Ubuntu"
 
 - name: add kupic repo
   block:

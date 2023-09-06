@@ -151,10 +151,10 @@
       tags: monitoring
       when:
         - collectd_enabled | default(false) | bool
-        - not (telegraf_enabled | default(true) | bool)
+        - not (telegraf_enabled | default(false) | bool)
     - role: telegraf_install
       when:
-        - telegraf_enabled | default(true) | bool
+        - telegraf_enabled | default(false) | bool
         - not (collectd_enabled | default(false) | bool)
       tags: monitoring
 {% if playbook_name in ['access', 'full_nfv', 'build_your_own'] %}

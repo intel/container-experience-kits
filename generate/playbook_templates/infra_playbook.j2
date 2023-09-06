@@ -4,6 +4,8 @@
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
+      when:
+        - inventory_hostname != "localhost"
   pre_tasks:
     - name: End play for VM host
       meta: end_host
@@ -40,6 +42,8 @@
         - ansible_distribution == "Ubuntu" and dns_disable_stub_listener | default(true) | bool
     - role: bootstrap/golang_install
       tags: golang-install
+      when:
+        - profile_name != "on_prem_aibox"
     - role: bootstrap/configure_docker_daemon
       tags: docker
   post_tasks:
@@ -65,6 +69,8 @@
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
+      when:
+        - inventory_hostname != "localhost"
   pre_tasks:
     - name: End play for VM host
       meta: end_host
@@ -144,7 +150,7 @@
           (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04') or
           (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.6'))
     - role: bootstrap/set_rdt_kernel_flags
-      when: telegraf_enabled | default(true) | bool
+      when: telegraf_enabled | default(false) | bool
     - role: bootstrap/set_intel_flexran_kernel_flags
       when: intel_flexran_enabled | default(false) | bool
 {% if playbook_name in ['full_nfv', 'remote_fp', 'on_prem', 'on_prem_vss', 'build_your_own'] %}
@@ -159,7 +165,7 @@
           sst_pp_configuration_enabled | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
 {% endif %}
-{% if playbook_name in ['full_nfv', 'on_prem', 'on_prem_vss', 'regional_dc', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'on_prem', 'on_prem_vss', 'on_prem_aibox', 'regional_dc', 'build_your_own'] %}
     - role: bootstrap/set_pcie_kernel_flags
       when:
         - configure_fpga | default(false) | bool
@@ -201,6 +207,8 @@
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
+      when:
+        - inventory_hostname != "localhost"
   pre_tasks:
     - name: End play for VM host
       meta: end_host
@@ -290,6 +298,7 @@
     - role: cluster_defaults
       tags: defaults
     # the role is added here again to fix NIC name changes after driver update
+{% if playbook_name not in ['on_prem_aibox'] %}
     - role: bootstrap/determine_dataplane_interfaces
       tags:
         - determine-dataplane-interfaces
@@ -303,10 +312,13 @@
         - intel-platform-qat-setup
       when:
         - ovs_dpdk_enabled | default(false) | bool or install_dpdk | default(true) | bool
+{% endif %}
 {% if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own'] %}
     - role: install_ddp_pkgs
-      when: install_ddp_packages | default(true) | bool
+      when:
+        - install_ddp_packages | default(true) | bool
 {% endif %}
+{% if playbook_name not in ['on_prem_aibox'] %}
     - role: sriov_nic_init
       tags: setup-sriov-nic
       when:
@@ -318,6 +330,7 @@
           and not sriov_network_operator_enabled | default(false) | bool
           or (not kubernetes | default(true) | bool
           and container_runtime_only_deployment | default(false) | bool))
+{% endif %}
 {% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
     - role: bootstrap/install-qatlibs
       tags: qatlibs

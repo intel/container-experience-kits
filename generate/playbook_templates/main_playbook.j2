@@ -24,6 +24,10 @@
 - name: install Intel Container Experience Kit features
   import_playbook: intel/{{ playbook_name }}.yml
   when: kubernetes | default(true)
+{% if playbook_name == 'on_prem_aibox' %}
+- name: install Intel Base Containers
+  import_playbook: intel/base_container.yml
+{% endif %}
 - name: run post deployment hooks
   import_playbook: k8s/post_deployment_hooks.yml
   when: post_deployment_hook_enabled | default(false)

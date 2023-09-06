@@ -26,3 +26,8 @@ dependencies:
   - role: container_engine/docker
     when:
       - container_runtime == 'docker'
+
+  - role: container_engine/docker_compose
+    when:
+      - container_runtime == 'docker'
+      - profile_name == 'on_prem_aibox'

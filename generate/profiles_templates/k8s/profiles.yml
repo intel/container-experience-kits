@@ -104,7 +104,6 @@
 # - sigstore_policy_controller
 # - cadvisor
 # - fpga
----
 access:
   name: access
   vm_mode: optional
@@ -593,6 +592,105 @@ on_prem_sw_defined_factory:
   adq_dp: optional
   sigstore_policy_controller: optional
   cadvisor: optional
+
+on_prem_aibox:
+  name: on_prem_aibox
+  vm_mode: off
+  on_vms: off
+  nfd: off
+  kube_dashboard: off
+  rancher_manager: off
+  isolcpu: off
+  cpusets: off
+  native_cpu_manager: off
+  intel_cpu_controlplane: off
+  topology_manager: off
+  sriov_operator: off
+  sriov_network_dp: off
+  nic_drivers: off
+  bond_cni: off
+  qat: off
+  qat_dp: off
+  openssl: off
+  dsa: off
+  dsa_dp: off
+  dlb: off
+  dlb_dp: off
+  gpu: on
+  gpu_dp: off
+  sgx: off
+  sgx_dp: off
+  kmra:
+    sbx: off
+    oran: off
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  tas: off
+  gas: off
+  ddp: off
+  network_userspace: off
+  dpdk: off
+  ovs_dpdk: off
+  sst: off
+  power:
+    manager: off
+    pstate: off
+    cstate: off
+    uncore_frequency: off
+  telemetry:
+    prometheus: off
+    collectd: off
+    telegraf: off
+    jaeger: off
+    opentelemetry: off
+    elasticsearch: off
+    kibana: off
+  istio_service_mesh:
+    enabled: off
+    tcpip_bypass_ebpf: off
+    tls_splicing: off
+    sgx_signer: off
+    intel_preview: off
+  linkerd_service_mesh:
+    enabled: off
+  wireguard: off
+  multus: off
+  firewall: off
+  minio: off
+  lpvsp: off
+  rook_ceph: off
+  intel_media_analytics: off
+  cert_manager: off
+  registry: off
+  hugepages: off
+  intel_ethernet_operator:
+    enabled: off
+    flow_config: off
+    ddp: off
+    fw_update: off
+  intel_sriov_fec_operator: off
+  rt_kernel: off
+  intel_flexran: off
+  intel_eci:
+    process_automation: off
+    manufacturing_equipment: off
+    discrete_manufacturing: off
+    realtime: off
+    connectivity: off
+    softplc: off
+    infra_clients: off
+    inference: off
+    acrn: off
+  opcua_framework:
+    codesys_opcua_client: off
+    standalone_opcua_server: off
+  tadk: off
+  adq_dp: off
+  sigstore_policy_controller: off
+  cadvisor: off
 
 regional_dc:
   name: regional_dc

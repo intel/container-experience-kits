@@ -22,7 +22,7 @@ import os
 from render_util.common.common import render
 
 _available_playbooks = [ 'access', 'basic', 'full_nfv', 'on_prem', 'on_prem_vss',
-                         'on_prem_sw_defined_factory', 'remote_fp', 'regional_dc', 'build_your_own']
+                         'on_prem_sw_defined_factory', 'on_prem_aibox', 'remote_fp', 'regional_dc', 'build_your_own']
 _playbook_dir = 'playbooks'
 
 

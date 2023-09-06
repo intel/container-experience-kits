@@ -50,7 +50,11 @@ hooks_remote: /root/hooks/remote
 
 # To deploy only container runtime set this variable as "true", and kubernetes as "false"
 # Set both variables as "false" to perform only host configuration
+{% if name == 'on_prem_aibox' %}
+container_runtime_only_deployment: true
+{% else %}
 container_runtime_only_deployment: false
+{% endif %}
 
 ##########################
 ## System Configuration ##
@@ -80,7 +84,14 @@ firewall_enabled: {% if firewall == "on" %}true{% else %}false{% endif %}
 #additional_no_proxy: ".example.com,mirror_ip"  # No need to include the following (will be added automatically): localhost, 127.0.0.1, controllerIPs, nodesIPs
 
 # (Ubuntu only) Disables DNS stub listener which may cause issues on Ubuntu
+{% if name == 'on_prem_aibox' %}
+dns_disable_stub_listener: false
+prc_network: false
+{% else %}
 dns_disable_stub_listener: true
+prc_network: false
+{% endif %}
+
 
 # Remove the block between ansible markers set by kubespray in dhclient & hosts files to avoid DNS & LDAP issues (connection loss) after K8s setup after reboot
 # It is needed only in some lab environments. Default setting is false.
@@ -90,8 +101,12 @@ remove_kubespray_host_dns_settings: false
 ##############################
 ## Kubernetes Configuration ##
 ##############################
-
+{% if name == 'on_prem_aibox' %}
+kubernetes: false
+{% else %}
 kubernetes: true
+{% endif %}
+
 # Kubernetes provisioner, Support: rke2(work with os ubuntu22.04 and containerd as container_runtime only), kubespray(default option)
 kube_provisioner: kubespray
 kube_version: v1.26.3    # test placeholder: n version
@@ -430,7 +445,8 @@ gpu_dp_shared_devices: 10           # Number of containers (min. 1) that can sha
 gpu_dp_monitor_resources: false     # Enable monitoring all GPU resources on the node
 gpu_dp_fractional_manager: false    # Enable handling of fractional resources for multi-GPU nodes
 gpu_dp_prefered_allocation: 'none'  # Available policies are: ['balanced', 'packed', 'none']
-
+{% else %}
+gpu_dp_enabled: false
 {% endif %}
 {% if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr'] %}
 # Intel SGX Device Plugin for Kubernetes
@@ -485,7 +501,7 @@ intel_ethernet_operator_flow_config_enabled: {% if intel_ethernet_operator.flow_
 {% if intel_sriov_fec_operator in ['on', 'optional'] %}
 # Intel Operator for SR-IOV Wireless Forward Error Correction (FEC) Accelerators
 intel_sriov_fec_operator_enabled: {% if intel_sriov_fec_operator == 'on' %}true{% else %}false{% endif %}   # Enable FEC Operator
-# When intel_sriov_fec_operator == true and container_runtime == containerd, 
+# When intel_sriov_fec_operator == true and container_runtime == containerd,
 # Red Hat Account is needed, refer to https://access.redhat.com/RegistryAuthentication to apply,
 # and uncomment below two lines with correct values.
 # redhat_user: ffffffffffffffffffffffffffffff

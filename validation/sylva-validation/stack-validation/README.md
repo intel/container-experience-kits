@@ -335,7 +335,7 @@ curl -sfL https://get.k3s.io | sudo INSTALL_K3S_SKIP_ENABLE=true sh -
 In one shell do:
 
 ```
-sudo K3S_KUBECONFIG_MODE=644 INSTALL_K3S_EXEC="--kubelet-arg cpu-manager-policy=static --kubelet-arg reserved-cpus=0-1  --kubelet-arg kube-reserved=memory=1Gi,ephemeral-storage=1Gi,pid=1000 --kubelet-arg system-reserved=memory=1Gi,ephemeral-storage=2Gi,pid=1000 --cluster-cidr=192.168.0.0/16" /usr/local/bin/k3s server --node-label anuket.io/profile=basic
+sudo K3S_KUBECONFIG_MODE=644 INSTALL_K3S_EXEC="-cluster-cidr=192.168.0.0/16" /usr/local/bin/k3s server --node-label anuket.io/profile=basic --kubelet-arg cpu-manager-policy=static --kubelet-arg reserved-cpus=0-1 --kubelet-arg kube-reserved=memory=1Gi,ephemeral-storage=1Gi,pid=1000 --kubelet-arg system-reserved=memory=1Gi,ephemeral-storage=2Gi,pid=1000
 ```
 
 In another shell do:

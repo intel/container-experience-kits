@@ -110,7 +110,7 @@
     - intel_flexran_type == "host"
 
 - name: >-
-     set Intel FlexRAN kernel flags for Docker POD on Host-32c-single (6338N CPU) when kernel version is older than 5.15.0-1019RT.
+     set Intel FlexRAN kernel flags for Docker POD on Host-32c-single (6338N CPU) on ICX when kernel version is older than 5.15.0-1019RT.
      See https://hub.docker.com/r/intel/flexran_vdu
   set_fact:
     intel_flexran_cmdline: >-
@@ -124,11 +124,12 @@
     - ansible_processor_cores == 32
     - intel_flexran_type == "pod"
     - ansible_kernel < "5.15.0-1019-realtime"
+    - configured_arch == "icx"
 
 # for 5.15.0-1019RT and later, cgroup_disable=memory is no longer neeeded.
 # RKE2 can be not installed with cgroup_disable=memory, so use 5.15.0-1019RT and later for FlexRAN deployment on RKE2.
 - name: >-
-     set Intel FlexRAN kernel flags for Docker POD on Host-32c-single (6338N CPU) when kernel version is 5.15.0-1019RT and later.
+     set Intel FlexRAN kernel flags for Docker POD on Host-32c-single (6338N CPU) on ICX when kernel version is 5.15.0-1019RT and later.
      See https://hub.docker.com/r/intel/flexran_vdu
   set_fact:
     intel_flexran_cmdline: >-
@@ -142,6 +143,33 @@
     - ansible_processor_cores == 32
     - intel_flexran_type == "pod"
     - ansible_kernel >= "5.15.0-1019-realtime"
+    - configured_arch == "icx"
+
+- name: set Intel FlexRAN Real-Time profile
+  include_tasks: realtime_profile.yml
+  when:
+    - ansible_processor_count == 1
+    - ansible_processor_cores == 32
+    - intel_flexran_type == "pod"
+    - ansible_kernel >= "5.15.0-1030-realtime"
+    - configured_arch == "spr"
+
+- name: >-
+     set Intel FlexRAN kernel flags for Docker POD on SPR-EE MCC when kernel version is 5.15.0-1030RT and later.
+     See https://hub.docker.com/r/intel/flexran_l1_spree
+  set_fact:
+    intel_flexran_cmdline: >-
+      GRUB_CMDLINE_LINUX="intel_iommu=on iommu=pt vfio_pci.enable_sriov=1 vfio_pci.disable_idle_d3=1 usbcore.autosuspend=-1 selinux=0 enforcing=0
+      nmi_watchdog=0 crashkernel=auto softlockup_panic=0 audit=0 cgroup_enable=memory mce=off hugepagesz=1G hugepages=60 hugepagesz=2M hugepages=0
+      default_hugepagesz=1G kthread_cpus=0,31,32,63 irqaffinity=0,31,32,63" {{ intel_flexran_marker }}
+    intel_flexran_isol_cores: "1-30,33-62"
+    intel_flexran_cpu_supported: true
+  when:
+    - ansible_processor_count == 1
+    - ansible_processor_cores == 32
+    - intel_flexran_type == "pod"
+    - ansible_kernel >= "5.15.0-1030-realtime"
+    - configured_arch == "spr"
 
 # This is for DSA when we enable it with FlexRAN at the same time
 - name: add sm_on in iommu to be compatible with DSA requirements

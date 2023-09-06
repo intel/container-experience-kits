@@ -1,0 +1,54 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: create Real-Time Profile
+  block:
+    - name: install TuneD
+      ansible.builtin.apt:
+        name: tuned
+        state: present
+    - name: create a symbolic link
+      ansible.builtin.file:
+        src: /boot/grub/grub.cfg
+        dest: /etc/grub2.cfg
+        state: link
+    - name: edit /etc/grub.d/00_tuned
+      ansible.builtin.lineinfile:
+        path: /etc/grub.d/00_tuned
+        line: echo "export tuned_params"
+    - name: edit isolated_cores in /etc/tuned/realtime-variables.conf
+      ansible.builtin.lineinfile:
+        path: /etc/tuned/realtime-variables.conf
+        line: isolated_cores=1-30,33-62
+    - name: uncomment isolate_managed_irq=Y in /etc/tuned/realtime-variables.conf
+      ansible.builtin.lineinfile:
+        path: /etc/tuned/realtime-variables.conf
+        regexp: "# isolate_managed_irq=Y"
+        line: "isolate_managed_irq=Y"
+    - name: add nohz and rcu related parameters to /usr/lib/tuned/realtime/tuned.conf
+      ansible.builtin.lineinfile:
+        path: /usr/lib/tuned/realtime/tuned.conf
+        regexp: '^(cmdline_realtime(.*)$)'
+        # line: '\1 nohz=on nohz_full=${isolated_cores} rcu_nocbs=${isolated_cores} rcu_nocb_poll'
+        line: 'cmdline_realtime=+isolcpus=${managed_irq}${isolated_cores} nosoftlockup tsc=nowatchdog nohz=on nohz_full=${isolated_cores} rcu_nocbs=${isolated_cores}' # noqa yaml[line-length]
+        # backrefs: yes
+    - name: activate Real-Time Profile
+      command: tuned-adm profile realtime
+      changed_when: false
+    - name: check tuned_params
+      command: grep tuned_params= /boot/grub/grub.cfg
+      register: tuned_params
+      changed_when: false
+    - debug: msg="{{ tuned_params.stdout }}"

@@ -1,0 +1,120 @@
+FROM {{ container_base }}:{{ container_base_version }}
+
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+
+USER root
+RUN apt-get update -y; apt-get -y --no-install-recommends install sudo net-tools \
+gpg-agent curl wget apt-utils python3-venv python3-pip software-properties-common \
+&& apt-get clean \
+&& rm -rf /var/lib/apt/lists/*
+
+{% if container_gpu_stack %}
+# Dockerfile template may generate consecutive RUN commands belongs
+# to different feature group, ignore hadolint DL3059
+# hadolint ignore=DL3059
+RUN mkdir -p /opt/intel/nep
+COPY install_gpu_stack.sh /opt/intel/nep/
+WORKDIR /opt/intel/nep
+# hadolint ignore=DL3059
+RUN chmod +x install_gpu_stack.sh && ./install_gpu_stack.sh
+{% endif %}
+
+{% if container_oneapi_base %}
+
+{% endif %}
+
+
+{% if container_oneapi_ai %}
+
+{% endif %}
+
+
+{% if container_openvino %}
+# hadolint ignore=DL3059
+RUN mkdir -p /opt/intel/nep
+COPY install_openvino.sh /opt/intel/nep/
+WORKDIR /opt/intel/nep
+# hadolint ignore=DL3059
+RUN chmod +x install_openvino.sh && ./install_openvino.sh
+{% endif %}
+
+
+{% if container_dlstreamer %}
+# hadolint ignore=DL3059
+RUN mkdir -p /opt/intel/nep
+COPY install_dlstreamer.sh /opt/intel/nep/
+WORKDIR /opt/intel/nep
+# hadolint ignore=DL3059
+RUN chmod +x install_dlstreamer.sh && ./install_dlstreamer.sh
+{% endif %}
+
+
+{% if container_ffmpeg %}
+# hadolint ignore=DL3059
+RUN mkdir -p /opt/intel/nep
+COPY install_ffmpeg.sh /opt/intel/nep/
+WORKDIR /opt/intel/nep
+# hadolint ignore=DL3059
+RUN chmod +x install_ffmpeg.sh
+{% if prc_network %}
+# hadolint ignore=DL3059
+RUN ./install_ffmpeg.sh prc_network
+{% else %}
+# hadolint ignore=DL3059
+RUN ./install_ffmpeg.sh
+{% endif %}
+{% endif %}
+
+
+{% if container_opencv %}
+# hadolint ignore=DL3059
+RUN mkdir -p /opt/intel/nep
+COPY install_opencv.sh /opt/intel/nep/
+WORKDIR /opt/intel/nep
+# hadolint ignore=DL3059
+RUN chmod +x install_opencv.sh
+{% if prc_network %}
+# hadolint ignore=DL3059
+RUN ./install_opencv.sh prc_network
+{% else %}
+# hadolint ignore=DL3059
+RUN ./install_opencv.sh
+{% endif %}
+{% endif %}
+
+
+{% if container_dpdk %}
+
+{% endif %}
+
+
+{% if container_adduser %}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN useradd --create-home --no-log-init --shell /bin/bash aibox \
+&& adduser {{container_user}} sudo \
+&& echo '{{container_user}}:{{container_user}}' | chpasswd \
+&& chown -R {{container_user}}:{{container_user}} /home/{{container_user}}
+{% endif %}
+
+
+{% if container_user != 'root' %}
+USER {{container_user}}
+ENV HOME=/home/{{container_user}}
+ENV PATH=${PATH}:/usr/local/bin
+ENV LD_LIBRARY_PATH=${LD_LIBRAY_PATH}:/usr/local/lib
+WORKDIR /home/{{container_user}}
+{% endif %}
+
+
+{% if container_openvino_dev %}
+COPY --chown={{container_user}}:{{container_user}} install_openvino_dev.sh .
+RUN chmod +x install_openvino_dev.sh && ./install_openvino_dev.sh
+ENV PATH=${HOME}/venv_openvino_2022/bin:${PATH}
+{% endif %}
+
+HEALTHCHECK NONE

@@ -15,7 +15,8 @@
 ##
 ---
 # References: WIKI, RDC
-# FlexRAN as Docker POD: https://hub.docker.com/r/intel/flexran_vdu
+# FlexRAN POD on ICL: https://hub.docker.com/r/intel/flexran_vdu
+# FlexRAN POD on SPR-EE: https://hub.docker.com/r/intel/flexran_l1_spree
 # FEC = Forward Error Correction
 # CR = Custom Resource
 # ACC100/ACC200 = Intel vRAN Dedicated H/W SRIOV-FEC Accelerator Devices
@@ -28,7 +29,8 @@
 # intel_flexran_token: "not public. pkg access requires NDA. see docs/flexran_guide.md"
 intel_flexran_staging_location: "/tmp/flexran/" # a directory on localhost (ansible host)
 intel_flexran_ver: "23.03" # "22.03" (RA22.06) "22.07" (RA22.08) "22.07.3" (RA22.11) "22.11" (RA23.02) "23.03" (RA23.07)
-intel_flexran_pod_version: "22.07" # (RA23.02)
+intel_flexran_pod_version_icx_sp: "22.07" # (RA23.07)
+intel_flexran_pod_version_spr_ee: "23.03" # (RA23.07)
 intel_flexran_namespace: "default"
 # intel_flexran_tarball: "FlexRAN-22.03.tar.gz"
 # intel_flexran_tar_chk: "65e59ac1295ef392f54b80047db2efe458962fc78e5d84c5d54703439a364cda" # SHA256

@@ -24,6 +24,29 @@ kube_node
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
+
+{% elif name == 'on_prem_aibox' %}
+[all]
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+[vm_host]
+
+[kube_control_plane]
+localhost
+
+[etcd]
+localhost
+
+[kube_node]
+localhost
+
+[k8s_cluster:children]
+kube_control_plane
+kube_node
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+
 {% else %}
 [all]
 controller1 ansible_host=10.0.0.1 ip=10.0.0.1 ansible_user=USER ansible_password=XXXX
@@ -56,3 +79,4 @@ kube_node
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
 {% endif %}
+

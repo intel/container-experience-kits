@@ -23,7 +23,6 @@
     - name: check config dpdk link nodes count
       vars:
         link_node_count: "{{ groups['kube_node'] | length }}"
-
       assert:
         that: "{{ link_node_count }}  == 2"
         msg: "Config dpdk link is a 2 nodes operation, but current nodes count is {{ link_node_count }}"
@@ -44,3 +43,8 @@
         - dyna_config_dpdk_bind | default(false) | bool or
           dyna_config_dpdk_link | default(false) | bool or
           dyna_config_dpdk_unbind | default(false) | bool
+
+    - role: intel_base_container
+      profile_name: "{{ container_set | default('on_prem_aibox') }}"
+      tags:
+        - base_container

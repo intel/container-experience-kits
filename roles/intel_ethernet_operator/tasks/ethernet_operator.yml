@@ -33,6 +33,13 @@
     regexp: 'libbpf\.so\.0'
     replace: 'libbpf.so.1'
 
+# Workaround for IEO labeler build issue
+- name: patch IEO Labeler to fix curl issue
+  lineinfile:
+    path: "{{ intel_ethernet_operator_dir }}/Dockerfile.labeler"
+    regexp: "^RUN apk update && apk add --no-cache curl.*"
+    line: "RUN apk update && apk add --no-cache curl"
+
 - name: build Intel Ethernet Operator
   community.general.make:
     target: "{{ item }}"

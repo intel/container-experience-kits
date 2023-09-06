@@ -47,7 +47,7 @@ def detect_gpu_type():
     if chip_id in intel_dgpu_types :
         gpu_type = intel_dgpu_types[chip_id]
     else :
-        gpu_type = "Unknown"
+        gpu_type = "iGPU"
 
     print(gpu_type)
     print(chip_id)

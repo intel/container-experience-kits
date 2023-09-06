@@ -1,0 +1,19 @@
+FROM {{ container_base }}:{{ container_base_version }}
+
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ENV  HOME=/home/{{container_user}}
+USER {{container_user}}
+WORKDIR /home/{{container_user}}
+COPY --chown={{container_user}}:{{container_user}} {{container_entry}} .
+RUN  chmod +x {{container_entry}}
+
+HEALTHCHECK NONE
+
+{% if prc_network %}
+ENTRYPOINT ["./{{container_entry}}", "prc_network"]
+{% else %}
+ENTRYPOINT ["./{{container_entry}}"]
+{% endif %}

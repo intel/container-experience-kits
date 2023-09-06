@@ -4,7 +4,7 @@
 FROM alpine:3.18
 
 RUN apk update && \
-    apk add --no-cache bash jq
+    apk add --no-cache bash jq wget
 WORKDIR /usr/local/bin
 RUN wget -q "https://dl.k8s.io/release/$( wget -qO - \
         https://dl.k8s.io/release/stable.txt )/bin/linux/amd64/kubectl" && \

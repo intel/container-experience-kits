@@ -21,8 +21,10 @@
     force: yes
     mode: preserve
   loop:
-    - {src: 'intel_flexran_pod_timer_mode.yaml.j2', dst: 'intel_flexran_pod_timer_mode.yaml'}
-    - {src: 'intel_flexran_pod_xran_mode.yaml.j2', dst: 'intel_flexran_pod_xran_mode.yaml'}
+    - {src: 'intel_flexran_pod_timer_mode_icx_sp.yaml.j2', dst: 'intel_flexran_pod_timer_mode_icx_sp.yaml'}
+    - {src: 'intel_flexran_pod_xran_mode_icx_sp.yaml.j2', dst: 'intel_flexran_pod_xran_mode_icx_sp.yaml'}
+    - {src: 'intel_flexran_pod_timer_mode_spr_ee.yaml.j2', dst: 'intel_flexran_pod_timer_mode_spr_ee.yaml'}
+    - {src: 'intel_flexran_pod_xran_mode_spr_ee.yaml.j2', dst: 'intel_flexran_pod_xran_mode_spr_ee.yaml'}
 
 - name: create namespace for FlexRAN as Docker POD
   k8s:
@@ -38,20 +40,40 @@
   changed_when: sriov_pod_delete.rc == 0
   failed_when: sriov_pod_delete.rc != 0
 
-- name: run FlexRAN as Docker POD in Timer test mode
+- name: run FlexRAN as Docker POD in Timer test mode on ICX-SP
   k8s:
     state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode.yaml') | path_join }}"
-  when: intel_flexran_mode == "timer"
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode_icx_sp.yaml') | path_join }}"
+  when:
+    - intel_flexran_mode == "timer"
+    - configured_arch == "icx"
 
-- name: run FlexRAN as Docker POD in XRAN test mode
+- name: run FlexRAN as Docker POD in XRAN test mode on ICX-SP
   k8s:
     state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode.yaml') | path_join }}"
-  when: intel_flexran_mode == "xran"
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode_icx_sp.yaml') | path_join }}"
+  when:
+    - intel_flexran_mode == "xran"
+    - configured_arch == "icx"
+
+- name: run FlexRAN as Docker POD in Timer test mode on SPR-EE
+  k8s:
+    state: present
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode_spr_ee.yaml') | path_join }}"
+  when:
+    - intel_flexran_mode == "timer"
+    - configured_arch == "spr"
+
+- name: run FlexRAN as Docker POD in XRAN test mode on SPR-EE
+  k8s:
+    state: present
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode_spr_ee.yaml') | path_join }}"
+  when:
+    - intel_flexran_mode == "xran"
+    - configured_arch == "spr"
 
 - name: cluster final check-point
   ansible.builtin.include_role:
     name: wait_for_kubernetes_ready
 
-- debug: msg="Intel FlexRAN deployment as Docker POD in {{ intel_flexran_mode }} test mode is complete.  See https://hub.docker.com/r/intel/flexran_vdu"
+- debug: msg="Intel FlexRAN deployment as Docker POD in {{ intel_flexran_mode }} test mode is complete."

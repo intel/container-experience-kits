@@ -13,7 +13,6 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
----
 confirmed_atom_cpus:
   - "x6200FE"
   - "x6212RE"
@@ -29,6 +28,10 @@ confirmed_core_cpus:
   - "12500E"
   - "12700E"
   - "12900E"
+  - "12700"
+  - "12900"
+  - "1360P"
+
 
 confirmed_skl_cpus:
   # Sky Lake Xeon Gold (quad)
@@ -67,6 +70,7 @@ confirmed_spr_cpus:
   - "8487C"
   - "8490H"
   - "0000%@"
+  - "0000"
 
 confirmed_emr_cpus:
   - "0000"

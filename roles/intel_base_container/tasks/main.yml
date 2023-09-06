@@ -1,0 +1,130 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Create base container folder
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  with_items:
+    - "{{ base_container_path }}"
+    - "{{ base_container_dockerfile_path }}"
+    - "{{ base_container_test_path }}"
+
+- name: Print base container set name
+  debug:
+    msg: "Base container set for : {{ profile_name }} "
+
+- name: Specify base container set
+  set_fact:
+    base_container_version: "{{ aibox_base_container_version }}"
+    base_container_set: "{{ aibox_base_container_set }}"
+    base_container_test_set: "{{ aibox_base_container_test_set }}"
+  when:
+    - profile_name == "on_prem_aibox"
+
+- name: Generate base container Dockerfiles
+  vars:
+    container_name: "{{ item.name }}"
+    container_base: "{{ item.base }}"
+    container_base_version: "{{ item.base_version }}"
+    container_user: "{{ item.username }}"
+    container_adduser: "{{ item.adduser }}"
+    container_gpu_stack: "{{ item.gpu_stack }}"
+    container_oneapi_base: "{{ item.oneapi_base }}"
+    container_oneapi_ai: "{{ item.oneapi_ai }}"
+    container_openvino: "{{ item.openvino }}"
+    container_openvino_dev: "{{ item.openvino_dev }}"
+    container_dlstreamer: "{{ item.dlstreamer }}"
+    container_ffmpeg: "{{ item.ffmpeg }}"
+    container_opencv: "{{ item.opencv }}"
+    container_dpdk: "{{ item.dpdk }}"
+  ansible.builtin.template:
+    src: "templates/Dockerfile.j2"
+    dest: "{{ (base_container_dockerfile_path, item.filename) | path_join }}"
+    mode: 0644
+  with_items: "{{ base_container_set }}"
+  become: "{{ base_container_sudo }}"
+
+- name: Generate base container build script
+  vars:
+    container_name: "{{ item.name }}"
+    container_filename: "{{ item.filename }}"
+    container_version: "{{ base_container_version }}"
+  ansible.builtin.template:
+    src: "templates/build_base.j2"
+    dest: "{{ (base_container_dockerfile_path, item.buildname) | path_join }}"
+    mode: 0755
+  with_items: "{{ base_container_set }}"
+  become: "{{ base_container_sudo }}"
+
+- name: copy feature installation scripts
+  copy:
+    src: "{{ item }}"
+    dest: "{{ base_container_dockerfile_path }}"
+    mode: 0755
+    force: true
+  with_items:
+    - 'install_gpu_stack.sh'
+    - 'install_openvino.sh'
+    - 'install_openvino_dev.sh'
+    - 'install_dlstreamer.sh'
+    - 'install_ffmpeg.sh'
+    - 'install_opencv.sh'
+  become: "{{ base_container_sudo }}"
+
+- name: Generate base container test Dockerfiles
+  vars:
+    container_name: "{{ item.name }}"
+    container_base: "{{ item.base }}"
+    container_base_version: "{{ item.base_version }}"
+    container_user: "{{ item.username }}"
+    container_entry: "{{ item.entryname }}"
+  ansible.builtin.template:
+    src: "templates/Dockerfile_test.j2"
+    dest: "{{ (base_container_test_path, item.filename) | path_join }}"
+    mode: 0644
+  with_items: "{{ base_container_test_set }}"
+  become: "{{ base_container_sudo }}"
+
+- name: Generate base container test script
+  vars:
+    container_name: "{{ item.name }}"
+    container_filename: "{{ item.filename }}"
+    container_user: "{{ item.username }}"
+    container_version: "{{ base_container_version }}"
+  ansible.builtin.template:
+    src: "templates/test_base.j2"
+    dest: "{{ (base_container_test_path, item.testname) | path_join }}"
+    mode: 0755
+  with_items: "{{ base_container_test_set }}"
+  become: "{{ base_container_sudo }}"
+
+- name: copy test entry scripts
+  copy:
+    src: "{{ item }}"
+    dest: "{{ base_container_test_path }}"
+    mode: 0755
+    force: true
+  with_items:
+    - 'test_gpu_entry.sh'
+    - 'test_openvino_entry.sh'
+    - 'test_dlstreamer_entry.sh'
+    - 'test_ffmpeg_entry.sh'
+    - 'test_opencv_entry.sh'
+    - 'test_base_devel_entry.sh'
+    - 'test_data'
+  become: "{{ base_container_sudo }}"

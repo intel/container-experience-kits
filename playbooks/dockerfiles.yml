@@ -28,3 +28,14 @@
       ansible.builtin.include_role:
         name: intel_media_analytics
         tasks_from: template_dockerfile
+    - name: Generate media analytics Dockerfile
+      vars:
+        base_container_path: "{{ dockerfiles_dir }}"
+        base_container_dockerfile_path: "{{ dockerfiles_dir }}"
+        base_container_test_path: "{{ dockerfiles_dir }}"
+        base_container_sudo: false
+        profile_name: "on_prem_aibox"
+        prc_network: false
+      ansible.builtin.include_role:
+        name: intel_base_container
+        tasks_from: main

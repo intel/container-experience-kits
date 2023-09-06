@@ -17,6 +17,6 @@
 dpdk_url: "https://fast.dpdk.org/rel/dpdk-{{ dpdk_version }}.tar.xz"
 dpdk_target: x86_64-native-linuxapp-gcc
 dpdk_kmods_repo: "http://dpdk.org/git/dpdk-kmods"
-dpdk_kmods_dest: "{{ (project_root_dir, '/dpdk-kmods') | path_join }}"
+dpdk_kmods_dest: "{{ (project_root_dir, 'dpdk-kmods') | path_join }}"
 
 dpdk_local_patches_strip: 0

@@ -55,3 +55,17 @@
   when:
     - fec_dev == "acc200"
     - intel_flexran_type == "host"
+
+- name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Docker POD
+  block:
+    - name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Docker POD
+      ansible.builtin.command:
+        cmd: "./pf_bb_config acc200 -c acc200/acc200_config_vf_5g.cfg" # select .cfg file as desired
+        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
+      register: pf_bb_config
+      changed_when: false
+
+    - debug: msg="{{ pf_bb_config.stdout }}"
+  when:
+    - fec_dev == "acc200"
+    - intel_flexran_type == "pod"

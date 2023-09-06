@@ -84,6 +84,10 @@
           "flag": "reserved-cpus"
         },
         {
+          "process": "/usr/local/bin/k3s",
+          "flag": "kubelet-arg reserved-cpus"
+        },
+        {
           "process": "//next/process",
           "flag": "next-flag"
         }

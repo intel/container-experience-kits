@@ -102,13 +102,17 @@
       ansible.builtin.import_role:
         name: kubespray_check
         tasks_from: check_kubespray_version
-      when: kube_provisioner != 'rke2'
+      when:
+        - kube_provisioner != 'rke2'
+        - kubernetes
 
     - name: Check applied kubespray patch
       ansible.builtin.import_role:
         name: kubespray_patch
         tasks_from: preflight_checksum
-      when: kube_provisioner != 'rke2'
+      when:
+        - kube_provisioner != 'rke2'
+        - kubernetes
 
     - name: read Group Vars
       stat:
@@ -806,7 +810,9 @@
           "CPU model '{{ cpu_id }}' present on target is not in the confirmed CPUs list.\n
           To proceed, please add  '{{ cpu_id }}' to the list of unconfirmed CPUs in variable 'unconfirmed_cpu_models' in group_vars.\n
           Please be aware that by using CPU model that is not confirmed, some features may not work properly."
-      when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
+      when:
+        - (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
+        - configured_arch not in ['atom', 'core']
 
     - name: check ubuntu pro token is not a placeholder
       assert:
@@ -937,6 +943,7 @@
         tasks_from: preflight_gpu_dp
       when:
         - gpu_dp_enabled is defined and gpu_dp_enabled
+        - profile_name != "on_prem_aibox"
 
     - name: Check GPU device plugin state
       assert:
@@ -944,7 +951,9 @@
           - gpu_dp_enabled
         fail_msg: "GPU device plugin is disabled. Please set gpu_dp_enabled to true in group_vars."
         success_msg: "GPU device plugin is enabled"
-      when: configure_gpu is defined and configure_gpu
+      when:
+        - configure_gpu is defined and configure_gpu
+        - profile_name != "on_prem_aibox"
 
     - name: FPGA environment preflight check
       block:

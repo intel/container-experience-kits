@@ -47,14 +47,14 @@
     gpu_repo_spec: "{{ gpu_repo_spec_u2204_arc }}"
   when:
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
-    - gpu_type_result.stdout_lines[0] == "Arc"
+    - gpu_type_result.stdout_lines[0] == "Arc" or gpu_type_result.stdout_lines[0] == "iGPU"
 
 - name: Set gpu package version to specific release on Ubuntu 22.04
   set_fact:
-    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20230526 }}"
-    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20230526 }}"
-    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20230526 }}"
-    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20230526 }}"
+    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20230714 }}"
+    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20230714 }}"
+    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20230714 }}"
+    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20230714 }}"
   when:
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
 

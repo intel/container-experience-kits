@@ -112,7 +112,7 @@
       failed_when: set_fec_max_vfs.rc != 0
 
     - name: probe for FEC VF
-      shell: "set -o pipefail && lspci | grep -i acc | grep -i 0d5d" # noqa command-instead-of-shell
+      shell: "set -o pipefail && lspci | grep -i acc | grep -i -E \"0d5d|57c1\"" # noqa command-instead-of-shell
       args:
         executable: /bin/bash
       register: acc_vf_probe
@@ -134,5 +134,7 @@
       register: fec_bind
       changed_when: fec_bind.rc == 0
       failed_when: fec_bind.rc != 0
+
+    - debug: msg="{{ fec_bind.stdout }}"
 
   when: intel_flexran_type == "pod"
