@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-ansible = "~=5.7.1"
+ansible = "~=7.0.0"
 "ansible-core" = "~=2.12"
 cryptography = "~=41.0"
 jinja2 = "~=3.1"
