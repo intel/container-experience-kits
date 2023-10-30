@@ -1,0 +1,36 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+calico_vpp_files_dir: "{{ (project_root_dir, 'calico-vpp-files') | path_join }}"
+
+k8s_calico_vpp_version: "v3.25.1"
+# install operator to manage the installation, upgrade, and general lifecycle of a Calico cluster
+k8s_calico_tigera_operator: "https://raw.githubusercontent.com/projectcalico/calico/{{ k8s_calico_vpp_version }}/manifests/tigera-operator.yaml"
+k8s_calico_tigera_operator_checksum: "sha256:606a55409e98ede9aa13864348ab90093539eea61dafca9c92f040980ba07b58"
+# custom install resources to configure Calico
+k8s_calico_custom_resources: "https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{ k8s_calico_vpp_version }}/yaml/calico/installation-default.yaml"
+
+# install the calicoctl command line tool to manage Calico resources and perform administrative functions
+k8s_calicoctl: "https://github.com/projectcalico/calico/releases/download/{{ k8s_calico_vpp_version }}/calicoctl-linux-amd64"
+k8s_calicoctl_install_dest: "/usr/local/bin/calicoctl"
+
+# install calivppctl for calico vpp networking diagnose
+k8s_calivppctl: "https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{ k8s_calico_vpp_version }}/test/scripts/vppdev.sh"
+k8s_calivppctl_install_dest: "/usr/local/bin/calivppctl"
+
+k8s_calico_dataplane: "VPP"
+k8s_calico_encapsulation: "VXLANCrossSubnet"
+k8s_calicovpp_uplink_driver: "dpdk"

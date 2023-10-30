@@ -52,7 +52,10 @@
         msg: "Failed to start {{ enabled_qat_service }} service on system. Please check if QAT configuration in host vars is correct."
       when:
         - "'up' not in service_check.stdout"
-  when: update_qat_drivers | default(false)
+  when:
+    - update_qat_drivers | default(false)
+    - qat_devices | default([]) | length > 0
+    - not qat_oot_driver_build_failed | default(false)
 
 # OpenSSL build
 - name: create directory {{ openssl_dir }} for all OpenSSL dependencies

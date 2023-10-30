@@ -39,14 +39,19 @@ cni: {{ kube_network_plugin }}
 {% endif %}
 {% endif %}
 
-{% if native_cpu_manager_enabled == true or topology_manager_enabled == true %}
 kubelet-arg:
-{% if native_cpu_manager_enabled == true %}
+{% if native_cpu_manager_enabled | default(false) %}
 - "cpu-manager-policy=static"
+{% if native_cpu_manager_reserved_cpus | default(false) %}
+- "reserved-cpus={{ native_cpu_manager_reserved_cpus }}"
+{% else %}
+{% if native_cpu_manager_kube_reserved_cpus | default(false) %}
 - "kube-reserved=cpu={{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
+{% endif %}
+{% if not native_cpu_manager_reserved_cpus | default(false) %}
 - "system-reserved=cpu={{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
 {% endif %}
-{% if topology_manager_enabled == true %}
-- "topology-manager-policy={{ topology_manager_policy }}"
 {% endif %}
 {% endif %}
+- "topology-manager-scope={{ topology_manager_scope | default("container") }}"
+- "topology-manager-policy={{ topology_manager_policy | default("none") }}"

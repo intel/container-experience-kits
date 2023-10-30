@@ -57,5 +57,4 @@
   ansible.builtin.shell: "set -o pipefail && {{ kubectl_cli_bin }} delete cronjob linkerd-heartbeat -n linkerd"
   args:
     executable: /bin/bash
-    warn: false
   when: http_proxy is defined or https_proxy is defined

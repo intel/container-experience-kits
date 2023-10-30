@@ -1,0 +1,41 @@
+{
+    "chip_list": [
+    {
+        "id": "asic-0",
+        "chip_family": "mev",
+        "instance": 0,
+        "pcie_bdf": "0000:{{ acc_bdf.stdout }}",
+        "iommu_grp_num": {{ acc_bdf_group.stdout }}
+    }
+    ],
+    "instance": 0,
+    "cfgqs-idx": "0-15",
+    "p4_devices": [
+    {
+        "device-id": 0,
+        "fixed_functions" : [],
+        "eal-args": "--lcores=1-2 -a {{ acc_bdf.stdout }},vport=[0-1] -- -i --rxq=1 --txq=1 --hairpinq=1 --hairpin-mode=0x0",
+        "p4_programs": [
+        {
+            "program-name": "{{ active_p4_program }}",
+            "bfrt-config": "{{ active_p4_dir }}/{{ active_p4_program }}/bf-rt.json",
+            "p4_pipelines": [
+            {
+                "p4_pipeline_name": "main",
+                "context": "{{ active_p4_dir }}/{{ active_p4_program }}/context.json",
+                "config": "{{ active_p4_dir }}/{{ active_p4_program }}/tofino.bin",
+                "pipe_scope": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "path": "{{ active_p4_dir }}/{{ active_p4_program }}"
+            }
+            ]
+        }
+        ],
+        "agent0": "lib/libpltfm_mgr.so"
+    }
+    ]
+}

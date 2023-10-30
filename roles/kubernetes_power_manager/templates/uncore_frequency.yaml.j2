@@ -1,0 +1,9 @@
+apiVersion: power.intel.com/v1
+kind: Uncore
+metadata:
+  name: {{ power_node }}
+  namespace: {{ kubernetes_power_manager_namespace }}
+spec:
+  sysMax: {{ system_max_frequency }}
+  sysMin: {{ system_min_frequency }}
+  dieSelector: {{ die_selector }}

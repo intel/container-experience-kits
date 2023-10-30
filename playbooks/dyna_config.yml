@@ -17,8 +17,21 @@
 # This playbook contains those tasks can be executed separatedly after
 # RA installation,  to dynamically adjust some system configurations.
 
-# Preflight check for config dpdk link operaton
+# Execute config dpdk role bind/unbind tasks on worker nodes
 - hosts: "{{node | default('kube_node')}}"
+  roles:
+    - role: configure_dpdk
+      dpdk_link_node1: "{{ groups.kube_node[0] }}"
+      dpdk_link_node2: "{{ groups.kube_node[1] }}"
+      tags:
+        - dyna_config_dpdk
+      when:
+        - dyna_config_dpdk_bind | default(false) | bool or
+          dyna_config_dpdk_unbind | default(false) | bool
+
+
+# Pre-flight check for link operation
+- hosts: localhost
   tasks:
     - name: check config dpdk link nodes count
       vars:
@@ -31,8 +44,20 @@
       when:
         - dyna_config_dpdk_link | default(false) | bool
 
-# Execute config dpdk role tasks according to tag and conditions
+# Execute config dpdk role pre-link tasks on worker nodes
 - hosts: "{{node | default('kube_node')}}"
+  roles:
+    - role: configure_dpdk
+      dpdk_link_node1: "{{ groups.kube_node[0] }}"
+      dpdk_link_node2: "{{ groups.kube_node[1] }}"
+      dpdk_link_pre: true
+      tags:
+        - dyna_config_dpdk
+      when:
+        - dyna_config_dpdk_link | default(false) | bool
+
+# Execute config dpdk role link tasks on local host
+- hosts: localhost
   roles:
     - role: configure_dpdk
       dpdk_link_node1: "{{ groups.kube_node[0] }}"
@@ -40,11 +65,43 @@
       tags:
         - dyna_config_dpdk
       when:
-        - dyna_config_dpdk_bind | default(false) | bool or
-          dyna_config_dpdk_link | default(false) | bool or
-          dyna_config_dpdk_unbind | default(false) | bool
+        - dyna_config_dpdk_link | default(false) | bool
 
+# Execute config dpdk role post-link tasks on worker nodes
+- hosts: "{{node | default('kube_node')}}"
+  roles:
+    - role: configure_dpdk
+      dpdk_link_node1: "{{ groups.kube_node[0] }}"
+      dpdk_link_node2: "{{ groups.kube_node[1] }}"
+      dpdk_link_post: true
+      tags:
+        - dyna_config_dpdk
+      when:
+        - dyna_config_dpdk_link | default(false) | bool
+
+# Execute gpu driver role on worker nodes
+- hosts: "{{node | default('kube_node')}}"
+  roles:
+    - role: install_gpu_driver
+      tags:
+        - install_gpu_driver
+      become: true
+
+# Execute base container role on worker nodes
+- hosts: "{{node | default('kube_node')}}"
+  roles:
     - role: intel_base_container
       profile_name: "{{ container_set | default('on_prem_aibox') }}"
+      gpu_type: "Arc"
       tags:
         - base_container
+
+- hosts: "{{node | default('kube_node')}}"
+  roles:
+    - role: prometheus_install
+      tags:
+        - prometheus
+
+    - role: intel_xpumanager
+      tags:
+        - xpumanager

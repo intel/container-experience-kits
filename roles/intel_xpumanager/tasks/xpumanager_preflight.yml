@@ -1,0 +1,66 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: preflight xpumanager for k8s env
+  block:
+    - name: check if Observability stack is enabled
+      ansible.builtin.assert:
+        that:
+          - prometheus_enabled | d(false)
+          - telegraf_enabled | d(false)
+          - jaeger_operator | d(false)
+          - opentelemetry_enabled | d(false)
+          - elasticsearch_enabled | d(false)
+          - kibana_enabled | d(false)
+        msg: |
+          Incorrect configuration !!
+          XPUManager requires Onservability stack.
+          Please enable prometheus_enabled, telegraf_enabled, jaeger_operator, opentelemetry_enabled, elasticsearch_enabled, kibana_enabled in group_vars
+
+    - name: check if GPU Device Plugin is enabled and configured
+      ansible.builtin.assert:
+        that:
+          - gpu_dp_enabled | d(false)
+          - gpu_dp_monitor_resources | d(false)
+        msg: |
+          Incorrect configuration !!
+          XPUManager requires GPU Device Plugin and resource monitoring to be enabled.
+          Please set gpu_dp_enabled and gpu_dp_monitor_resources to true
+
+    - name: check if cert-manager is enabled
+      ansible.builtin.assert:
+        that:
+          - cert_manager_enabled | d(false)
+        msg: |
+          Incorrect configuration !!
+          XPUManager requires Cert Manager to be enabled.
+          Please set cert_manager_enabled to true
+  when:
+    - kubernetes | default(false) | bool
+
+
+- name: preflight xpumanager for none k8s env
+  block:
+    - name: check if Observability stack is enabled
+      ansible.builtin.assert:
+        that:
+          - prometheus_enabled | d(false)
+        msg: |
+          Incorrect configuration !!
+          XPUManager requires Onservability stack.
+          Please enable prometheus_enabled in group_vars
+  when:
+    - not kubernetes | default(false) | bool

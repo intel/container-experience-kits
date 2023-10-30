@@ -65,22 +65,6 @@
     - minio_nodes | int >= minio_tenant_servers
     - inventory_hostname == groups['kube_control_plane'][0]
 
-- name: create MinIO local storage
-  include_tasks: file_blockdevice.yml
-  when:
-    - minio_tenant_enabled
-    - minio_deploy_test_mode
-    - minio_nodes | int >= minio_tenant_servers
-    - inventory_hostname in groups['kube_node']
-
-- name: create MinIO nvme storage
-  include_tasks: nvme_blockdevice.yml
-  when:
-    - minio_tenant_enabled
-    - not minio_deploy_test_mode
-    - minio_nodes | int >= minio_tenant_servers
-    - inventory_hostname in groups['kube_node']
-
 - name: populate MinIO local persisitent volumes
   include_tasks: create_persistentvolumes.yml
   when:

@@ -30,7 +30,7 @@ oran_netopeer2_client:
       tag: "{{ kmra.oran_netopeer2_client.oran_image_tag | default(kmra.image_tag) }}"
       pullPolicy: IfNotPresent
     netopeer2_server_port:  "{{ kmra.oran_netopeer2_client.oran_netopeer2_server_port }}"
-    netopeer2_server_name: "{{ kmra.oran_netopeer2_client.oran_netopeer2_server_hostname | default('oran_netopeer2_server')}}"
+    netopeer2_server_name: "{{ kmra.oran_netopeer2_client.oran_netopeer2_server_hostname | default('oran_netopeer2_server')}}-cu"
     netopeer2_server_domain: {{ cluster_name | default('cluster.local') }}
   pullSecret: "{{ container_registry_secret }}"
   pccs_port: "{{ kmra.pccs.upstream_port }}"
@@ -50,3 +50,4 @@ oran_netopeer2_client:
   pkcs11_proxy_tls_psk_file: "{{ kmra.oran_netopeer2_client.pkcs11_proxy_tls_psk_file }}"
   pkcs11_daemon_socket_hostname: "{{ kmra.oran_netopeer2_client.pkcs11_daemon_socket_hostname }}"
   pkcs11_daemon_socket_port: "{{ kmra.oran_netopeer2_client.pkcs11_daemon_socket_port }}"
+  ecdsa_keys: "{{ kmra.apphsm.ecdsa_keys }}"

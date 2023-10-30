@@ -1,0 +1,59 @@
+---
+- name: Install gpu type detection script to /usr/local/bin
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/"
+    mode: '0700'
+    owner: root
+    group: root
+    force: true
+  with_items:
+    - 'cek_detect_gpu_type.py'
+  become: true
+
+- name: Detect gpu type
+  command: "python3 /usr/local/bin/cek_detect_gpu_type.py"
+  register: gpu_type_result
+  changed_when: false
+
+- name: Output gpu type detection result
+  debug:
+    msg: "{{ gpu_type_result.stdout_lines }}"
+
+- name: Set gpu type fact according to detection result
+  set_fact:
+    gpu_type: "{{ gpu_type_result.stdout_lines[0] }}"
+
+- name: Set repo and packages for server GPU installation on Ubuntu 22.04
+  set_fact:
+    gpu_repo_spec: "{{ gpu_repo_spec_u2204_server }}"
+    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20230912_server }}"
+    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20230912_server }}"
+    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20230912_server }}"
+    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20230912_server }}"
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
+    - gpu_type == "Flex"
+
+- name: Set repo and packages for client GPU installation on Ubuntu 22.04
+  set_fact:
+    gpu_repo_spec: "{{ gpu_repo_spec_u2204_client }}"
+    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20230912_client }}"
+    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20230912_client }}"
+    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20230912_client }}"
+    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20230912_client }}"
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
+    - gpu_type == "Arc" or gpu_type == "iGPU"
+
+- name: Install GPU drivers on Ubuntu
+  include_tasks: debian.yml
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
+    - gpu_type != "Unknown"
+
+- name: Install GPU drivers on RHEL 8.x
+  include_tasks: rhel.yml
+  when:
+    - (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.6")
+    - gpu_type != "Unknown"

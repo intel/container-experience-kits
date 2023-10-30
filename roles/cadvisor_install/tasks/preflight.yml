@@ -22,5 +22,5 @@
       cAdvisor perf events counting can only be enabled on BMRA.
       Please disable perf events counting in group_vars.
   when:
-    - inventory_hostname == groups["kube_control_plane"][0]
+    - inventory_hostname == (groups["kube_control_plane"][0] | default(""))
     - cadvisor_pik_perf_events_enabled | default(false) or cadvisor_sample_perf_events_enabled | default(false)

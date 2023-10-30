@@ -1,0 +1,156 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Install linkerd-viz
+  include_tasks: linkerd_viz_install.yml
+
+- name: Create IDO directory
+  ansible.builtin.file:
+    path: "{{ ido_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Clone IDO repository
+  ansible.builtin.git:
+    repo: "{{ ido_git_url }}"
+    dest: "{{ ido_dir }}"
+    version: "{{ ido_git_version }}"
+    force: true
+
+- name: Update local address of images
+  ansible.builtin.replace:
+    path: "{{ (ido_dir, item.directory, item.manifest) | path_join }}"
+    regexp: '127\.0\.0\.1\:5000'
+    replace: "{{ registry_local_address }}"
+  with_items:
+    - "{{ ido_planner }}"
+    - "{{ ido_plugins }}"
+
+- name: Update version of images
+  ansible.builtin.replace:
+    path: "{{ (ido_dir, item.directory, item.manifest) | path_join }}"
+    regexp: '0\.2\.0'
+    replace: "{{ ido_git_version }}"
+  with_items:
+    - "{{ ido_planner }}"
+    - "{{ ido_plugins }}"
+
+- name: Update telemetry endpoint of planner
+  ansible.builtin.replace:
+    path: "{{ (ido_dir, item.directory, item.manifest) | path_join }}"
+    regexp: 'prometheus\-service\.telemetry\:9090'
+    replace: "prometheus-k8s.monitoring:9090"
+  loop: "{{ ido_planner }}"
+
+- name: Build and push images
+  vars:
+    buildtool: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
+  block:
+    - name: Build plugin images
+      ansible.builtin.command: '{{ buildtool }} build -f {{ (item.directory, "Dockerfile") | path_join }} -t {{ registry_local_address }}/{{ item.image }} .'
+      args:
+        chdir: "{{ ido_dir }}"
+      changed_when: true
+      loop: "{{ ido_plugins }}"
+
+    - name: Build planner image
+      ansible.builtin.command: '{{ buildtool }} build -f Dockerfile -t {{ registry_local_address }}/{{ item.image }} .'
+      args:
+        chdir: "{{ ido_dir }}"
+      changed_when: true
+      loop: "{{ ido_planner }}"
+
+    - name: Push images
+      ansible.builtin.command: '{{ buildtool }} push {{ registry_local_address }}/{{ item.image }}'
+      changed_when: true
+      with_items:
+        - "{{ ido_planner }}"
+        - "{{ ido_plugins }}"
+
+# Below task uses 'kubectl' due to issues with 'kubernetes.core.k8s' module for CRD manifest
+- name: Install CRDs for IDO
+  ansible.builtin.command: "kubectl apply -f {{ (ido_dir, 'artefacts', 'intents_crds_v1alpha1.yaml') | path_join }}"
+  register: crd_result
+  changed_when: "'created' in crd_result.stdout"
+
+- name: Create IDO namespace
+  kubernetes.core.k8s:
+    state: present
+    name: ido
+    kind: Namespace
+
+- name: Deploy IDO Planner
+  kubernetes.core.k8s:
+    state: present
+    namespace: ido
+    src: "{{ (ido_dir, item.directory, item.manifest) | path_join }}"
+  loop: "{{ ido_planner }}"
+
+- name: Wait for IDO Planner to run
+  ansible.builtin.include_role:
+    name: wait_for_kubernetes_ready
+
+- name: Deploy IDO Plugins
+  kubernetes.core.k8s:
+    state: present
+    namespace: ido
+    src: "{{ (ido_dir, item.directory, item.manifest) | path_join }}"
+  loop: "{{ ido_plugins }}"
+
+- name: Wait for IDO Plugins to run
+  ansible.builtin.include_role:
+    name: wait_for_kubernetes_ready
+
+- name: Deploy IDO default KPIProfiles
+  kubernetes.core.k8s:
+    state: present
+    namespace: default
+    src: "{{ (ido_dir, 'artefacts', 'examples', 'default_profiles.yaml') | path_join }}"
+
+- name: Update and deploy IDO example workload and intent
+  block:
+    - name: Update IDO example intent
+      ansible.builtin.replace:
+        path: "{{ (ido_dir, 'artefacts', 'examples', 'example_intent.yaml') | path_join }}"
+        regexp: "{{ item.existing }}"
+        replace: "{{ item.updated }}"
+      with_items:
+        - { existing: 'my\-function', updated: 'ido-example' }
+        - { existing: 'function\-deployment', updated: 'ido-example-deployment' }
+
+    - name: Deploy IDO example workload
+      kubernetes.core.k8s:
+        state: present
+        namespace: default
+        definition: "{{ lookup('file', '../files/example_deployment.yaml') | from_yaml }}"
+
+    - name: Wait for IDO example workload to start
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: default
+        name: ido-example-deployment
+        wait: true
+        wait_condition:
+          reason: MinimumReplicasAvailable
+          type: Available
+        wait_timeout: 300
+
+    - name: Deploy IDO example intent
+      kubernetes.core.k8s:
+        state: present
+        namespace: default
+        src: "{{ (ido_dir, 'artefacts', 'examples', 'example_intent.yaml') | path_join }}"
+  when: ido_demo_workload

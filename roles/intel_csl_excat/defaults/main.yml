@@ -1,0 +1,27 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# This var is not intended to be customized by user
+# Define respective field in the group_vars/all.yml instead
+csl_excat_tar_staging_location: "/tmp/csl-excat-v3.0.0.tar.gz"
+csl_excat_image_checksum: "acc5842f51acaa6aea6b7f3dc875b94e0930dc362827512535bb1673c53f87ef"
+csl_excat_version: "v0.1.0"
+csl_excat_admission_name: "csl-excat-admission"
+csl_excat_dp_name: "csl-excat-deviceplugin"
+csl_excat_admission_image: "{{ csl_excat_admission_name }}.tar"
+csl_excat_dp_image: "{{ csl_excat_dp_name }}.tar"
+csl_excat_admission_container: "localhost/{{ csl_excat_admission_name }}:{{ csl_excat_version }}"
+csl_excat_dp_container: "localhost/{{ csl_excat_dp_name }}:{{ csl_excat_version }}"

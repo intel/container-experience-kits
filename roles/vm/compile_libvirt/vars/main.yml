@@ -46,3 +46,5 @@ install_dependencies:
     - librbd-dev
     - libsasl2-dev
     - dnsmasq-base
+    - meson
+    - ninja-build

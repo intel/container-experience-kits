@@ -22,20 +22,20 @@
   ansible.builtin.file:
     path: "{{ ipu_project_root_dir }}"
     state: directory
-    mode: 0755
+    mode: '0755'
 
 - name: copy ssd image from ansible host
   ansible.builtin.copy:
     src: "{{ (ipu_tmp_dir, ipu_ssd_image_tarball) | path_join }}"
     dest: "{{ (ipu_project_root_dir, ipu_ssd_image_tarball) | path_join }}"
-    mode: 0644
+    mode: '0644'
 
 - name: unarchive ssd image
   ansible.builtin.unarchive:
     src: "{{ (ipu_project_root_dir, ipu_ssd_image_tarball) | path_join }}"
     dest: "{{ ipu_project_root_dir }}"
-    remote_src: yes
-    mode: 0755
+    remote_src: true
+    mode: '0755'
 
 - name: check if ssd image is available
   ansible.builtin.stat:
@@ -47,14 +47,6 @@
     msg: "ssd image {{ ipu_ssd_image_file }} does not exist"
   when: not ssd_image_stats.stat.exists
 
-- name: syslogmode DEV
-  ansible.builtin.shell: "set -o pipefail && ssh -p {{ imc_ssh_port }} {{ ssh_options }} {{ imc_user }}@{{ imc_static_ip }} /etc/init.d/syslogmode DEV"
-  args:
-    executable: /bin/bash
-  register: syslogmode_out
-  changed_when: "'DEV mode, syslog disabled' in syslogmode_out.stdout"
-  failed_when: syslogmode_out.rc != 0
-
 - name: umount loop0
   ansible.builtin.shell: "set -o pipefail && ssh -p {{ imc_ssh_port }} {{ ssh_options }} {{ imc_user }}@{{ imc_static_ip }} umount /dev/loop0"
   args:
@@ -63,7 +55,7 @@
   changed_when: loop0_out.stderr | length == 0
   failed_when:
     - loop0_out.rc != 0
-    - "'t unmount /dev/loop0' not in loop0_out.stderr"
+    - "'umount: /dev/loop0: not mounted' not in loop0_out.stderr"
     - "'Invalid argument' not in loop0_out.stderr"
 
 - name: umount nvme0n1
@@ -74,7 +66,8 @@
   changed_when: nvme0n1_out.stderr | length == 0
   failed_when:
     - nvme0n1_out.rc != 0
-    - "'t unmount /dev/nvme0n1' not in nvme0n1_out.stderr"
+    - "'umount: /dev/nvme0n1: not mounted' not in nvme0n1_out.stderr"
+    - "': not mounted' not in nvme0n1_out.stderr"
     - "'Invalid argument' not in nvme0n1_out.stderr"
 
 - name: kill tgtd

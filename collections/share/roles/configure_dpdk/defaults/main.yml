@@ -1,0 +1,6 @@
+---
+
+config_dpdk_bind_nic_type: "E810"
+config_dpdk_bind_drv_type: "vfio-pci"
+config_dpdk_bind_port_offset: 0
+config_dpdk_bind_port_count: 2

@@ -275,22 +275,25 @@
       when:
         - configured_arch == "spr"
 
-    # FlexRAN pod for SPR-EE MCC do not support core pinning. So need to disable k8s cpu manager.
-    - name: check k8s cpu manager is disabled for FlexRAN Pod on SPR-EE MCC
+    # check runtime for FlexRAN in POD on SPR
+    # needs containerd runtime to support non-root user to use FEC in pod
+    - debug: msg="Container runtime is set to {{ container_runtime }}"
+    - name: check runtime for FlexRAN in POD on SPR
       ansible.builtin.assert:
-        that: native_cpu_manager_enabled == false
-        fail_msg: "Please set 'native_cpu_manager_enabled' to 'false' in group vars to run FlexRAN pod on SPR-EE MCC"
+        that: container_runtime == "containerd"
+        fail_msg: "Deploying Intel FlexRAN as a POD on SPR needs containerd runtime to support non-root user to use FEC in pod. Please correct the group_vars configuration"
+        success_msg: "Assertion passed. Intel FlexRAN as a POD on SPR is supported and can be deployed on '{{ container_runtime }}' runtime"
       when:
         - configured_arch == "spr"
-        - native_cpu_manager_enabled is defined
 
-    # check runtime for FlexRAN in Docker POD
-    - debug: msg="Container runtime is set to {{ container_runtime }}"
-    - name: check runtime for FlexRAN in Docker POD
+    # check runtime for FlexRAN in POD on ICX
+    - name: check runtime for FlexRAN in Docker POD on ICX
       ansible.builtin.assert:
         that: container_runtime in ['docker', 'containerd']
-        fail_msg: "Deploying Intel FlexRAN as a Docker POD is supported only for docker/containerd runtime. Please correct the group_vars configuration"
-        success_msg: "Assertion passed. Intel FlexRAN as a Docker POD is supported and can be deployed on '{{ container_runtime }}' runtime"
+        fail_msg: "Deploying Intel FlexRAN as a Docker POD on ICX is supported only for docker/containerd runtime. Please correct the group_vars configuration"
+        success_msg: "Assertion passed. Intel FlexRAN as a Docker POD on ICX is supported and can be deployed on '{{ container_runtime }}' runtime"
+      when:
+        - configured_arch == "icx"
 
     # check SRIOV for FlexRAN in Docker POD
     - debug: msg="SRIOV Operator is {{ sriov_network_operator_enabled | default(false) }} or undefined, and SRIOV DP is set to {{ sriov_net_dp_enabled }}"

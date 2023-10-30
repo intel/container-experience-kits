@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cadvisor
+  namespace: {{ cadvisor_namespace }}
+spec:
+  selector:
+    app: cadvisor
+  ports:
+    - protocol: TCP
+      port: 8443
+      targetPort: 8443
+      name: https

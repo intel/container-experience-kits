@@ -21,12 +21,15 @@
     - kubernetes | default(true)
     - not on_cloud | default(false)
     - kube_provisioner == "rke2"
+{% if playbook_name == 'on_prem_sw_defined_factory' %}
+- name: install Intel ECI for non-k8s vm nodes
+  import_playbook: intel/eci_basic.yml
+  when: on_vms | default(false)
+{% endif %}
 - name: install Intel Container Experience Kit features
   import_playbook: intel/{{ playbook_name }}.yml
+{% if playbook_name != 'on_prem_aibox' %}
   when: kubernetes | default(true)
-{% if playbook_name == 'on_prem_aibox' %}
-- name: install Intel Base Containers
-  import_playbook: intel/base_container.yml
 {% endif %}
 - name: run post deployment hooks
   import_playbook: k8s/post_deployment_hooks.yml

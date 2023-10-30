@@ -28,7 +28,7 @@
       pu parity N
       pu stopbits 1
       pu rtscts No
-    mode: 0644
+    mode: '0644'
 
 - name: create ACC minicom file
   ansible.builtin.copy:
@@ -40,26 +40,26 @@
       pu parity N
       pu stopbits 1
       pu rtscts No
-    mode: 0644
+    mode: '0644'
 
 - name: Create IPU project directory
   ansible.builtin.file:
     path: "{{ ipu_project_root_dir }}"
     state: directory
-    mode: 0755
+    mode: '0755'
 
 - name: copy EthProgrammer from ansible host
   ansible.builtin.copy:
     src: "{{ (ipu_tmp_dir, ipu_eth_programmer_zip) | path_join }}"
     dest: "{{ (ipu_project_root_dir, ipu_eth_programmer_zip) | path_join }}"
-    mode: 0644
+    mode: '0644'
 
 - name: unarchive EthProgrammer
   ansible.builtin.unarchive:
     src: "{{ (ipu_project_root_dir, ipu_eth_programmer_zip) | path_join }}"
     dest: "{{ ipu_project_root_dir }}"
-    remote_src: yes
-    mode: 0755
+    remote_src: true
+    mode: '0755'
   register: unzip_result
   failed_when: (unzip_result.extract_results.rc != 0) and ('appears to use backslashes as path separators' not in unzip_result.extract_results.err)
 

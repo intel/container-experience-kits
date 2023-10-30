@@ -29,13 +29,37 @@
 - hosts: k8s_cluster
   gather_facts: false
   tasks:
-    - name: prepare additional kubespray facts
-      set_fact:
+    - name: Prepare native CPU manager settings
+      when: native_cpu_manager_enabled | default(false)
+      ansible.builtin.set_fact:
+        # Config Variant 1 - set CPU time reservation for system/kube daemons
+        system_reserved: >-
+          {% if not native_cpu_manager_reserved_cpus | default(false) -%}
+          true{% else %}false{% endif %}
+        system_master_cpu_reserved: "{{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
+        system_cpu_reserved: "{{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
+        kube_reserved: >-
+          {% if not native_cpu_manager_reserved_cpus | default(false) and native_cpu_manager_kube_reserved_cpus | default(false) -%}
+          true{% else %}false{% endif %}
+        kube_master_cpu_reserved: "{{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
+        kube_cpu_reserved: "{{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
+        # Config Variant 2 - set explicit list of CPUs to run system/kube daemons exclusive
         kubelet_node_custom_flags_prepare: >-
-          {%- if native_cpu_manager_enabled | default(true) and native_cpu_manager_reserved_cpus is defined -%}
+          {%- if native_cpu_manager_reserved_cpus | default(false) -%}
             reservedSystemCPUs: "{{ native_cpu_manager_reserved_cpus }}"
           {%- endif -%}
+    - name: set kube_config dir
+      set_fact:
         kube_config_dir: /etc/kubernetes
+    - name: Set default kube feature gates
+      set_fact:
+        kube_default_feature_gates:
+          - RotateKubeletServerCertificate=true
+    - name: Set kube CPU manager feature gate for kubernetes older than v1.26
+      set_fact:
+        kube_cpu_manager_feature_gate:
+          - CPUManager=true
+      when: kube_version | regex_replace('^v(.*)', '\\1') is version('1.26', '<')
     - name: set kube_cert_dir
       set_fact:
         kube_cert_dir: "{{ kube_config_dir }}/ssl"
@@ -46,6 +70,12 @@
           {% if minio_enabled is defined and minio_enabled -%}vxlan{%- else -%}
           {% if ansible_distribution_version >= '21.04' -%}host-gw{%- else -%}vxlan{% endif %}{% endif %}
       when: kube_network_plugin == "flannel"
+
+    - name: Disable DNS stub listener when needed
+      set_fact:
+        systemd_resolved_disable_stub_listener: true
+      when:
+        - dns_disable_stub_listener | default(true) | bool
 
     - name: print flannel_backend_type
       debug:
@@ -120,7 +150,7 @@
     krew_enabled: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
     multus_image_tag: "v3.9.3-amd64"
-    nginx_image_tag: 1.23.3-alpine
+    nginx_image_tag: 1.24.0-alpine
     calico_node_livenessprobe_timeout: 15
     calico_node_readinessprobe_timeout: 15
     kube_proxy_mode: iptables
@@ -128,17 +158,11 @@
     override_system_hostname: false
     cilium_ipam_mode: kubernetes
     enable_nodelocaldns: false
-    system_reserved: true
     dashboard_enabled: "{{ kube_dashboard_enabled | default(true) }}"
-    system_cpu_reserved: "{{ native_cpu_manager_system_reserved_cpus | default('1000m') }}"
-    kube_cpu_reserved: "{{ native_cpu_manager_kube_reserved_cpus | default('1000m') }}"
     kubelet_custom_flags: "--cpu-cfs-quota=false"
-    kubelet_node_config_extra_args: "{{ kubelet_node_custom_flags_prepare | from_yaml }}"
+    kubelet_node_config_extra_args: "{{ kubelet_node_custom_flags_prepare | default('') | from_yaml }}"
     kube_api_anonymous_auth: true
-    kube_feature_gates:
-      - CPUManager=true # feature gate can be enabled by default, default policy is none in Kubernetes
-      - TopologyManager={{ topology_manager_enabled | default(true) }}
-      - RotateKubeletServerCertificate=true
+    kube_feature_gates: "{{ kube_default_feature_gates + kube_cpu_manager_feature_gate | default([]) }}"
     # Kubernetes cluster hardening
     kubernetes_audit: true
     audit_log_maxbackups: 10
@@ -151,10 +175,11 @@
       service-account-key-file: "{{ kube_cert_dir }}/sa.key"
     kube_kubeadm_controller_extra_args:
       service-account-private-key-file: "{{ kube_cert_dir }}/sa.key"
+    kubelet_cpu_manager_policy: "{% if native_cpu_manager_enabled | default(false) %}static{% else %}none{% endif %}"
+    kubelet_topoloy_manager_policy: "{{ topology_manager_policy | default('none') }}"
+    kubelet_topology_manager_scope: "{{ topology_manager_scope | default('container') }}"
     kubelet_config_extra_args:
       protectKernelDefaults: true
-      cpuManagerPolicy: "{% if native_cpu_manager_enabled | default(true) %}static{% else %}none{% endif %}"
-      topologyManagerPolicy: "{% if topology_manager_enabled | default(true) %}{{ topology_manager_policy | default('none') }}{% else %}none{% endif %}"
       eventRecordQPS: 0
     kube_apiserver_request_timeout: 60s
     kube_apiserver_enable_admission_plugins: ["EventRateLimit", "DefaultStorageClass", "NodeRestriction", "{% if always_pull_enabled %}AlwaysPullImages,{% endif %}PodSecurity"] # noqa yaml[line-length]
@@ -336,6 +361,9 @@
       when:
         - cert_manager_enabled | default(false) or
           registry_enable | default(false)
+    - role: calico_vpp_install
+      tags: calico-vpp
+      when: calico_vpp.enabled | default(false) | bool
     - role: container_registry
       tags: registry
       when:

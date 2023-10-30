@@ -20,7 +20,7 @@
     ansible_host: "{{ vm_vxlan_ips[item.name] }}"
     ip: "{{ vm_vxlan_ips[item.name] }}"
     ansible_user: "{{ login_user }}"
-    inventory_dir: '{{inventory_dir}}'
+    inventory_dir: '{{ inventory_dir }}'
     groups: all
   loop: "{{ vms }}"
   when:
@@ -31,7 +31,7 @@
     hostname: "{{ item.name }}"
     ansible_host: "{{ item.name }}"
     ansible_user: "{{ login_user }}"
-    inventory_dir: '{{inventory_dir}}'
+    inventory_dir: '{{ inventory_dir }}'
     groups: all
   loop: "{{ vms }}"
   when:
@@ -40,8 +40,8 @@
 - name: Add hosts to inventory - kube*
   add_host:
     hostname: "{{ item.name }}"
-    groups: "{% if item.type == 'ctrl' %} kube_control_plane,etcd {% elif item.type == 'work' %} kube_node {% endif %}"
-    inventory_dir: '{{inventory_dir}}'
+    groups: "{% if item.type == 'ctrl' %} kube_control_plane,etcd {% elif item.type == 'work' %} kube_node {% else %} vms {% endif %}"
+    inventory_dir: '{{ inventory_dir }}'
   loop: "{{ vms }}"
 
 - name: VMs are ready

@@ -56,19 +56,23 @@
               }
             - { 'description'   : 'Prometheus',
                 'shortname'     : 'prometheus_stack_version',
-                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml'
+                'var_file_path' : 'roles/prometheus_install/defaults/main.yml'
               }
             - { 'description'   : 'Kube State Metrics',
                 'shortname'     : 'kube_state_metrics_version',
-                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml'
+                'var_file_path' : 'roles/prometheus_install/kube_prometheus/defaults/main.yml'
               }
             - { 'description'   : 'Grafana',
                 'shortname'     : 'grafana_version',
-                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml'
+                'var_file_path' : 'roles/prometheus_install/defaults/main.yml'
               }
             - { 'description'   : 'CollectD',
                 'shortname'     : "image_collectd\\'\\]\\[\\'digest",
                 'var_file_path' : 'roles/collectd_install/defaults/main.yml'
+              }
+            - { 'description'   : 'Intel XPUManager',
+                'shortname'     : 'xpumanager_version',
+                'var_file_path' : 'roles/intel_xpumanager/defaults/main.yml'
               }
             - { 'description'   : 'Docker',
                 'shortname'     : 'docker_version',
@@ -93,15 +97,15 @@
                 'var_file_path' : 'roles/rke2_kubernetes_apps/rancher/defaults/main.yml'
               }
             - { 'description'   : 'k8s node-exporter',
-                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml',
+                'var_file_path' : 'roles/prometheus_install/defaults/main.yml',
                 'shortname'     : 'node_exporter_version'
               }
             - { 'description'   : 'k8s prometheus-operator',
-                'var_file_path' : 'roles/kube_prometheus/defaults/main.yml',
+                'var_file_path' : 'roles/prometheus_install/kube_prometheus/defaults/main.yml',
                 'shortname'     : "prometheus_operator_version"
               }
             - { 'description'   : 'k8s prometheus-adapter',
-                'var_file_path' : 'roles/kube_prometheus/files/kube-prometheus-stack/prometheusAdapter-clusterRole.yaml',
+                'var_file_path' : 'roles/prometheus_install/kube_prometheus/files/kube-prometheus-stack/prometheusAdapter-clusterRole.yaml',
                 'shortname'     :  "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
               }
             - { 'description'   : 'k8s kube-rbac-proxy',
@@ -123,6 +127,10 @@
             - { 'description'   : 'calico',
                 'shortname'     : 'calico_version',
                 'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+              }
+            - { 'description'   : 'calico vpp dataplane',
+                'shortname'     : 'k8s_calico_vpp_version',
+                'var_file_path' : 'roles/calico_vpp_install/defaults/main.yml'
               }
             - { 'description'   : 'flannel',
                 'shortname'     : 'flannel_version',
@@ -219,10 +227,6 @@
             - { 'description'   : 'Intel® Ethernet Operator',
                 'var_file_path' : 'roles/intel_ethernet_operator/defaults/main.yml',
                 'shortname'     : 'intel_ethernet_operator_git_ref'
-              }
-            - { 'description'   : 'Intel® Ethernet Operator image',
-                'var_file_path' : 'roles/intel_ethernet_operator/defaults/main.yml',
-                'shortname'     : 'intel_ethernet_operator_img_ver'
               }
             - { 'description'   : 'Intel® Ethernet UFT',
                 'var_file_path' : 'roles/intel_ethernet_operator/defaults/main.yml',
@@ -503,6 +507,18 @@
             - { 'description'   : 'jaeger',
                 'var_file_path' : 'roles/jaeger_install/defaults/main.yml',
                 'shortname'     : "jaeger_version"
+              }
+            - { 'description'   : 'Intel csl-excat',
+                'var_file_path' : 'roles/intel_csl_excat/defaults/main.yml',
+                'shortname'     : 'csl_excat_version'
+              }
+            - { 'description'   : 'Intent Driven Orchestration (IDO)',
+                'var_file_path' : 'roles/intent_driven_orchestration/defaults/main.yml',
+                'shortname'     : "ido_git_version"
+              }
+            - { 'description'   : 'Intel Media Transport Library',
+                'var_file_path' : 'roles/imtl_install/defaults/main.yml',
+                'shortname'     : 'imtl_version'
               }
         - name: Remove old version parsing results
           file:

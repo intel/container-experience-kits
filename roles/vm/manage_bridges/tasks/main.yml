@@ -14,8 +14,11 @@
 ##   limitations under the License.
 ##
 ---
+# by default, the caller (prepare_vms.yml) should call this already
+# just in case, someone need call this from another path
 - name: Set VXLAN interface name
   include_tasks: vxlan_interface_name.yml
+  when: vxlan_interface is not defined
 
 - name: Configure VXLAN bridges
   include_tasks: configure_bridges.yml

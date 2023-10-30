@@ -15,12 +15,14 @@
 ##
 ---
 - name: set vxlan_interface to empty string
-  set_fact:
+  ansible.builtin.set_fact:
     vxlan_interface: ""
+    vxlan_interface_ip: ""
 
 - name: get interface name which holds VXLAN physical network
-  set_fact:
+  ansible.builtin.set_fact:
     vxlan_interface: "{{ item }}"
+    vxlan_interface_ip: "{{ hostvars[inventory_hostname]['ansible_' + item]['ipv4']['address'] }}"
   with_items: "{{ ansible_interfaces }}"
   when:
     - "hostvars[inventory_hostname]['ansible_' + item]['ipv4'] is defined"

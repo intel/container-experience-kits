@@ -52,4 +52,4 @@
 
     - name: Get all PMU C0 events available for the target CPU
       ansible.builtin.set_fact:
-        cstates_events_available: "{{ pmu_event_definitions | map(attribute='EventName') | list | select('contains', 'CPU_CLK_UNHALTED.C0') }}"
+        cstates_events_available: "{{ pmu_event_definitions['Events'] | map(attribute='EventName') | list | select('contains', 'CPU_CLK_UNHALTED.C0') }}"

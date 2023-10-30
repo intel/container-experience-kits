@@ -61,9 +61,19 @@
 
 - name: Create new_qat_devices list
   set_fact:
-    new_qat_devices: "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required, 'qat_default_vf_driver' : qat_vf_driver_required }] }}" # noqa yaml[line-length]
+    new_qat_devices:
+      "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required,
+       'qat_default_vf_driver' : qat_vf_driver_required }] }}"
   with_items: "{{ qat_id_values }}"
   changed_when: true
+  when: not on_vms | default(false)
+
+- name: Create new_qat_devices list on VMs
+  set_fact:
+    new_qat_devices: "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required }] }}"
+  with_items: "{{ qat_id_values }}"
+  changed_when: true
+  when: on_vms | default(false)
 
 - name: replace original qat_devices
   set_fact:

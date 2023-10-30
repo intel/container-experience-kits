@@ -6,13 +6,16 @@ kind: EthernetClusterConfig
 metadata:
   name: {{ hostvars[node_name]['ansible_hostname'] }}-{{ iface.name }}-fw-config
   namespace: "{{ intel_ethernet_operator_namespace }}"
+  labels:
+    app: intel-ethernet-operator
+    version: {{ intel_ethernet_operator_git_ref }}
 spec:
   nodeSelectors:
     kubernetes.io/hostname: {{ hostvars[node_name]['ansible_hostname'] }}
   deviceSelector:
     pciAddress: "0000:{{ iface.bus_info }}"
   deviceConfig:
-    fwURL: "http://{{ cache_server_clusterip.stdout }}/E810_NVMUpdatePackage_v4_10_Linux.tar.gz"
+    fwURL: "http://{{ cache_server_clusterip.stdout }}/E810_NVMUpdatePackage_v4_30_Linux.tar.gz"
     fwChecksum: "{{ intel_ethernet_operator_fw_sum }}"
 {% endif %}
 {% endfor %}

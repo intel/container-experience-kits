@@ -40,7 +40,9 @@ function ip_link {
   #  0: Command executed
   #  1: Incorrect function
   if [ "$1" == "add" ]; then
-    ip link add vxlan${2} type vxlan id $2 dstport 4789 dev $interface group 239.0.0.1 ttl 5 &> /dev/null
+    # use port 4799 to avoid conflict with calico vxlan 4789 standard port for baremetal host vxlan case
+    # and no impact to pure VMRA case too
+    ip link add vxlan${2} type vxlan id $2 dstport 4799 dev $interface group 239.0.0.1 ttl 5 &> /dev/null
     ip link set dev vxlan${2} mtu $mtu_size
     return 0
   elif [ "$1" == "del" ]; then
@@ -109,6 +111,11 @@ for vxlan in $vxlans; do
   fi
   ip_link add $vxlan
   ip_link attach $vxlan
+{% for ip in hostvars[groups['vm_host'][0]]['vxlan_interface_ips'] | default("") | split %}
+{% if ip != vxlan_interface_ip %}
+  bridge fdb append 00:00:00:00:00:00 dev vxlan$vxlan dst {{ ip }}
+{% endif %}
+{% endfor %}
 done
 
 echo "Configuration finished"

@@ -1,0 +1,35 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get the tdx dmesg log
+  ansible.builtin.shell: "set -o pipefail && dmesg | grep -i tdx"
+  args:
+    executable: /bin/bash
+  register: kernel_message
+  changed_when: true
+
+- name: check whether tdx is configured correctly
+  ansible.builtin.assert:
+    that:
+      - kernel_message.rc == 0
+    msg: "Please refer the doc/emr.md to run the tdx.yml first and then enabled the TDX option in the bios"
+
+- name: check linux distro version for tdx
+  ansible.builtin.assert:
+    that: >
+      - (ansible_distribution == 'Ubuntu' and ansible_distribution_version == '22.04')
+    msg:
+      - "TDX is verified only on Ubuntu 22.04 with RA"

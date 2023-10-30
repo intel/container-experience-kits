@@ -1,0 +1,54 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Define DDP package directory
+  set_fact:
+    ddp_download_dir: "{{ ddp_download_dir_override | default(ddp_pkgs[nic_driver].download_dir) }}"
+
+- name: Create DDP package directory
+  ansible.builtin.file:
+    path: "{{ ddp_download_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Download DDP packages
+  ansible.builtin.get_url:
+    checksum: "sha1:{{ item.checksum }}"
+    url: "{{ item.url }}"
+    dest: "{{ ddp_download_dir }}"
+    mode: '0644'
+  loop: "{{ ddp_pkgs[nic_driver].pkgs }}"
+  register: fetched_pkgs
+
+- name: Unarchive fetched file when needed
+  ansible.builtin.unarchive:
+    src: "{{ item.dest }}"
+    dest: "{{ ddp_download_dir }}"
+    remote_src: true
+  loop: "{{ fetched_pkgs.results }}"
+  when:
+    - item.item.archive | default(false)
+
+- name: Find temporary files to remove
+  ansible.builtin.find:
+    paths: "{{ ddp_download_dir }}"
+    excludes: "{{ ddp_pkgs[nic_driver].pkgs | map(attribute='name') | list }}"
+  register: ddp_files_to_remove
+
+- name: Remove temporary files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ ddp_files_to_remove.files | map(attribute='path') | list }}"

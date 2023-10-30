@@ -14,7 +14,34 @@
 ##   limitations under the License.
 ##
 ---
-- debug: msg="Entering Intel ECI Role"
+- ansible.builtin.debug: msg="Entering Intel ECI Role"
+
+- block:
+    - name: Get ECI Package from Command line
+      ansible.builtin.debug:
+        var: eci_package
+
+    - name: Check Command line ECI packages
+      ansible.builtin.debug:
+        msg: eci package name invalid.
+      when: "eci_package not in eci_packages"
+
+    # Overwrite intel_eci
+    - name: Set value
+      ansible.builtin.set_fact:
+        intel_eci: "{{ intel_eci | combine({ item : true}) }}"
+      when: eci_package == item
+      loop: "{{ eci_packages }}"
+
+    - name: Set value
+      ansible.builtin.set_fact:
+        intel_eci: "{{ intel_eci | combine({ item : false}) }}"
+      when: eci_package != item
+      loop: "{{ eci_packages }}"
+  when: eci_package is defined
+
+- ansible.builtin.debug:
+    var: intel_eci
 
 - name: add the ECI APT key
   ansible.builtin.apt_key:
@@ -47,19 +74,8 @@
   include_role:
     name: install_dependencies
 
-- name: reboot into RT kernel
-  ansible.builtin.reboot:
-
-- name: re-gather o/s facts
-  ansible.builtin.setup:
-    filter:
-      - 'ansible_kernel'
-
-- name: check RT kernel
-  ansible.builtin.assert:
-    that: "'intel-ese-standard-lts-rt' in ansible_kernel"
-    fail_msg: "System failed to boot the RT kernel.  Detected '{{ ansible_kernel }}' kernel"
-    success_msg: "Assertion passed.  Kernel is now '{{ ansible_kernel }}'"
+- name: handle RT kernel
+  include_tasks: handle-RT.yml
 
 - name: install ECI meta-packages
   ansible.builtin.apt:
@@ -68,6 +84,16 @@
     update_cache: true
   with_items: "{{ intel_eci | dict2items }}"
   when: item.value
+
+# need handle RT kernel again due to above meta-package installation
+- name: handle RT kernel
+  include_tasks: handle-RT.yml
+
+- name: Install OpenPLC
+  include_tasks: openplc.yml
+  when:
+    - intel_eci | dict2items | map(attribute='value') | select('==', true) | list | length != 0
+    - ethercat_mac | default("") != ""
 
 - name: deploy Codesys OPC UA Client
   block:
@@ -88,17 +114,18 @@
         - codesys_runtime.rc != 0
         - '"Codesys preparation complete" not in codesys_runtime.stdout'
 
+    - name: gather service facts
+      ansible.builtin.service_facts:
+
     - name: restart docker service (codesys_native script killed it)
       ansible.builtin.service:
         name: docker
         state: restarted
-
-    - name: gather service facts
-      ansible.builtin.service_facts:
+      when: ansible_facts.services.docker.state | default("") != ""
 
     # sudo systemctl status codesyscontrol
     - name: print codesyscontrol status
-      debug:
+      ansible.builtin.debug:
         var: ansible_facts.services.codesyscontrol.state
 
     - name: check codesyscontrol status
@@ -107,7 +134,7 @@
         success_msg: "Assertion passed. The codesyscontrol service is active (running)"
         fail_msg: "The codesyscontrol service is in {{ ansible_facts.services.codesyscontrol.state }} state (not running)"
 
-    - debug: msg="Intel ECI with Codesys OPC UA Client is ready on target '{{ inventory_hostname }}'"
+    - ansible.builtin.debug: msg="Intel ECI with Codesys OPC UA Client is ready on target '{{ inventory_hostname }}'"
   when: opcua_framework.codesys_opcua_client | bool
 
 - name: deploy Standalone OPC UA Server
@@ -156,5 +183,5 @@
         success_msg: "Assertion passed. The OPC UA Server is running as 'opcsvr' process with PID {{ opcsvr_pid.stdout }}"
         fail_msg: "The OPC UA Server failed to start. No 'opcsvr' process is running"
 
-    - debug: msg="Intel ECI with Standalone OPC UA Server is ready on target '{{ inventory_hostname }}'"
+    - ansible.builtin.debug: msg="Intel ECI with Standalone OPC UA Server is ready on target '{{ inventory_hostname }}'"
   when: opcua_framework.standalone_opcua_server | bool

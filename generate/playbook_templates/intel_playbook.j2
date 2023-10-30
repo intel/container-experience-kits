@@ -34,7 +34,7 @@
         - nfd
         - intel-platform-qat-setup
         - intel-platform-sgx-setup
-      when: nfd_enabled | default(true) | bool
+      when: nfd_enabled | default(false) | bool
 {% if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own'] %}
     - role: intel_cpu_controlplane
       tags: cpu-ctlplane
@@ -127,9 +127,9 @@
         - tac.enabled | default(false) | bool
 {% endif %}
 {% if playbook_name in ['access', 'full_nfv', 'on_prem', 'on_prem_vss', 'remote_fp', 'regional_dc', 'build_your_own'] %}
-    - role: intel_power_manager
+    - role: kubernetes_power_manager
       tags: power-manager
-      when: intel_power_manager is defined and intel_power_manager.enabled | default(false) | bool
+      when: kubernetes_power_manager is defined and kubernetes_power_manager.enabled | default(false) | bool
 {% endif %}
 {% if playbook_name in ['access', 'full_nfv', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
     - role: openssl_engine_install
@@ -143,10 +143,10 @@
       tags: platform-aware-scheduling
       when: tas_enabled | default(true) | bool or gas_enabled | default(true) | bool
 {% endif %}
-    - role: kube_prometheus
-      tags: kube-prometheus
+    - role: prometheus_install
+      tags: prometheus
       when:
-        - prometheus_operator | default(false) | bool
+        - prometheus_enabled | default(false) | bool
     - role: collectd_install
       tags: monitoring
       when:
@@ -157,19 +157,6 @@
         - telegraf_enabled | default(false) | bool
         - not (collectd_enabled | default(false) | bool)
       tags: monitoring
-{% if playbook_name in ['access', 'full_nfv', 'build_your_own'] %}
-    - role: intel_sriov_fec_operator
-      tags: intel-sriov-fec-operator
-      when:
-        - intel_sriov_fec_operator_enabled | default(false) | bool
-        - not (intel_flexran_enabled | default(false) | bool and intel_flexran_type == "pod")
-{% endif %}
-{% if playbook_name in ['access', 'full_nfv', 'on_prem', 'on_prem_vss', 'regional_dc', 'remote_fp', 'build_your_own'] %}
-    - role: istio_service_mesh
-      tags: istio-service-mesh
-      when:
-        - istio_service_mesh.enabled | default(true) | bool
-{% endif %}
 {% if playbook_name in ['full_nfv', 'on_prem', 'on_prem_vss', 'regional_dc', 'build_your_own'] %}
     - role: minio_install
       tags: minio
@@ -209,6 +196,17 @@
       tags: intel-eci
       when:
         - intel_eci_enabled | default(false) | bool
+    - role: intel_csl_excat
+      tags: intel_csl_excat
+      when:
+        - intel_csl_excat_enabled | default(false) | bool
+{% endif %}
+{% if playbook_name in ['on_prem_aibox'] %}
+    - role: intel_base_container
+      tags:
+        - base_container
+      when:
+        - intel_base_container_enabled | default(false) | bool
 {% endif %}
   environment:
     - "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
@@ -246,6 +244,8 @@
       tags: defaults
     - role: net_attach_defs_create
       tags: net-attach-defs
+      when:
+        - kubernetes | default(false) | bool
     - role: elasticsearch_install
       tags: elasticsearch
       when:
@@ -267,6 +267,45 @@
       tags: linkerd-service-mesh
       when:
         - linkerd_service_mesh.enabled | default(false) | bool
+{% endif %}
+    - role: intent_driven_orchestration
+      tags: intent-driven-orchestration
+      when:
+        - ido.enabled | d(false) | bool
+        - registry_enable | d(false) | bool
+        - linkerd_service_mesh.enabled | d(false) | bool
+    - role: intel_xpumanager
+      tags: xpumanager
+      when:
+        - intel_xpumanager_enabled | default(false) | bool
+        - inventory_hostname == groups["kube_control_plane"][0]
+    - role: wait_for_kubernetes_ready
+      vars:
+        force_check: true
+      tags: k8s-ready-final
+      ignore_errors: yes
+      when:
+        - kubernetes | default(false) | bool
+  environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
+  any_errors_fatal: true
+
+- hosts: k8s_cluster
+  tasks: []
+  roles:
+    - role: cluster_defaults
+      tags: defaults
+{% if playbook_name in ['access', 'full_nfv', 'build_your_own'] %}
+    - role: intel_sriov_fec_operator
+      tags: intel-sriov-fec-operator
+      when:
+        - intel_sriov_fec_operator_enabled | default(false) | bool
+        - not (intel_flexran_enabled | default(false) | bool and intel_flexran_type == "pod")
+{% endif %}
+{% if playbook_name in ['access', 'full_nfv', 'on_prem', 'on_prem_vss', 'regional_dc', 'remote_fp', 'build_your_own'] %}
+    - role: istio_service_mesh
+      tags: istio-service-mesh
+      when:
+        - istio_service_mesh.enabled | default(true) | bool
 {% endif %}
     - role: wait_for_kubernetes_ready
       vars:

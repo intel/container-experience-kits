@@ -1,0 +1,34 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# this role is only used for those baremetal hosts who need to connect with real VMs with VXLAN
+# we reuse role/vm/manager_bridge to create vxlan under the help of libvirt
+- name: Install dependencies
+  include_role:
+    name: install_dependencies
+
+- name: Add root user to libvirt group
+  ansible.builtin.user:
+    name: root
+    groups: libvirt
+    append: yes
+
+# to reuse vm/manager_bridge we need vm folder to hold vxlan manage script
+- name: Make sure vm directory exist
+  ansible.builtin.file:
+    path: "{{ vm_project_root_dir }}"
+    state: directory
+    mode: '0755'

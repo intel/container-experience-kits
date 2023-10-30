@@ -1,0 +1,143 @@
+---
+
+# The installation steps based https://dgpu-docs.intel.com
+- name: Download Intel graphic gpg key in text format
+  ansible.builtin.get_url:
+    url: "{{ gpu_repo_key_url }}"
+    dest: "{{ gpu_key_text_path }}"
+    force: true
+    mode: '0644'
+
+# TODO: This file will block the gpg command if not removed.
+- name: Remove the key file
+  ansible.builtin.file:
+    state: absent
+    path: "{{ gpu_usr_key_path }}"
+
+- name: Add Intel graphic gpg key to system
+  command: "gpg --dearmor --output {{ gpu_usr_key_path }} {{ gpu_key_text_path }}"
+  changed_when: false
+
+- name: Add Intel graphic driver repo
+  ansible.builtin.apt_repository:
+    filename: "{{ gpu_repo_list_filename }}"
+    repo: "deb [arch=amd64 signed-by={{ gpu_usr_key_path }}] {{ gpu_repo_ubuntu_url }} {{ gpu_repo_spec }}"
+    state: present
+    update_cache: true
+
+- name: Set fact for kernel version
+  ansible.builtin.set_fact:
+    kernel_ver: "{{ ansible_kernel }}"
+
+- name: Install kernel headers incase it missed
+  ansible.builtin.apt:
+    name: linux-headers-{{ kernel_ver }}
+
+- name: Set current kernel as default boot kernel in case there are multiple kernels in system
+  block:
+    - name: Fetch kernel first entry
+      ansible.builtin.shell:
+        "set -o pipefail && cat /boot/grub/grub.cfg | grep submenu | awk -F \"'\" '{print $2}'"
+      args:
+        executable: /bin/bash
+      register: kernel_first_entry
+      failed_when: kernel_first_entry.rc > 1
+      changed_when: false
+
+    - name: Fetch kernel second entry
+      ansible.builtin.shell:
+        "set -o pipefail && cat /boot/grub/grub.cfg | grep menuentry | grep {{ kernel_ver }} | grep -v recovery | awk -F \"'\" '{print $2}'"
+      args:
+        executable: /bin/bash
+      register: kernel_second_entry
+      failed_when: kernel_second_entry.rc > 1
+      changed_when: false
+
+    - name: Set current kernel(2-level entries) as default boot kernel
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: "^GRUB_DEFAULT"
+        line: GRUB_DEFAULT="{{ kernel_first_entry.stdout }}>{{ kernel_second_entry.stdout }}"
+      when: kernel_first_entry.stdout != ""
+      register: boot_entry_2_level
+
+    - name: Set current kernel(1-level entry) as default boot kernel
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: "^GRUB_DEFAULT"
+        line: GRUB_DEFAULT="{{ kernel_second_entry.stdout }}"
+      when: kernel_first_entry.stdout == ""
+      register: boot_entry_1_level
+
+    - name: Add support for multi-gpu system
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        line: GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} pci=realloc=off"
+      register: boot_entry_cmdline
+
+    - name: Update boot configure
+      ansible.builtin.command: "update-grub"
+      changed_when: false
+      when:
+        - boot_entry_1_level.changed or
+          boot_entry_2_level.changed or
+          boot_entry_cmdline.changed
+
+- name: Install kernel dkms packages
+  ansible.builtin.apt:
+    name: "{{ kernel_dkms_packages }}"
+
+# AXG 20230714 out of tree driver can't pass compilation on kernel 6.2,
+# use kernel in tree driver as workaround when kernel version > 6.2.
+- name: Install gpu kernel mode driver packages
+  ansible.builtin.apt:
+    name: "{{ gpu_kmd_packages }}"
+    allow_downgrade: true
+  register: gpu_kmd
+  when:
+    - ansible_kernel is version('6.2', '<')
+
+- name: Install gpu user mode driver and runtime packages
+  ansible.builtin.apt:
+    name: "{{ gpu_umd_rt_packages }}"
+    allow_downgrade: true
+
+- name: Install gpu dev packages
+  ansible.builtin.apt:
+    name: "{{ gpu_dev_packages }}"
+    allow_downgrade: true
+
+- name: Install gpu tool packages
+  ansible.builtin.apt:
+    name: "{{ gpu_tool_packages }}"
+    allow_downgrade: true
+
+- name: Install gpu test packages
+  ansible.builtin.apt:
+    name: "{{ gpu_test_packages }}"
+    allow_downgrade: true
+
+- name: Reboot the system for these changes to take effect
+  ansible.builtin.reboot:
+    reboot_timeout: 1200
+  when:
+    - inventory_hostname != 'localhost'
+    - boot_entry_1_level.changed or
+      boot_entry_2_level.changed or
+      boot_entry_cmdline.changed or
+      gpu_kmd.changed
+
+- name: Create render group if it doesn't exist
+  group:
+    name: render
+    state: present
+
+- name: Add the current user to the render node group
+  user:
+    name: "{{ ansible_user_id }}"
+    groups: render
+    append: true
+
+- name: Apply the current user to the new group id immediately
+  meta:
+    reset_connection

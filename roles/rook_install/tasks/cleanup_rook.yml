@@ -15,6 +15,36 @@
 ##
 ---
 - block:
+    - name: k8s delete rook-ceph cephfs filesystem and storageclass
+      kubernetes.core.k8s:
+        state: absent
+        src: "{{ (rook_helm_local_dir, 'temp', item ) | path_join }}"
+      loop:
+        - "filesystem-test.yaml"
+        - "cephfs-storageclass.yaml"
+      when:
+        - rook_ceph.storage_type | default({}) == "cephfs"
+      failed_when: false
+
+    - name: k8s delete rook-ceph block storageclass
+      kubernetes.core.k8s:
+        state: absent
+        src: "{{ (rook_helm_local_dir, 'temp', 'block-storageclass.yaml' ) | path_join }}"
+      when:
+        - rook_ceph.storage_type | default({}) == "block"
+      failed_when: false
+
+    - name: k8s delete rook-ceph object storage class
+      kubernetes.core.k8s:
+        state: absent
+        src: "{{ (rook_helm_local_dir, 'temp', item ) | path_join }}"
+      loop:
+        - "object-test.yaml"
+        - "object-storageclass.yaml"
+      when:
+        - rook_ceph.storage_type | default({}) == "object"
+      failed_when: false
+
     - name: delete Rook Common Resources
       kubernetes.core.k8s:
         state: absent
@@ -40,21 +70,10 @@
       changed_when: false
       failed_when: false
 
-    # - name: delete Rook local folder
-    #   ansible.builtin.command: >-
-    #     kubectl delete -f {{ (rook_git_local_dir) | path_join }}
-    #   changed_when: false
-    #   failed_when: false
-
-    # - name: delete namespace
-    #   kubernetes.core.k8s:
-    #     name: "{{ rook_namespace }}"
-    #     api_version: v1
-    #     kind: Namespace
-    #     state: absent
-    #   changed_when: false
-    #   failed_when: false
-
+    - name: remove rook logs files
+      ansible.builtin.file:
+        state: absent
+        path: "/var/lib/rook"
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
   tags:

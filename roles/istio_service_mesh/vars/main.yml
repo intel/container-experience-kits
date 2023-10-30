@@ -16,11 +16,11 @@
 istio_service_mesh_defaults:
   enabled: false
   image: istio/istioctl
-  version: 1.18.1
+  version: 1.19.0
   intel_preview:
     enabled: false
     image: intel/istioctl
-    version: 1.18.0-intel.0
+    version: 1.19.0-intel.0
   context: ''
   filename: []
   namespace: ''

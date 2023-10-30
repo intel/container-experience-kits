@@ -19,16 +19,16 @@ supported_intel_oneapi_kits:
 
 default_intel_oneapi_kit: basekit
 
-oneapi_basekit_version: 2023.1.0 # reference for versions playbook
-oneapi_ai_version: 2023.1.1 # reference for versions playbook
+oneapi_basekit_version: 2023.2.0 # reference for versions playbook
+oneapi_ai_version: 2023.2.0 # reference for versions playbook
 
 intel_oneapi_checksum:
-  basekit: "aa874c08c985095c710f849af7e3d1f0cfecf561398056d391aae2528c40ea12994b17e244646597be4e55cb762490e1" # SHA384
-  ai_analytics: "720f9f0bc10c92a8591142881e5f87bf2a254a550fdc948182af620f9c0f83f2c3987b71d25747c6e80f53cdb2c4646a" # SHA384
+  basekit: "fd15ab63e4401adda819b158751c83e5127a05ee834fdbc48f32a558166644e12f2e884e72b9b78c03360d8ef12c17c3" # SHA384
+  ai_analytics: "27f53a06d5a458bc85a71a0ce4458c0c3e7543bf0db7d7f1cca046be261dd94afe905d4e4607cfe6536770f1b55d755b" # SHA384
 
 intel_oneapi_url:
-  basekit: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/7deeaac4-f605-4bcf-a81b-ea7531577c61/l_BaseKit_p_2023.1.0.46401_offline.sh"
-  ai_analytics: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/ef4efa4d-9b83-4994-a122-d5a4d2dec84c/l_AIKit_p_2023.1.1.48862_offline.sh"
+  basekit: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/992857b9-624c-45de-9701-f6445d845359/l_BaseKit_p_2023.2.0.49397_offline.sh"
+  ai_analytics: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/af4bc50d-898e-45a4-8f7d-378448ba294a/l_AIKit_p_2023.2.0.48997_offline.sh"
 
 intel_oneapi_components:
   basekit:

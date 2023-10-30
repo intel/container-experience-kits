@@ -74,3 +74,5 @@ confirmed_spr_cpus:
 
 confirmed_emr_cpus:
   - "0000"
+  - "8592"
+  - "6548N"

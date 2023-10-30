@@ -16,7 +16,6 @@
 # - intel_cpu_controlplane
 # - native_cpu_manager
 # - bond_cni
-# - topology_manager
 # - sriov_operator
 # - sriov_network_dp
 # - nic_drivers
@@ -40,14 +39,14 @@
 # - openssl
 # - tas
 # - gas
-# - ddp
+# - ddp_legacy
 # - network_userspace
 # - dpdk
 # - ovs_dpdk
 # - sst
 # - power:
 #     manager
-#     pstate
+#     frequency_scaling
 #     cstate
 #     uncore_frequency
 # - telemetry:
@@ -58,6 +57,7 @@
 #     opentelemetry
 #     elasticsearch
 #     kibana
+#     intel_xpumanager
 # - wireguard
 # - multus
 # - minio
@@ -79,7 +79,7 @@
 # - intel_ethernet_operator
 #     enabled
 #     flow_config
-#     ddp
+#     ddp_update
 #     fw_update
 # - intel_sriov_fec_operator
 # - intel_oneapi
@@ -100,10 +100,16 @@
 # - opcua_framework
 #     codesys_opcua_client
 #     standalone_opcua_server
+# - intel_csl_excat
 # - tadk
 # - sigstore_policy_controller
 # - cadvisor
 # - fpga
+# - tdx
+# - calico_vpp
+# - ido
+# - imtl
+
 access:
   name: access
   vm_mode: optional
@@ -114,7 +120,6 @@ access:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: off
   sriov_network_dp: on
   nic_drivers: on
@@ -122,8 +127,8 @@ access:
   qat: optional
   qat_dp: optional
   openssl: on
-  dsa: on
-  dsa_dp: on
+  dsa: optional
+  dsa_dp: optional
   dlb: optional
   dlb_dp: optional
   gpu: off
@@ -140,14 +145,14 @@ access:
   tac: off
   tas: off
   gas: off
-  ddp: off
+  ddp_legacy: off
   network_userspace: off
   dpdk: on
   ovs_dpdk: off
   sst: off
   power:
     manager: off
-    pstate: off
+    frequency_scaling: off
     cstate: off
     uncore_frequency: off
   telemetry:
@@ -158,6 +163,7 @@ access:
     opentelemetry: on
     elasticsearch: on
     kibana: on
+    intel_xpumanager: off
   istio_service_mesh:
     enabled: off
     tcpip_bypass_ebpf: off
@@ -180,7 +186,7 @@ access:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: on
   intel_oneapi:
@@ -191,6 +197,10 @@ access:
   adq_dp: optional
   sigstore_policy_controller: on
   cadvisor: on
+  tdx: off
+  calico_vpp: optional
+  imtl: optional
+  base_container: off
 
 basic:
   name: basic
@@ -201,14 +211,13 @@ basic:
   rancher_manager: optional
   isolcpu: optional
   cpusets: optional
-  topology_manager: on
   sriov_operator: optional
   sriov_network_dp: optional
   nic_drivers: on
   dpdk: optional
   power:
     manager: optional
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
   telemetry:
@@ -219,6 +228,7 @@ basic:
     opentelemetry: on
     elasticsearch: on
     kibana: on
+    intel_xpumanager: off
   wireguard: optional
   multus: on
   firewall: optional
@@ -240,6 +250,10 @@ basic:
     base: optional
     ai: optional
   cadvisor: on
+  tdx: off
+  calico_vpp: optional
+  imtl: optional
+  base_container: off
 
 full_nfv:
   name: full_nfv
@@ -252,7 +266,6 @@ full_nfv:
   cpusets: optional
   intel_cpu_controlplane: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -278,14 +291,14 @@ full_nfv:
   tac: on
   tas: on
   gas: optional
-  ddp: on
+  ddp_legacy: on
   network_userspace: on
   dpdk: on
   ovs_dpdk: on
   sst: optional
   power:
     manager: on
-    pstate: on
+    frequency_scaling: on
     cstate: on
     uncore_frequency: on
   telemetry:
@@ -296,6 +309,7 @@ full_nfv:
     opentelemetry: on
     elasticsearch: on
     kibana: on
+    intel_xpumanager: optional
   istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
@@ -318,7 +332,7 @@ full_nfv:
   intel_ethernet_operator:
     enabled: on
     flow_config: optional
-    ddp: on
+    ddp_update: on
     fw_update: optional
   intel_sriov_fec_operator: optional
   tadk: on
@@ -329,6 +343,11 @@ full_nfv:
     ai: optional
   cadvisor: on
   fpga: optional
+  tdx: off
+  calico_vpp: optional
+  ido: optional
+  imtl: optional
+  base_container: off
 
 on_prem:
   name: on_prem
@@ -340,7 +359,6 @@ on_prem:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -370,7 +388,7 @@ on_prem:
   sst: optional
   power:
     manager: optional
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
   telemetry:
@@ -381,6 +399,7 @@ on_prem:
     opentelemetry: on
     elasticsearch: on
     kibana: on
+    intel_xpumanager: optional
   istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
@@ -411,6 +430,11 @@ on_prem:
     ai: optional
   cadvisor: on
   fpga: optional
+  tdx: optional
+  calico_vpp: optional
+  ido: optional
+  imtl: optional
+  base_container: off
 
 on_prem_vss:
   name: on_prem_vss
@@ -421,7 +445,6 @@ on_prem_vss:
   isolcpu: on
   cpusets: optional
   native_cpu_manager: optional
-  topology_manager: optional
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -447,14 +470,14 @@ on_prem_vss:
   tac: optional
   tas: on
   gas: on
-  ddp: optional
+  ddp_legacy: optional
   network_userspace: optional
   dpdk: on
   ovs_dpdk: optional
   sst: optional
   power:
     manager: optional
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
   telemetry:
@@ -465,6 +488,7 @@ on_prem_vss:
     opentelemetry: optional
     elasticsearch: optional
     kibana: optional
+    intel_xpumanager: optional
   istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: optional
@@ -486,13 +510,17 @@ on_prem_vss:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
   adq_dp: optional
   sigstore_policy_controller: optional
   intel_oneapi:
     base: optional
     ai: optional
+  tdx: off
+  calico_vpp: optional
+  imtl: optional
+  base_container: off
 
 on_prem_sw_defined_factory:
   name: on_prem_sw_defined_factory
@@ -505,7 +533,6 @@ on_prem_sw_defined_factory:
   cpusets: optional
   native_cpu_manager: optional
   intel_cpu_controlplane: optional
-  topology_manager: optional
   sriov_operator: optional
   sriov_network_dp: optional
   nic_drivers: optional
@@ -531,14 +558,14 @@ on_prem_sw_defined_factory:
   tac: optional
   tas: optional
   gas: optional
-  ddp: optional
+  ddp_legacy: optional
   network_userspace: optional
   dpdk: optional
   ovs_dpdk: optional
   sst: optional
   power:
     manager: optional
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
   telemetry:
@@ -549,6 +576,7 @@ on_prem_sw_defined_factory:
     opentelemetry: optional
     elasticsearch: optional
     kibana: optional
+    intel_xpumanager: optional
   istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
@@ -570,7 +598,7 @@ on_prem_sw_defined_factory:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: optional
   rt_kernel: optional
@@ -588,10 +616,15 @@ on_prem_sw_defined_factory:
   opcua_framework:
     codesys_opcua_client: on
     standalone_opcua_server: optional
+  intel_csl_excat: optional
   tadk: optional
   adq_dp: optional
   sigstore_policy_controller: optional
   cadvisor: optional
+  tdx: off
+  calico_vpp: optional
+  imtl: optional
+  base_container: off
 
 on_prem_aibox:
   name: on_prem_aibox
@@ -604,7 +637,6 @@ on_prem_aibox:
   cpusets: off
   native_cpu_manager: off
   intel_cpu_controlplane: off
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
@@ -630,7 +662,7 @@ on_prem_aibox:
   tac: off
   tas: off
   gas: off
-  ddp: off
+  ddp_legacy: off
   network_userspace: off
   dpdk: off
   ovs_dpdk: off
@@ -641,13 +673,14 @@ on_prem_aibox:
     cstate: off
     uncore_frequency: off
   telemetry:
-    prometheus: off
+    prometheus: on
     collectd: off
     telegraf: off
     jaeger: off
     opentelemetry: off
     elasticsearch: off
     kibana: off
+    intel_xpumanager: on
   istio_service_mesh:
     enabled: off
     tcpip_bypass_ebpf: off
@@ -669,28 +702,19 @@ on_prem_aibox:
   intel_ethernet_operator:
     enabled: off
     flow_config: off
-    ddp: off
+    ddp_update: off
     fw_update: off
   intel_sriov_fec_operator: off
   rt_kernel: off
   intel_flexran: off
-  intel_eci:
-    process_automation: off
-    manufacturing_equipment: off
-    discrete_manufacturing: off
-    realtime: off
-    connectivity: off
-    softplc: off
-    infra_clients: off
-    inference: off
-    acrn: off
-  opcua_framework:
-    codesys_opcua_client: off
-    standalone_opcua_server: off
   tadk: off
   adq_dp: off
   sigstore_policy_controller: off
   cadvisor: off
+  tdx: off
+  calico_vpp: off
+  imtl: optional
+  base_container: on
 
 regional_dc:
   name: regional_dc
@@ -701,7 +725,6 @@ regional_dc:
   rancher_manager: optional
   isolcpu: optional
   cpusets: optional
-  topology_manager: on
   sriov_operator: optional
   sriov_network_dp: optional
   nic_drivers: on
@@ -723,7 +746,7 @@ regional_dc:
   dpdk: optional
   power:
     manager: optional
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
   telemetry:
@@ -734,6 +757,7 @@ regional_dc:
     opentelemetry: on
     elasticsearch: on
     kibana: on
+    intel_xpumanager: optional
   istio_service_mesh:
     enabled: on
     tcpip_bypass_ebpf: on
@@ -764,6 +788,11 @@ regional_dc:
     ai: optional
   cadvisor: on
   fpga: optional
+  tdx: off
+  calico_vpp: optional
+  ido: optional
+  imtl: optional
+  base_container: off
 
 remote_fp:
   name: remote_fp
@@ -776,7 +805,6 @@ remote_fp:
   cpusets: optional
   intel_cpu_controlplane: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -796,14 +824,14 @@ remote_fp:
   dlb_dp: optional
   openssl: on
   tas: on
-  ddp: on
+  ddp_legacy: on
   bond_cni: optional
   network_userspace: optional
   dpdk: on
   sst: optional
   power:
     manager: optional
-    pstate: on
+    frequency_scaling: on
     cstate: optional
     uncore_frequency: optional
   telemetry:
@@ -814,6 +842,7 @@ remote_fp:
     opentelemetry: optional
     elasticsearch: optional
     kibana: optional
+    intel_xpumanager: off
   istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
@@ -836,7 +865,7 @@ remote_fp:
   intel_ethernet_operator:
     enabled: on
     flow_config: optional
-    ddp: on
+    ddp_update: on
     fw_update: optional
   adq_dp: optional
   sigstore_policy_controller: optional
@@ -844,6 +873,11 @@ remote_fp:
     base: optional
     ai: optional
   cadvisor: optional
+  tdx: off
+  calico_vpp: optional
+  ido: optional
+  imtl: optional
+  base_container: off
 
 build_your_own:
   name: build_your_own
@@ -856,7 +890,6 @@ build_your_own:
   cpusets: optional
   native_cpu_manager: optional
   intel_cpu_controlplane: optional
-  topology_manager: optional
   sriov_operator: optional
   sriov_network_dp: optional
   nic_drivers: optional
@@ -882,14 +915,14 @@ build_your_own:
   tac: optional
   tas: optional
   gas: optional
-  ddp: optional
+  ddp_legacy: optional
   network_userspace: optional
   dpdk: optional
   ovs_dpdk: optional
   sst: optional
   power:
     manager: optional
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
   telemetry:
@@ -900,6 +933,7 @@ build_your_own:
     opentelemetry: optional
     elasticsearch: optional
     kibana: optional
+    intel_xpumanager: optional
   istio_service_mesh:
     enabled: optional
     tcpip_bypass_ebpf: optional
@@ -922,7 +956,7 @@ build_your_own:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: optional
   intel_oneapi:
@@ -943,8 +977,14 @@ build_your_own:
   opcua_framework:
     codesys_opcua_client: optional
     standalone_opcua_server: optional
+  intel_csl_excat: optional
   tadk: optional
   adq_dp: optional
   sigstore_policy_controller: optional
   cadvisor: optional
   fpga: optional
+  tdx: off
+  calico_vpp: optional
+  ido: optional
+  imtl: optional
+  base_container: off

@@ -14,6 +14,24 @@
 ##   limitations under the License.
 ##
 ---
+- name: block to prepare tdx guest image kernel
+  block:
+    - name: unarchive the kernel deb package
+      ansible.builtin.shell: >
+        dpkg -x ./linux-image-unsigned-*.deb ./extracted
+      args:
+        chdir: "{{ tdvm_guest_packages_dir }}"
+      changed_when: true
+
+    - name: rename the kernel file to vmlinuz
+      ansible.builtin.shell: >
+        cp ./extracted/boot/vmlinuz-* ./vmlinuz
+      args:
+        chdir: "{{ tdvm_guest_packages_dir }}"
+      changed_when: true
+  when:
+    - configure_tdx | default(false)
+
 - name: Handle VM start
   block:
     - name: Start VM - {{ vm.name }}
@@ -22,7 +40,7 @@
           --connect qemu:///system
           --name {{ vm.name }}
           --cpu host
-          {%- if vm.type == 'work' and sgx_dp_enabled | default(false) %}
+          {%- if vm.type == 'work' and sgx_dp_enabled | default(false) and not configure_tdx | default(false) %}
           --ram {{ vm.memory - sgx_memory_size }}
           {%- else %}
           --ram {{ vm.memory }}
@@ -33,14 +51,16 @@
           --disk path={{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.qcow2,format=qcow2
           --disk {{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.iso,device=cdrom
           --network network=vm-default,model=virtio
+          {%- if iommu_enabled | default(false) | bool %}
           --iommu model=intel,driver.intremap=on,driver.caching_mode=on
           --features apic=on,ioapic.driver=qemu
-          {%- if vm.type == "work" %}
+          {%- endif %}
+          {%- if (vm.type == "work" or vm.type == "vm") and vm.pci | default([]) %}
           {%- for pci in vm.pci %}
           --hostdev {{ pci }},address.type=pci
           {%- endfor -%}
           {%- endif %}
-          {%- if vm.type == 'work' and sgx_dp_enabled | default(false) %}
+          {%- if vm.type == 'work' and sgx_dp_enabled | default(false) and not configure_tdx | default(false) %}
           --xml xpath.create=./devices/memory
           --xml ./devices/memory/@model="sgx-epc"
           --xml xpath.create=./devices/memory/target/size
@@ -59,7 +79,13 @@
           {%- endif %}
           --network network=vxlanbr{{ vm.vxlan }},model=virtio
           --import --noautoconsole
+          {%- if configure_tdx | default(false) %}
+          --wait=3
+          {%- endif %}
       changed_when: true
+      register: virt_log
+      failed_when:
+        - '"ERROR" in virt_log.stdout'
 
     - name: Make VM persistent accross VM host reboot - {{ vm.name }}
       command: virsh autostart {{ vm.name }}
@@ -71,9 +97,118 @@
     - (not vm.name in current_vms.stdout) or
       vm_recreate_existing | default(true)
 
-- name: Current VM start - {{ vm.name }}
+- name: block to handle tdvm
+  block:
+    - name: create ovmf folder for tdvm
+      ansible.builtin.file:
+        path: "/usr/share/ovmf"
+        state: directory
+        mode: '0755'
+
+    - name: copy OVMF.fd to ovmf folder
+      ansible.builtin.copy:
+        src: /usr/share/tdvf/OVMF.fd
+        dest: /usr/share/ovmf/OVMF.fd
+        remote_src: yes
+        mode: '0644'
+
+    - name: Destroy {{ vm.name }}
+      ansible.builtin.command: virsh destroy {{ vm.name }}
+      changed_when: true
+      register: destroy_result
+      failed_when: (destroy_result.stderr | length > 0) and
+        (('domain is not running' not in destroy_result.stderr) and
+        ('failed to get domain' not in destroy_result.stderr))
+
+    - name: Undefine {{ vm.name }}
+      ansible.builtin.command: virsh undefine {{ vm.name }}
+      changed_when: true
+      register: undefine_result
+      failed_when: (undefine_result.stderr | length > 0) and
+        ('failed to get domain' not in undefine_result.stderr)
+
+    - name: customize {{ vm.name }} to become tdvm
+      ansible.builtin.command: >
+        virt-customize
+          -a {{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.qcow2
+          --copy-in {{ tdvm_guest_packages_dir }}:/srv/
+          --run-command "apt remove --allow-remove-essential shim-signed -y"
+          --run-command "apt remove grub-pc -y"
+          --run-command "dpkg -r --force-all grub-efi-amd64-signed"
+          --run-command "cd /srv/guest_repo/ && dpkg -i *.deb || true"
+          --run-command 'grub-install --target=x86_64-efi --modules "tpm"'
+      changed_when: true
+
+    - name: generate sshd key for {{ vm.name }} ssh login
+      ansible.builtin.command: >
+        virt-customize -a {{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.qcow2 --run-command "ssh-keygen -A"
+      changed_when: true
+
+    - name: start tdvm - {{ vm.name }}
+      ansible.builtin.command: >
+        virt-install
+          --connect qemu:///system
+          --name {{ vm.name }}
+          --cpu host-passthrough
+          {%- if configure_tdx | default(false) %}
+          --boot kernel={{ tdvm_guest_packages_dir }}/vmlinuz,kernel_args="root=/dev/vda1 rw console=hvc0"
+          --boot loader=/usr/share/ovmf/OVMF.fd
+          {%- if tdx_version == "1.5" %}
+          --launchSecurity type=tdx,policy=0x10000000
+          --memorybacking source.type=memfd-private
+          {%- elif tdx_version == "1.0" %}
+          --launchSecurity type=tdx,policy=0x10000001
+          {%- endif %}
+          {%- endif %}
+          --ram {{ vm.memory }}
+          --vcpus={{ vm.cpu_total }},sockets=1,cores={{ (vm.cpu_total / 2) | int }},threads=2
+          --cpuset={{ vm.cpus }}
+          --os-variant {{ vm_os_variant }}
+          --disk path={{ vm_project_root_dir }}/{{ vm.type }}/{{ vm.name }}/cek.qcow2,format=qcow2
+          --network network=vm-default,model=virtio
+          {%- if iommu_enabled | default(false) | bool %}
+          --iommu model=intel,driver.intremap=on,driver.caching_mode=on
+          --features apic=on,ioapic.driver=qemu
+          {%- endif %}
+          --network network=vxlanbr{{ vm.vxlan }},model=virtio
+          --graphics none
+          --console pty,target_type=virtio
+          --import --noautoconsole
+          --wait=3
+      changed_when: true
+      register: tdx_virt_log
+      failed_when:
+        - '"ERROR" in tdx_virt_log.stdout'
+
+    - name: Make tdvm persistent accross VM host reboot - {{ vm.name }}
+      command: virsh autostart {{ vm.name }}
+      changed_when: true
+
+    - name: Optimize tdvm - {{ vm.name }}
+      include_tasks: optimize.yml
+
+  when:
+    - (not vm.name in current_vms.stdout) or
+      vm_recreate_existing | default(true)
+    - configure_tdx | default(false)
+
+- name: Current VM running - {{ vm.name }}
   debug:
     msg: "Current VM - {{ vm.name }} was already running"
   when:
     - (vm.name in current_vms.stdout)
+    - current_vms.stdout | regex_search(vm.name + "\\s*(running)$", multiline=True)
     - not vm_recreate_existing | default(true)
+
+- name: Handle VM start for not running VM
+  when:
+    - (vm.name in current_vms.stdout)
+    - not current_vms.stdout | regex_search(vm.name + "\\s*(running)$", multiline=True)
+    - not vm_recreate_existing | default(true)
+  block:
+    - name: Current VM start - {{ vm.name }}
+      debug:
+        msg: "Current VM - {{ vm.name }} was not running. Start it"
+    - name: Start existing VM - {{ vm.name }}
+      command: virsh start {{ vm.name }}
+      changed_when: true

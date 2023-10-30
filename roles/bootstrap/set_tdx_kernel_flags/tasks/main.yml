@@ -1,0 +1,37 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: set tdx 1.5 kernel flags
+  set_fact:
+    tdx_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} numa_balancing=disable" {{ tdx_marker }}'
+  when:
+    - tdx_version == "1.5"
+
+- name: set tdx 1.0 kernel flags
+  set_fact:
+    tdx_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} numa_balancing=disable ima_policy=tcb" {{ tdx_marker }}'
+  when:
+    - tdx_version == "1.0"
+
+- name: set tdx kernel flags in /etc/default/grub
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="\${GRUB_CMDLINE_LINUX}(.*?)" {{ tdx_marker }}$'
+    line: '{{ tdx_cmdline }}'
+    state: present
+    mode: 0664
+  notify:
+    - reboot server

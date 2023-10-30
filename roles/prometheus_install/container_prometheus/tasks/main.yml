@@ -1,0 +1,196 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+    - name: create prometheus and grafana folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - "{{ container_prometheus_stack_path }}"
+        - "{{ container_prometheus_data_path }}"
+        - "{{ container_grafana_data_path }}"
+        - "{{ container_grafana_datasource_path }}"
+        - "{{ container_grafana_dashboard_path }}"
+        - "{{ container_cert_path }}"
+
+    - name: create telemetry network
+      community.docker.docker_network:
+        name: telemetry
+
+    - name: generate container prometheus private key (RSA, 4096 bits)
+      community.crypto.openssl_privatekey:
+        path: "{{ container_prometheus_key_path }}"
+
+    - name: generate container prometheus certificates signing request
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ container_prometheus_key_path }}"
+        common_name: "prometheus"
+        subject_alt_name:
+          - "DNS:prometheus"
+          - "IP:127.0.0.1"
+      register: container_prometheus_csr
+
+    - name: create self-signed container prometheus certificate from CSR
+      community.crypto.x509_certificate:
+        path: "{{ container_prometheus_cert_path }}"
+        csr_content: "{{ container_prometheus_csr.csr }}"
+        privatekey_path: "{{ container_prometheus_key_path }}"
+        provider: selfsigned
+
+    - name: generate container grafana private key (RSA, 4096 bits)
+      community.crypto.openssl_privatekey:
+        path: "{{ container_grafana_key_path }}"
+
+    - name: generate container grafana certificates signing request
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ container_grafana_key_path }}"
+        common_name: "grafana"
+        subject_alt_name:
+          - "DNS:grafana"
+          - "IP:127.0.0.1"
+      register: container_grafana_csr
+
+    - name: create self-signed container grafana certificate from CSR
+      community.crypto.x509_certificate:
+        path: "{{ container_grafana_cert_path }}"
+        csr_content: "{{ container_grafana_csr.csr }}"
+        privatekey_path: "{{ container_grafana_key_path }}"
+        provider: selfsigned
+
+    - name: generate container node exporter private key (RSA, 4096 bits)
+      community.crypto.openssl_privatekey:
+        path: "{{ container_node_exporter_key_path }}"
+
+    - name: generate container node exporter certificates signing request
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ container_node_exporter_key_path }}"
+        common_name: "node-exporter"
+        subject_alt_name:
+          - "DNS:node-exporter"
+          - "IP:127.0.0.1"
+      register: container_node_exporter_csr
+
+    - name: create self-signed container node exporter certificate from CSR
+      community.crypto.x509_certificate:
+        path: "{{ container_node_exporter_cert_path }}"
+        csr_content: "{{ container_node_exporter_csr.csr }}"
+        privatekey_path: "{{ container_node_exporter_key_path }}"
+        provider: selfsigned
+
+    - name: generate and copy prometheus stack config files
+      ansible.builtin.template:
+        src: "templates/prometheus.yml.j2"
+        dest: "{{ (container_prometheus_stack_path, 'prometheus.yml') | path_join }}"
+        mode: '0644'
+
+    - name: copy prometheus stack tls config files
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ container_prometheus_stack_path }}"
+        mode: '0644'
+        force: true
+      with_items:
+        - "node_web_config.yml"
+        - "prom_web_config.yml"
+        - "grafana.ini"
+
+    - name: generate and copy grafana datasource files
+      ansible.builtin.template:
+        src: "templates/datasource.yml.j2"
+        dest: "{{ (container_grafana_datasource_path, 'datasource.yml') | path_join }}"
+        mode: '0644'
+
+    - name: copy grafana dashboard files
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ container_grafana_dashboard_path }}"
+        mode: '0644'
+        force: true
+      with_items:
+        - "dashboard.yml"
+        - "dashboard_node_exporter.json"
+        - "dashboard_xpumanager.json"
+
+    - name: start node exporter container
+      docker_container:
+        name: node-exporter
+        image: "prom/node-exporter:v{{ node_exporter_version }}"
+        state: started
+        restart_policy: always
+        user: root
+        volumes:
+          - "/proc:/host/proc:ro"
+          - "/sys:/host/sys:ro"
+          - "/:/rootfs:ro"
+          - "{{ container_prometheus_stack_path }}/node_web_config.yml:/usr/local/etc/node_web_config.yml"
+          - "{{ container_cert_path }}:/usr/local/etc/cert"
+        ports:
+          - "127.0.0.1:9100:9100"
+        networks:
+          - name: telemetry
+            aliases:
+              - node-exporter
+        command:
+          - "--web.config.file=/usr/local/etc/node_web_config.yml"
+
+    - name: start prometheus container
+      docker_container:
+        name: prometheus
+        image: "prom/prometheus:v{{ prometheus_stack_version }}"
+        state: started
+        restart_policy: always
+        user: root
+        volumes:
+          - "{{ container_prometheus_stack_path }}/prometheus.yml:/etc/prometheus/prometheus.yml"
+          - "{{ container_prometheus_data_path }}:/prometheus:rw"
+          - "{{ container_prometheus_stack_path }}/prom_web_config.yml:/etc/prometheus/prom_web_config.yml"
+          - "{{ container_cert_path }}:/etc/prometheus/cert"
+        ports:
+          - "127.0.0.1:9090:9090"
+        networks:
+          - name: telemetry
+            aliases:
+              - prometheus
+        command:
+          - "--config.file=/etc/prometheus/prometheus.yml"
+          - "--storage.tsdb.path=/prometheus"
+          - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+          - "--web.console.templates=/usr/share/prometheus/consoles"
+          - "--web.config.file=/etc/prometheus/prom_web_config.yml"
+
+    - name: start grafana container
+      docker_container:
+        name: grafana
+        image: "grafana/grafana:{{ grafana_version }}"
+        state: started
+        restart_policy: always
+        user: root
+        volumes:
+          - "{{ container_grafana_data_path }}:/var/lib/grafana:rw"
+          - "{{ container_prometheus_stack_path }}/grafana.ini:/etc/grafana/grafana.ini"
+          - "{{ container_prometheus_stack_path }}/grafana_datasources:/etc/grafana/provisioning/datasources"
+          - "{{ container_prometheus_stack_path }}/grafana_dashboards:/etc/grafana/provisioning/dashboards"
+          - "{{ container_cert_path }}:/etc/grafana/cert"
+        ports:
+          - "127.0.0.1:3000:3000"
+        networks:
+          - name: telemetry
+            aliases:
+              - grafana
+  when:
+    - container_runtime == 'docker'

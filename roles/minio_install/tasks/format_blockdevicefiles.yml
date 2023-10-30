@@ -17,6 +17,6 @@
 - name: format file block device with xfs
   filesystem:
     fstype: xfs
-    dev: /tmp/diskimage{{ ansible_loop.index }}
+    dev: /opt/cek/disks/tmp/diskimage{{ ansible_loop.index }}
     force: yes
     state: present

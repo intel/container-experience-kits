@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ido-example-deployment
+  labels:
+    app: sample-function
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-function
+  template:
+    metadata:
+      labels:
+        app: sample-function
+      annotations:
+        linkerd.io/inject: enabled
+    spec:
+      containers:
+        - name: sample-function
+          image: testfunction/rust_function:0.1
+          env:
+            - name: WORKERS
+              value: "2"
+          securityContext:
+            capabilities:
+              drop: ['ALL']
+            seccompProfile:
+              type: RuntimeDefault
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+      restartPolicy: Always

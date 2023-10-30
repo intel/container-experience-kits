@@ -25,16 +25,22 @@
   until: vm_out.stdout | length > 0
   loop: "{{ vms }}"
   changed_when: true
+  tags:
+    - intel-platform-qat-setup
 
 - name: Store primary IPs of running VMs
   set_fact:
     vm_ips: "{{ vm_ips | default({}) | combine( {item.item.name: item.stdout.splitlines() | first} ) }}"
-  when: item.changed and item.item.name is defined  # noqa no-handler
+  when: item.changed and item.item.name is defined  # noqa 503 # no-handler
   loop: "{{ vm_out.results }}"
+  tags:
+    - intel-platform-qat-setup
 
 - name: Print vm_ips
   debug:
     var: vm_ips
+  tags:
+    - intel-platform-qat-setup
 
 - name: Update /etc/hosts file on bastion host
   blockinfile:
@@ -97,4 +103,13 @@
     vm_image_distribution: "{{ vm_image_distribution }}"
   with_items: "{{ vm_ips | dict2items }}"
   delegate_to: "{{ item.key }}"
-  delegate_facts: True
+  delegate_facts: true
+
+- name: Set vm_host for VMs to be used in next plays
+  set_fact:
+    vm_host: "{{ inventory_hostname }}"
+  with_items: "{{ vm_ips | dict2items }}"
+  delegate_to: "{{ item.key }}"
+  delegate_facts: true
+  tags:
+    - intel-platform-qat-setup

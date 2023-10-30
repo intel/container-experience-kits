@@ -14,22 +14,44 @@
 ##   limitations under the License.
 ##
 ---
-- name: create cAdvisor Helm chart directory
+- name: clone cAdvisor git repo
+  ansible.builtin.git:
+    repo: "{{ cadvisor_git_repo_url }}"
+    dest: "{{ (project_root_dir, 'cadvisor') | path_join }}"
+    version: "{{ cadvisor_version }}"
+
+- name: create cAdvisor overlay directory
   ansible.builtin.file:
-    path: "{{ (project_root_dir, 'charts', 'cadvisor') | path_join }}"
+    path: "{{ (project_root_dir, 'cadvisor', 'deploy', 'kubernetes', 'overlays', 'cek') | path_join }}"
     state: directory
-    mode: 0755
+    mode: '0644'
 
 - name: Check if perf events config enabled
   ansible.builtin.set_fact:
     cadvisor_perf_events: true
   when: cadvisor_sample_perf_events_enabled or cadvisor_pik_perf_events_enabled | default(false)
 
-- name: Prepare perf events config for all nodes
+- name: Prepare perf events config
   ansible.builtin.import_tasks: perf_events_config.yml
-  when: cadvisor_perf_events | default(false)
+  when:
+    - cadvisor_perf_events | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]
 
-- name: install cAdvisor Helm charts
+# RHEL CRI-O install will setup /etc/containers/mounts.conf has mapping: "/usr/share/rhel/secrets:/run/secrets".
+# This will tell crio engine to setup /var/run/secrets for *every* pod (/var/run is symbol link to /run)
+# cAdvisor explicitly mounts host /var/run to pod with readonly permission which prevents /var/run/secrets folder to be created, so here we need a workaround.
+- name: create /var/run/secrets for CRI workaround
+  ansible.builtin.file:
+    path: /var/run/secrets
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - container_runtime == "crio"
+    - ansible_os_family == 'RedHat'
+
+- name: install cAdvisor
   ansible.builtin.import_tasks: install.yml
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

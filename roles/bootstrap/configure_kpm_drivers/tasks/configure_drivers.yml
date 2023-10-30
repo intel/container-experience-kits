@@ -1,0 +1,59 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Uncore Frequency driver
+  when: hostvars[inventory_hostname]['uncore_frequency']['enabled'] | default(false) | bool
+  block:
+    - name: enable Uncore Frequency driver
+      community.general.modprobe:
+        name: intel_uncore_frequency
+        state: present
+        persistent: present
+
+- name: acpi_cpufreq scaling driver
+  when:
+    - hostvars[inventory_hostname]['frequency_scaling_driver'] == "acpi_cpufreq"
+    - inventory_hostname in kubernetes_power_manager.power_nodes
+  block:
+    - name: set kernel flags to disable intel_pstate scaling driver
+      ansible.builtin.set_fact:
+        intel_pstate_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} intel_pstate=disable intel_pstate=no_hwp"'
+
+    - name: disable intel_pstate in /etc/default/grub
+      ansible.builtin.lineinfile:
+        dest: /etc/default/grub
+        line: '{{ intel_pstate_cmdline }}'
+        state: present
+        mode: '0664'
+
+    - name: run update-grub command on Ubuntu
+      ansible.builtin.command: update-grub
+      changed_when: false
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: update grub on RHEL
+      ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+      changed_when: false
+      when: ansible_distribution == 'Rocky' or
+            ansible_distribution == 'RedHat'
+
+- name: reboot server
+  debug:
+    msg: Rebooting server
+  notify:
+    - reboot server
+  when:
+    - hostvars[inventory_hostname]['frequency_scaling_driver'] == "acpi_cpufreq" or
+      hostvars[inventory_hostname]['uncore_frequency']['enabled'] | default(false) | bool

@@ -29,7 +29,7 @@
       until: kube_api.status == 200
       retries: 10
       delay: 2
-      when: not (on_cloud | default(false))
+      when: not on_cloud | default(false)
 
     - name: show all nodes on kubernetes cluster
       command: kubectl get nodes

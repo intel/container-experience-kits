@@ -47,9 +47,21 @@ ANSIBLE_INSTANCE_IMAGE=$(aws ec2 describe-images \
 ANSIBLE_INSTANCE_TYPE="t3.medium"
 ANSIBLE_INSTANCE_NAME="cwdf-infra-{{ cloud_config.job_id }}-ansible-instance"
 
+# Generate Ansible instance SSH Host Key
+if [ ! -f ./ansible_host ]
+then
+  ssh-keygen -q -N "" -t rsa -f ./ansible_host
+fi
+ANSIBLE_INSTANCE_HOST_PRIVKEY=$(cat ./ansible_host)
+ANSIBLE_INSTANCE_HOST_PUBKEY=$(cat ./ansible_host.pub)
+
 # Ansible instance entrypoint script
 ANSIBLE_INSTANCE_ENTRYPOINT="$(cat <<- "EOM"
 #!/usr/bin/env bash
+echo $ANSIBLE_INSTANCE_HOST_PRIVKEY > /etc/ssh/ssh_host_rsa_key
+rm /etc/ssh/ssh_host_dsa_key
+rm /etc/ssh/ssh_host_ed25519_key
+rm /etc/ssh/ssh_host_ecdsa_key
 apt-get -qq -y update
 apt-get -qq -y upgrade
 apt-get -qq -y install python3-pip python3-venv
@@ -359,10 +371,13 @@ JSON_OUTPUT=$(jq -n \
                  --arg cloud_provider "aws" \
                  --arg cr_url $ECR_URL \
                  --arg k8s_worker_username "ubuntu" \
+                 --arg host_key "$ANSIBLE_INSTANCE_HOST_PUBKEY" \
                  '{ansible_host_public_ip:
                     {value: $ansible_host_ip},
                    cloud_provider: 
                     {value: $cloud_provider},
+                   ansible_ssh_host_key:
+                    {value: $host_key},
                    cr_url: 
                     {value: $cr_url},
                    k8s_worker_username: 

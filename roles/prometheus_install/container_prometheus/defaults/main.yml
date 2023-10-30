@@ -1,0 +1,30 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+container_prometheus_stack_path: "{{ (project_root_dir, 'container_prometheus_stack') | path_join }}"
+container_prometheus_data_path: "{{ (container_prometheus_stack_path, 'prometheus_data') | path_join }}"
+
+container_grafana_data_path: "{{ (container_prometheus_stack_path, 'grafana_data') | path_join }}"
+container_grafana_datasource_path: "{{ (container_prometheus_stack_path, 'grafana_datasources') | path_join }}"
+container_grafana_dashboard_path: "{{ (container_prometheus_stack_path, 'grafana_dashboards') | path_join }}"
+
+
+container_cert_path: "{{ (project_root_dir, 'cert') | path_join }}"
+container_node_exporter_key_path: "{{ (container_cert_path, 'node_key.pem') | path_join }}"
+container_node_exporter_cert_path: "{{ (container_cert_path, 'node_cert.pem') | path_join }}"
+container_prometheus_key_path: "{{ (container_cert_path, 'prom_key.pem') | path_join }}"
+container_prometheus_cert_path: "{{ (container_cert_path, 'prom_cert.pem') | path_join }}"
+container_grafana_key_path: "{{ (container_cert_path, 'graf_key.pem') | path_join }}"
+container_grafana_cert_path: "{{ (container_cert_path, 'graf_cert.pem') | path_join }}"

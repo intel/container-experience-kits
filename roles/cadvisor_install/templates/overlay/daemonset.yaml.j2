@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cadvisor
+  namespace: {{ cadvisor_namespace }}
+spec:
+  template:
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - name: cadvisor
+        image: {{ cadvisor_image }}:{{ cadvisor_version }}
+        resources:
+          requests:
+            memory: 800Mi
+            cpu: 400m
+          limits:
+            memory: 4000Mi
+            cpu: 800m
+        args:
+          - --housekeeping_interval=10s                       # kubernetes default args
+          - --max_housekeeping_interval=15s
+          - --event_storage_event_limit=default=0
+          - --event_storage_age_limit=default=0
+          - --disable_metrics=percpu,process,sched,tcp,udp    # enable only diskIO, cpu, memory, network, disk
+          {% if cadvisor_perf_events | default(false) -%}
+          - --perf_events_config="/etc/config/perf-config.json"
+          {% endif -%}
+          - --docker_only
+          - --listen_ip=127.0.0.1
+        {% if cadvisor_perf_events | default(false) -%}
+        securityContext:
+          privileged: true
+        {% endif -%}
+        volumeMounts:
+        {% if cadvisor_perf_events | default(false) -%}
+        - name: perf-config
+          mountPath: /etc/config/
+        {% endif -%}
+        - name: var-run
+          mountPath: /var/run
+          readOnly: false
+      {% if cadvisor_perf_events | default(false) -%}
+      volumes:
+        - name: perf-config
+          configMap:
+            name: perf-config
+      {% endif -%}

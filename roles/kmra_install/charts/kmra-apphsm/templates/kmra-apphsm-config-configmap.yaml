@@ -37,6 +37,7 @@ data:
           "token_name": {{ $key.token_name | quote  }},
           "pin": {{ $key.pin | quote }},
           "key_name": {{ $key.key_name | quote }},
+          "key_path": {{ $key.key_path | quote }},
           "certificate_file": "{{ $key.token_cert }}"
         }
         {{- $_ := set $local "first" false -}}

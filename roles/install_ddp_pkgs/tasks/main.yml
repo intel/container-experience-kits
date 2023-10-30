@@ -13,58 +13,14 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
----
-# This role installs Intel DDP packages for X700 and X800 series NICs.
-#
-# It depends on package variables defined in vars/main.yml
-# The "ddp_pkgs" is map of a list of NIC specific package definition.
-#
-# Each list expected to provide "nic_driver": <e.g. i40e for X700 & ice
-# for x800>, "install_dir":<where to install>, and "pkgurls":<a list
-# of URLs of relevant packages>.
-#
-# latest list of available packages can be found here:
-# https://downloadcenter.intel.com/search?keyword=Dynamic+Device+Personalization
-#
-# All packages will be downloaded, uncompressed and placed in NICs
-# driver specific location so that these packages are available to be
-# loaded onto a NIC adapter on demand.
-#
-# Example configurations:
-#   ddp_pkgs:
-#     - nic_driver: i40e
-#       install_dir: /lib/firmware/intel/i40e/ddp
-#       pkgurls:
-#         - "https://downloadmirror.intel.com/27587/eng/gtp.zip"
-#         - "https://downloadmirror.intel.com/28940/eng/mplsogreudp.zip"
-#         - "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
-#     - nic_driver: ice
-#       install_dir: /lib/firmware/updates/intel/ice/ddp/
-#       pkgurls:
-#         - "https://downloadmirror.intel.com/29889/eng/ice_comms-1.3.24.0.zip"
+- name: Download listed DDP packages for each NIC driver
+  ansible.builtin.include_tasks: download.yml
+  loop: "{{ ddp_pkgs.keys() | list }}"
+  loop_control:
+    loop_var: nic_driver
 
-- name: create temporary directory for DDP profiles
-  tempfile:
-    state: directory
-    prefix: ddp
-  register: tempdir_ddp
-
-# Download and install ddp pkgs listed given in vars/main.yml file
-- name: download and install all listed DDP packages
-  block:
-    - name: calling install_pkgs.yml
-      include_tasks: install_pkgs.yml
-      vars:
-        install_dir: "{{ item.install_dir }}"
-        pkgurls: "{{ item.pkgurls }}"
-        tmp_placeholder: "{{ tempdir_ddp.path }}/{{ item.nic_driver }}"
-      with_items: "{{ ddp_pkgs }}"
-  when:
-    - ddp_pkgs|length > 0
-
-# clean up
-- name: remove temporary directory
-  become: yes
-  file:
-    path: "{{ tempdir_ddp.path }}"
-    state: absent
+- name: Install DDP packages
+  ansible.builtin.include_tasks: install.yml
+  loop: "{{ ddp_pkgs.keys() | list }}"
+  loop_control:
+    loop_var: nic_driver

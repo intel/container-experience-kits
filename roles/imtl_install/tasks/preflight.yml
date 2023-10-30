@@ -1,0 +1,78 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Check network card is supported
+  ansible.builtin.assert:
+    that: configured_nic == 'cvl'
+    fail_msg:
+      Intel Media Transport Library is supported only for Intel® E810 Series Network Cards.
+
+- name: Check that at least 1 NIC interface defined
+  ansible.builtin.assert:
+    that: dataplane_interfaces | default([]) | length != 0
+    fail_msg: |
+      At least 1 nic interface should be defined in host_vars via dataplane_interfaces parameter.
+
+- name: Update of NIC drivers enabled when patch_drivers set to true
+  ansible.builtin.assert:
+    that: update_nic_drivers | default(false)
+    fail_msg: |
+      Automaed patch of ICE driver is done during ICE driver update
+      Please set update_nic_drivers option to 'true'.
+  when: intel_media_transport_library.patch_nic_driver | default(false)
+
+- name: Check iommu enabled
+  ansible.builtin.assert:
+    that:
+      - iommu_enabled | default(false)
+    fail_msg: |
+      Intel Media Trasport library needs iommu enabled. Please set iommu_enabled in host_vars to 'true'.
+
+- name: Check DPDK installation enabled
+  ansible.builtin.assert:
+    that: install_dpdk | default(false)
+    fail_msg: |
+      Build of Intel Media Transport library needs DPDK installed on the system.
+      Please set install_dpdk option to 'true'.
+
+# SR-IOV setup gets done everytime when DPDK & iommu enabled - no check needed
+
+- name: Check DPDK version support
+  ansible.builtin.assert:
+    that:
+      - dpdk_version | default('1.0') is ansible.builtin.version('23.07', '<')
+      - dpdk_version | default('1.0') is ansible.builtin.version('21.05', '>=')
+    fail_msg: |
+      Intel Media Transport Library {{ imtl_version }} does support only dpdk versions >= 21.05 and < 23.07.
+
+- name: Check target NIC FW version to be used for update
+  ansible.builtin.assert:
+    that: nvmupdate.ice.required_fw_version is version(imtl_min_fw_version_supported, '>=')
+    fail_msg: |
+      Use of Intel Media Transport library needs NIC FW version at least '{{ imtl_min_fw_version_supported }}'.
+      Please set version {{ imtl_min_fw_version_supported }} or higher to option nvmupdate.ice.required_fw_version for node {{ inventory_hostname }}.
+  when: update_nic_firmware | default(false)
+
+- name: Check NIC FW version
+  check_nic_firmware:
+    pci_id: "{{ item.bus_info }}"
+    min_fw_version: "{{ imtl_min_fw_version_supported }}"
+    fail_msg: |
+      Use of Intel Media Transport library needs NIC FW version at least '{{ imtl_min_fw_version_supported }}'.
+      Update of NIC firmware can be done via update_nic_firmware option set to 'true'.
+  loop: "{{ dataplane_interfaces }}"
+  when:
+    - not update_nic_firmware | default(false)
+    - dataplane_interfaces | default([]) | length != 0

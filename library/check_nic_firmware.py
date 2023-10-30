@@ -48,6 +48,12 @@ options:
         required: false
         default: false
         type: bool
+    fail_msg:
+        description:
+            - custom fail message when fw version is not sufficient
+        required: false
+        default: ""
+        type: string
 
 author:
     - Jiri Prokes (jirix.prokes@intel.com)
@@ -64,6 +70,12 @@ EXAMPLES = r'''
   check_nic_firmware:
     pci_id: "18:00.1"
     min_fw_version: "5.02"
+
+- name: check nic firmware version with custom fail message
+  check_nic_firmware:
+    pci_id: "18:00.1"
+    min_fw_version: "5.02"
+    fail_msg: "FW version not sufficient for feature X, please update FW version to at least 5.02"
 '''
 
 RETURN = r'''
@@ -128,7 +140,8 @@ def run_module():
     module_args = dict(
         pci_id=dict(type='str', required=True),
         min_fw_version=dict(type='str', required=True),
-        ddp=dict(type='bool', required=False, default=False)
+        ddp=dict(type='bool', required=False, default=False),
+        fail_msg=dict(type='str', required=False)
     )
     encoding = 'utf-8'
 
@@ -165,6 +178,20 @@ def run_module():
     nic_name = str(nic_name_result.stdout.rstrip(), encoding)
     result['interface_name'] = nic_name
 
+    fail_msg = module.params['fail_msg']
+    if fail_msg is None and module.params['ddp']:
+        fail_msg = (
+            "Current nic firmware version doesn't allow loading of "
+            "DDP profile. Set 'update_nic_firmware' "
+            "to 'true' and run deployment again."
+        )
+    elif fail_msg is None:
+        fail_msg = (
+            "Current nic firmware version is lower than minimum "
+            "version needed for automatic firmware update. "
+            "Update nic firmware manually and run deployment again."
+        )
+
     # Bandit:
     # Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path. # pylint: disable=line-too-long
     # Severity: Low   Confidence: High
@@ -186,15 +213,7 @@ def run_module():
             if b'firmware-version' in line:
                 result['current_firmware_version'] = str(line.rstrip().split()[1], encoding)
                 if float(result['current_firmware_version']) < float(module.params['min_fw_version']):
-                    if module.params['ddp']:
-                        module.fail_json(msg=("Current nic firmware version doesn't allow loading of "
-                                              "DDP profile. Set 'update_nic_firmware' "
-                                              "to 'true' and run deployment again."), **result)
-                    else:
-                        module.fail_json(msg=("Current nic firmware version is lower than minimum "
-                                              "version needed for automatic firmware update. "
-                                              "Update nic firmware manually and run deployment again."),
-                                         **result)
+                    module.fail_json(msg=(fail_msg), **result)
                 else:
                     result['msg'] = "nic firmware version is sufficient to proceed"
                     module.exit_json(**result)

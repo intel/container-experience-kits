@@ -16,7 +16,7 @@ from azure.mgmt.compute import ComputeManagementClient
 import cwdf_util
 import sw_deployment.sw_deployment_tool as sw_deployment
 
-from ssh_connector import SSHConnector
+from ssh_connector import SSHConnector, SSHHostKey
 
 
 def subprocess_run(*args, **kwargs):
@@ -107,8 +107,10 @@ def deploy(deployment_dir, provisioner_tool):
     provisioning_output = None
     if provisioner_tool == "terraform":
         provisioning_output = terrafrom_provisioning(deployment_dir, cwdf_user_config, job_id, ssh_public_key)
-    if provisioner_tool == "cloudcli":
+    elif provisioner_tool == "cloudcli":
         provisioning_output = cloudcli_provisioning(deployment_dir, cwdf_user_config, job_id, public_key_path)
+    else:
+        return
 
     ansible_host_ip = provisioning_output["ansible_host_public_ip"]["value"]
     click.echo("Ansible Host is accessible on: " + ansible_host_ip)
@@ -154,9 +156,12 @@ def deploy(deployment_dir, provisioner_tool):
         click.echo("Public ip: " + worker["public_ip"])
         click.echo("-------------------")
     ssh_username = provisioning_output["k8s_worker_username"]["value"]
+    ssh_host_key_raw = provisioning_output["ansible_host_ssh_host_key"]["value"][8:]
+    ssh_host_key = SSHHostKey("ssh-rsa", ssh_host_key_raw)
     click.echo("Opening SSH connection to Ansible host...")
     ssh = SSHConnector(ip_address=ansible_host_ip,
                        username='ubuntu',
+                       host_keys=[ssh_host_key],
                        priv_key=private_key_path,
                        try_loop=True)
     click.echo("Opened SSH connection.")
@@ -213,6 +218,7 @@ def deploy(deployment_dir, provisioner_tool):
     with open(file=sw_config_path, mode='r', encoding='utf-8') as file:
         sw_configuration = yaml.load(file, Loader=yaml.FullLoader)
     sw_configuration['ansible_host_ip'] = ansible_host_ip
+    sw_configuration['ansible_ssh_host_key'] = ssh_host_key_raw
     sw_configuration['worker_ips'] = workers_ip
     sw_configuration['ssh_user'] = ssh_username
     sw_configuration['ssh_key'] = os.path.join('..', private_key_path)

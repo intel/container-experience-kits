@@ -67,6 +67,16 @@
     destination_port: "9273"
     jump: "REJECT"
 
+- name: Change perf_event_paranoid to 0
+  ansible.posix.sysctl:
+    name: kernel.perf_event_paranoid
+    value: '0'
+    sysctl_set: true
+    state: present
+    reload: true
+  when:
+    - inventory_hostname in groups['kube_node']
+
 - name: install telegraf
   include_tasks: telegraf.yml
   when:

@@ -43,17 +43,24 @@
     wait: true
     timeout: 4m0s
   loop:
-    - "{{ kmra_oran.oran_netopeer2_server.release_name }}"
+    - "{{ kmra_oran.oran_netopeer2_server.release_name }}-cu"
+    - "{{ kmra_oran.oran_netopeer2_server.release_name }}-du"
+    - "{{ kmra_oran.oran_netopeer2_server.release_name }}-ric"
     - "{{ kmra_oran.oran_netopeer2_client.release_name }}"
 
 - name: delete oran configmap
   kubernetes.core.k8s:
     api_version: v1
-    name: oran-sysrepo-config
+    name: "{{ item }}-oran-sysrepo-config"
     kind: ConfigMap
     namespace: "{{ cosign_enforce_namespace }}"
     state: absent
   failed_when: false
+  loop:
+    - "{{ kmra_oran.oran_netopeer2_server.release_name }}-cu"
+    - "{{ kmra_oran.oran_netopeer2_server.release_name }}-du"
+    - "{{ kmra_oran.oran_netopeer2_server.release_name }}-ric"
+    - "{{ kmra_oran.oran_netopeer2_client.release_name }}"
 
 - name: delete apphsm configmap
   kubernetes.core.k8s:
@@ -84,6 +91,8 @@
     - "{{ kmra.pccs.helm_values_file }}"
     - "{{ kmra.apphsm.helm_values_file }}"
     - "{{ kmra.ctk_loadkey_demo.helm_values_file }}"
-    - "{{ kmra_oran.oran_netopeer2_server.helm_values_file }}"
+    - "{{ kmra_oran.oran_netopeer2_server.helm_values_file }}-cu"
+    - "{{ kmra_oran.oran_netopeer2_server.helm_values_file }}-du"
+    - "{{ kmra_oran.oran_netopeer2_server.helm_values_file }}-ric"
     - "{{ kmra_oran.oran_netopeer2_client.helm_values_file }}"
   failed_when: false

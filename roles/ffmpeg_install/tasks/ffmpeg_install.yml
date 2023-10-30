@@ -45,13 +45,25 @@
       loop_control:
         loop_var: patch_item
 
+- name: set ffmpeg configure option for gpu acceleration
+  ansible.builtin.set_fact:
+    ffmpeg_configure_options: "{{ ffmpeg_configure_options_gpu }}"
+  when:
+    - configure_gpu | default(false) | bool
+
+- name: set ffmpeg configure option for cpu only
+  ansible.builtin.set_fact:
+    ffmpeg_configure_options: "{{ ffmpeg_configure_options_cpu }}"
+  when:
+    - not configure_gpu | default(false) | bool
+
 - name: configure FFmpeg source
   ansible.builtin.command: "{{ item }}"
   changed_when: false
   args:
     chdir: "{{ (ffmpeg_path, 'ffmpeg_src') | path_join }}"
   with_items:
-    - ./configure --prefix={{ ffmpeg_path }} --libdir=/usr/lib {{ ffmpeg_configure_options }}
+    - ./configure --prefix={{ ffmpeg_path }} {{ ffmpeg_configure_options }}
 
 - name: get number of CPUs
   ansible.builtin.command: nproc

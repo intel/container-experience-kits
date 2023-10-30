@@ -21,7 +21,7 @@
     force: yes
     mode: preserve
   when:
-    - hostvars[item]['minio_pv'] | default([]) | length > 0
+    - hostvars[item]['persistent_volumes'] | default([]) | length > 0
   loop: "{{ groups['kube_node'] }}"
   loop_control:
     extended: yes
@@ -31,7 +31,7 @@
     state: present
     src: "{{ (minio_operator_helm_local_dir, 'operator', 'temp', 'minio-tenant-persistentvolumes' ~ ansible_loop.index ~ '.yml') | path_join }}"
   when:
-    - hostvars[item]['minio_pv'] | default([]) | length > 0
+    - hostvars[item]['persistent_volumes'] | default([]) | length > 0
   loop: "{{ groups['kube_node'] }}"
   loop_control:
     extended: yes

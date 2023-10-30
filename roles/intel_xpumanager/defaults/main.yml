@@ -1,0 +1,28 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+xpumanager_version: "v1.2.13"
+xpumanager_image: "intel/xpumanager"
+xpumanager_namespace: "intel-xpumanager"
+
+rbac_proxy_ssl_mount_path: /etc/ssl/rbac-proxy
+rbac_proxy_ssl_secret_name: xpumanager-rbac-proxy-ssl
+
+xpumanager_path: "{{ (project_root_dir, 'xpumanager') | path_join }}"
+
+container_cert_path: "{{ (project_root_dir, 'cert') | path_join }}"
+xpumanager_key_path: "{{ (container_cert_path, 'xpum_key.pem') | path_join }}"
+xpumanager_cert_path: "{{ (container_cert_path, 'xpum_cert.pem') | path_join }}"

@@ -1,0 +1,45 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: patch RT kernel cmdline if excat_dp is on
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: 'rdt=!l3cat,!l2cat'
+    replace: ' '
+  loop:
+    - /etc/grub.d/08_eci-tcc
+    - /boot/grub/grub.cfg
+  when:
+    - excat_dp_enabled | default(false)
+    - "'tcc-tools-grub' in ansible_facts.packages"
+
+- name: reboot into RT kernel
+  ansible.builtin.reboot:
+
+- name: re-gather o/s facts
+  ansible.builtin.setup:
+    filter:
+      - 'ansible_kernel'
+
+- name: check RT kernel
+  ansible.builtin.assert:
+    that: "'intel-ese-standard-lts-rt' in ansible_kernel"
+    fail_msg: "System failed to boot the RT kernel.  Detected '{{ ansible_kernel }}' kernel"
+    success_msg: "Assertion passed.  Kernel is now '{{ ansible_kernel }}'"

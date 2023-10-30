@@ -1,0 +1,14 @@
+---
+apiVersion: policy.linkerd.io/v1beta1
+kind: ServerAuthorization
+metadata:
+  name: allow-pod-subnet
+  namespace: linkerd-viz
+spec:
+  client:
+    unauthenticated: true
+    networks:
+    - cidr: {{ kube_pods_subnet }}
+  server:
+    selector:
+      matchLabels: {}

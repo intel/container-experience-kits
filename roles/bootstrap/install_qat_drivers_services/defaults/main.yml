@@ -15,14 +15,14 @@
 ##
 ---
 # QAT 1.x (for QAT add-on cards)
-qat_drivers_version: 'QAT.L.4.22.0-00001'
-qat_drivers_download_url: 'https://downloadmirror.intel.com/780675/{{ qat_drivers_version }}.tar.gz'
-qat_drivers_pkg_checksum: 'sha1:36EF82C00802F6A6D1494BC31B5C1264E2DFDFC4'
+qat_drivers_version: 'QAT.L.4.23.0-00001'
+qat_drivers_download_url: 'https://downloadmirror.intel.com/788561/{{ qat_drivers_version }}.tar.gz'
+qat_drivers_pkg_checksum: 'sha1:07830339CD5F1903C727323768CEF4B01CCA10DD'
 
 # QAT 2.x (for QAT embedded into SPR)
-qat_spr_drivers_version: 'QAT20.L.1.0.40-00004'
-qat_spr_drivers_download_url: 'https://downloadmirror.intel.com/781387/{{ qat_spr_drivers_version }}.tar.gz'
-qat_spr_drivers_pkg_checksum: 'sha1:27B687C0D72D83BF5A8DE10A7FEF1FF3D57828F2'
+qat_spr_drivers_version: 'QAT20.L.1.0.50-00003'
+qat_spr_drivers_download_url: 'https://downloadmirror.intel.com/783270/{{ qat_spr_drivers_version }}.tar.gz'
+qat_spr_drivers_pkg_checksum: 'sha1:1B84397E1ADB191A150F274F961895615BD85BAB'
 
 # If updating mentioned below folder location kindly update similar in roles/redeploy_cleanup/defaults/main.yml
 qat_drivers_dir: "{{ (project_root_dir, 'qat_drivers') | path_join }}"

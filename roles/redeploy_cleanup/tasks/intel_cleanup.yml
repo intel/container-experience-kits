@@ -197,5 +197,55 @@
     - ansible_distribution_version >= "9.0"
     - configure_sgx | default(false)
 
+- name: resume disks
+  block:
+    - name: set iteration number
+      ansible.builtin.set_fact:
+        num: 1
+        req_num: "{{ hostvars[inventory_hostname]['persistent_volumes'] | default([]) | length }}"
+
+    - name: umount volumes
+      ansible.builtin.command: >-
+        umount --lazy "{{ item.mountPath }}"
+      loop: "{{ hostvars[inventory_hostname]['persistent_volumes'] }}"
+      when:
+        - hostvars[inventory_hostname]['persistent_volumes'] | default([]) | length > 0
+      changed_when: false
+      failed_when: false
+
+    - name: remove mount points
+      ansible.builtin.file:
+        path: "{{ item.mountPath }}"
+        state: absent
+      loop: "{{ hostvars[inventory_hostname]['persistent_volumes'] }}"
+      when:
+        - hostvars[inventory_hostname]['persistent_volumes'] | default([]) | length > 0
+      changed_when: false
+      failed_when: false
+
+    - name: remove mount points from /etc/fstab
+      ansible.builtin.shell: >-
+        set -o pipefail && cat /etc/fstab | sed "{{ item.mountPath | replace('/', '\\/') }}"/d | tee /etc/fstab
+      args:
+        executable: /bin/bash
+      loop: "{{ hostvars[inventory_hostname]['persistent_volumes'] }}"
+      when:
+        - hostvars[inventory_hostname]['persistent_volumes'] | default([]) | length > 0
+        - inventory_hostname in groups['kube_node']
+      changed_when: false
+      failed_when: false
+  when:
+    - inventory_hostname in groups['kube_node']
+    - minio_enabled | default(false) | bool or
+      local_volume_provisioner_enabled | default(false) | bool or
+      rook_ceph.enabled | default(false) | bool
+
+- name: remove tdx related packages
+  include_tasks: tdx_cleanup.yml
+  when:
+    - configure_tdx | default(false) | bool
+    - ansible_distribution == "Ubuntu"
+    - ansible_distribution_version == "22.04"
+
 - debug:
     msg: "Intel Container Experience Kit features have been removed ..."

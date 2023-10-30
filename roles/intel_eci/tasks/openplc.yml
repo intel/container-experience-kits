@@ -1,0 +1,125 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Check if Ethercat Has Been Installed
+  ansible.builtin.command: /etc/init.d/ethercat status
+  changed_when: false
+  register: first_check_ethercat_status
+  ignore_errors: yes
+
+- name: Configure Ethercat
+  block:
+    - name: Make Sure Ethercat Exists
+      ansible.builtin.stat:
+        path: /etc/sysconfig/ethercat
+      register: file_status
+
+    - name: Assert File Exists
+      ansible.builtin.assert:
+        that: file_status.stat.exists
+        fail_msg: "File does not exist!"
+
+    - name: Get BDF
+      ansible.builtin.shell: set -o pipefail &&
+        ethtool -i "$(
+          ip link | grep -B 1 "{{ ethercat_mac }}" | head -n 1 | awk '{print $2}' | sed 's/.$//'
+        )" | grep bus-info | awk '{print $2}'
+      args:
+        executable: /bin/bash
+      register: bdf
+      changed_when: false
+      failed_when: (bdf.stderr | length > 0) and ('No such device' not in bdf.stderr)
+
+    - name: Check the BDF
+      assert:
+        that:
+          - bdf.rc == 0
+        fail_msg: >-
+          "Can't get the BDF of ethercat NIC. Please check configuration of ethercat_mac parameter in host_vars file for VM - {{ inventory_hostname }}
+          whether you filled in the right mac address of NIC to be used by ethercat inside VM. Please check that BDF for that NIC
+          was passthrough to VM - {{ inventory_hostname }} (vms section of host_vars file for vm_host)"
+
+    - name: Show passthrough device information
+      ansible.builtin.debug:
+        msg: "BDF: {{ bdf.stdout }}  ; Mac Address: {{ ethercat_mac }}"
+
+    - name: Replace BDF
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/ethercat
+        regexp: '^REBIND_NICS='
+        line: "REBIND_NICS={{ bdf.stdout }}"
+
+    - name: Replace Mac Address
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/ethercat
+        regexp: '^MASTER0_DEVICE='
+        line: "MASTER0_DEVICE={{ ethercat_mac }}"
+
+    - name: Replace Device Modules
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/ethercat
+        regexp: '^DEVICE_MODULES='
+        line: 'DEVICE_MODULES="igb"'
+
+    - name: Start Ethercat
+      ansible.builtin.command: /etc/init.d/ethercat start
+      changed_when: true
+
+    - name: Get Ethercat Status
+      ansible.builtin.command: /etc/init.d/ethercat status
+      register: ethercat_status
+      changed_when: false
+
+    - name: Check Ethercat Status
+      ansible.builtin.assert:
+        that: "'running' in ethercat_status.stdout"
+        fail_msg: "Ethercat Start Failed. Status: {{ ethercat_status.stdout }}"
+        success_msg: "Ethercat Start Successfully."
+  when: "'running' not in first_check_ethercat_status.stdout"
+
+
+- name: Check if Openplc Runtime Has Been Installed
+  ansible.builtin.systemd:
+    name: openplc.service
+  register: first_check_openplc_status
+
+- name: Install Openplc Runtime
+  block:
+    - name: Change file permissions
+      ansible.builtin.file:
+        path: /opt/plcopen/openplc-runtime/install_openplc_runtime.sh
+        mode: u+x
+
+    - name: Execute Install Script
+      ansible.builtin.command: /opt/plcopen/openplc-runtime/install_openplc_runtime.sh
+      register: shell_result
+      failed_when: shell_result.rc != 0
+      changed_when: true
+
+    - name: Start openplc Service
+      ansible.builtin.systemd:
+        state: started
+        name: openplc.service
+
+    - name: Check if Openplc Runtime Start
+      ansible.builtin.systemd:
+        name: openplc.service
+      register: service_status
+
+    - name: Check Openplc Runtime installed
+      ansible.builtin.assert:
+        that: "service_status.status.ActiveState == 'active'"
+        fail_msg: "Failed to install openplc runtime. You can check the last 20 lines log to debug"
+  when: first_check_openplc_status.status.ActiveState == "inactive"

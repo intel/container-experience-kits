@@ -18,19 +18,21 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
   block:
-    - name: Uninstall cAdvisor Helm Chart
-      kubernetes.core.helm:
-        name: "{{ cadvisor_release_name }}"
-        namespace: "{{ cadvisor_namespace }}"
-        state: absent
-    - name: Remove cAdvisor Helm Repo
-      kubernetes.core.helm_repository:
-        name: "{{ cadvisor_helm_repo_name }}"
+    - name: generate k8s manifest using kustomize
+      ansible.builtin.command: "/usr/local/bin/kubectl kustomize"
+      args:
+        chdir: "{{ (project_root_dir, 'cadvisor', 'deploy', 'kubernetes', 'overlays', 'cek') | path_join }}"
+      register: kustomize
+      changed_when: true
+
+    - name: delete k8s resources
+      kubernetes.core.k8s:
+        definition: "{{ kustomize.stdout }}"
         state: absent
   tags:
     - cadvisor
 
 - name: Delete cAdvisor directory
   ansible.builtin.file:
-    path: "{{ (project_root_dir, 'charts', 'cadvisor') | path_join }}"
+    path: "{{ (project_root_dir, 'cadvisor') | path_join }}"
     state: absent

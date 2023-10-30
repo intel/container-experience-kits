@@ -3,6 +3,9 @@ kind: CatalogSource
 metadata:
   name: intel-ethernet-operators
   namespace: {{ intel_ethernet_operator_namespace }}
+  labels:
+    app: intel-ethernet-operator
+    version: {{ intel_ethernet_operator_git_ref }}
 spec:
   sourceType: grpc
   image: {{ intel_ethernet_operator_catalog_image }}

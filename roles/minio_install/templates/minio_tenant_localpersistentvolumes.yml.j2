@@ -1,4 +1,4 @@
-{%- for pv in hostvars[item]['minio_pv'] %}
+{%- for pv in hostvars[item]['persistent_volumes'] %}
 ---
 apiVersion: v1
 kind: PersistentVolume

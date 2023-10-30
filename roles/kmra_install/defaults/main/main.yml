@@ -23,7 +23,7 @@ kmra_defaults:
     OU: "root"
     CN: "localhost"
   certs_validity_period_days: 365
-  image_tag: "v2.3" # can be overriden in each component section if needed
+  image_tag: "v2.4" # can be overriden in each component section if needed
   apphsm:
     enabled: false
     release_name: "kmra-apphsm"
@@ -35,7 +35,7 @@ kmra_defaults:
     sbx_image_repo: "{{ registry_local_address }}"
     sbx_image_name: "apphsm"
     sbx_image_staging_location: "/tmp/apphsm/apphsm.sbx.tar"
-    sbx_image_checksum: "b32757e1263c6de52903ba31583e3d61274044f30d2270541c3d85c523224f02"
+    sbx_image_checksum: "8eb70e7e0b9db7e58ed8cd91f9512b726a3a6288775841daf65fadf89802e208"
     # sbx_image_tag: ""
     init_image_repo: "docker.io"
     init_image_name: "busybox"
@@ -61,7 +61,6 @@ kmra_defaults:
         pin: "1234"
         key_name: "client_key_priv"
         token_cert: "testcert1.crt"
-        token_key: "testkey1.pem"
         crt_subj:
           O: "SampleOrganisation"
           CN: "localhost"
@@ -70,7 +69,6 @@ kmra_defaults:
         pin: "1234"
         key_name: "key_2"
         token_cert: "testcert2.crt"
-        token_key: "testkey2.pem"
         crt_subj:
           O: "SampleOrganisation"
           CN: "localhost"
@@ -79,10 +77,10 @@ kmra_defaults:
         pin: "1234"
         key_name: "key_3"
         token_cert: "testcert3.crt"
-        token_key: "testkey3.pem"
         crt_subj:
           O: "SampleOrganisation"
           CN: "localhost"
+    ecdsa_keys: "false"
   pccs:
     enabled: false
     api_key: "ffffffffffffffffffffffffffffffff"

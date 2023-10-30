@@ -14,6 +14,23 @@
 ##   limitations under the License.
 ##
 ---
+- name: Enable non root user to start Flexran pod on SPR-EE
+  block:
+    - name: enable device_ownership_from_security_context in /etc/containerd/config.toml
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        insertafter: 'enable_unprivileged_icmp = false'
+        line: "    device_ownership_from_security_context = true"
+    - name: containerd | restart containerd
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+        daemon-reload: yes
+  when:
+    - configured_arch == "spr"
+    - container_runtime == "containerd"
+
 - name: generate FlexRAN Docker POD files
   template:
     src: "{{ item.src }}"
@@ -23,8 +40,8 @@
   loop:
     - {src: 'intel_flexran_pod_timer_mode_icx_sp.yaml.j2', dst: 'intel_flexran_pod_timer_mode_icx_sp.yaml'}
     - {src: 'intel_flexran_pod_xran_mode_icx_sp.yaml.j2', dst: 'intel_flexran_pod_xran_mode_icx_sp.yaml'}
-    - {src: 'intel_flexran_pod_timer_mode_spr_ee.yaml.j2', dst: 'intel_flexran_pod_timer_mode_spr_ee.yaml'}
-    - {src: 'intel_flexran_pod_xran_mode_spr_ee.yaml.j2', dst: 'intel_flexran_pod_xran_mode_spr_ee.yaml'}
+    - {src: 'intel_flexran_pod_timer_mode_spr_ee_non_root.yaml.j2', dst: 'intel_flexran_pod_timer_mode_spr_ee_non_root.yaml'}
+    - {src: 'intel_flexran_pod_xran_mode_spr_ee_non_root.yaml.j2', dst: 'intel_flexran_pod_xran_mode_spr_ee_non_root.yaml'}
 
 - name: create namespace for FlexRAN as Docker POD
   k8s:
@@ -56,18 +73,18 @@
     - intel_flexran_mode == "xran"
     - configured_arch == "icx"
 
-- name: run FlexRAN as Docker POD in Timer test mode on SPR-EE
+- name: run FlexRAN as POD in Timer test mode on SPR-EE
   k8s:
     state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode_spr_ee.yaml') | path_join }}"
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode_spr_ee_non_root.yaml') | path_join }}"
   when:
     - intel_flexran_mode == "timer"
     - configured_arch == "spr"
 
-- name: run FlexRAN as Docker POD in XRAN test mode on SPR-EE
+- name: run FlexRAN as POD in XRAN test mode on SPR-EE
   k8s:
     state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode_spr_ee.yaml') | path_join }}"
+    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode_spr_ee_non_root.yaml') | path_join }}"
   when:
     - intel_flexran_mode == "xran"
     - configured_arch == "spr"

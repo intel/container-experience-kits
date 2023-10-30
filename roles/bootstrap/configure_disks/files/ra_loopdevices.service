@@ -1,0 +1,18 @@
+[Unit]
+Description=RA Setup loop devices
+DefaultDependencies=no
+Conflicts=umount.target
+Before=local-fs.target
+After=systemd-udevd.service home.mount
+Requires=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/loopdevice_bind
+ExecStop=/sbin/loopdevice_bind -d
+TimeoutSec=60
+RemainAfterExit=yes
+
+[Install]
+WantedBy=local-fs.target
+Also=systemd-udevd.service

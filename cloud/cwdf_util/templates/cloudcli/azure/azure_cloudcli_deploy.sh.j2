@@ -30,9 +30,21 @@ NIC_NAME="cwdf-infra-{{ cloud_config.job_id }}-ansible-instance-nic"
 ANSIBLE_INSTANCE_NAME="cwdf-infra-{{ cloud_config.job_id }}-ansible-instance"
 ANSIBLE_INSTANCE_IMAGE="Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
 
+# Generate Ansible instance SSH Host Key
+if [ ! -f ${SCRIPT_DIR}/ansible_host ]
+then
+  ssh-keygen -q -N "" -t rsa -f ${SCRIPT_DIR}/ansible_host
+fi
+ANSIBLE_INSTANCE_HOST_PRIVKEY=$(cat ${SCRIPT_DIR}/ansible_host)
+ANSIBLE_INSTANCE_HOST_PUBKEY=$(cat ${SCRIPT_DIR}/ansible_host.pub)
+
 # Ansible instance entrypoint script
 ANSIBLE_INSTANCE_ENTRYPOINT="$(cat <<- "EOM"
 #!/usr/bin/env bash
+echo $ANSIBLE_INSTANCE_HOST_PRIVKEY > /etc/ssh/ssh_host_rsa_key
+rm /etc/ssh/ssh_host_dsa_key
+rm /etc/ssh/ssh_host_ed25519_key
+rm /etc/ssh/ssh_host_ecdsa_key
 mkdir -p /etc/apt/keyrings
 curl -sLS https://packages.microsoft.com/keys/microsoft.asc |
   gpg --dearmor |
@@ -479,6 +491,7 @@ JSON_OUTPUT=$(jq -n \
                  --arg k8s_worker_username "azureuser" \
                  --arg rg_name "$AZ_GROUP_NAME" \
                  --arg sub_id "$SUBSCRIPTION_ID" \
+                 --arg host_key "$ANSIBLE_INSTANCE_HOST_PUBKEY" \
                  '{aks_cluster_name: 
                     {value: $aks_name},
                    aks_scale_sets_rg: 
@@ -487,6 +500,8 @@ JSON_OUTPUT=$(jq -n \
                     {value: $ansible_host_ip},
                    cloud_provider: 
                     {value: $cloud_provider},
+                   ansible_ssh_host_key:
+                    {value: $host_key},
                    cr_url: 
                     {value: $cr_url},
                    k8s_worker_username: 

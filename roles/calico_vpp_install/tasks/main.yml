@@ -1,0 +1,139 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: preflight check for Calico VPP
+  include_tasks: calico_vpp_preflight.yml
+
+- name: create Calico VPP files directory
+  ansible.builtin.file:
+    path: "{{ calico_vpp_files_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: download tigera-operator deployment file
+  ansible.builtin.get_url:
+    url: "{{ k8s_calico_tigera_operator }}"
+    checksum: "{{ k8s_calico_tigera_operator_checksum }}"
+    dest: "{{ calico_vpp_files_dir }}"
+    mode: '0755'
+  register: tigera_operator_download
+  until: tigera_operator_download is not failed
+  retries: 5
+
+- name: install tigera-operator
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ (calico_vpp_files_dir, 'tigera-operator.yaml') | path_join }}"
+
+- name: wait for tigera-operator ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: tigera-operator
+    namespace: tigera-operator
+    wait: true
+    wait_condition:
+      reason: NewReplicaSetAvailable
+      type: Progressing
+    wait_timeout: 240
+
+- name: generate calico and calico-vpp deployment file
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ (calico_vpp_files_dir, item.dst) | path_join }}"
+    force: yes
+    mode: preserve
+  loop:
+    - {src: 'calico.yaml.j2', dst: 'calico.yaml'}
+    - {src: 'calico-vpp.yaml.j2', dst: 'calico-vpp.yaml'}
+
+# Pause 15 secs for waiting the calico basic part start firslty, and then calico vpp
+- name: deploy calico
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ (calico_vpp_files_dir, item) | path_join }}"
+  loop:
+    - 'calico.yaml'
+    - 'calico-vpp.yaml'
+  loop_control:
+    pause: 15
+
+# API Server will be in shortly disconnected status during calico cni initialization, so wait for a while
+- name: wait for calico cni to be fully initialized
+  pause:
+    seconds: 180
+
+- name: wait for calico-vpp to be ready
+  kubernetes.core.k8s_info:
+    kind: DaemonSet
+    name: calico-vpp-node
+    namespace: calico-vpp-dataplane
+  register: ds_status
+  retries: 30
+  delay: 10
+  until: |
+    ds_status.failed or
+    (
+      ds_status.resources | length > 0 and
+      ds_status.resources[0].status.numberReady > 0
+    )
+
+- name: wait for calico to be ready
+  block:
+    - name: wait all calico deployments to be ready
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: "{{ item.name }}"
+        namespace: "{{ item.namespace }}"
+        wait: yes
+        wait_condition:
+          reason: NewReplicaSetAvailable
+          type: Progressing
+        wait_timeout: 240
+      loop:
+        - {namespace: 'calico-system', name: 'calico-typha'}
+        - {namespace: 'calico-system', name: 'calico-kube-controllers'}
+        - {namespace: 'calico-apiserver', name: 'calico-apiserver'}
+    - name: wait all calico daemonsets to be ready
+      kubernetes.core.k8s_info:
+        kind: DaemonSet
+        name: "{{ item }}"
+        namespace: calico-system
+      with_items:
+        - calico-node
+        - csi-node-driver
+      register: ds_status
+      retries: 30
+      delay: 10
+      until: |
+        ds_status.failed or
+        (
+          ds_status.resources | length > 0 and
+          ds_status.resources[0].status.numberReady > 0
+        )
+
+- name: restart kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: restarted
+    enabled: yes
+
+- name: install calicoctl
+  ansible.builtin.include_tasks:
+    file: calicoctl.yml
+
+- name: install calivppctl
+  ansible.builtin.include_tasks:
+    file: calivppctl.yml

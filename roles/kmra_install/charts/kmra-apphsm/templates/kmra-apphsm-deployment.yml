@@ -65,12 +65,28 @@ spec:
           readOnly: true
 # we have to mount these keys one by one, since apphsm doesn't like symbol links
         - name: custom-config
-          mountPath: /opt/intel/custom_tls/server.key
-          subPath: server.key
+          mountPath: /opt/intel/custom_tls/server_cu.key
+          subPath: server_cu.key
           readOnly: true
         - name: custom-config
-          mountPath: /opt/intel/custom_tls/server.crt
-          subPath: server.crt
+          mountPath: /opt/intel/custom_tls/server_cu.crt
+          subPath: server_cu.crt
+          readOnly: true
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/server_du.key
+          subPath: server_du.key
+          readOnly: true
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/server_du.crt
+          subPath: server_du.crt
+          readOnly: true
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/server_ric.key
+          subPath: server_cu.key
+          readOnly: true
+        - name: custom-config
+          mountPath: /opt/intel/custom_tls/server_ric.crt
+          subPath: server_cu.crt
           readOnly: true
         - name: custom-config
           mountPath: /opt/intel/custom_tls/client.key

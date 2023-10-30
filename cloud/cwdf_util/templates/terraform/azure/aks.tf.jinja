@@ -42,7 +42,7 @@ resource "azurerm_kubernetes_cluster" "default" {
     {% endif %}
     {% if aks.cni == "cilium" %}
     ebpf_data_plane = "cilium"
-    network_plugin_mode = "Overlay"
+    network_plugin_mode = "overlay"
     {% endif %}
   }
 

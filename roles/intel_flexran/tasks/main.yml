@@ -52,6 +52,24 @@
   include_tasks: power.yml
   when: inventory_hostname == groups['kube_node'][0]
 
+- name: add rt_test to test the real-time kernel performance
+  block:
+    - name: clone rt_test repository
+      ansible.builtin.git:
+        repo: "{{ rt_test_repo }}"
+        version: "{{ rt_test_version }}"
+        dest: "{{ (project_root_dir, 'rt_tests') | path_join }}"
+        force: yes
+    - name: build rt_test
+      make:
+        chdir: "{{ (project_root_dir, 'rt_tests') | path_join }}"
+    - name: run basic rt_test to test the real-time enviroment
+      ansible.builtin.command: >
+        taskset -c 0-16 ./cyclictest -m -p95 -h 15 -a 1-16 -t 10 -D 5s --mainaffinity=0 -q
+      args:
+        chdir: "{{ (project_root_dir, 'rt_tests') | path_join }}"
+      changed_when: false
+
 - name: deploy Intel FlexRAN
   include_tasks: flexran.yml
   when: intel_flexran_type == "host"

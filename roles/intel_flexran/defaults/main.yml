@@ -23,17 +23,15 @@
 
 # - include_role: dpdk
 #   when: dpdk_dir is not defined # to allow tagged execution
-
+dpdk_dir: "{{ (project_root_dir, 'dpdk-' + dpdk_version) | path_join }}"
 # Intel FlexRAN
 # intel_flexran_repo: "Intel’s Developer Zone Portal aka RDC"
 # intel_flexran_token: "not public. pkg access requires NDA. see docs/flexran_guide.md"
 intel_flexran_staging_location: "/tmp/flexran/" # a directory on localhost (ansible host)
-intel_flexran_ver: "23.03" # "22.03" (RA22.06) "22.07" (RA22.08) "22.07.3" (RA22.11) "22.11" (RA23.02) "23.03" (RA23.07)
+intel_flexran_ver: "23.07" # "22.03" (RA22.06) "22.07" (RA22.08) "22.07.3" (RA22.11) "22.11" (RA23.02) "23.03" (RA23.07) "23.07" (RA23.10)
 intel_flexran_pod_version_icx_sp: "22.07" # (RA23.07)
-intel_flexran_pod_version_spr_ee: "23.03" # (RA23.07)
+intel_flexran_pod_version_spr_ee: "23.07" # "23.03"(RA23.07)
 intel_flexran_namespace: "default"
-# intel_flexran_tarball: "FlexRAN-22.03.tar.gz"
-# intel_flexran_tar_chk: "65e59ac1295ef392f54b80047db2efe458962fc78e5d84c5d54703439a364cda" # SHA256
 intel_flexran_dir: "{{ (project_root_dir, 'intel-flexran') | path_join }}"
 intel_flexran_files_dir: "{{ (project_root_dir, 'intel-flexran-files') | path_join }}" # for FEC ACC CRs, kernel cmdline, etc
 intel_flexran_dpdk_ver: "22.11.1" # "21.11" for FlexRAN 22.03, 22.07, 22.07.3, 22.11
@@ -43,9 +41,7 @@ intel_flexran_dpdk_zip: "dpdk_patch-{{ intel_flexran_ver }}.patch.zip"
 intel_flexran_dpdk_zip_chk: "dab1a0c3a0530be9904d62d3c3f4f88166b73360dcc11402500070237000f468" # SHA256 for dpdk_patch-22.07.3.patch.zip
 
 intel_flexran_dpdk_patch: "dpdk_patch-{{ intel_flexran_ver }}.patch"
-# intel_flexran_dpdk_patch_chk: "bd136f939609545d70e4d6a8dca83a1550d6a28a0b6b70fdfb10d8283922f4c5" # SHA256 for dpdk_patch-22.07.3.patch
-# intel_flexran_dpdk_patch_chk: "d7943817a04d58ee3a78a36b2cbbaa18f45df15402f6566e904648820e657ad7" # SHA256 for dpdk_patch-22.11.patch
-intel_flexran_dpdk_patch_chk: "91b4d1911568f59d349adc0152d0d60fb4c5fd927373d021f7de188ba20f1267" # SHA256 for dpdk_patch-23.03.patch
+intel_flexran_dpdk_patch_chk: "fd80a13c454cd7930ada3704306d29bf8c3acfef2630b7d410f6c215d32028ff" # SHA256 for dpdk_patch-23.07.patch
 
 intel_flexran_patch: "FlexRAN-R{{ intel_flexran_ver }}.zip"
 intel_flexran_patch_chk: "1089d1bd3d86fe2f2198c497fa26e6f9322fd867f5f6ece087190499ff427593" # SHA256 for FlexRAN-R22.07.3.zip
@@ -53,3 +49,6 @@ intel_flexran_patch_chk: "1089d1bd3d86fe2f2198c497fa26e6f9322fd867f5f6ece0871904
 intel_pfbb_version: "v23.03"
 
 inih_version: "r44"
+
+rt_test_repo: "https://git.kernel.org/pub/scm/utils/rt-tests/rt-tests.git"
+rt_test_version: "v2.5"

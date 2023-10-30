@@ -19,4 +19,4 @@
     fail_msg: |-
       Sigstore policy controller is enabled, but Container Registry is disabled.
       Please enable container registry in group_vars.
-  when: inventory_hostname == groups['kube_control_plane'][0]
+  when: inventory_hostname == (groups['kube_control_plane'][0] | default(""))

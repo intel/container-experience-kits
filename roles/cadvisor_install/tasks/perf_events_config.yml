@@ -15,13 +15,13 @@
 ##
 - name: create the perf_config folder for cAdvisor custom perf events
   ansible.builtin.file:
-    path: "{{ (project_root_dir, 'charts', 'cadvisor', 'perf_config') | path_join }}"
+    path: "{{ (project_root_dir, 'cadvisor', 'perf_config') | path_join }}"
     state: directory
-    mode: 0755
+    mode: '0755'
 
 - name: load sample perf events json file
   ansible.builtin.set_fact:
-    sample_perf_conf_json: "{{ lookup('file', 'sample-perf-event.json' ) | from_json }}"
+    sample_perf_conf_json: "{{ lookup('file', 'sample-perf-event.json') | from_json }}"
   when: cadvisor_sample_perf_events_enabled
 
 - name: load perf events json file supplied for PIK
@@ -34,10 +34,10 @@
     sample_perf: "{{ sample_perf_conf_json | default({}) }}"
     pik_perf: "{{ pik_perf_conf_json | default({}) }}"
   ansible.builtin.set_fact:
-    perf_conf_json: "{{ sample_perf | combine(pik_perf, recursive=true, list_merge='append_rp') | to_json(indent=2) }}"
+    perf_conf_json: "{{ sample_perf | combine(pik_perf, recursive=true, list_merge='append_rp') | to_json }}"
 
-- name: create perf events configuration json file
-  ansible.builtin.copy:
-    content: "{{ perf_conf_json }}"
-    dest: "{{ (project_root_dir, 'charts', 'cadvisor', 'perf_config', cadvisor_perf_config_filename) | path_join }}"
-    mode: 0644
+- name: template perf events ConfigMap
+  ansible.builtin.template:
+    src: "overlay/configmap.yaml.j2"
+    dest: "{{ (project_root_dir, 'cadvisor', 'deploy', 'kubernetes', 'overlays', 'cek', 'configmap.yaml') | path_join }}"
+    mode: '0644'

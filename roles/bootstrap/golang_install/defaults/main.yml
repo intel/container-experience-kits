@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-golang_version: "1.20.4"
-golang_download_checksum: "sha256:698ef3243972a51ddb4028e4a1ac63dc6d60821bf18e59a807e051fee0a385bd"
+golang_version: "1.21.1"
+golang_download_checksum: "sha256:b3075ae1ce5dab85f89bc7905d1632de23ca196bd8336afd93fa97434cfa55ae"
 
 golang_download_url: >-
   {{ 'https://mirrors.aliyun.com/golang/go' + golang_version + '.linux-amd64.tar.gz'

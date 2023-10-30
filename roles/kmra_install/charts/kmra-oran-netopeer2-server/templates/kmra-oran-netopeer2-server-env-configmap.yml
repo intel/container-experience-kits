@@ -19,3 +19,4 @@ data:
   DEFAULT_SO_PIN: {{ .Values.oran_netopeer2_server.default_so_pin | quote }}
   DEFAULT_CLIENT_TOKEN_ID: {{ .Values.oran_netopeer2_server.default_client_token_id | quote }}
   PKCS11_PROXY_TLS_PSK_FILE: {{ .Values.oran_netopeer2_server.pkcs11_proxy_tls_psk_file | quote }}
+  ECDSA_KEYS: {{ .Values.oran_netopeer2_server.ecdsa_keys | default "false" | upper | quote }}

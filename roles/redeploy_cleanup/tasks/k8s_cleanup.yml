@@ -14,7 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-- debug:
+- name: print k8s cleanup start message
+  debug:
     msg: "Starting to remove k8s cluster ..."
 
 - name: remove k8s cluster
@@ -234,8 +235,10 @@
     files_to_delete: "{{ k8s_dirs_to_remove }}"
   changed_when: false
 
-- include_role:
+- name: remove kubespray dns setting
+  include_role:
     name: remove_kubespray_host_dns_settings
 
-- debug:
+- name: print k8s cleanup end message
+  debug:
     msg: "k8s cluster has been removed ..."

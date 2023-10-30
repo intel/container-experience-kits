@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - service.yaml
+  - ../../base
+{% if cadvisor_perf_events | default(false) %}
+  - configmap.yaml
+{% endif %}
+patches:
+  - path: daemonset.yaml
+  - path: rbac-proxy.yaml

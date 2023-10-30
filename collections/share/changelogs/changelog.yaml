@@ -1,0 +1,6 @@
+releases:
+  23.10.0:
+    changes:
+      release_summary: This is the initial release of CEK share collection
+      major_changes:
+        - Added two roles configure_dpdk and install_gpu_driver

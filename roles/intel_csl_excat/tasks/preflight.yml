@@ -1,0 +1,44 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: check csl_excat container runtime requirements
+  assert:
+    that:
+      - container_runtime == "containerd" or container_runtime == "crio"
+    fail_msg: "Intel CSL EXCAT feature requires container_runtime set to 'containerd' or 'crio'"
+    success_msg: "Intel CSL EXCAT container runtime uequirements verified"
+
+- name: check if csl_excat tar ball exists
+  delegate_to: localhost
+  become: false
+  stat:
+    path: "{{ csl_excat_tar_staging_location }}"
+    checksum_algorithm: sha256
+  register: provided_csl
+
+- name: assert if no tar ball
+  assert:
+    that: "provided_csl.stat.checksum | default('')"
+    msg:
+      - File {{ csl_excat_tar_staging_location }} on localhost does not exist.
+      - Please refer to group_vars/all.yml and search intel_csl_excat for how to get this tar ball.
+
+- name: check the csl_excat image integrity
+  assert:
+    that: "provided_csl.stat.checksum | default('')  == '{{ csl_excat_image_checksum }}'"
+    msg:
+      - File {{ csl_excat_tar_staging_location }} on localhost is NOT the expected one.
+      - Please provide the correct file.

@@ -1,0 +1,31 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+imtl_git_url: "https://github.com/OpenVisualCloud/Media-Transport-Library"
+imtl_version: "v23.08"
+
+# IMTL source has patches only for major.minor DPDK versions, strip patch version if present
+imtl_stripped_dpdk_version: "{{ dpdk_version | regex_replace('^([0-9]+).([0-9]+).*$', '\\1.\\2') }}"
+
+imtl_root_dir: "{{ (project_root_dir, 'imtl') | path_join }}"
+imtl_dpdk_patches_base_dir: "{{ imtl_root_dir }}/patches/dpdk/"
+imtl_ice_patches_base_dir: "{{ imtl_root_dir }}/patches/ice_drv/"
+imtl_deps_dir: "{{ (project_root_dir, 'imtl_deps') | path_join }}"
+
+# Minimum NIC FW version supported
+imtl_min_fw_version_supported: "4.20"
+
+imtl_dpdk_patches_strip: 1
+imtl_ice_patches_strip: 1

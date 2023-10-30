@@ -21,7 +21,7 @@ RUN mkdir -p /opt/intel/nep
 COPY install_gpu_stack.sh /opt/intel/nep/
 WORKDIR /opt/intel/nep
 # hadolint ignore=DL3059
-RUN chmod +x install_gpu_stack.sh && ./install_gpu_stack.sh
+RUN chmod +x install_gpu_stack.sh && ./install_gpu_stack.sh {{ container_gpu_stack_version }} {{ gpu_type }}
 {% endif %}
 
 {% if container_oneapi_base %}
@@ -40,7 +40,7 @@ RUN mkdir -p /opt/intel/nep
 COPY install_openvino.sh /opt/intel/nep/
 WORKDIR /opt/intel/nep
 # hadolint ignore=DL3059
-RUN chmod +x install_openvino.sh && ./install_openvino.sh
+RUN chmod +x install_openvino.sh && ./install_openvino.sh {{ container_openvino_version }}
 {% endif %}
 
 
@@ -50,7 +50,7 @@ RUN mkdir -p /opt/intel/nep
 COPY install_dlstreamer.sh /opt/intel/nep/
 WORKDIR /opt/intel/nep
 # hadolint ignore=DL3059
-RUN chmod +x install_dlstreamer.sh && ./install_dlstreamer.sh
+RUN chmod +x install_dlstreamer.sh && ./install_dlstreamer.sh {{ container_dlstreamer_version }} {{ gpu_type }}
 {% endif %}
 
 
@@ -63,10 +63,10 @@ WORKDIR /opt/intel/nep
 RUN chmod +x install_ffmpeg.sh
 {% if prc_network %}
 # hadolint ignore=DL3059
-RUN ./install_ffmpeg.sh prc_network
+RUN ./install_ffmpeg.sh {{ container_ffmpeg_version }} prc_network
 {% else %}
 # hadolint ignore=DL3059
-RUN ./install_ffmpeg.sh
+RUN ./install_ffmpeg.sh {{ container_ffmpeg_version }}
 {% endif %}
 {% endif %}
 
@@ -80,10 +80,10 @@ WORKDIR /opt/intel/nep
 RUN chmod +x install_opencv.sh
 {% if prc_network %}
 # hadolint ignore=DL3059
-RUN ./install_opencv.sh prc_network
+RUN ./install_opencv.sh {{ container_opencv_version }} prc_network
 {% else %}
 # hadolint ignore=DL3059
-RUN ./install_opencv.sh
+RUN ./install_opencv.sh {{ container_opencv_version }}
 {% endif %}
 {% endif %}
 
@@ -105,16 +105,19 @@ RUN useradd --create-home --no-log-init --shell /bin/bash aibox \
 {% if container_user != 'root' %}
 USER {{container_user}}
 ENV HOME=/home/{{container_user}}
-ENV PATH=${PATH}:/usr/local/bin
+ENV PATH=${HOME}/.local/bin:${HOME}/bin:${PATH}:/usr/local/bin
 ENV LD_LIBRARY_PATH=${LD_LIBRAY_PATH}:/usr/local/lib
 WORKDIR /home/{{container_user}}
 {% endif %}
 
+{% if prc_network %}
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+{% endif %}
 
 {% if container_openvino_dev %}
 COPY --chown={{container_user}}:{{container_user}} install_openvino_dev.sh .
-RUN chmod +x install_openvino_dev.sh && ./install_openvino_dev.sh
-ENV PATH=${HOME}/venv_openvino_2022/bin:${PATH}
+RUN chmod +x install_openvino_dev.sh && ./install_openvino_dev.sh {{ container_openvino_version }}
+ENV PATH=${HOME}/venv_openvino/bin:${PATH}
 {% endif %}
 
 HEALTHCHECK NONE

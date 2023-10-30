@@ -1,0 +1,34 @@
+# Common options
+options:
+  l2:
+    # Set to false if L2 CAT must be available (Default is true).
+    optional: true
+  l3:
+    # Set to false if L3 CAT must be available (Default is true).
+    optional: true
+  mb:
+    # Set to false if MBA must be available (Default is true).
+    optional: true
+# Partition definitions
+partitions:
+  pdef:
+    l2Allocation: "50%"
+    l3Allocation: "50%"
+    classes:
+      system/default:
+        l2schema: "100%"
+        l3schema: "100%"
+  p0:
+    l2Allocation: "25%"
+    l3Allocation: "25%"
+    classes:
+      c0:
+        l2schema: "100%"
+        l3schema: "100%"
+  p1:
+    l2Allocation: "25%"
+    l3Allocation: "25%"
+    classes:
+      c1:
+        l2schema: "100%"
+        l3schema: "100%"

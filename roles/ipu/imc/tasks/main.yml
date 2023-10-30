@@ -18,4 +18,49 @@
   ansible.builtin.command:
     cmd: "cat /etc/issue"
   changed_when: false
-  register: imc_version
+
+- name: get IPU board ID
+  ansible.builtin.command:
+    cmd: "ls -lah /etc/hwconf/active"
+  changed_when: false
+
+- name: copy P4 programs from ansible host
+  ansible.builtin.copy:
+    src: "{{ (ipu_tmp_dir, ipu_imc_p4_tarball) | path_join }}"
+    dest: "{{ (ipu_imc_persistent_dir, ipu_imc_p4_tarball) | path_join }}"
+    mode: '0644'
+
+- name: unarchive P4 programs tarball
+  ansible.builtin.unarchive:
+    src: "{{ (ipu_imc_persistent_dir, ipu_imc_p4_tarball) | path_join }}"
+    dest: "{{ ipu_imc_persistent_dir }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: copy active P4 program package
+  ansible.builtin.copy:
+    src: "{{ (ipu_imc_persistent_dir, 'p4-programs', 'artifacts', active_p4_program, active_p4_program) | path_join }}.pkg"
+    dest: "{{ ipu_imc_script_dir }}"
+    remote_src: true
+    mode: '0644'
+
+- name: prepare load_custom_pkg.sh script for active P4 program
+  ansible.builtin.template:
+    src: "{{ active_p4_program }}.sh.j2"
+    dest: "{{ (ipu_imc_script_dir, 'load_custom_pkg.sh') | path_join }}"
+    force: true
+    backup: true
+    mode: '0755'
+
+- name: reboot IMC to reload P4 program
+  ansible.builtin.reboot:
+
+- name: wait for ssh connection from IPU-IMC to IPU-ACC after P4 reload
+  ansible.builtin.wait_for:
+    port: 22
+    host: '{{ acc_static_ip }}'
+    search_regex: OpenSSH
+    delay: 1
+    timeout: 3600

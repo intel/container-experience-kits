@@ -1,0 +1,23 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+# QATLibs
+intel_qatlib_download_url: "https://github.com/intel/qatlib.git"
+intel_qatlib_download_url_version: "23.08.0"
+intel_qatlib_download_url_dir: "{{ (project_root_dir, 'intel_qatlibs') | path_join }}"
+
+intel_qat_4xxx_firmware_download_url: https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/qat_4xxx.bin
+intel_qat_4xxx_mmp_firmware_download_url: https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/qat_4xxx_mmp.bin

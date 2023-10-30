@@ -14,11 +14,11 @@ Cloud RA allows for deploying Intel Container Experience Kits on managed Kuberne
 
 - Python 3.8+
 
-- Azure CLI 2.50.0+ ([Install Guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt))
+- Azure CLI 2.53.0+ ([Install Guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt))
 
-- AWS CLI 2.12.7+ ([Install Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
+- AWS CLI 2.13.21+ ([Install Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
 
-- Terraform 1.5.2+
+- Terraform 1.5.7+
 
 - Docker 20.10.17+
 
@@ -81,7 +81,7 @@ azureConfig:
   sg_whitelist_cidr_blocks: []
   enable_proximity_placement: true
   aks:
-    kubernetes_version: "1.26"
+    kubernetes_version: "1.27"
     cni: "kubenet" # Possible values are: kubenet, cilium
     enable_sgx: false # Requires DCsv series instances in one of node pools
     default_node_pool:
@@ -120,7 +120,7 @@ awsConfig:
   sg_whitelist_cidr_blocks: []
   ecr_repositories: []
   eks:
-    kubernetes_version: "1.26"
+    kubernetes_version: "1.27"
     subnets: ["subnet_a", "subnet_b"]
     custom_ami: "ubuntu" # Comment out this line to use Amazon Linux 2 OS
     node_groups:

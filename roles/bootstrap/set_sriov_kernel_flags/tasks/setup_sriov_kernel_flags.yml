@@ -28,11 +28,11 @@
       (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "21.04") or
       (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.4")
 
-- name: set noiommu default kernel flags
+- name: set iommu default kernel flags
   set_fact:
     iommu_cmdline: ""
 
-- name: set iommu default kernel flags
+- name: set iommu enabled kernel flags
   set_fact:
     iommu_cmdline: " intel_iommu=on iommu=pt"
   when:

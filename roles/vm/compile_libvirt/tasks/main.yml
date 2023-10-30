@@ -22,4 +22,6 @@
 
 - name: Compile libvirt
   include_tasks: compile_libvirt.yml
-  when: "libvirt_tag not in libvirtd_version.stdout"
+  when:
+    - "libvirt_tag not in libvirtd_version.stdout"
+    - not configure_tdx | default(false)

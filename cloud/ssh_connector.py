@@ -3,12 +3,26 @@ import io
 import os
 import sys
 import time
+from base64 import decodebytes
 
 import click
 
-from paramiko import SSHClient, SSHConfig, ProxyCommand, AutoAddPolicy, SSHException, AuthenticationException
+from paramiko import SSHClient, SSHConfig, ProxyCommand, RejectPolicy, ECDSAKey, RSAKey, Ed25519Key, SSHException, AuthenticationException
 from scp import SCPClient, SCPException
 
+class SSHHostKey:
+    def __init__(self, key_type, key_string):
+        self.key_type = key_type
+        self.key_string = key_string
+
+    def get_paramiko_pkey(self):
+        if self.key_type == 'ssh-rsa':
+            return RSAKey(data=decodebytes(self.key_string.encode()))
+        elif self.key_type == 'ssh-ed25519':
+            return Ed25519Key(data=decodebytes(self.key_string.encode()))
+        if "ecdsa" in self.key_type:
+            return ECDSAKey(data=decodebytes(self.key_string.encode()))
+        return None
 
 class SSHConnector:
     """
@@ -16,7 +30,7 @@ class SSHConnector:
     Class supports proxy jump connection for cloud instances without public access.
     """
 
-    def __init__(self, ip_address, username, port=22, priv_key=None, gateway=None, try_loop=False):
+    def __init__(self, ip_address, username, port=22, host_keys=None, priv_key=None, gateway=None, try_loop=False):
         """
         Initialize the class and connect to the client.
         The method supports gateway proxy hopping.
@@ -26,6 +40,7 @@ class SSHConnector:
         ip_address (string): IP address of the remote instance
         username (string): User name for authentication in remote instance
         port (int): SSH port
+        host_keys ([SSHHostKey]): list of acceptable host keys 
         priv_key (string): Path to private RSA key for authentication in remote instance
         gateway (SSHConnector obj): [optional] SSHConnector object with active SSH connection
                                                to gateway for create proxy jump
@@ -36,7 +51,12 @@ class SSHConnector:
 
         """
         self.client = SSHClient()
-        self.client.set_missing_host_key_policy(AutoAddPolicy())
+        self.client.set_missing_host_key_policy(RejectPolicy())
+        if host_keys is not None:
+            for key in host_keys:
+                paramiko_pkey = key.get_paramiko_pkey()
+                if paramiko_pkey is not None:
+                    self.client.get_host_keys().add(hostname=ip_address, keytype=key.key_type, key=paramiko_pkey)
 
         sock = None
         if gateway:

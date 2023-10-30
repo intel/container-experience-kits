@@ -27,17 +27,13 @@
   set_fact:
     ice_driver_build_failed: false
 
-# unloading before update is probably not necessay and does not work anyway when irdma is using ice
-# - name: unload ice module
-#   modprobe:
-#     name: ice
-#     state: absent
-#   when:
-#     - ice_installed_version.stdout != ice_driver_version
-#     - mgmt_interface_driver.stdout != ice_driver_name
-#     - not update_kernel
-#     - (ansible_os_family == "RedHat" and ansible_distribution_version < "9.0") or
-#       (ansible_distribution == "Ubuntu" and ansible_distribution_version < "22.04")
+- name: Determine if patch of driver needed
+  ansible.builtin.set_fact:
+    patch_ice_needed: >-
+      {{
+        (intel_media_transport_library_enabled | default(false) and
+        intel_media_transport_library.patch_nic_driver | default(false)) | bool
+      }}
 
 - name: update ice driver
   block:
@@ -62,6 +58,15 @@
         mode: 0774
       become: yes
       register: ice_untar
+
+    - name: Patch ice driver to support IMTL
+      vars:
+        imtl_ice_driver_dir: "{{ (ice_untar.dest, ice_untar.files[0]) | path_join }}"
+        imtl_ice_version: "{{ ice_driver_version }}"
+      ansible.builtin.include_role:
+        name: imtl_install
+        tasks_from: ice_drv_patch.yml
+      when: patch_ice_needed
 
     - name: build and install ice driver
       make:
@@ -92,7 +97,12 @@
     - name: set ice driver build failed status
       set_fact:
         ice_driver_build_failed: true
-  when: ice_installed_version.stdout != ice_driver_version
+
+    - name: Fail when patch of NIC driver is needed
+      ansible.builtin.fail:
+        msg: "Patch of ice driver failed."
+      when: patch_ice_needed
+  when: ice_installed_version.stdout != ice_driver_version or patch_ice_needed
 
 - name: reboot node after driver update
   become: yes

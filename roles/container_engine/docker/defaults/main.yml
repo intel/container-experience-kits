@@ -16,7 +16,7 @@
 ---
 docker_version: "20.10.20"
 docker_cli_version: "{{ docker_version }}"
-containerd_version: "1.6.4" # Containerd version installed when docker runtime is used
+containerd_version: "1.6.16" # Containerd version installed when docker runtime is used
 
 containerd_package: 'containerd.io'
 

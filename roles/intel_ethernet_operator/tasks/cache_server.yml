@@ -39,61 +39,31 @@
   ansible.builtin.set_fact:
     is_fw_update_enabled: "{{ is_fw_update | json_query('results[*].msg') | replace('\"', '') | replace('\\n', '') }}"
 
-- block:
-    - block:
-        - name: download DDP archives
-          command: "wget {{ item.value }}" # noqa command-instead-of-module
-          changed_when: true
-          args:
-            chdir: "{{ intel_ethernet_operator_packages_dir }}"
-          loop: "{{ lookup('ansible.builtin.dict', intel_ethernet_operator_ddp_urls) }}"
-
-        - name: find DDP archives
-          ansible.builtin.find:
-            paths: "{{ intel_ethernet_operator_packages_dir }}"
-            use_regex: yes
-            patterns: "800"
-          register: ddp_archives
-
-        - name: unarchive DDP packages
-          ansible.builtin.unarchive:
-            src: "{{ item }}"
-            dest: "{{ intel_ethernet_operator_packages_dir }}"
-            remote_src: true
-          loop: "{{ ddp_archives.files | map(attribute='path') | list }}"
-
-        - name: remove DDP archives
-          ansible.builtin.file:
-            path: "{{ item }}"
-            state: absent
-          loop: "{{ ddp_archives.files | map(attribute='path') | list }}"
-
-        - name: find DDP files to remove
-          ansible.builtin.find:
-            paths: "{{ intel_ethernet_operator_packages_dir }}"
-            patterns: "*.pdf"
-          register: ddp_pdf
-
-        - name: remove DDP files
-          ansible.builtin.file:
-            path: "{{ item }}"
-            state: absent
-          loop: "{{ ddp_pdf.files | map(attribute='path') | list }}"
+- name: Prepare Cache server
+  when: '"True" in is_ddp_update_enabled or "True" in is_fw_update_enabled'
+  block:
+    - name: Download DDP packages
+      vars:
+        nic_driver: ice
+        ddp_download_dir_override: "{{ intel_ethernet_operator_packages_dir }}"
+      ansible.builtin.include_role:
+        name: install_ddp_pkgs
+        tasks_from: download.yml
       when: '"True" in is_ddp_update_enabled'
 
-    - name: download FW package
+    - name: Download FW package
       ansible.builtin.get_url:
         url: "{{ intel_ethernet_operator_fw_url }}"
         dest: "{{ intel_ethernet_operator_packages_dir }}/E810_NVMUpdatePackage_v4_10_Linux.tar.gz"
         mode: '0644'
       when: '"True" in is_fw_update_enabled'
 
-    - name: create Dockerfile
+    - name: Create Dockerfile
       ansible.builtin.copy:
         dest: "{{ (intel_ethernet_operator_files_dir, 'Dockerfile') | path_join }}"
         mode: '0644'
         content: |
-          FROM nginx:1.23.2
+          FROM nginx:1.24.0
           COPY packages /usr/share/nginx/html
 
     - block:
@@ -107,7 +77,6 @@
           ansible.builtin.command: docker push {{ intel_ethernet_operator_cache_webserver_image }}
           changed_when: true
       when:
-        - inventory_hostname == groups['kube_control_plane'][0]
         - '"docker" in container_runtime'
 
     - block:
@@ -121,7 +90,6 @@
           ansible.builtin.command: podman push {{ intel_ethernet_operator_cache_webserver_image }}
           changed_when: true
       when:
-        - inventory_hostname == groups['kube_control_plane'][0]
         - '"docker" not in container_runtime'
 
     - name: populate cache webserver yaml files and push to controller node
@@ -165,4 +133,3 @@
         -o jsonpath='{.spec.clusterIP}'
       changed_when: false
       register: cache_server_clusterip
-  when: '"True" in is_ddp_update_enabled or "True" in is_fw_update_enabled'

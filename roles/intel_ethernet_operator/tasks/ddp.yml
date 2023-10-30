@@ -14,6 +14,12 @@
 ##   limitations under the License.
 ##
 ---
+- name: Find DDP packages atributes
+  ansible.builtin.find:
+    path: "{{ intel_ethernet_operator_packages_dir }}"
+    get_checksum: true
+  register: ddp_checksums
+
 - name: DDP update
   when: hostvars[node_name]['intel_ethernet_operator']['ddp_update'] |d(false)
   block:
@@ -59,7 +65,7 @@
       until: ddp_update_api_info.status == 200
       retries: 60
       delay: 5
-
+  always: # check for status even if reboot process not started or failed so more information is gathered about status of update
     - name: Check status of DDP update
       kubernetes.core.k8s_info:
         kind: EthernetNodeConfig
@@ -84,14 +90,6 @@
       kubernetes.core.k8s:
         src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
         state: absent
-
-    - name: Remove EthernetNodeConfig after update
-      kubernetes.core.k8s:
-        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
-        kind: EthernetNodeConfig
-        namespace: "{{ intel_ethernet_operator_namespace }}"
-        state: absent
-        wait: true
 
     - name: Reload nic modules
       block:
