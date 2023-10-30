@@ -14,8 +14,228 @@
 ##   limitations under the License.
 ##
 ---
+- name: check if /etc/redhat-release exists
+  stat:
+    path: "/etc/redhat-release"
+  register: redhat_release
+
+- name: get ACC version - redhat
+  ansible.builtin.command:
+    cmd: "cat /etc/redhat-release"
+  changed_when: false
+  when: redhat_release.stat.exists
+
 - name: get ACC version
   ansible.builtin.command:
     cmd: "cat /etc/issue"
   changed_when: false
-  register: acc_version
+  when: not redhat_release.stat.exists
+
+- name: extract p4 tarball
+  ansible.builtin.unarchive:
+    src: /opt/p4.tar.gz
+    dest: /opt/
+    remote_src: true
+
+- name: copy P4 programs from ansible host
+  ansible.builtin.copy:
+    src: "{{ (ipu_tmp_dir, ipu_imc_p4_tarball) | path_join }}"
+    dest: "/tmp"
+    mode: '0644'
+
+- name: unarchive P4 programs tarball
+  ansible.builtin.unarchive:
+    src: "{{ ('/tmp', ipu_imc_p4_tarball) | path_join }}"
+    dest: "/tmp"
+    remote_src: true
+    mode: '0755'
+
+- name: copy active P4 program package on acc
+  ansible.builtin.copy:
+    src: "{{ ('/tmp', 'p4-programs', 'artifacts', active_p4_program) | path_join }}"
+    dest: "{{ active_p4_dir }}"
+    remote_src: true
+    mode: '0644'
+
+- name: create tofino.bin file
+  ansible.builtin.file:
+    path: "{{ active_p4_dir }}/{{ active_p4_program }}/tofino.bin"
+    state: touch
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: set /etc/environment for P4
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    state: present
+    regexp: '^{{ item.key }}'
+    line: '{{ item.key }}={{ item.value }}'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - { key: SDE_INSTALL, value: "{{ p4sde_install_dir }}" }
+    - { key: P4CP_INSTALL, value: "{{ p4cp_install_dir }}" }
+    - { key: DEPEND_INSTALL, value: '$P4CP_INSTALL' }
+  become: true
+
+- name: set .bashrc for P4
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    state: present
+    regexp: '^{{ item.key }}'
+    line: '{{ item.key }}={{ item.value }}'
+    create: true
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    mode: '0644'
+  with_items:
+    - { key: SDE_INSTALL, value: "{{ p4sde_install_dir }}" }
+    - { key: P4CP_INSTALL, value: "{{ p4cp_install_dir }}" }
+    - { key: DEPEND_INSTALL, value: '$P4CP_INSTALL' }
+  become: true
+
+- name: set /etc/environment for P4 continue
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    state: present
+    regexp: '^{{ item }}'
+    line: '{{ item }}'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - "alias ll='ls -l'"
+    - ". $P4CP_INSTALL/sbin/setup_env.sh $P4CP_INSTALL $SDE_INSTALL $DEPEND_INSTALL > /dev/null"
+  become: true
+
+- name: set .bashrc for P4 continue
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    state: present
+    regexp: '^{{ item }}'
+    line: '{{ item }}'
+    create: true
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    mode: '0644'
+  with_items:
+    - "alias ll='ls -l'"
+    - ". $P4CP_INSTALL/sbin/setup_env.sh $P4CP_INSTALL $SDE_INSTALL $DEPEND_INSTALL > /dev/null"
+  become: true
+
+- name: reset ssh connection to take changed environment
+  ansible.builtin.meta: reset_connection
+
+- name: WA for issue in script
+  ansible.builtin.replace:
+    path: "{{ p4cp_install_dir }}/sbin/copy_config_files.sh"
+    regexp: '^sudo mkdir /usr/share/target_sys/$'
+    replace: 'sudo mkdir -p /usr/share/target_sys/'
+
+- name: copy config files
+  ansible.builtin.shell:
+    cmd: "$P4CP_INSTALL/sbin/copy_config_files.sh $P4CP_INSTALL $SDE_INSTALL"
+  changed_when: true
+
+- name: generate certs
+  ansible.builtin.shell:
+    cmd: "COMMON_NAME=localhost ./generate-certs.sh"
+    chdir: "{{ stratum_es2k_dir }}/"
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: copy generated certs
+  ansible.builtin.copy:
+    src: "{{ stratum_es2k_dir }}/certs"
+    dest: "/usr/share/stratum/"
+    remote_src: true
+    mode: '0755'
+
+- name: get bdf from acc
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci | grep 1453 | cut -f1 -d' '"
+  args:
+    executable: /bin/bash
+  register: acc_bdf
+  changed_when: false
+  failed_when: acc_bdf.stdout | length == 0
+
+- name: bind bdf to vfio-pci driver
+  ansible.builtin.command:
+    cmd: "./dpdk-devbind.py -b vfio-pci {{ acc_bdf.stdout }}"
+    chdir: "{{ p4sde_bin_dir }}"
+  register: devbind_result
+  changed_when: true
+
+- name: set hugepages
+  ansible.builtin.command:
+    cmd: "./dpdk-hugepages.py -p 2M -r 2G"
+    chdir: "{{ p4sde_bin_dir }}"
+  register: hugepages_result
+  changed_when: true
+
+- name: get IOMMU group for bdf from acc
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -vv -s {{ acc_bdf.stdout }} | grep 'IOMMU group:' | cut -f2 -d':' | tr -d ' '"
+  args:
+    executable: /bin/bash
+  register: acc_bdf_group
+  changed_when: false
+  failed_when: acc_bdf_group.stdout | length == 0
+
+- name: prepare es2k_skip_p4.conf for active P4 program
+  ansible.builtin.template:
+    src: "es2k_skip_p4.conf.j2"
+    dest: "{{ stratum_es2k_dir }}/es2k_skip_p4.conf"
+    force: true
+    backup: true
+    mode: '0644'
+
+- name: build tdi pipeline
+  ansible.builtin.shell:
+    cmd: >-
+      "$P4CP_INSTALL/bin/tdi_pipeline_builder"
+      "--p4c_conf_file={{ stratum_es2k_dir }}/es2k_skip_p4.conf"
+      "--bf_pipeline_config_binary_file={{ active_p4_dir }}/{{ active_p4_program }}/{{ active_p4_program }}.pb.bin"
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: kill old infrap4d
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && p4d_pid=$(ps -ef | grep 'infrap4d' | grep -v 'grep' | awk '{print $2;}'); if [ ! -z \"$p4d_pid\" ]; then kill $p4d_pid; fi"
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: start infrap4d
+  ansible.builtin.command:
+    cmd: "infrap4d"
+  changed_when: true
+
+- name: wait for infrap4d port
+  ansible.builtin.wait_for:
+    port: 9559
+    host: 'localhost'
+    delay: 1
+    timeout: 15
+
+- name: set pipe to br0
+  ansible.builtin.command:
+    cmd: "p4rt-ctl set-pipe br0 {{ active_p4_program }}.pb.bin p4Info.txt"
+    chdir: "{{ active_p4_dir }}/{{ active_p4_program }}"
+  changed_when: true
+
+- name: set rules to br0
+  ansible.builtin.command:
+    cmd: "p4rt-ctl add-entry br0 {{ item }}"
+    chdir: "{{ active_p4_dir }}/{{ active_p4_program }}"
+  changed_when: true
+  with_items:
+    - "my_control.e_fwd \"hdrs.mac[vmeta.common.depth].da=0x000000000333,hdrs.mac[vmeta.common.depth].sa=0x9ebace98d9d3,action=my_control.send(1)\""
+    - "my_control.i_fwd \"hdrs.mac[vmeta.common.depth].da=0x000000000343,hdrs.mac[vmeta.common.depth].sa=0x9ebace98d9d3,action=my_control.send(26)\""

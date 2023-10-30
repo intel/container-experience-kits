@@ -22,11 +22,11 @@ crio_conmon: "{{ ( bin_dir, 'conmon') | path_join }}"
 crio_enable_metrics: false
 crio_log_level: "info"
 crio_metrics_port: "9090"
-crio_pause_image: "k8s.gcr.io/pause:3.3"
+crio_pause_image: "k8s.gcr.io/pause:3.9"
 
-crio_version: "v1.26.3"
+crio_version: "v1.27.0"
 crio_download_url: "https://storage.googleapis.com/cri-o/artifacts/cri-o.amd64.{{ crio_version }}.tar.gz"
-crio_archive_checksums: "942772081d9cd4bd0c07e466439b76a1ca95d3f10a7b53dc524d2946b2b17a71"
+crio_archive_checksums: "8f99db9aeea00299cb3f28ee61646472014cac91930e4c7551c9153f8f720093"
 
 crio:
   version: "{{ crio_version }}"
@@ -81,10 +81,6 @@ crio_runtimes:
     path: "{{ ( bin_dir, 'runc') | path_join }}"
     type: oci
     root: /run/runc
-
-# Configure the cri-o pids limit, increase this for heavily multi-threaded workloads
-# see https://github.com/cri-o/cri-o/issues/1921
-crio_pids_limit: 1024
 
 # Reserve 16M uids and gids for user namespaces (256 pods * 65536 uids/gids)
 # at the end of the uid/gid space

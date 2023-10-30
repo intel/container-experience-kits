@@ -23,9 +23,9 @@ registry_password:
 registry_size: 10Gi
 
 registry_image: "docker.io/library/registry"
-registry_version: 2.8.1
+registry_version: 2.8.2
 registry_nginx_image: "docker.io/library/nginx"
-registry_nginx_version: 1.24.0
+registry_nginx_version: 1.25.2
 docker_pip_pkg_version: 6.0.0
 
 registry_tls_secret_name: container-registry-tls

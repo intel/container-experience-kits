@@ -1,0 +1,135 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies for Intel QATLibs
+  include_role:
+    name: install_dependencies
+
+- name: download qat_4xxx firmware if not exists
+  block:
+    - name: ensure that directory /lib/firmware exists
+      file:
+        path: /lib/firmware
+        state: directory
+        mode: 0755
+
+    - name: check qat_4xxx.bin firmware existence
+      ansible.builtin.stat:
+        path: /lib/firmware/qat_4xxx.bin
+      register: qat_4xxx_exist
+
+    - name: check qat_4xxx.bin.xz firmware existence
+      ansible.builtin.stat:
+        path: /lib/firmware/qat_4xxx.bin.xz
+      register: qat_4xxx_xz_exist
+
+    - name: download qat_4xxx firmware to /lib/firmware folder
+      ansible.builtin.get_url:
+        url: "{{ intel_qat_4xxx_firmware_download_url }}"
+        dest: /lib/firmware/qat_4xxx.bin
+        mode: 0755
+      register: get_url_results
+      retries: "{{ number_of_retries | default(5) }}"
+      until: get_url_results is success
+      delay: "{{ retry_delay | default(3) }}"
+      when:
+        - not qat_4xxx_exist.stat.exists
+        - not qat_4xxx_xz_exist.stat.exists
+
+    - name: check qat_4xxx_mmp.bin firmware existence
+      ansible.builtin.stat:
+        path: /lib/firmware/qat_4xxx_mmp.bin
+      register: qat_4xxx_mmp_exist
+
+    - name: check qat_4xxx_mmp.bin.xz firmware existence
+      ansible.builtin.stat:
+        path: /lib/firmware/qat_4xxx_mmp.bin.xz
+      register: qat_4xxx_mmp_xz_exist
+
+    - name: download qat_4xxx_mmp firmware to /lib/firmware folder
+      ansible.builtin.get_url:
+        url: "{{ intel_qat_4xxx_mmp_firmware_download_url }}"
+        dest: /lib/firmware/qat_4xxx_mmp.bin
+        mode: 0755
+      register: get_url_results
+      retries: "{{ number_of_retries | default(5) }}"
+      until: get_url_results is success
+      delay: "{{ retry_delay | default(3) }}"
+      when:
+        - not qat_4xxx_mmp_exist.stat.exists
+        - not qat_4xxx_mmp_xz_exist.stat.exists
+
+    - name: reload the qat driver to install the firmware
+      block:
+        - name: uninstall the qat_4xxx driver
+          community.general.modprobe:
+            name: qat_4xxx
+            state: absent
+        - name: reinstall the qat_4xxx driver
+          community.general.modprobe:
+            name: qat_4xxx
+            state: present
+      when:
+        - (not qat_4xxx_mmp_exist.stat.exists and
+          not qat_4xxx_mmp_xz_exist.stat.exists) or
+          (not qat_4xxx_exist.stat.exists and
+          not qat_4xxx_xz_exist.stat.exists)
+  when:
+    - not on_vms | default(false) | bool
+
+# Intel QATLibs
+- name: Install Intel QATLibs
+  block:
+    - name: create directory {{ intel_qatlib_download_url_dir }} for Intel QATLibs configuration
+      file:
+        path: "{{ intel_qatlib_download_url_dir }}"
+        state: directory
+        mode: 0700
+
+    - name: download Intel QATLib
+      git:
+        repo: "{{ intel_qatlib_download_url }}"
+        dest: "{{ intel_qatlib_download_url_dir }}"
+        version: "{{ intel_qatlib_download_url_version }}"
+        force: true
+
+    # using shell module instead of comand as it was giving aclocal: warning: causing playbook failure
+    - name: run autogen before configure QATLibs
+      shell: './autogen.sh' # noqa 305 # command-instead-of-shell
+      args:
+        chdir: "{{ intel_qatlib_download_url_dir }}"
+        executable: /bin/bash
+      changed_when: true
+
+    - name: check all packages are present for QATLibs installation
+      command: './configure --enable-service'
+      args:
+        chdir: "{{ intel_qatlib_download_url_dir }}"
+      changed_when: true
+
+    - name: make install QATLibs
+      make:
+        chdir: "{{ intel_qatlib_download_url_dir }}"
+        target: install
+      become: yes
+
+    - name: reload the dynamic linker cache
+      command: "ldconfig"
+      changed_when: true
+  when:
+    - configured_arch in ["spr", "emr"]
+    - configure_qat | default(false) | bool
+    - not update_qat_drivers | default(false) | bool

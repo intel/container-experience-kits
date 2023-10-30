@@ -1,0 +1,16 @@
+<truststore xmlns="urn:ietf:params:xml:ns:yang:ietf-truststore">
+    <certificates>
+        <name>clientcerts</name>
+        <certificate>
+            <name>clientcert</name>
+            <cert>{{ client_crt_str.stdout }}</cert>
+        </certificate>
+    </certificates>
+    <certificates>
+        <name>cacerts</name>
+        <certificate>
+            <name>cacert</name>
+            <cert>{{ ca_crt_str.stdout }}</cert>
+        </certificate>
+    </certificates>
+</truststore>

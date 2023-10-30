@@ -16,6 +16,6 @@
 ---
 nvme1_dev: "/dev/nvme0n1"
 dd_prefix: "dd bs=16M"
-ipu_ssd_image_file: "{{ (ipu_project_root_dir, 'mev', 'images', 'nvme-image-mev.bin') | path_join }}"
+ipu_ssd_image_file: "{{ (ipu_project_root_dir, 'ssd', 'nvme-image-mev.bin') | path_join }}"
 dd_src_cmd: "{{ dd_prefix }} if={{ ipu_ssd_image_file }}"
 dd_dst_cmd: "{{ dd_prefix }} of={{ nvme1_dev }}"

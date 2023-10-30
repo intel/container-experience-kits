@@ -18,33 +18,51 @@
 # Define respective field in the group_vars/all.yml instead
 kmra_oran:
   apphsm:
-    oran_netopeer2_sample_tls_url: "https://raw.githubusercontent.com/CESNET/netopeer2/v2.1.62/example_configuration/"
     oran_netopeer2_cert_user_id: "ctk_loadkey_user_id_01234"
     enabled: true
     app_keys:
-      - id: "unique_id_1234s"
-        token_name: "token_server"
+      - id: "unique_id_1234s_cu"
+        token_name: "token_server_cu"
         pin: "1234"
-        key_name: "/opt/intel/custom_tls/server.key"
-        token_cert: "/opt/intel/custom_tls/server.crt"
-        token_key: "/opt/intel/custom_tls/server.key"
+        key_name: "server_cu.key"
+        key_path: "/opt/intel/custom_tls/server_cu.key"
+        token_cert: "/opt/intel/custom_tls/server_cu.crt"
+        crt_subj:
+          O: "SampleOrganisation"
+          CN: "localhost"
+      - id: "unique_id_1234s_du"
+        token_name: "token_server_du"
+        pin: "1234"
+        key_name: "server_du.key"
+        key_path: "/opt/intel/custom_tls/server_du.key"
+        token_cert: "/opt/intel/custom_tls/server_du.crt"
+        crt_subj:
+          O: "SampleOrganisation"
+          CN: "localhost"
+      - id: "unique_id_1234s_ric"
+        token_name: "token_server_ric"
+        pin: "1234"
+        key_name: "server_ric.key"
+        key_path: "/opt/intel/custom_tls/server_ric.key"
+        token_cert: "/opt/intel/custom_tls/server_ric.crt"
         crt_subj:
           O: "SampleOrganisation"
           CN: "localhost"
       - id: "unique_id_1234c"
         token_name: "token_client"
         pin: "1234"
-        key_name: "/opt/intel/custom_tls/client.key"
+        key_name: "client.key"
+        key_path: "/opt/intel/custom_tls/client.key"
         token_cert: "/opt/intel/custom_tls/client.crt"
-        token_key: "/opt/intel/custom_tls/client.key"
         crt_subj:
           O: "SampleOrganisation"
           CN: "localhost"
+    ecdsa_keys: "true"
   oran:
     enabled: true
     local_build: true
     oran_image_staging_location: "/tmp/oran/oran.tar"
-    oran_image_checksum: "553b91005e19f5dfee1b3052b69146f027022d51784988f6521341092253fa3b"
+    oran_image_checksum: "3c17855ee876a2db3b8ea5b8dd0dfa0ac68b52b2a243c24704bee9678b0cf0c8"
     sw_provider_name: "oranprovider"
     sw_provider_crt_subj:
       O: "SampleOrganisation"

@@ -16,7 +16,6 @@
 # - intel_cpu_controlplane
 # - native_cpu_manager
 # - bond_cni
-# - topology_manager
 # - sriov_operator
 # - sriov_network_dp
 # - nic_drivers
@@ -37,14 +36,14 @@
 # - openssl
 # - tas
 # - gas
-# - ddp
+# - ddp_legacy
 # - network_userspace
 # - dpdk
 # - ovs_dpdk
 # - sst
 # - power:
 #     manager
-#     pstate
+#     frequency_scaling
 #     cstate
 #     uncore_frequency
 # - telemetry:
@@ -72,7 +71,7 @@
 # - intel_ethernet_operator
 #     enabled
 #     flow_config
-#     ddp
+#     ddp_update
 #     fw_update
 # - intel_sriov_fec_operator
 # - intel_oneapi
@@ -81,6 +80,7 @@
 # - intel_flexran
 # - tadk
 # - cadvisor
+# - imtl
 ---
 access:
   name: access
@@ -92,7 +92,6 @@ access:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: off
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
@@ -118,14 +117,14 @@ access:
   tac: off
   tas: off
   gas: off
-  ddp: off
+  ddp_legacy: off
   network_userspace: off
   dpdk: on
   ovs_dpdk: off
   sst: off
   power:
     manager: off
-    pstate: off
+    frequency_scaling: off
     cstate: off
     uncore_frequency: off
   telemetry:
@@ -154,7 +153,7 @@ access:
   intel_ethernet_operator:
     enabled: off
     flow_config: off
-    ddp: off
+    ddp_update: off
     fw_update: off
   intel_sriov_fec_operator: off
   intel_oneapi:
@@ -163,6 +162,7 @@ access:
   intel_flexran: off
   adq_dp: off
   cadvisor: on
+  imtl: off
 
 basic:
   name: basic
@@ -173,14 +173,13 @@ basic:
   kube_dashboard: off
   isolcpu: optional
   cpusets: optional
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
   dpdk: optional
   power:
     manager: off
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: off
   telemetry:
@@ -206,6 +205,7 @@ basic:
     base: optional
     ai: optional
   cadvisor: on
+  imtl: off
 
 full_nfv:
   name: full_nfv
@@ -218,7 +218,6 @@ full_nfv:
   cpusets: optional
   intel_cpu_controlplane: optional
   native_cpu_manager: off
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
@@ -244,14 +243,14 @@ full_nfv:
   tac: off
   tas: off
   gas: off
-  ddp: off
+  ddp_legacy: off
   network_userspace: on
   dpdk: on
   ovs_dpdk: on
   sst: off
   power:
     manager: off
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: off
   telemetry:
@@ -280,7 +279,7 @@ full_nfv:
   intel_ethernet_operator:
     enabled: off
     flow_config: off
-    ddp: off
+    ddp_update: off
     fw_update: off
   intel_sriov_fec_operator: off
   intel_oneapi:
@@ -290,6 +289,7 @@ full_nfv:
   tadk: on
   adq_dp: off
   cadvisor: on
+  imtl: off
 
 on_prem:
   name: on_prem
@@ -301,7 +301,6 @@ on_prem:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: off
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
@@ -328,7 +327,7 @@ on_prem:
   sst: off
   power:
     manager: off
-    pstate: off
+    frequency_scaling: off
     cstate: optional
     uncore_frequency: off
   telemetry:
@@ -362,6 +361,7 @@ on_prem:
     base: optional
     ai: optional
   cadvisor: on
+  imtl: off
 
 regional_dc:
   name: regional_dc
@@ -372,7 +372,6 @@ regional_dc:
   kube_dashboard: off
   isolcpu: optional
   cpusets: optional
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
@@ -394,7 +393,7 @@ regional_dc:
   dpdk: optional
   power:
     manager: off
-    pstate: optional
+    frequency_scaling: optional
     cstate: optional
     uncore_frequency: off
   telemetry:
@@ -428,6 +427,7 @@ regional_dc:
     base: optional
     ai: optional
   cadvisor: on
+  imtl: off
 
 remote_fp:
   name: remote_fp
@@ -440,7 +440,6 @@ remote_fp:
   cpusets: optional
   intel_cpu_controlplane: optional
   native_cpu_manager: off
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
@@ -462,14 +461,14 @@ remote_fp:
   dlb_dp: off
   openssl: off
   tas: off
-  ddp: off
+  ddp_legacy: off
   bond_cni: off
   network_userspace: optional
   dpdk: on
   sst: off
   power:
     manager: off
-    pstate: off
+    frequency_scaling: off
     cstate: optional
     uncore_frequency: off
   telemetry:
@@ -497,13 +496,14 @@ remote_fp:
   intel_ethernet_operator:
     enabled: off
     flow_config: off
-    ddp: off
+    ddp_update: off
     fw_update: off
   adq_dp: off
   intel_oneapi:
     base: optional
     ai: optional
   cadvisor: optional
+  imtl: off
 
 build_your_own:
   name: build_your_own
@@ -516,7 +516,6 @@ build_your_own:
   cpusets: optional
   intel_cpu_controlplane: optional
   native_cpu_manager: off
-  topology_manager: off
   sriov_operator: off
   sriov_network_dp: off
   nic_drivers: off
@@ -540,14 +539,14 @@ build_your_own:
   tac: off
   tas: off
   gas: off
-  ddp: off
+  ddp_legacy: off
   network_userspace: optional
   dpdk: optional
   ovs_dpdk: optional
   sst: off
   power:
     manager: off
-    pstate: off
+    frequency_scaling: off
     cstate: optional
     uncore_frequency: off
   telemetry:
@@ -576,7 +575,7 @@ build_your_own:
   intel_ethernet_operator:
     enabled: off
     flow_config: off
-    ddp: off
+    ddp_update: off
     fw_update: off
   intel_sriov_fec_operator: off
   intel_oneapi:
@@ -586,3 +585,4 @@ build_your_own:
   tadk: optional
   adq_dp: off
   cadvisor: optional
+  imtl: off

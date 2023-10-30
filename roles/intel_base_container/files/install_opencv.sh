@@ -1,6 +1,10 @@
 #!/bin/bash
 
-NETWORK_TYPE="$1"
+OPENCV_VERSION="$1"
+NETWORK_TYPE="$2"
+
+echo "opencv version is : $OPENCV_VERSION"
+echo "network type is : $NETWORK_TYPE"
 
 apt-get update
 
@@ -17,10 +21,12 @@ libmfx-dev \
 libva-glx2 \
 libgbm-dev \
 
-OPENCV_VERSION=4.7.0
+if [ "${OPENCV_VERSION}" = "default" ]; then
+    OPENCV_VERSION=4.7.0
+fi
 OPENCV_INSTALL_PREFIX=/usr/local
 
-source /opt/intel/openvino_2022/setupvars.sh
+source /opt/intel/openvino/setupvars.sh
 
 rm -rf ./opencv_src
 

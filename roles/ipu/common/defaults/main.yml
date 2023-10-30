@@ -23,15 +23,23 @@ ipu_1gbe_link_interface_ip: "100.0.0.1/24"
 
 ipu_flavor: "release"
 ipu_build: "ci"
-ipu_build_number: "4988"
+ipu_build_number: "6330"
 
 # IPU host or IPU linkp based on variable ipu_1gbe_connected_to_linkp
-ipu_ssd_image_tarball: "mev-hw-b0-{{ ipu_build }}-ts.{{ ipu_flavor }}.{{ ipu_build_number }}-mev-rl.tgz"
+ipu_ssd_image_tarball: "hw-ssd.{{ ipu_build_number }}.tgz"
 
 # IPU linkp
-ipu_nvm_image_tarball: "mev-hw-b0-{{ ipu_build }}-ts.{{ ipu_flavor }}.{{ ipu_build_number }}-imc.tgz"
+ipu_nvm_image_tarball: "hw-flash.{{ ipu_build_number }}.tgz"
 ipu_eth_programmer_version: "2.0.1"
 ipu_eth_programmer_zip: "EthProgrammer-{{ ipu_eth_programmer_version }}.zip"
+
+# IPU IMC
+ipu_imc_p4_tarball: "hw-p4-programs.{{ ipu_build_number }}.tgz"
+ipu_imc_persistent_dir: "/work"
+ipu_imc_script_dir: "{{ (ipu_imc_persistent_dir, 'scripts') | path_join }}"
+ipu_imc_package_dir: "/etc/dpcp/package"
+ipu_imc_cfg_dir: "/etc/dpcp/cfg"
+active_p4_program: "l2-fwd_lem"
 
 ssh_options: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 imc_ssh_port: "22"

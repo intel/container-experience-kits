@@ -51,9 +51,9 @@ telegraf_config_profiles:
   build_your_own: &build_your_own
     - *basic
   on_prem_vss:
-    - *on_prem
+    - *basic
   on_prem_sw_defined_factory:
-    - *on_prem
+    - *basic
 
 telegraf_release_name: telegraf
 telegraf_namespace: monitoring
@@ -66,18 +66,14 @@ telegraf_scrap_interval: 30
 telegraf_prometheus_metrics_endpoint_port: 9273
 
 telegraf_image_name: "docker.io/intel/observability-telegraf"
-telegraf_image_tag: "1.2.0" # IMPORTANT see warning below
+telegraf_image_tag: "1.3.0"
 telegraf_image_pullpolicy: IfNotPresent
 
-# WARNING: Current download script from PMU tools downloads events definition in old format.
-#          The old format is used by current telegraf version correctly. In case of update
-#          of telegraf OR PMU tools, changes may be required to achieve that intel_pmu plugin works.
-#          Problem is following: format of event definitions json file has changed and now includes
-#          'headers' section. Neither pinned versions of PMU tools nor telegraf is prepared to use
-#          the section so its working correctly now.
-#          Please read more here: https://github.com/intel/perfmon/issues/22
+# WARNING: At the time of the update to Telegraf version 1.3.0,
+# a tag with a new version of the event definition was not available.
+# Therefore, the last working commit is referenced.
 
 # PMU tools scripts to get performance event definitions of target system
 # definitions are used in configuraion of intel_pmu telegraf input plugin
 telegraf_pmu_tools_git: "https://github.com/andikleen/pmu-tools.git"
-telegraf_pmu_tools_version: r220420 # IMPORTANT see warning at above
+telegraf_pmu_tools_version: 4492a52 # IMPORTANT see warning at above

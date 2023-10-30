@@ -1,0 +1,57 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+kube_prometheus_stack_directory: "{{ (project_root_dir, 'kube-prometheus-stack') | path_join }}"
+kube_prometheus_stack_namespace: monitoring
+
+prometheus_operator_version: 0.68.0
+kube_state_metrics_version: 2.10.0
+
+tas_demo_policy_dir: "{{ (project_root_dir, 'tas-demo-policy') | path_join }}"
+
+# expose prometheus server API
+prometheus_srv_expose: false
+prometheus_srv_proxy_port: 9443
+prometheus_srv_node_port: 30443
+prometheus_srv_address: 127.0.0.1
+prometheus_srv_nginx_image: "docker.io/library/nginx:1.24.0-alpine"
+prometheus_srv_nginx_ssl_ciphers:
+  "AES128-CCM-SHA256:CHACHA20-POLY1305-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA\
+  -AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256"
+prometheus_srv_nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
+prometheus_srv_location_exposed: "/prometheus/"
+prometheus_srv_user: prometheus
+prometheus_srv_password: prometheus
+
+prometheus_stack_version_files:
+  - "{{ kube_prometheus_stack_directory }}/kube-prometheus-storage-class.yml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-clusterRole.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-clusterRoleBinding.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-prometheusRule.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-pvc.yml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleBindingConfig.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleBindingSpecificNamespaces.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleConfig.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-roleSpecificNamespaces.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-service.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-serviceAccount.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheus-serviceMonitor.yaml"
+prometheus_operator_version_files:
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-clusterRole.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-clusterRoleBinding.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-prometheusRule.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-service.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-serviceAccount.yaml"
+  - "{{ kube_prometheus_stack_directory }}/prometheusOperator-serviceMonitor.yaml"

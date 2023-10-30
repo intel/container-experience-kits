@@ -15,8 +15,10 @@
 ##
 ---
 eth_programmer_dir: "{{ (ipu_project_root_dir, 'net6') | path_join }}"
-ipu_nvm_image_file: "{{ (ipu_project_root_dir, 'imc', 'images', 'anvm-image', 'release', 'image_256M', 'anvm-image.bin') | path_join }}"
+ipu_nvm_image_file: "{{ (ipu_project_root_dir, 'flash', 'irot', 'nvm-image-recovery_50008.bin') | path_join }}"
 # USB addresses of USB1 and USB3 to be unbind from ftdi_sio driver
-usb_addresses:
-  - '1-3:1.1'
-  - '1-3:1.3'
+# Those addresses can change on different platforms, so we provide reasonable patterns to select them
+# Address example: '1-3:1.1' and '1-3:1.3'
+usb_address_patterns:
+  - '.-.:..1'
+  - '.-.:..3'

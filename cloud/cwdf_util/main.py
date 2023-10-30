@@ -78,7 +78,7 @@ def compose_cloudcli(
         # version = cloud_config["eks"]["kubernetes_version"]
         # region = cloud_config["region"]
         file_loader = FileSystemLoader(provider_template_path)
-        env = Environment(loader=file_loader)
+        env = Environment(loader=file_loader, autoescape=True)
         shutil.copy2(os.path.join(provider_template_path, 'aws_cloudcli_cleanup.sh'), deployment_dir)
         cleanup_file = os.path.join(deployment_dir, 'aws_cloudcli_cleanup.sh')
         print(f"Cleanup file path: {cleanup_file}")
@@ -87,7 +87,7 @@ def compose_cloudcli(
         script_template = env.get_template("aws_cloudcli_deploy.sh.j2")
     elif cloud_provider == "azure":
         file_loader = FileSystemLoader(provider_template_path)
-        env = Environment(loader=file_loader)
+        env = Environment(loader=file_loader, autoescape=True)
         shutil.copy2(os.path.join(provider_template_path, 'azure_cloudcli_cleanup.sh'), deployment_dir)
         cleanup_file = os.path.join(deployment_dir, 'azure_cloudcli_cleanup.sh')
         st = os.stat(cleanup_file)

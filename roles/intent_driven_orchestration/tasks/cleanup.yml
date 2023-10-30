@@ -1,0 +1,86 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Cleanup IDO example workload and intent
+  when:
+    - inventory_hostname == groups["kube_control_plane"][0]
+    - ido_enabled
+    - ido_demo_workload
+  tags:
+    - intent-driven-orchestration
+  block:
+    - name: Cleanup IDO example workload
+      kubernetes.core.k8s:
+        state: absent
+        namespace: default
+        src: "{{ (ido_dir, 'artefacts', 'examples', 'example_deployment.yaml') | path_join }}"
+      failed_when: false
+
+    - name: Cleanup IDO example intent
+      kubernetes.core.k8s:
+        state: absent
+        namespace: default
+        src: "{{ (ido_dir, 'artefacts', 'examples', 'example_intent.yaml') | path_join }}"
+      failed_when: false
+
+- name: Cleanup Linkerd Viz and IDO
+  when:
+    - inventory_hostname == groups["kube_control_plane"][0]
+    - ido_enabled
+  tags:
+    - intent-driven-orchestration
+  block:
+    - name: Cleanup IDO default KPIProfiles
+      kubernetes.core.k8s:
+        state: absent
+        namespace: default
+        src: "{{ (ido_dir, 'artefacts', 'examples', 'default_profiles.yaml') | path_join }}"
+      failed_when: false
+
+    - name: Cleanup IDO namespace and content
+      kubernetes.core.k8s:
+        state: absent
+        name: ido
+        kind: Namespace
+
+# Below task uses 'kubectl' due to issues with 'kubernetes.core.k8s' module for CRD manifest
+    - name: Cleanup CRDs for IDO
+      ansible.builtin.command: "kubectl delete -f {{ (ido_dir, 'artefacts', 'intents_crds_v1alpha1.yaml') | path_join }}"
+      register: crd_result
+      changed_when: "'deleted' in crd_result.stdout"
+      failed_when: false
+
+    - name: Remove IDO directory
+      ansible.builtin.file:
+        state: absent
+        path: "{{ ido_dir }}"
+
+    - name: Remove access to linkerd-viz namespace
+      kubernetes.core.k8s:
+        state: absent
+        template: "linkerd-viz-auth.yaml.j2"
+
+    - name: Generate linkerd-viz uninstall manifest
+      ansible.builtin.command: linkerd viz uninstall
+      register: linkerd_viz_uninstall_manifest
+      changed_when: false
+      failed_when: false
+
+    - name: Remove linkerd-viz
+      kubernetes.core.k8s:
+        state: absent
+        definition: "{{ linkerd_viz_uninstall_manifest.stdout }}"
+      when: linkerd_viz_uninstall_manifest.rc == 0

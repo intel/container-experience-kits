@@ -39,14 +39,7 @@ sysrepocfg --edit=tls_truststore.xml --format=xml --datastore=running --module=i
 sysrepocfg --edit=tls_listen.xml --format=xml --datastore=running --module=ietf-netconf-server -v3
 sysrepocfg --copy-from=running --datastore=startup
 
-echo -e "\033[0;31m------------------------------------------------------------"
-echo -e "KMRA (Key Management Reference Application) is a proof-of-concept"
-echo -e "software not suitable for production usage. Please note that the enclave"
-echo -e "is signed with a test signing key. A production enclave should go through"
-echo -e "the process of signing an enclave as explained in the section Enclave"
-echo -e "Signing Tool in the Intel(R) SGX Developer Reference for Linux* OS"
-echo -e "(https://download.01.org/intel-sgx/latest/linux-latest/docs/)"
-echo -e "---------------------------------------------------------------\033[0m"
+sysrepocfg --export --format json
 
 if [[ ${NETOPEER_TYPE} == "server" ]]; then
     echo "Starting netopeer2-server..."

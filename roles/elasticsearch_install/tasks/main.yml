@@ -90,6 +90,18 @@
         - elasticsearch_storageclass.yml
         - elasticsearch_pv.yml
 
+    - name: Wait till the elasticsearch certificate is created
+      kubernetes.core.k8s_info:
+        kind: Certificate
+        name: elasticsearch-tls
+        namespace: monitoring
+        wait: yes
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_sleep: 10
+        wait_timeout: 360
+
     - name: add elasticsearch chart repo
       kubernetes.core.helm_repository:
         name: "{{ elasticsearch_chart_name }}"
@@ -104,3 +116,8 @@
         values_files: "{{ (project_root_dir, 'elasticsearch', 'elasticsearch_values.yml') | path_join }}"
         wait: true
         timeout: 15m0s
+
+    - name: create elasticsearch settings pod
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'elasticsearch', 'elasticsearch_settings.yml') | path_join }}"

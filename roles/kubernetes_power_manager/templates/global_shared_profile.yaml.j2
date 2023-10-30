@@ -1,0 +1,13 @@
+---
+apiVersion: "power.intel.com/v1"
+kind: PowerProfile
+metadata:
+  name: shared-global
+  namespace: {{ kubernetes_power_manager_namespace }}
+spec:
+  name: "shared-global"
+  max: {{ kubernetes_power_manager.global_max_frequency }}
+  min: {{ kubernetes_power_manager.global_min_frequency }}
+  epp: "power"
+  shared: true
+  governor: {{ kubernetes_power_manager.global_governor }}

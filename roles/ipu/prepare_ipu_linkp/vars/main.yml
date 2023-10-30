@@ -20,3 +20,5 @@ install_dependencies:
     - minicom
     - ipmitool
     - dotnet-sdk-6.0
+    - vim
+    - scapy

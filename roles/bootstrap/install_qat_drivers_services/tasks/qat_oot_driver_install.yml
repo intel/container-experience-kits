@@ -1,0 +1,229 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies for QAT
+  include_role:
+    name: install_dependencies
+
+- name: install libudev-dev package on Ubuntu
+  apt:
+    name: libudev-dev
+  when: ansible_distribution == "Ubuntu"
+
+- name: create directory {{ qat_drivers_dir }} for all QAT dependencies
+  file:
+    path: "{{ qat_drivers_dir }}"
+    state: directory
+    mode: "u=rwx,g=rx,o=rx"
+
+- name: block for QAT 1.x
+  block:
+    - name: download QAT drivers package {{ qat_drivers_version }}
+      get_url:
+        url: "{{ qat_drivers_download_url }}"
+        checksum: "{{ qat_drivers_pkg_checksum }}"
+        dest: "{{ qat_drivers_dir }}"
+        mode: 0755
+      register: qat_driver_sw
+      until: qat_driver_sw is not failed
+      retries: 5
+
+    - name: unarchive QAT drivers package
+      unarchive:
+        src: "{{ qat_drivers_dir }}/{{ qat_drivers_version }}.tar.gz"
+        dest: "{{ qat_drivers_dir }}"
+        remote_src: yes
+        mode: 0755
+  when:
+    - configured_arch not in ["spr", "emr"]
+
+- name: block for QAT 2.x
+  block:
+    - name: download QAT drivers package {{ qat_spr_drivers_version }}
+      get_url:
+        url: "{{ qat_spr_drivers_download_url }}"
+        checksum: "{{ qat_spr_drivers_pkg_checksum }}"
+        dest: "{{ qat_drivers_dir }}"
+        mode: 0755
+      register: qat_driver_sw
+      until: qat_driver_sw is not failed
+      retries: 5
+
+    - name: unarchive QAT drivers package
+      unarchive:
+        src: "{{ qat_drivers_dir }}/{{ qat_spr_drivers_version }}.tar.gz"
+        dest: "{{ qat_drivers_dir }}"
+        remote_src: yes
+        mode: 0755
+  when:
+    - configured_arch in ["spr"]
+
+# Due to EMR is not lauched yet, EMR QAT driver temporally copy from ansible host
+# When external driver offically support the EMR platform, converge w/ upper task
+- name: block for EMR QAT driver package
+  block:
+    - name: copy EMR QAT driver package
+      ansible.builtin.copy:
+        src: "{{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }}"
+        dest: "{{ (qat_drivers_dir, emr_qat_driver_package) | path_join }}"
+        mode: 0644
+    - name: unarchive EMR QAT driver package
+      ansible.builtin.unarchive:
+        src: "{{ (qat_drivers_dir, emr_qat_driver_package) | path_join }}"
+        dest: "{{ qat_drivers_dir }}"
+        remote_src: yes
+        mode: 0755
+  when:
+    - configured_arch == "emr"
+
+- name: check all packages are present for QAT drivers installation
+  command: ./configure
+  args:
+    chdir: "{{ qat_drivers_dir }}"
+  register: qat_requirements
+  ignore_errors: true
+  changed_when: true
+
+- name: playbook terminated packages for QAT drivers installation are missing
+  fail:
+    msg:
+      - "Missing requirements for QAT drivers (i.e. kernel sources)"
+      - "If failure persists, consider setting update_kernel: true in group_vars"
+  when: "'error' in qat_requirements.stderr"
+
+- name: workaround for 1.x QAT 4.23.0-00001 compilation error in VMRA
+  block:
+    - name: temporary workaround for VMRA qat compilation
+      ansible.builtin.lineinfile:
+        path: "{{ qat_drivers_dir }}/quickassist/qat/compat/qat_compat.h"
+        insertbefore: '^(#if \S+KERNEL_VERSION\S+6, 3, 0\S+(.*)$)'
+        line: "/***"
+
+    - name: temporary workaround for VMRA qat compilation
+      ansible.builtin.lineinfile:
+        path: "{{ qat_drivers_dir }}/quickassist/qat/compat/qat_compat.h"
+        insertbefore: "#ifdef QAT_DBG"
+        line: "***/"
+  when:
+    - on_vms | default(false)
+    - configured_arch not in ["spr", "emr"]
+
+- name: block for QAT 1.x drivers and samples compilation
+  block:
+    - name: make install QAT drivers
+      command: "make -j install"
+      args:
+        chdir: "{{ qat_drivers_dir }}"
+      become: yes
+      changed_when: true
+      notify:
+        - reboot server
+
+    - name: make performance sample application after QAT drivers
+      make:
+        chdir: "{{ qat_drivers_dir }}"
+        target: samples-install
+      become: yes
+  when:
+    - configured_arch not in ["spr", "emr"]
+
+- name: set QAT OOT 2.x driver build status
+  set_fact:
+    qat_oot_driver_build_failed: false
+  when: not qat_oot_driver_build_failed | default(false)
+
+# Reboot with driver ver: QAT20.L.0.8.0-00071 causing issues, there is no need to reboot.
+- name: block for QAT 2.x drivers and samples compilation
+  block:
+    - name: make install QAT drivers
+      command: "make -j install"
+      args:
+        chdir: "{{ qat_drivers_dir }}"
+      become: yes
+      changed_when: true
+
+    - name: make performance sample application after QAT drivers
+      make:
+        chdir: "{{ qat_drivers_dir }}"
+        target: samples-install
+      become: yes
+  rescue:
+    - name: QAT 2.x OOT driver build error
+      debug:
+        msg: "QAT 2.x OOT driver build or installation failed. Rolling back to use inbox driver - functionality might be limited"
+
+    - name: set QAT OOT 2.x driver build status
+      set_fact:
+        qat_oot_driver_build_failed: true
+        update_qat_drivers: false
+  when:
+    - configured_arch in ["spr", "emr"]
+    - not qat_oot_driver_build_failed | default(false)
+
+- name: confirm QAT module installed
+  shell: "set -o pipefail && lsmod | grep qat"
+  args:
+    executable: /bin/bash
+  register: qat_confirm
+  failed_when: '"intel_qat" not in qat_confirm.stdout'
+  changed_when: false
+
+- name: enable SRIOV QAT devices on VMs
+  lineinfile:
+    path: "/etc/default/qat"
+    line: "SRIOV_ENABLE=1"
+    regexp: "^#SRIOV_ENABLE=1"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - on_vms is defined and on_vms
+
+- name: make sure {{ disabled_qat_service }} service is stopped and disabled
+  service:
+    state: stopped
+    name: "{{ disabled_qat_service }}"
+    enabled: no
+
+- name: make sure {{ enabled_qat_service }} service is started and enabled
+  service:
+    state: started
+    name: "{{ enabled_qat_service }}"
+    enabled: yes
+  when: not qat_oot_driver_build_failed | default(false)
+
+- name: configuration for QAT Shared Virtual Memory (SVM)
+  block:
+    - name: set QAT SVM is enabled
+      set_fact:
+        svm_value: 1
+
+    - name: enable address translation services for QAT Shared Virtual Memory (SVM)
+      replace:
+        path: "{{ item }}"
+        regexp: '(^SVMEnabled\s)(.*)$'
+        replace: 'SVMEnabled = {{ svm_value }}'
+        mode: 0600
+      with_items:
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.sym.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.asym.vm"
+        - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.sym.vm"
+  when:
+    - configured_arch in ["spr", "emr"]
+    - enable_qat_svm | default(false)

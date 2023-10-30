@@ -13,7 +13,7 @@ RUN  chmod +x {{container_entry}}
 HEALTHCHECK NONE
 
 {% if prc_network %}
-ENTRYPOINT ["./{{container_entry}}", "prc_network"]
+ENTRYPOINT ["./{{container_entry}}", "{{ container_base }}", "prc_network"]
 {% else %}
-ENTRYPOINT ["./{{container_entry}}"]
+ENTRYPOINT ["./{{container_entry}}", "{{ container_base }}"]
 {% endif %}

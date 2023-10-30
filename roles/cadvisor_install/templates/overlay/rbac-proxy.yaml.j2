@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cadvisor
+  namespace: {{ cadvisor_namespace }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: rbac-proxy
+        image: "{{ kube_rbac_proxy_image_repo }}:{{ kube_rbac_proxy_image_tag }}"
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: ssl
+            mountPath: "{{ rbac_proxy_ssl_mount_path }}"
+            readOnly: true
+        ports:
+          - name: https
+            containerPort: 8443
+        args:
+          - "--tls-cert-file={{ rbac_proxy_ssl_mount_path }}/{{ rbac_proxy_ssl_secret_name }}.cert"
+          - "--tls-private-key-file={{ rbac_proxy_ssl_mount_path }}/{{ rbac_proxy_ssl_secret_name }}.key"
+          - "--tls-cipher-suites={{ kube_rbac_proxy_tls_ciphers }}"
+          - "--secure-listen-address=0.0.0.0:8443"
+          - "--upstream=http://127.0.0.1:8080/"
+      volumes:
+        - name: ssl
+          secret:
+            secretName: "{{ rbac_proxy_ssl_secret_name }}"

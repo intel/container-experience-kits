@@ -1,0 +1,76 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: check if Power Nodes are specified
+  ansible.builtin.assert:
+    that:
+      - kubernetes_power_manager.power_nodes | length > 0
+    fail_msg: "Kubernetes Power Manager is enabled, but Power Nodes are not specified in group vars."
+
+- name: check if Power Nodes are available in inventory
+  ansible.builtin.assert:
+    that:
+      - item in groups['kube_node']
+    fail_msg: "Kubernetes Power Manager Power Nodes have to be present in inventory. '{{ item }}' is not there: {{ groups['kube_node'] }}"
+  loop: "{{ kubernetes_power_manager.power_nodes }}"
+
+- name: check if Kubernetes Power Manager is enabled, the ISST features should be disabled
+  ansible.builtin.assert:
+    that:
+      - not (sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled or
+        sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled or
+        sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled or
+        sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled)
+    fail_msg:
+      - "Currently Kubernetes Power Manager and Intel SST features are mutually exclusive."
+      - "Please disable ISST (SST-BF, SST-CP, SST-TF and SST-PP) in host vars."
+
+- name: check if Kubernetes Power Manager is build locally on containerd/cri-o runtime
+  ansible.builtin.assert:
+    that: kubernetes_power_manager.build_image_locally
+    fail_msg:
+      - "Currently Kubernetes Power Manager must be build locally on containerd and cri-o runtime"
+      - "Please set build_image_locally as true in Kubernetes Power Manager settings in group vars"
+  when: container_runtime in ["crio", "containerd"]
+
+- name: check global scaling governor
+  ansible.builtin.assert:
+    that: kubernetes_power_manager.global_governor in {{ available_governors }}
+    fail_msg:
+      - "{{ kubernetes_power_manager.global_governor }} governor is not supported"
+  when:
+    - global_shared_profile_enabled is defined and
+      global_shared_profile_enabled and
+      kubernetes_power_manager.global_governor is defined
+
+- name: check local scaling governor
+  ansible.builtin.assert:
+    that: local_shared_profile.local_governor in {{ available_governors }}
+    fail_msg:
+      - "{{ local_shared_profile.local_governor }} governor is not supported"
+  when:
+    - local_shared_profile is defined and
+      local_shared_profile and
+      local_shared_profile.local_governor is defined
+
+- name: check scaling driver
+  ansible.builtin.assert:
+    that: frequency_scaling_driver is defined and frequency_scaling_driver == "acpi_cpufreq"
+    fail_msg:
+      - "Governors {{ acpi_only_governors }} are only available with acpi_cpufreq scaling driver.
+          Please change scaling driver in host vars."
+  when:
+    - kubernetes_power_manager.global_governor is defined and kubernetes_power_manager.global_governor in ["userspace", "schedutil"] or
+      local_shared_profile.local_governor is defined and local_shared_profile.local_governor in ["userspace", "schedutil"]

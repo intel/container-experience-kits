@@ -3,6 +3,9 @@ kind: OperatorGroup
 metadata:
   name: intel-ethernet-operator
   namespace: {{ intel_ethernet_operator_namespace }}
+  labels:
+    app: intel-ethernet-operator
+    version: {{ intel_ethernet_operator_git_ref }}
 spec:
   targetNamespaces:
     - {{ intel_ethernet_operator_namespace }}

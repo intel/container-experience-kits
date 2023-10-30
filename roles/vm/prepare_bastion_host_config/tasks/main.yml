@@ -14,12 +14,18 @@
 ##   limitations under the License.
 ##
 ---
+- name: Set cluster bastion host
+  set_fact:
+    cluster_bastion_host: >-
+      {% if hostvars[groups['vm_host'][0]]['ip'] is defined %}{{ hostvars[groups['vm_host'][0]]['ip'] }}{% else %}
+      {{ hostvars[groups['vm_host'][0]]['ansible_host'] }}{% endif %}
+
 - name: Prepare bastion host configuration in ~/.ssh/config for cluster
   blockinfile:
     path: "{{ local_login_user_dir }}/.ssh/config"
     block: |
       Host *.{{ vm_cluster_name }}
-        ProxyCommand ssh {{ login_user }}@{{ hostvars[groups['vm_host'][0]]['ansible_default_ipv4']['address'] }} -W %h:%p
+        ProxyCommand ssh {{ login_user }}@{{ cluster_bastion_host | trim }} -W %h:%p
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ vm_cluster_name }}"
     create: yes
     owner: "{{ local_login_user }}"
@@ -35,9 +41,9 @@
     path: "{{ local_login_user_dir }}/.ssh/config"
     block: |
       Host {{ item.key }}
-        ProxyCommand ssh {{ login_user }}@{{ ansible_host }} -W %h:%p
+        ProxyCommand ssh {{ login_user }}@{% if ip is defined %}{{ ip }}{% else %}{{ ansible_host }}{% endif %} -W %h:%p
       Host {{ item.value }}
-        ProxyCommand ssh {{ login_user }}@{{ ansible_host }} -W %h:%p
+        ProxyCommand ssh {{ login_user }}@{% if ip is defined %}{{ ip }}{% else %}{{ ansible_host }}{% endif %} -W %h:%p
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }}"
     create: yes
     owner: "{{ local_login_user }}"
@@ -66,7 +72,7 @@
   become: false
 
 - name: Remove old ECDSA key fingerprint on localhost for bastion host
-  command: ssh-keygen -f "{{ local_login_user_dir }}/.ssh/known_hosts" -R "{{ ansible_host }}"
+  command: ssh-keygen -f "{{ local_login_user_dir }}/.ssh/known_hosts" -R "{% if ip is defined %}{{ ip }}{% else %}{{ ansible_host }}{% endif %}"
   delegate_to: localhost
   become: false
   register: ssh_keygen_result
@@ -77,7 +83,7 @@
     - local_known_hosts_file.stat.exists
 
 - name: Store ECDSA key fingerprint on localhost for bastion host
-  command: ssh -o StrictHostKeyChecking=No {{ login_user }}@{{ ansible_host }} hostname
+  command: ssh -o StrictHostKeyChecking=No {{ login_user }}@{% if ip is defined %}{{ ip }}{% else %}{{ ansible_host }}{% endif %} hostname
   delegate_to: localhost
   become: false
   register: ssh_result

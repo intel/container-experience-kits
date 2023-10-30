@@ -44,13 +44,18 @@
     container_user: "{{ item.username }}"
     container_adduser: "{{ item.adduser }}"
     container_gpu_stack: "{{ item.gpu_stack }}"
+    container_gpu_stack_version: "{{ item.gpu_stack_version }}"
     container_oneapi_base: "{{ item.oneapi_base }}"
     container_oneapi_ai: "{{ item.oneapi_ai }}"
     container_openvino: "{{ item.openvino }}"
     container_openvino_dev: "{{ item.openvino_dev }}"
+    container_openvino_version: "{{ item.openvino_version }}"
     container_dlstreamer: "{{ item.dlstreamer }}"
+    container_dlstreamer_version: "{{ item.dlstreamer_version }}"
     container_ffmpeg: "{{ item.ffmpeg }}"
+    container_ffmpeg_version: "{{ item.ffmpeg_version }}"
     container_opencv: "{{ item.opencv }}"
+    container_opencv_version: "{{ item.opencv_version }}"
     container_dpdk: "{{ item.dpdk }}"
   ansible.builtin.template:
     src: "templates/Dockerfile.j2"
@@ -125,6 +130,6 @@
     - 'test_dlstreamer_entry.sh'
     - 'test_ffmpeg_entry.sh'
     - 'test_opencv_entry.sh'
-    - 'test_base_devel_entry.sh'
+    - 'test_openvino_dev_entry.sh'
     - 'test_data'
   become: "{{ base_container_sudo }}"

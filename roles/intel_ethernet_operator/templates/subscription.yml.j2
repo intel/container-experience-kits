@@ -3,6 +3,9 @@ kind: Subscription
 metadata:
   name: intel-ethernet-subscription
   namespace: {{ intel_ethernet_operator_namespace }}
+  labels:
+    app: intel-ethernet-operator
+    version: {{ intel_ethernet_operator_git_ref }}
 spec:
 {% if http_proxy is defined or https_proxy is defined %}
   config:

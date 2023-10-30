@@ -1,17 +1,18 @@
 ---
 # apply common cluster node configuration
-- hosts: k8s_cluster,vm_host
+- hosts: k8s_cluster,vms,vm_host
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
       when:
         - inventory_hostname != "localhost"
   pre_tasks:
-    - name: End play for VM host
+    - name: End play for VM host and BM host
       meta: end_host
       when:
-        - "'vm_host' in group_names"
+        - "'vm_host' in group_names or 'bm_host' in group_names"
         - on_vms | default(false) | bool
+      tags: always
   roles:
     - role: cluster_defaults
       tags: always
@@ -54,7 +55,7 @@
         that: >-
           (
             on_vms | default(false) and
-            ansible_play_hosts_all | difference(groups['vm_host']) | difference(ansible_play_hosts) | length() == 0
+            ansible_play_hosts_all | difference(groups['vm_host']) | difference(groups['bm_host'] | default([])) | difference(ansible_play_hosts) | length() == 0
           ) or
           (
             not on_vms | default(false) and
@@ -65,18 +66,19 @@
   any_errors_fatal: true
 
 # apply worker node kernel configuration
-- hosts: kube_node,vm_host
+- hosts: kube_node,vms,vm_host
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
       when:
         - inventory_hostname != "localhost"
   pre_tasks:
-    - name: End play for VM host
+    - name: End play for VM host and BM host
       meta: end_host
       when:
-        - "'vm_host' in group_names"
+        - "'vm_host' in group_names or 'bm_host' in group_names"
         - on_vms | default(false) | bool
+      tags: always
   roles:
     - role: cluster_defaults
       tags: defaults
@@ -91,7 +93,6 @@
         - kmra
         - istio-service-mesh
         - sst
-        - apply-intel-pstate
       when:
         - configure_sgx | default(false) | bool or
           kmra.oran.enabled | default(false) | bool or
@@ -102,8 +103,7 @@
           sst_bf_configuration_enabled | default(false) | bool or
           sst_cp_configuration_enabled | default(false) | bool or
           sst_tf_configuration_enabled | default(false) | bool or
-          sst_pp_configuration_enabled | default(false) | bool or
-          intel_pstate_enabled | default(true) | bool
+          sst_pp_configuration_enabled | default(false) | bool
     - role: bootstrap/install_realtime_kernel
       when: rt_kernel_enabled | default(false) | bool
     - role: bootstrap/configure_hugepages
@@ -111,18 +111,20 @@
         - hugepages
         - intel-platform-qat-setup
       when: hugepages_enabled | default(true) | bool
+    - role: bootstrap/configure_kpm_drivers
+      tags:
+        - power-manager
+      when: kubernetes_power_manager is defined and kubernetes_power_manager.enabled | default(false) | bool
     - role: bootstrap/configure_cpu_isolation
       when: isolcpus_enabled | default(false) | bool
     - role: bootstrap/configure_cpusets
       when: cpusets_enabled | default(false) | bool
-    - role: bootstrap/configure_intel_pstate
-      when: intel_pstate_enabled | default(true) | bool
-    - role: bootstrap/reset_qat_option
-      tags:
-        - reset_qat_option
-        - intel-platform-qat-setup
+    - role: bootstrap/configure_disks
+      tags: storage
       when:
-        - update_qat_drivers | default(false) | bool
+        - local_volume_provisioner_enabled | default(false) | bool or
+          minio_enabled | default(false) | bool or
+          rook_ceph.enabled | default(false) | bool
     - role: bootstrap/auto_detect_qat_devices
       tags:
         - auto-detect-qat-device
@@ -170,7 +172,7 @@
       when:
         - configure_fpga | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
-    - role: bootstrap/install_gpu_driver
+    - role: install_gpu_driver
       when:
         - configure_gpu | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
@@ -191,7 +193,7 @@
         that: >-
           (
             on_vms | default(false) and
-            ansible_play_hosts_all | difference(groups['vm_host']) | difference(ansible_play_hosts) | length() == 0
+            ansible_play_hosts_all | difference(groups['vm_host']) | difference(groups['bm_host'] | default([])) | difference(ansible_play_hosts) | length() == 0
           ) or
           (
             not on_vms | default(false) and
@@ -203,31 +205,29 @@
 
 {% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
 # install worker node qat software
-- hosts: kube_node,vm_host
+- hosts: kube_node,vms,vm_host
   handlers:
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
       when:
         - inventory_hostname != "localhost"
   pre_tasks:
-    - name: End play for VM host
+    - name: End play for VM host and BM host
       meta: end_host
       when:
-        - "'vm_host' in group_names"
+        - "'vm_host' in group_names or 'bm_host' in group_names"
         - on_vms | default(false) | bool
+      tags: always
   roles:
     - role: cluster_defaults
       tags: defaults
-    - role: bootstrap/apply_intel_pstate
-      tags: apply-intel-pstate
-      when: intel_pstate_enabled | default(true) | bool
     - role: bootstrap/install_qat_drivers_services
       tags:
         - setup-qat
         - intel-platform-qat-setup
       when:
+        - configure_qat | default(false) | bool
         - update_qat_drivers | default(false) | bool
-        - qat_devices | default([]) | length > 0
     - role: bootstrap/configure_dlb
       tags: dlb-dp
       when:
@@ -246,7 +246,7 @@
         that: >-
           (
             on_vms | default(false) and
-            ansible_play_hosts_all | difference(groups['vm_host']) | difference(ansible_play_hosts) | length() == 0
+            ansible_play_hosts_all | difference(groups['vm_host']) | difference(groups['bm_host'] | default([])) | difference(ansible_play_hosts) | length() == 0
           ) or
           (
             not on_vms | default(false) and
@@ -258,13 +258,14 @@
 {% endif %}
 
 # install worker node network software
-- hosts: kube_node,vm_host
+- hosts: kube_node,vms,vm_host
   pre_tasks:
-    - name: End play for VM host
+    - name: End play for VM host and BM host
       meta: end_host
       when:
-        - "'vm_host' in group_names"
+        - "'vm_host' in group_names or 'bm_host' in group_names"
         - on_vms | default(false) | bool
+      tags: always
   roles:
     - role: cluster_defaults
       tags: defaults
@@ -276,24 +277,28 @@
         - dataplane_interfaces | default([]) | length > 0
     - role: bootstrap/update_nic_drivers
       tags: update-nic-drivers
-      when: update_nic_drivers | default(false) | bool
+      when:
+        - update_nic_drivers | default(false) | bool
+        - not configure_tdx | default(false)
     - role: bootstrap/update_nic_firmware
       tags: update-nic-firmware
       when:
         - dataplane_interfaces | default([]) | length > 0
         - update_nic_firmware | default(false) | bool
         - update_nic_drivers | default(false) | bool
+        - not configure_tdx | default(false)
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
 # install DPDK and apply SRIOV configuration
-- hosts: kube_node,vm_host
+- hosts: kube_node,vms,vm_host
   pre_tasks:
-    - name: End play for VM host
+    - name: End play for VM host and BM host
       meta: end_host
       when:
-        - "'vm_host' in group_names"
+        - "'vm_host' in group_names or 'bm_host' in group_names"
         - on_vms | default(false) | bool
+      tags: always
   roles:
     - role: cluster_defaults
       tags: defaults
@@ -332,7 +337,7 @@
           and container_runtime_only_deployment | default(false) | bool))
 {% endif %}
 {% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
-    - role: bootstrap/install-qatlibs
+    - role: bootstrap/install_qatlibs
       tags: qatlibs
       when:
         - qat_devices | default([]) | length > 0
@@ -346,7 +351,6 @@
       when:
         - qat_devices | default([]) | length > 0
         - iommu_enabled | default(true) | bool
-        - not on_vms | default(false) | bool
         - configure_qat | default(false) | bool
     - role: bootstrap/configure_openssl
       tags:
@@ -361,12 +365,24 @@
         - sgx
         - intel-platform-sgx-setup
       when:
-        - configure_sgx | default(false) | bool
+        - configure_sgx | default(false) | bool or
+          configure_tdx | default(false) | bool
 {% endif %}
+    - role: imtl_install
+      tags:
+        - intel-media-transport-library
+      when: intel_media_transport_library_enabled | default(false)
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
 - hosts: k8s_cluster
+  pre_tasks:
+    - name: End play for VM host and BM host
+      meta: end_host
+      when:
+        - "'vm_host' in group_names or 'bm_host' in group_names"
+        - on_vms | default(false) | bool
+      tags: always
   roles:
     - role: bootstrap/configure_adq
       tags: configure-adq

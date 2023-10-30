@@ -5,6 +5,7 @@ metadata:
   namespace: {{ intel_ethernet_operator_namespace }}
   labels:
     app: {{ intel_ethernet_operator_cache_webserver_name }}
+    version: {{ intel_ethernet_operator_git_ref }}
 spec:
   selector:
     app: {{ intel_ethernet_operator_cache_webserver_name }}

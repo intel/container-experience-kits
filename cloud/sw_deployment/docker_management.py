@@ -116,7 +116,7 @@ class DockerManagement:
                                         aws_secret_access_key=self.aws_access_secret_key,
                                         region_name=self.aws_region)
 
-        ecr_credentials = (ecr_client.get_authorization_token()['authorizationData'][0])
+        ecr_credentials = ecr_client.get_authorization_token()['authorizationData'][0]
         self.cr_username = "AWS"
         self.cr_password = (base64.b64decode(ecr_credentials['authorizationToken'])
                             .replace(b'AWS:', b'').decode('utf-8'))

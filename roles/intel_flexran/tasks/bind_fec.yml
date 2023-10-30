@@ -63,12 +63,17 @@
 
 - debug: msg="fec_acc pciid is {{ fec_acc | regex_replace('^ip-', '') }}"
 
-- name: bind FEC ACC physical device
+- name: bind FEC ACC physical device to igb_uio driver
   ansible.builtin.command: "{{ (intel_flexran_dpdk_dir, 'usertools', 'dpdk-devbind.py -b igb_uio ' + fec_acc) | path_join }}"
-#  ansible.builtin.command: date # "dpdk-devbind.py -b igb_uio {{ fec_acc }}"
-#    chdir: "{{ (intel_flexran_dpdk_dir, 'usertools') | path_join }}"
   register: fec_bind_set
   changed_when: fec_bind_set.rc == 0
+  when: fec_dev != "acc200" or intel_flexran_type != "pod"
+
+- name: bind FEC ACC physical device to vfio-pci driver
+  ansible.builtin.command: "{{ (intel_flexran_dpdk_dir, 'usertools', 'dpdk-devbind.py -b vfio-pci ' + fec_acc) | path_join }}"
+  register: fec_bind_set
+  changed_when: fec_bind_set.rc == 0
+  when: fec_dev == "acc200" and intel_flexran_type == "pod"
 
 - name: show DPDK devices binding status
   ansible.builtin.command: "{{ (intel_flexran_dpdk_dir, 'usertools', 'dpdk-devbind.py -s') | path_join }}"
@@ -84,7 +89,7 @@
         name: vfio-pci
         state: present
 
-    - name: reset FEC VFs
+    - name: reset FEC VFs for acc100
 #     ansible.builtin.copy:
 #        dest: "{{ ('/sys/bus/pci/devices/', fec_acc, 'max_vfs') | path_join }}"
 #        content: "0"
@@ -98,8 +103,18 @@
       register: set_fec_max_vfs
       changed_when: set_fec_max_vfs.rc == 0
       failed_when: set_fec_max_vfs.rc != 0
+      when: fec_dev == "acc100"
 
-    - name: instate one FEC VF
+    - name: reset FEC VFs for acc200
+      ansible.builtin.shell: "echo 0 > {{ ('/sys/bus/pci/devices/', fec_acc, 'sriov_numvfs') | path_join }}" # noqa command-instead-of-shell
+      args:
+        executable: /bin/bash
+      register: set_fec_max_vfs
+      changed_when: set_fec_max_vfs.rc == 0
+      failed_when: set_fec_max_vfs.rc != 0
+      when: fec_dev == "acc200"
+
+    - name: instate one FEC VF for acc100
 #      ansible.builtin.copy:
 #        dest: "{{ ('/sys/bus/pci/devices/', fec_acc, 'max_vfs') | path_join }}"
 #        content: "1"
@@ -110,6 +125,16 @@
       register: set_fec_max_vfs
       changed_when: set_fec_max_vfs.rc == 0
       failed_when: set_fec_max_vfs.rc != 0
+      when: fec_dev == "acc100"
+
+    - name: instate one FEC VF for acc200
+      ansible.builtin.shell: "echo 1 > {{ ('/sys/bus/pci/devices/', fec_acc, 'sriov_numvfs') | path_join }}"
+      args:
+        executable: /bin/bash
+      register: set_fec_max_vfs
+      changed_when: set_fec_max_vfs.rc == 0
+      failed_when: set_fec_max_vfs.rc != 0
+      when: fec_dev == "acc200"
 
     - name: probe for FEC VF
       shell: "set -o pipefail && lspci | grep -i acc | grep -i -E \"0d5d|57c1\"" # noqa command-instead-of-shell

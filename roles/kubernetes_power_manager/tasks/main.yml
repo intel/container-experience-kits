@@ -1,0 +1,66 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: install dependencies for Power Manager
+  ansible.builtin.include_role:
+    name: install_dependencies
+
+- name: add labels for Power Nodes
+  ansible.builtin.command: kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} intel.power.node=true --overwrite
+  loop: "{{ kubernetes_power_manager.power_nodes }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: prepare Intel Kubernetes Power Manager
+  ansible.builtin.include_tasks: power_manager.yml
+
+- name: deploy example power pods
+  ansible.builtin.include_tasks: deploy_sample_pods.yml
+  when:
+    - kubernetes_power_manager.deploy_example_pods
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: deploy power manager features
+  ansible.builtin.include_tasks: deploy_features.yml
+  loop: "{{ kubernetes_power_manager.power_nodes }}"
+  loop_control:
+    loop_var: power_node
+
+# The Shared Profiles and Workloads deployment starts here
+- name: prepare and deploy Global Shared Power Profile
+  block:
+    - name: populate Global Shared Profile template to the controller node
+      ansible.builtin.template:
+        src: global_shared_profile.yaml.j2
+        dest: "{{ (kubernetes_power_manager_dir, 'global_shared_profile.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: deploy Global Shared Profile
+      kubernetes.core.k8s:
+        src: "{{ (kubernetes_power_manager_dir, 'global_shared_profile.yaml') | path_join }}"
+        state: present
+  when:
+    - kubernetes_power_manager.global_shared_profile_enabled
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: prepare and deploy Local Shared Power Profiles/Workloads
+  block:
+    - name: deploy shared resources
+      ansible.builtin.include_tasks: deploy_shared_resources.yml
+      loop: "{{ groups['kube_node'] }}"
+      loop_control:
+        loop_var: node_name
+  when: inventory_hostname == groups['kube_control_plane'][0]

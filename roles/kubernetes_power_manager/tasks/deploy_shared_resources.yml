@@ -1,0 +1,70 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: prepare and deploy node-specific Shared Power Profiles
+  block:
+    - name: make sure that directory for node-specific Shared Power Profiles exists
+      ansible.builtin.file:
+        state: directory
+        path: "{{ (kubernetes_power_manager_dir, 'local_shared_power_profiles') | path_join }}"
+        mode: 0755
+
+    - name: obtain variables needed for deployment of node-specific Shared Power Profile
+      ansible.builtin.set_fact:
+        node_name: "{{ node_name }}"
+        local_max_frequency: "{{ hostvars[node_name]['local_shared_profile']['local_max_frequency'] }}"
+        local_min_frequency: "{{ hostvars[node_name]['local_shared_profile']['local_min_frequency'] }}"
+        local_pstate_governor: "{{ hostvars[node_name]['local_shared_profile']['local_pstate_governor'] }}"
+
+    - name: populate template for node-specific Shared Power Profile
+      ansible.builtin.template:
+        src: local_shared_profile.yaml.j2
+        dest: "{{ (kubernetes_power_manager_dir, 'local_shared_power_profiles', node_name + '_local_shared_profile.yaml') | path_join }}"
+        mode: preserve
+        force: yes
+
+    - name: deploy node-specific Shared Power Profile
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (kubernetes_power_manager_dir, 'local_shared_power_profiles', node_name + '_local_shared_profile.yaml') | path_join }}"
+  when: hostvars[node_name]['local_shared_profile']['enabled']
+
+- name: prepare and deploy node-specific Shared Power Workload
+  block:
+    - name: make sure that directory for node-specific Shared Power Workloads exists
+      ansible.builtin.file:
+        state: directory
+        path: "{{ (kubernetes_power_manager_dir, 'shared_power_workloads') | path_join }}"
+        mode: 0755
+
+    - name: obtain variables needed for deployment of Shared Power Workloads
+      ansible.builtin.set_fact:
+        node_name: "{{ node_name }}"
+        reserved_cpus: "{{ hostvars[node_name]['shared_workload']['reserved_cpus'] | list }}"
+        shared_workload_type: "{{ hostvars[node_name]['shared_workload']['shared_workload_type'] }}"
+
+    - name: populate template for Shared Power Workload
+      ansible.builtin.template:
+        src: shared_workload.yaml.j2
+        dest: "{{ (kubernetes_power_manager_dir, 'shared_power_workloads', node_name + '_shared_workload.yaml') | path_join }}"
+        mode: preserve
+        force: yes
+
+    - name: deploy node-specific Shared Power Workload
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (kubernetes_power_manager_dir, 'shared_power_workloads', node_name + '_shared_workload.yaml') | path_join }}"
+  when: hostvars[node_name]['shared_workload']['enabled']

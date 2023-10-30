@@ -1,3 +1,49 @@
+# Local Static Volume Provisioner
+## Cluster Configurations
+To use the local static volume provisioner, you need to set the `local_volume_provisioner_enabled ` to `true` in the group_vars/all.yml file. Then you can customerize your storage class name per your workload by setting `local_volume_provisioner_storage_class`, and if no change, the default value is local-static-storage.
+
+## Disk configuration
+Then you need to configure the disk information for storage in the host_vars/\<nodename\>.yml based your systemd disk information.
+```
+persistent_volumes: []
+#persistent_volumes:
+#  - name: "mnt-data-1"                         # PV identifier will be used for PVs names followed by node name(e.g., mnt-data-1-hostname)
+#    mountPath: /mnt/disks/disk0                # Mount path of a volume, for local provisioner, it musts match /mnt/disks/* pattern
+#    device: /dev/nvme0n1                       # Target storage device name when creating a volume. Only set it when storage_deploy_test_mode is false
+#    fsType: ext4                               # file system types, by default is ext4.
+
+```
+If you do not have real disks inserted into your machine, and you still want to try the k8s provisioner, you can just enable `storage_deployment_test_mode` in the group_vars/all.yml. RA will automitically create 6 10GiB fake loop devices for simulation and fill the persistent_volumes automatically inside.
+
+## Simple Verification
+After the deployment successfully, you can claim a persistent-volume-claim for verification w/ below commd:
+```
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: user-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-static-storage
+```
+
+# Rook-Ceph Operator
+## Operator Configuration
+To use the rook-ceph operator as your k8s storage framework. You need to set the `rook_ceph.enabled` to `true` in the group_vars/all.yml file. Same as local volume static provisioner, you can customerize your `storage_class` name, otherwise, the default value is `rook-cephfs`. Also, you can choose the storage method for your workload/solution, by default the backend uses `cephfs` as default storage method.
+```
+rook_ceph:
+  enabled: true
+  storage_class: "rook-cephfs"    # Storage class name
+  storage_type: "cephfs"          # Storage type for rook-ceph, supported values[cephfs, block, object]  
+```
+## Disk Configuration
+Same as described in local volume static provisioner.
+
 # MinIO Operator/Console/Tenant
 
 ## Cluster configuration options
@@ -47,15 +93,14 @@ There's also a set of configuration options that are applied in per-node manner.
 
 First set of variables enable Persistent Volumes and also this info was used for sample tenant deployment. You would need your own tenant settings.
 ```yaml
-minio_pv:
-  - name: "mnt-data-1"                               # PV name will be followed by kube_node name(e.g., mnt-data-1-hostname)
-    storageClassName: "local-storage"                # default storage class name which PVC should match with
-    accessMode: "ReadWriteOnce"                      # ReadWriteOnce/ReadOnlyMany/ReadWriteMany/ReadWriteOncePod
-    persistentVolumeReclaimPolicy: "Retain"          # Retain/Recycle/Delete
-    mountPath: /mnt/data1                            # mount path
-    storage: file                                    # file = file block device, nvme = nvme m.2 SSDs.
-    device: /dev/nvme0n1                             # when storage=nvme, device will be used for block device name. when storage=file, loop devices will be populated with /root/diskimage* automatically.
-    capacity: 1GiB                                   # size of the PV. support only GiB/TiB
+persistent_volumes:
+  - name: "mnt-data-1"                         # PV identifier will be used for PVs names followed by node name(e.g., mnt-data-1-hostname)
+    storageClassName: "local-storage"          # Storage class name to match with PVC
+    accessMode: "ReadWriteOnce"                # Access mode when mounting a volume, e.g., ReadWriteOnce/ReadOnlyMany/ReadWriteMany/ReadWriteOncePod
+    persistentVolumeReclaimPolicy: "Retain"    # Reclaim policy when a volume is released once it's bound, e.g., Retain/Recycle/Delete
+    mountPath: /mnt/disks/disk0                # Mount path of a volume, for local provisioner, it musts match /mnt/disks/* pattern
+    device: /dev/nvme0n1                       # Target storage device name when creating a volume. Only set it when storage_deploy_test_mode is false
+    fsType: ext4                               # file system types
 ```
 
 ## Sample Tenants

@@ -62,6 +62,14 @@
       - libsgx-ra-uefi={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
       - sgx-ra-service={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
 
+- name: install tdx software
+  ansible.builtin.apt:
+    name:
+      - tdx-qgs={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+      - sgx-pck-id-retrieval-tool={{ sgx_pkg_dcap_version }}-{{ sgx_release_name }}1
+  when:
+    - configure_tdx | default(false)
+
 - name: start aesmd service, if not started
   service:
     state: started

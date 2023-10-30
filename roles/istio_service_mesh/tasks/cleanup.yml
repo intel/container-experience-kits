@@ -92,6 +92,12 @@
     state: absent
   failed_when: false
 
+- name: remove istio netconf modules file
+  file:
+    path: "/etc/modules-load.d/istio-netfilter.conf"
+    state: absent
+  failed_when: false
+
 - name: wait for istio-system namespace removal
   command: |
     kubectl get ns {{ istio_service_mesh.istio_namespace }}

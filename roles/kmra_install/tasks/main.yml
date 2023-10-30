@@ -137,7 +137,19 @@
             deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"
           }
           - {
-            name: "{{ kmra.oran_netopeer2_server.release_name | default('') }}",
+            name: "{{ kmra.oran_netopeer2_server.release_name | default('') }}-cu",
+            namespace: "{{ cosign_enforce_namespace | default('default') }}",
+            subj: "{{ kmra.oran_netopeer2_server.crt_subj | default('') }}",
+            deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}",
+          }
+          - {
+            name: "{{ kmra.oran_netopeer2_server.release_name | default('') }}-du",
+            namespace: "{{ cosign_enforce_namespace | default('default') }}",
+            subj: "{{ kmra.oran_netopeer2_server.crt_subj | default('') }}",
+            deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}",
+          }
+          - {
+            name: "{{ kmra.oran_netopeer2_server.release_name | default('') }}-ric",
             namespace: "{{ cosign_enforce_namespace | default('default') }}",
             subj: "{{ kmra.oran_netopeer2_server.crt_subj | default('') }}",
             deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}",
@@ -210,28 +222,6 @@
           src: "kmra-ctk-loadkey-rbac-cluster-role.yml.j2",
           dest: "{{ (kmra.ctk_loadkey_demo.chart_path, 'templates', 'kmra-ctk-loadkey-rbac-cluster-role.yml') | path_join }}",
           deploy: "{{ kmra.ctk_loadkey_demo.enabled | default(false) }}"
-        }
-        - {
-          src: "kmra-oran-netopeer2-server-values.yaml.j2",
-          dest: "{{ (project_root_dir, 'charts', 'kmra-oran-netopeer2-server-values.yml') | path_join }}",
-          deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"
-        }
-        - {
-          src: "kmra-oran-netopeer2-server-rbac-cluster-role.yml.j2",
-          dest: "{{ (kmra.oran_netopeer2_server.chart_path | default(project_root_dir), \
-                'templates', 'kmra-oran-netopeer2-server-rbac-cluster-role.yml') | path_join }}",
-          deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"
-        }
-        - {
-          src: "kmra-oran-netopeer2-client-values.yaml.j2",
-          dest: "{{ (project_root_dir, 'charts', 'kmra-oran-netopeer2-client-values.yml') | path_join }}",
-          deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}"
-        }
-        - {
-          src: "kmra-oran-netopeer2-client-rbac-cluster-role.yml.j2",
-          dest: "{{ (kmra.oran_netopeer2_client.chart_path | default(project_root_dir), \
-                 'templates', 'kmra-oran-netopeer2-client-rbac-cluster-role.yml') | path_join }}",
-          deploy: "{{ kmra.oran_netopeer2_client.enabled | default(false) }}"
         }
       when:
         - item.deploy
@@ -339,18 +329,23 @@
     - name: prepare image for oran case
       include_tasks: prepare_oran_image.yml
 
-    - name: populate oran helm charts values templates and push to controller node
+    - name: populate oran helm charts values templates and push to controller node - servers
+      ansible.builtin.template:
+        src: "kmra-oran-netopeer2-server-values.yaml.j2"
+        dest: "{{ kmra.oran_netopeer2_server.helm_values_file }}-{{ item }}"
+        force: yes
+        mode: preserve
+      loop: ['cu', 'du', 'ric']
+      when:
+        - kmra.oran_netopeer2_server.enabled | default(false) | bool
+
+    - name: populate oran helm charts values templates and push to controller node - others
       ansible.builtin.template:
         src: "{{ item.src }}"
         dest: "{{ item.dest }}"
         force: yes
         mode: preserve
       loop:
-        - {
-          src: "kmra-oran-netopeer2-server-values.yaml.j2",
-          dest: "{{ (project_root_dir, 'charts', 'kmra-oran-netopeer2-server-values.yml') | path_join }}",
-          deploy: "{{ kmra.oran_netopeer2_server.enabled | default(false) }}"
-        }
         - {
           src: "kmra-oran-netopeer2-server-rbac-cluster-role.yml.j2",
           dest: "{{ (kmra.oran_netopeer2_server.chart_path, 'templates', 'kmra-oran-netopeer2-server-rbac-cluster-role.yml') | path_join }}",
@@ -372,11 +367,12 @@
     - name: install KMRA oran netopeer2 server helm chart
       kubernetes.core.helm:
         chart_ref: "{{ kmra.oran_netopeer2_server.chart_path }}"
-        release_name: "{{ kmra.oran_netopeer2_server.release_name }}"
+        release_name: "{{ kmra.oran_netopeer2_server.release_name }}-{{ item }}"
         release_namespace: "{{ cosign_enforce_namespace }}"
-        values_files: "{{ kmra.oran_netopeer2_server.helm_values_file }}"
+        values_files: "{{ kmra.oran_netopeer2_server.helm_values_file }}-{{ item }}"
         wait: true
         timeout: 4m0s
+      loop: ['cu', 'du', 'ric']
       when:
         - kmra.oran_netopeer2_server.enabled | default(false)
 

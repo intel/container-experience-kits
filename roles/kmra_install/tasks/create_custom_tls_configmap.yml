@@ -20,16 +20,87 @@
     suffix: kmra-custom-tls
   register: tls_tmp_dir
 
-- name: download netopeer2 server and client keys-certs
-  ansible.builtin.get_url:
-    url: "{{ (kmra.apphsm.oran_netopeer2_sample_tls_url, 'tls_certs', item) | path_join }}"
-    dest: "{{ (tls_tmp_dir.path, item) | path_join }}"
-    mode: 0644
-  loop:
-    - "server.key"
-    - "server.crt"
-    - "client.key"
-    - "client.crt"
+- name: generate custom RSA keys
+  block:
+    - name: generate netopeer2 CA root crt
+      ansible.builtin.command: >-
+        openssl req -SHA384 -nodes -x509 -newkey rsa:3072
+        -days {{ kmra.certs_validity_period_days }}
+        -keyout {{ (tls_tmp_dir.path, 'ca.key') | path_join }}
+        -out {{ (tls_tmp_dir.path, 'ca.crt') | path_join }}
+        -subj "/O={{ kmra.ca_root_crt_subj.O }}/OU={{ kmra.ca_root_crt_subj.OU }}/CN={{ kmra.ca_root_crt_subj.CN }}"
+      changed_when: true
+
+    - name: generate new keys and csrs
+      ansible.builtin.command: >-
+        openssl req -SHA384 -nodes -newkey rsa:3072
+        -keyout {{ (tls_tmp_dir.path, item.token_name) | path_join }}.key
+        -out {{ (tls_tmp_dir.path, item.token_name) | path_join }}.csr
+        -subj "/O={{ item.crt_subj.O | default('') }}/OU={{ item.crt_subj.OU | default('') }}/CN={{ item.crt_subj.CN | default('') }}"
+      loop: "{{ kmra.apphsm.app_keys }}"
+      changed_when: true
+
+    - name: generate crts for the new keys
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        openssl x509 -SHA384 -req -in {{ (tls_tmp_dir.path, item.token_name) | path_join }}.csr
+        -days {{ kmra.certs_validity_period_days }}
+        -CA {{ (tls_tmp_dir.path, 'ca.crt') | path_join }}
+        -CAkey {{ (tls_tmp_dir.path, 'ca.key') | path_join }}
+        {{ '-extfile <(printf "subjectAltName=DNS:' + item.crt_subj.CN + '")'
+        if item.crt_subj.CN | default('') | length > 0 }}
+        -CAcreateserial -CAserial {{ (tls_tmp_dir.path, 'ca.srl' ) | path_join }}
+        -out {{ (tls_tmp_dir.path, item.token_name) | path_join }}.crt
+      args:
+        executable: /bin/bash
+      loop: "{{ kmra.apphsm.app_keys }}"
+      changed_when: true
+  when: kmra.apphsm.ecdsa_keys != "true"
+
+- name: generate custom ECDSA keys
+  block:
+    - name: generate netopeer2 CA root crt
+      ansible.builtin.command: >-
+        openssl req -SHA384 -nodes -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1
+        -days {{ kmra.certs_validity_period_days }}
+        -keyout {{ (tls_tmp_dir.path, 'ca.key') | path_join }}
+        -out {{ (tls_tmp_dir.path, 'ca.crt') | path_join }}
+        -subj "/O={{ kmra.ca_root_crt_subj.O }}/OU={{ kmra.ca_root_crt_subj.OU }}/CN={{ kmra.ca_root_crt_subj.CN }}"
+      changed_when: true
+
+    - name: generate new keys and csrs
+      ansible.builtin.command: >-
+        openssl req -SHA384 -nodes -newkey ec -pkeyopt ec_paramgen_curve:secp384r1
+        -keyout {{ (tls_tmp_dir.path, item.token_name) | path_join }}.ekey
+        -out {{ (tls_tmp_dir.path, item.token_name) | path_join }}.csr
+        -subj "/O={{ item.crt_subj.O | default('') }}/OU={{ item.crt_subj.OU | default('') }}/CN={{ item.crt_subj.CN | default('') }}"
+      loop: "{{ kmra.apphsm.app_keys }}"
+      changed_when: true
+
+    - name: convert keys to pkcs8 format
+      ansible.builtin.command: >-
+        openssl pkcs8 -topk8 --inform PEM --outform PEM --nocrypt
+        -in {{ (tls_tmp_dir.path, item.token_name) | path_join }}.ekey
+        -out {{ (tls_tmp_dir.path, item.token_name) | path_join }}.key
+      loop: "{{ kmra.apphsm.app_keys }}"
+      changed_when: true
+
+    - name: generate crts for the new keys
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        openssl x509 -req -SHA384 -in {{ (tls_tmp_dir.path, item.token_name) | path_join }}.csr
+        -days {{ kmra.certs_validity_period_days }}
+        -CA {{ (tls_tmp_dir.path, 'ca.crt') | path_join }}
+        -CAkey {{ (tls_tmp_dir.path, 'ca.key') | path_join }}
+        {{ '-extfile <(printf "subjectAltName=DNS:' + item.crt_subj.CN + '")'
+        if item.crt_subj.CN | default('') | length > 0 }}
+        -CAcreateserial -CAserial {{ (tls_tmp_dir.path, 'ca.srl' ) | path_join }}
+        -out {{ (tls_tmp_dir.path, item.token_name) | path_join }}.crt
+      args:
+        executable: /bin/bash
+      loop: "{{ kmra.apphsm.app_keys }}"
+      changed_when: true
+  when: kmra.apphsm.ecdsa_keys == "true"
 
 - name: generate a list of all secrets files
   ansible.builtin.find:
@@ -61,10 +132,14 @@
         name: kmra-apphsm-custom-config
         namespace: "{{ kmra.namespace }}"
       data:
-        server.key: "{{ custom_tls_serverkey }}"
-        server.crt: "{{ custom_tls_servercrt }}"
-        client.key: "{{ custom_tls_clientkey }}"
-        client.crt: "{{ custom_tls_clientcrt }}"
+        server_cu.key: "{{ custom_tls_token_server_cukey }}"
+        server_cu.crt: "{{ custom_tls_token_server_cucrt }}"
+        server_du.key: "{{ custom_tls_token_server_dukey }}"
+        server_du.crt: "{{ custom_tls_token_server_ducrt }}"
+        server_ric.key: "{{ custom_tls_token_server_rickey }}"
+        server_ric.crt: "{{ custom_tls_token_server_riccrt }}"
+        client.key: "{{ custom_tls_token_clientkey }}"
+        client.crt: "{{ custom_tls_token_clientcrt }}"
 
 - name: clean up tmp directory
   ansible.builtin.file:
@@ -77,22 +152,66 @@
     suffix: oran-sysrepo
   register: sys_tmp_dir
 
-- name: download netopeer2 sysrepo config
-  ansible.builtin.get_url:
-    url: "{{ (kmra.apphsm.oran_netopeer2_sample_tls_url, item) | path_join }}"
-    dest: "{{ (sys_tmp_dir.path, item) | path_join }}"
-    mode: 0644
-  loop:
-    - "tls_keystore.xml"
-    - "tls_listen.xml"
-    - "tls_truststore.xml"
+- name: create sysrepo for cu, du, ric separately - tls_truststore & tls_listen
+  block:
+    - name: get ca crt base64
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        echo -n "{{ custom_tls_cacrt }}" | openssl x509 -outform der | base64 -w0
+      register: ca_crt_str
+      args:
+        executable: /bin/bash
+      changed_when: true
 
-- name: hide the private key as we use pkcs11 to load it from ctk_loader
-  ansible.builtin.replace:
-    path: "{{ (sys_tmp_dir.path, 'tls_keystore.xml') | path_join }}"
-    regexp: '<private-key>.+</private-key>'
-    replace: "<private-key>{{ ('pkcs11:token=token_server;object=client_key_priv;pin-value=' + \
-              kmra.oran_netopeer2_server.default_user_pin + ';') | b64encode }}</private-key>"
+    - name: get client crt base64
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        echo -n "{{ custom_tls_token_clientcrt }}" | openssl x509 -outform der | base64 -w0
+      register: client_crt_str
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: populate tls_truststore.xml
+      ansible.builtin.template:
+        src: "tls_truststore.xml.j2"
+        dest: "{{ (sys_tmp_dir.path, 'tls_truststore.xml') | path_join }}"
+        mode: '0644'
+
+    - name: get client finger
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        echo -n "{{ custom_tls_cacrt }}" | openssl x509 -noout -fingerprint | cut -b '18-'
+      register: finger_str
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: populate tls_listen.xml
+      ansible.builtin.template:
+        src: "tls_listen.xml.j2"
+        dest: "{{ (sys_tmp_dir.path, 'tls_listen.xml') | path_join }}"
+        mode: '0644'
+
+- name: create sysrepo for cu, du, ric separately - tls_keystore
+  include_tasks: create_sysrepo_keystore.yml
+  no_log: true
+  loop:
+    - {
+      key: "{{ custom_tls_token_server_cukey }}",
+      crt: "{{ custom_tls_token_server_cucrt }}",
+      xml: 'tls_keystore_cu.xml'
+    }
+    - {
+      key: "{{ custom_tls_token_server_dukey }}",
+      crt: "{{ custom_tls_token_server_ducrt }}",
+      xml: 'tls_keystore_du.xml'
+    }
+    - {
+      key: "{{ custom_tls_token_server_rickey }}",
+      crt: "{{ custom_tls_token_server_riccrt }}",
+      xml: 'tls_keystore_ric.xml'
+    }
 
 - name: generate a list of all sysrepo files
   ansible.builtin.find:
@@ -121,12 +240,31 @@
       apiVersion: v1
       kind: ConfigMap
       metadata:
-        name: oran-sysrepo-config
+        name: "{{ item.key }}-oran-sysrepo-config"
         namespace: "{{ cosign_enforce_namespace }}"
       data:
-        tls_keystore.xml: "{{ sysrepo_tls_keystorexml }}"
+        tls_keystore.xml: "{{ item.xml }}"
         tls_listen.xml: "{{ sysrepo_tls_listenxml }}"
         tls_truststore.xml: "{{ sysrepo_tls_truststorexml }}"
+  no_log: true
+  loop:
+    - {
+      key: "{{ kmra.oran_netopeer2_server.release_name }}-cu",
+      xml: "{{ sysrepo_tls_keystore_cuxml }}"
+    }
+    - {
+      key: "{{ kmra.oran_netopeer2_server.release_name }}-du",
+      xml: "{{ sysrepo_tls_keystore_duxml }}"
+    }
+    - {
+      key: "{{ kmra.oran_netopeer2_server.release_name }}-ric",
+      xml: "{{ sysrepo_tls_keystore_ricxml }}"
+    }
+    # just reuse cu keystore for client sysrepo format check only
+    - {
+      key: "{{ kmra.oran_netopeer2_client.release_name }}",
+      xml: "{{ sysrepo_tls_keystore_cuxml }}"
+    }
 
 - name: clean up tmp directory
   ansible.builtin.file:

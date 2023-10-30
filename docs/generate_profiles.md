@@ -65,6 +65,7 @@ These three directories represent available modes of the CEK project.
 
 At the moment, Container Experience Kits supports the following machine architectures:
 
+* `emr` - Emerald Rapids - '5th Generation Intel(R) Xeon(R) Scalable Processor'
 * `spr` - Sapphire Rapids - '4th Generation Intel(R) Xeon(R) Scalable Processor'
 * `icx` - IceLake (default) - '3rd Generation Intel(R) Xeon(R) Scalable Processor'
 * `clx` - CascadeLake - '2nd Generation Intel(R) Xeon(R) Scalable Processor'

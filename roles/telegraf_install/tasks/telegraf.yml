@@ -36,7 +36,7 @@
 - name: build telegraf configuration based on current RA profile
   ansible.builtin.set_fact:
     telegraf_config: "{{ telegraf_config | default('') + telegraf_plugins_config[telegraf_plugin] }}" # add enabled plugin section to config
-  loop: "{{ telegraf_config_profiles[profile_name] | flatten(levels=1) }}" # select plugins enabled for current RA profile
+  loop: "{{ telegraf_config_profiles[profile_name] | flatten }}" # select plugins enabled for current RA profile
   loop_control:
     loop_var: telegraf_plugin
 

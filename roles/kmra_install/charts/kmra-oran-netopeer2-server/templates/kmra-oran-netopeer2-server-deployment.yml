@@ -135,9 +135,6 @@ spec:
       - name: p11-proxy-tls-psk
         configMap:
           name: {{ .Release.Name }}-p11-proxy-tls-psk-conf
-      - name: oran-env
-        configMap:
-          name: {{ .Release.Name }}-oran-env
       - name: sysrepo-config
         configMap:
-          name: oran-sysrepo-config
+          name: {{ .Release.Name }}-oran-sysrepo-config

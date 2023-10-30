@@ -13,27 +13,68 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
----
+ddp_download_basedir: "{{ (project_root_dir, 'ddp_packages') | path_join }}"
+
 ddp_pkgs:
-  - nic_driver: i40e
-    install_dir: /lib/firmware/intel/i40e/ddp
-    pkgurls:
-      - "https://downloadmirror.intel.com/27587/eng/gtp.zip"
-      - "https://downloadmirror.intel.com/28940/eng/mplsogreudp.zip"
-      - "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
-      - "https://downloadmirror.intel.com/29446/eng/esp-ah.zip"
-      - "https://downloadmirror.intel.com/29780/eng/ecpri.zip"
-  - nic_driver: ice
-    install_dir: /lib/firmware/updates/intel/ice/ddp/
-    pkgurls:
-      - "https://downloadmirror.intel.com/29892/eng/ice_comms-1.3.17.0.zip"
-      - "https://downloadmirror.intel.com/30028/eng/ice_comms-1.3.20.0.zip"
-      - "https://downloadmirror.intel.com/30237/eng/ice_comms-1.3.22.0.zip"
-      - "https://downloadmirror.intel.com/30335/eng/ice_comms-1.3.24.0.zip"
-      - "https://downloadmirror.intel.com/30467/eng/800%20series%20comms%20binary%20package%201.3.28.0.zip"
-      - "https://downloadmirror.intel.com/30590/eng/800%20series%20comms%20binary%20package%201.3.30.0.zip"
-      - "https://downloadmirror.intel.com/29889/eng/800%20series%20comms%20binary%20package%201.3.30.0_rev1.1.zip"
-      - "https://downloadmirror.intel.com/713853/800%20Series%20DDP%20Comms%20Package%201.3.31.0.zip"
-      - "https://downloadmirror.intel.com/727568/ice_comms-1.3.35.0.zip"
-      - "https://downloadmirror.intel.com/738733/800%20Series%20DDP%20Comms%20Package%201.3.37.0.zip"
-      - "https://downloadmirror.intel.com/772040/800%20Series%20DDP%20for%20Comms%20Package%201.3.40.0.zip"
+  i40e:
+    download_dir: "{{ (ddp_download_basedir, 'i40e') | path_join }}"
+    install_dir: "/lib/firmware/intel/i40e/ddp"
+    pkgs:
+      - name: gtp.zip
+        url: "https://downloadmirror.intel.com/27587/eng/gtp.zip"
+        checksum: cd179e95a988271bc8709687172875d40a9f4fea
+      - name: mplsogreudp.zip
+        url: "https://downloadmirror.intel.com/28940/eng/mplsogreudp.zip"
+        checksum: 11657a63fb5b6621ecbc4750c4559234cea497d9
+      - name: ppp-oe-ol2tpv2.zip
+        url: "https://downloadmirror.intel.com/28040/eng/ppp-oe-ol2tpv2.zip"
+        checksum: 271f922ef7d6f5309c7cc0cacc5ed0375e058586
+      - name: esp-ah.zip
+        url: "https://downloadmirror.intel.com/29446/eng/esp-ah.zip"
+        checksum: ca0c023afcd63dab52fb56e6bbefa557f540aa9a
+      - name: ecpri.zip
+        url: "https://downloadmirror.intel.com/29780/eng/ecpri.zip"
+        checksum: ed70dedc0178b67109e714cbc4b6dcff86aa800c
+  ice:
+    download_dir: "{{ (ddp_download_basedir, 'ice') | path_join }}"
+    install_dir: "/lib/firmware/updates/intel/ice/ddp/"
+    pkgs:
+      - name: ice_comms-1.3.17.0.zip
+        url: "https://downloadmirror.intel.com/29892/eng/ice_comms-1.3.17.0.zip"
+        checksum: a10d5df30d34559b6050c807e0baf44364b35130
+      - name: ice_comms-1.3.20.0.zip
+        url: "https://downloadmirror.intel.com/30028/eng/ice_comms-1.3.20.0.zip"
+        checksum: 5208c100fee36ba47c90dec955d43e24c6039614
+      - name: ice_comms-1.3.22.0.zip
+        url: "https://downloadmirror.intel.com/30237/eng/ice_comms-1.3.22.0.zip"
+        checksum: eb5ffa506a77d15facdcc8226b2f3b0a410d6458
+      - name: ice_comms-1.3.24.0.zip
+        url: "https://downloadmirror.intel.com/30335/eng/ice_comms-1.3.24.0.zip"
+        checksum: 0717f03ab72c1531320ee84be78cdcb194d789ba
+      - name: ice_comms-1.3.28.0.zip
+        url: "https://downloadmirror.intel.com/30467/eng/800%20series%20comms%20binary%20package%201.3.28.0.zip"
+        checksum: 14d82b50949e942ab308f55e44d82baaee5978fe
+        archive: true
+      - name: ice_comms-1.3.30.0.zip
+        url: "https://downloadmirror.intel.com/29889/eng/800%20series%20comms%20binary%20package%201.3.30.0_rev1.1.zip"
+        checksum: 89eba571845bd80bfc11869cbcfce995edb9a2f9
+        archive: true
+      - name: ice_comms-1.3.31.0.zip
+        url: "https://downloadmirror.intel.com/713853/800%20Series%20DDP%20Comms%20Package%201.3.31.0.zip"
+        checksum: eef7c13fd48d1ed8836751c155224ceb0a5cfd29
+        archive: true
+      - name: ice_comms-1.3.35.0.zip
+        url: "https://downloadmirror.intel.com/727568/ice_comms-1.3.35.0.zip"
+        checksum: c61189b98bb116e05853f67ba21ca915416aef46
+      - name: ice_comms-1.3.37.0.zip
+        url: "https://downloadmirror.intel.com/738733/800%20Series%20DDP%20Comms%20Package%201.3.37.0.zip"
+        checksum: 9da13684e8564d92f4364f4fb30f805e0d7c6558
+        archive: true
+      - name: ice_comms-1.3.40.0.zip
+        url: "https://downloadmirror.intel.com/772040/800%20Series%20DDP%20for%20Comms%20Package%201.3.40.0.zip"
+        checksum: bfbefba6e444f2850d0d9015cebc207d44cf6327
+        archive: true
+      - name: ice_comms-1.3.45.0.zip
+        url: "https://downloadmirror.intel.com/785846/738693_ice_comms-1.3.45.0.zip"
+        checksum: 322d187c08a8903a89dc4d885a9b4b05b8974c6f
+        archive: true

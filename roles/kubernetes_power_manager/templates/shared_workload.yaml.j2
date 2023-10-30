@@ -1,0 +1,14 @@
+---
+apiVersion: "power.intel.com/v1"
+kind: PowerWorkload
+metadata:
+  name: shared-{{ node_name }}-workload
+  namespace: {{ kubernetes_power_manager_namespace }}
+spec:
+  name: "shared-{{ node_name }}-workload"
+  allCores: true
+  # IMPORTANT: The CPUs in reservedCPUs should match the value of the reserved system CPUs in your Kubelet config file
+  reservedCPUs: {{ reserved_cpus }}
+  powerNodeSelector:
+    kubernetes.io/hostname: {{ node_name }}
+  powerProfile: shared-{{ shared_workload_type }}

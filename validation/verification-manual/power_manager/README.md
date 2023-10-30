@@ -134,3 +134,11 @@ C6
 # cat /sys/devices/system/cpu/cpu3/cpuidle/state3/disable
 1
 ```
+To check your desired scaling driver, you can do following:
+```
+# cat /sys/devices/system/cpu/cpuX/cpufreq/scaling_driver
+```
+And to check you desired scaling governor:
+```
+# cat /sys/devices/system/cpu/cpuX/cpufreq/scaling_governor
+```

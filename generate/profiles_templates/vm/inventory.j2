@@ -5,6 +5,10 @@ localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
 [vm_host]
 host-for-vms-1
 
+# for generic VMs that are not part of k8s cluster
+[vms]
+#vm-1
+
 [kube_control_plane]
 #vm-ctrl-1
 

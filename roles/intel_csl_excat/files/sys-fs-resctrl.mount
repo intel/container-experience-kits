@@ -1,0 +1,12 @@
+[Unit]
+Description=/sys/fs/resctrl automount
+
+[Mount]
+What=none
+Where=/sys/fs/resctrl
+Type=resctrl
+Options=defaults
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: perf-config
+  namespace: {{ cadvisor_namespace }}
+data:
+  perf-config.json: |-
+    {{ perf_conf_json }}

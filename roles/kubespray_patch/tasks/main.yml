@@ -32,13 +32,6 @@
     src: "files/kubespray_delay_wait.patch"
     dest: "{{ kubespray_dir }}/roles/kubernetes/preinstall/handlers/main.yml"
 
-- name: apply kubespray patch for DNSStubListener
-  ansible.posix.patch:
-    src: "files/kubespray_dnsstublistener.patch"
-    dest: "{{ kubespray_dir }}/roles/kubernetes/preinstall/templates/resolved.conf.j2"
-  when:
-    - dns_disable_stub_listener | default(true) | bool
-
 - name: Load patch checksum
   ansible.builtin.include_tasks: load_checksum.yml
 

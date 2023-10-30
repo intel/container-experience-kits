@@ -35,7 +35,7 @@
       delay: 5
 
     - name: meson build for ease of compiling and linking libraries enablement
-      command: "meson build"
+      command: "meson setup build"
       changed_when: true
       args:
         chdir: "{{ dpdk_dir }}"

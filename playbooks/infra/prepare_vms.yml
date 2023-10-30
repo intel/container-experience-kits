@@ -14,6 +14,15 @@
 ##   limitations under the License.
 ##
 ---
+# add those bm host in mixed cluster to a group
+- hosts: k8s_cluster
+  tasks:
+    - name: Add hosts to inventory - bm_host
+      ansible.builtin.add_host:
+        hostname: "{{ inventory_hostname }}"
+        groups: "bm_host"
+        inventory_dir: '{{ inventory_dir }}'
+
 - hosts: vm_host
   roles:
     - role: vm/compile_libvirt
@@ -21,6 +30,20 @@
         - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
         - sgx_dp_enabled | default(false)
     - role: vm/conf_libvirt
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
+# prepare vxlan unicast peers
+- hosts: vm_host,k8s_cluster
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: vm/manage_bridges # noqa role-name[path]
+        tasks_from: vxlan_interface_name
+    - include_role:
+        name: vm/manage_bridges # noqa role-name[path]
+        tasks_from: vxlan_unicast
+      when: inventory_hostname == groups['vm_host'][0]
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -50,6 +73,22 @@
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
+# need handle those baremetal hosts need connect to VMs
+- hosts: k8s_cluster
+  vars:
+    - vms:
+        - name: dummy
+          vxlan: "{{ hostvars[groups['vm_host'][0]]['dhcp'][0] }}"
+    - dhcp: []
+  gather_facts: false
+  serial: 1
+  roles:
+    - role: vm/install_bm_libvirt
+    - role: vm/manage_bridges
+    - role: vm/prepare_bm_host_config_vxlan
+  environment: "{{ proxy_env | d({}) }}"
+  any_errors_fatal: true
+
 - hosts: vm_host
   gather_facts: false
   serial: 1
@@ -66,6 +105,13 @@
   tasks:
     - name: Test updated inventory
       ping:
+    - name: Check kernel commandline
+      command: cat /proc/cmdline
+      changed_when: false
+      register: cmdline_info
+    - name: Print kernel commandline
+      debug:
+        msg: "{{ cmdline_info.stdout }}"
     - name: Check if reboot is needed
       command: needs-restarting -r
       register: needs_reboot
@@ -73,6 +119,6 @@
       notify:
         - reboot VMs
       changed_when: needs_reboot.rc == 1
-      when: vm_image_distribution == "rocky"
+      when: vm_image_distribution | default("") == "rocky"
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

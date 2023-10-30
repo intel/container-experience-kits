@@ -1,0 +1,111 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: Set login_user fact
+  set_fact:
+    login_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER, True) }}"
+
+- name: Set local_login_user fact
+  set_fact:
+    local_login_user: "{{ lookup('ansible.builtin.env', 'SUDO_USER')|default( lookup('ansible.builtin.env', 'USER'), True) }}"
+
+- name: Get local_login_user home dir
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ local_login_user }}"
+  delegate_to: localhost
+  become: false
+
+- name: Set local_login_user_dir fact
+  set_fact:
+    local_login_user_dir: "{{ ansible_facts.getent_passwd[local_login_user][4] }}"
+
+- name: Set vxlan bastion host
+  set_fact:
+    bm_vxlan_ip: "{{ vxlan_gw_ip.split('/').0 }}"
+
+- name: Prepare vm invetory file name
+  set_fact:
+    vm_inventory_name: "{{ inventory_file | splitext | first + '_vm' + inventory_file | splitext | last }}"
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Remove old records for the same VXLAN IP in ~/.ssh/config
+  ansible.builtin.replace:
+    path: "{{ local_login_user_dir }}/.ssh/config"
+    regexp: "^Host {{ bm_vxlan_ip }}\n  ProxyCommand ssh (.*)$\n"
+    replace: ""
+  delegate_to: localhost
+  become: false
+
+- name: Prepare bastion host configuration for VXLAN in ~/.ssh/config
+  ansible.builtin.blockinfile:
+    path: "{{ local_login_user_dir }}/.ssh/config"
+    block: |
+      Host {{ bm_vxlan_ip }}
+        ProxyCommand ssh {{ login_user }}@{{ ansible_host }} -W %h:%p
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ inventory_hostname }} VXLAN"
+    create: yes
+    owner: "{{ local_login_user }}"
+    group: "{{ local_login_user }}"
+    mode: '0644'
+  delegate_to: localhost
+  become: false
+
+- name: Remove old ECDSA key fingerprint on localhost for VXLAN
+  ansible.builtin.command: ssh-keygen -f "{{ local_login_user_dir }}/.ssh/known_hosts" -R "{{ bm_vxlan_ip }}"
+  delegate_to: localhost
+  become: false
+  register: ssh_keygen_result
+  changed_when: '" not found in " not in ssh_keygen_result.stderr'
+
+- name: Store ECDSA key fingerprint on localhost for VXLAN
+  ansible.builtin.command: ssh -o StrictHostKeyChecking=No {{ login_user }}@{{ bm_vxlan_ip }} hostname
+  delegate_to: localhost
+  become: false
+  register: ssh_result
+  changed_when: '"Warning: Permanently added " in ssh_result.stderr'
+
+- name: Update vm inventory file - remove
+  ansible.builtin.replace:
+    path: "{{ vm_inventory_name }}"
+    regexp: '^\s*{{ inventory_hostname }}\s*.*{{ ansible_host }}.*$'
+    replace: ""
+  delegate_to: localhost
+  become: false
+
+- name: Update vm inventory file - add with vxlan ip
+  community.general.ini_file:
+    dest: "{{ vm_inventory_name }}"
+    section: "all"
+    option: "{{ inventory_hostname }} ansible_host={{ bm_vxlan_ip }} ip={{ bm_vxlan_ip }} ansible_user={{ login_user }}"
+    no_extra_spaces: yes
+    allow_no_value: yes
+    mode: '0644'
+    state: present
+    backup: no
+  delegate_to: localhost
+  become: false
+
+- name: Add hosts to inventory - ansible memory
+  ansible.builtin.add_host:
+    hostname: "{{ inventory_hostname }}"
+    ansible_host: "{{ bm_vxlan_ip }}"
+    ip: "{{ bm_vxlan_ip }}"
+    ansible_user: "{{ login_user }}"
+    inventory_dir: '{{ inventory_dir }}'
+    groups: all

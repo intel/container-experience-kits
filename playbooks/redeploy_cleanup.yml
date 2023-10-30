@@ -16,4 +16,3 @@
 ---
 - name: prepare for re-deployment
   import_playbook: infra/redeploy_cleanup.yml
-  when: kubernetes | default(true)

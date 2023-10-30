@@ -18,3 +18,4 @@ install_dependencies:
   Debian:
     - eci-customizations
     - linux-intel-rt
+eci_packages: ['eci-process-automation', 'eci-manufacturing-equipment', 'eci-discrete-manufacturing']

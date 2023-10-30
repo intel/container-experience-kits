@@ -1,0 +1,16 @@
+#!/bin/sh
+CP_INIT_CFG={{ ipu_imc_cfg_dir }}/cp_init_use_case_2.cfg
+ln -sf {{ ipu_imc_cfg_dir }}/cp_init_use_case_2.cfg /mnt/imc/cfg/active_cp_init.cfg
+echo "Checking for custom package..."
+if [ -e {{ active_p4_program }}.pkg ]; then
+    echo "Custom package {{ active_p4_program }}.pkg found. Overriding default package"
+    cp {{ active_p4_program }}.pkg {{ ipu_imc_package_dir }}
+    rm -rf {{ ipu_imc_package_dir }}/default_pkg.pkg
+    ln -s {{ ipu_imc_package_dir }}/{{ active_p4_program }}.pkg {{ ipu_imc_package_dir }}/default_pkg.pkg
+    sed -i 's/sem_num_pages = 25;/sem_num_pages = 1;/g' $CP_INIT_CFG
+    sed -i 's/lem_num_pages = 1;/lem_num_pages = 52;/g' $CP_INIT_CFG
+else
+    echo "No custom package found. Continuing with default package"
+fi
+
+echo "{{ acc_static_ip }} ipu-acc" >> /etc/hosts

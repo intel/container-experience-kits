@@ -14,42 +14,53 @@
 ##   limitations under the License.
 ##
 ---
-- name: confirm QAT module is loaded
-  ansible.builtin.shell: "set -o pipefail && lsmod | grep qat"
-  args:
-    executable: /bin/bash
-  register: qat_confirm_mod
-  changed_when: false
-  ignore_errors: true
-
-- name: QAT kernel module not found
-  ansible.builtin.fail:
-    msg: "No QAT module found. Please set update_qat_drivers to true in host vars to resolve the issue."
-  when: '"intel_qat" not in qat_confirm_mod.stdout'
-
-- name: make sure {{ enabled_qat_service }} service is started and enabled
-  ansible.builtin.service:
-    name: "{{ enabled_qat_service }}"
-    state: started
-    enabled: true
-
-- name: disable the multi-user.target in qat.service to avoid order cycle
-  ansible.builtin.lineinfile:
-    path: /lib/systemd/system/qat.service
-    regexp: "^After=multi-user.target"
-    line: "#After=multi-user.target"
-    mode: 0644
-  become: true
-
-- name: restart the qat.service
-  ansible.builtin.systemd:
-    name: qat.service
-    state: restarted
-    enabled: true
-
-# ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove and use ansible service module
-- name: block to check {{ enabled_qat_service }} service
+- name: skip QAT module check for InTree driver
+  when:
+    - update_qat_drivers | default(false)
   block:
+    - name: confirm QAT module is loaded
+      ansible.builtin.shell: "set -o pipefail && lsmod | grep qat"
+      args:
+        executable: /bin/bash
+      register: qat_confirm_mod
+      changed_when: false
+      ignore_errors: true
+
+    - name: QAT kernel module not found
+      ansible.builtin.fail:
+        msg: "No QAT module found. Please set update_qat_drivers to true in host vars to resolve the issue."
+      when: '"intel_qat" not in qat_confirm_mod.stdout'
+
+- name: skip {{ enabled_qat_service }} service check on VMs
+  when:
+    - not on_vms | default(false)
+  block:
+    - name: make sure {{ enabled_qat_service }} service is started and enabled
+      ansible.builtin.service:
+        name: "{{ enabled_qat_service }}"
+        state: started
+        enabled: true
+
+    - name: disable the multi-user.target in {{ enabled_qat_service }} service to avoid order cycle
+      ansible.builtin.lineinfile:
+        path: "/lib/systemd/system/{{ enabled_qat_service }}.service"
+        regexp: "^After=multi-user.target"
+        line: "#After=multi-user.target"
+        mode: 0644
+      become: true
+
+    - name: restart the {{ enabled_qat_service }} service
+      ansible.builtin.systemd:
+        name: "{{ enabled_qat_service }}"
+        state: restarted
+        daemon_reload: true
+        enabled: true
+
+- name: block to check {{ enabled_qat_service }} service
+  when:
+    - update_qat_drivers | default(false)
+  block:
+    # ansible_facts.services is not supported currently on Ubuntu 20.04, once sorted will remove and use ansible service module
     - name: check status of {{ enabled_qat_service }} service
       ansible.builtin.shell: "set -o pipefail && service {{ enabled_qat_service }} status | grep qat_dev"
       args:
@@ -62,5 +73,3 @@
       ansible.builtin.fail:
         msg: "Failed to start {{ enabled_qat_service }} service on system. Please set update_qat_drivers to true in host vars to resolve the issue."
       when: "'up' not in qat_status_check.stdout"
-  when:
-    - update_qat_drivers

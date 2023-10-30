@@ -1,0 +1,80 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Fetch IMTL git repository
+  ansible.builtin.include_tasks: download.yml
+
+- name: Check patches dir exist for defined ice driver version
+  ansible.builtin.stat:
+    path: "{{ (imtl_ice_patches_base_dir, imtl_ice_version) | path_join  }}"
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: patch_dir
+
+- name: Select patch files if no patches available for defined version
+  when: not patch_dir.stat.exists
+  block:
+    - name: Get all versions of ICE patches
+      ansible.builtin.find:
+        paths: "{{ imtl_ice_patches_base_dir }}"
+        file_type: directory
+      register: ice_patches_dirs
+
+    - name: Set newest available version of patches
+      ansible.builtin.set_fact:
+        newest_patch_version: "{{ (ice_patches_dirs.files | map(attribute='path') | map('basename') | list | community.general.version_sort)[-1] }}"
+
+    - name: Warn about using patches for different ICE driver version
+      ansible.builtin.debug:
+        msg: |
+          Intel Media Library {{ imtl_version }} does not provide patches for ICE driver {{ imtl_ice_version }}.
+          Patches for highest available version of ICE ({{ newest_patch_version }}) used instead!
+
+- name: Set version of ICE patches to use
+  ansible.builtin.set_fact:
+    imtl_ice_patches_dir: >-
+      {% if patch_dir.stat.exists -%}
+        {{ (imtl_ice_patches_base_dir, imtl_ice_version) | path_join }}
+      {%- else -%}
+        {{ (imtl_ice_patches_base_dir, newest_patch_version) | path_join }}
+      {%- endif %}
+
+- name: Identify ice driver patches to be used
+  ansible.builtin.find:
+    paths: "{{ imtl_ice_patches_dir }}"
+    recurse: yes
+    # ignore patch of version
+    # ignore patch for RHEL9 & Kernel 5.14.0
+    excludes: "*version-update-to-kahawai*,*RHEL9-fix-build-with-5.14.0*"
+  register: patch_file_list
+
+- block:
+    - name: Apply patches to ice driver
+      vars:
+        # Sort patch files
+        patch_files: "{{ (patch_file_list.files | map(attribute='path') | list | sort) }}"
+      ansible.posix.patch:
+        remote_src: true
+        src: "{{ item }}"
+        basedir: "{{ imtl_ice_driver_dir }}"
+        strip: "{{ imtl_ice_patches_strip }}"
+        state: present
+      loop: "{{ patch_files }}"
+      when: patch_file_list.matched > 0
+  rescue:
+    - name: Report unsupported ICE version
+      ansible.builtin.fail:
+        msg: "Patch of ICE driver with files provided by iMTL failed. It is likely iMTL {{ imtl_version }} does not support ICE {{ imtl_ice_version }}."

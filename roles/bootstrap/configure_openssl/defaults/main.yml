@@ -15,6 +15,6 @@
 ##
 ---
 openssl_url: "https://github.com/openssl/openssl.git"
-openssl_version: "openssl-3.1.1"
+openssl_version: "openssl-3.1.2"
 openssl_dir: "{{ (project_root_dir, 'openssl') | path_join }}"
 openssl_pkg_subdir: "{{ openssl_dir }}/{{ openssl_version }}"

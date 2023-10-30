@@ -15,9 +15,9 @@
 ##
 ---
 # Intel SGX SDK for Ubuntu
-sgx_sdk_version_ubuntu: "sgx_linux_x64_sdk_2.19.100.3.bin"
-sgx_sdk_url_ubuntu: "https://download.01.org/intel-sgx/sgx-dcap/1.16/linux/distro/ubuntu22.04-server/{{ sgx_sdk_version_ubuntu }}"
-sgx_sdk_checksum_ubuntu: "sha256:B99B66A2E7D3842D106CF37747A124C53A9B49B07649E1EE26C0DA2BEB5AB3CE"
+sgx_sdk_version_ubuntu: "sgx_linux_x64_sdk_2.21.100.1.bin"
+sgx_sdk_url_ubuntu: "https://download.01.org/intel-sgx/sgx-dcap/1.18/linux/distro/ubuntu22.04-server/{{ sgx_sdk_version_ubuntu }}"
+sgx_sdk_checksum_ubuntu: "sha256:53e75ad08baad4f74c9f78e33bff30d3d3518160bf8729a4b213e8514c0fd0ec"
 
 # Intel SGX-SGX Key configuration for Ubuntu >= 18.04.4
 sgx_apt_source_list: "intel-sgx"
@@ -25,20 +25,20 @@ sgx_apt_repo_url: "https://download.01.org/intel-sgx/sgx_repo/ubuntu"
 sgx_apt_repo_key: "{{ sgx_apt_repo_url }}/intel-sgx-deb.key"
 
 # Intel SGX SDK for RHEL
-sgx_sdk_version_rhel: "sgx_linux_x64_sdk_2.19.100.3.bin"
-sgx_sdk_url_rhel: "https://download.01.org/intel-sgx/sgx-dcap/1.16/linux/distro/rhel8.6-server/{{ sgx_sdk_version_rhel }}"
-sgx_sdk_checksum_rhel: "sha256:E293D0179F81264AAD81E5A9864065B117C99A6EAD2388BC2A807093CB7E837A"
+sgx_sdk_version_rhel: "sgx_linux_x64_sdk_2.21.100.1.bin"
+sgx_sdk_url_rhel: "https://download.01.org/intel-sgx/sgx-dcap/1.18/linux/distro/rhel8.6-server/{{ sgx_sdk_version_rhel }}"
+sgx_sdk_checksum_rhel: "sha256:2ae85c535118a5ff5c2b39cf5652eabae460b8e8d8094340919737eb31bc4021"
 
 # Intel SGX RPM local repository for RHEL
 sgx_rpm_local_repo_version_rhel: "sgx_rpm_local_repo.tgz"
-sgx_rpm_local_repo_url_rhel: "https://download.01.org/intel-sgx/sgx-dcap/1.16/linux/distro/rhel8.6-server/{{ sgx_rpm_local_repo_version_rhel }}"
-sgx_rpm_local_repo_checksum_rhel: "sha256:CFC42AC150E167510190F6D56677B17619869E1B528A03DB713C3D41C85E3EA5"
+sgx_rpm_local_repo_url_rhel: "https://download.01.org/intel-sgx/sgx-dcap/1.18/linux/distro/rhel8.6-server/{{ sgx_rpm_local_repo_version_rhel }}"
+sgx_rpm_local_repo_checksum_rhel: "sha256:57f24d1f25d1ae100a4fcbfbdb7d49ef0a744f2edb69e9bb6fcf6e5667160444"
 
 sgx_config_dir: "{{ project_root_dir }}"
 sgx_rpm_directory: "{{ (project_root_dir, 'sgx_rpm_local_repo') | path_join }}"
 
-sgx_pkg_version: "2.19.100.3"
-sgx_pkg_dcap_version: "1.16.100.2"
+sgx_pkg_version: "2.21.100.1"
+sgx_pkg_dcap_version: "1.18.100.1"
 
 protobuf_version: protobuf-3.5.0-13.el8.x86_64.rpm
 protobuf_repository: https://dl.rockylinux.org/vault/rocky/8.6/AppStream/x86_64/os/Packages/p

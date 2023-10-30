@@ -27,6 +27,14 @@
     - {type: 'https', value: "{{ https_proxy | default('') }}"}
   when: http_proxy is defined or https_proxy is defined
 
+- name: fix broken packages for tdvm
+  ansible.builtin.apt:
+    state: fixed
+  when:
+    - configure_tdx | default(false)
+    - on_vms | default(false)
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '22.04'
+
 - name: disable automatic package updates
   apt:
     name: unattended-upgrades
@@ -158,6 +166,7 @@
     name: udev
   when:
     - ansible_os_family == "Debian"
+    - not configure_tdx | default(false)
 
 - name: perform dist-upgrade on Debian OS family
   apt:
@@ -186,6 +195,14 @@
       - inxi
       - jq
   when: ansible_distribution == "Ubuntu"
+
+- name: install pytdxmeasure for tdvm
+  ansible.builtin.pip:
+    name: pytdxmeasure
+  when:
+    - configure_tdx | default(false)
+    - on_vms | default(false)
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '22.04'
 
 # hirsute (21.04) package for (image & headers) is 20.04. (Note: ansible_distribution_version will not be returned as the correct version)
 # Depending on the needs, we can split tasks for future Ubuntu releases if necessary.

@@ -23,7 +23,7 @@
 - name: download patch archive
   ansible.builtin.get_url:
     dest: '{{ ffmpeg_path }}'
-    sha256sum: '{{ patch_item.sha256 }}'
+    checksum: 'sha256:{{ patch_item.sha256 }}'
     url: "{{ patch_item.url }}"
     mode: '0640'
   register: patch_download

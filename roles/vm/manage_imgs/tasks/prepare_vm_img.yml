@@ -14,11 +14,82 @@
 ##   limitations under the License.
 ##
 ---
+- name: install dependencies for Intel tdx
+  include_role:
+    name: install_dependencies
+  when:
+    - configure_tdx | default(false)
+
 - name: Check VM status - {{ vm.name }}
-  command: virsh list
+  ansible.builtin.command: virsh list --state-running
   register: current_vms
   changed_when: false
   failed_when: false
+
+- name: Block to force selected VMs recreation
+  when: vm_recreate_listed_vms | default ([]) | length > 0
+  block:
+    - name: Prepare grep args - initial value
+      ansible.builtin.set_fact:
+        vms_to_be_filtered_out: ""
+
+    - name: Prepare grep args
+      ansible.builtin.set_fact:
+        vms_to_be_filtered_out: "{{ vms_to_be_filtered_out }} -e {{ item }}"
+      with_items: "{{ vm_recreate_listed_vms }}"
+
+    - name: Remove VMs to be recreated from current_vms
+      ansible.builtin.shell: set -o pipefail && echo "{{ current_vms.stdout }}" | grep -v {{ vms_to_be_filtered_out }}
+      args:
+        executable: /bin/bash
+      register: current_vms_filtered
+      changed_when: false
+      failed_when: false
+      when: vms_to_be_filtered_out | length > 0
+
+- name: Block to keep not running VMs
+  when: vm_keep_listed_vms | default([]) | length > 0
+  block:
+    - name: Check VM status all - {{ vm.name }}
+      ansible.builtin.command: virsh list --all
+      register: current_vms_all
+      changed_when: false
+      failed_when: false
+
+    - name: Prepare grep args keep - initial value
+      ansible.builtin.set_fact:
+        vms_to_be_kept: ""
+
+    - name: Prepare grep args keep
+      ansible.builtin.set_fact:
+        vms_to_be_kept: "{{ vms_to_be_kept }} -e {{ item }}"
+      with_items: "{{ vm_keep_listed_vms }}"
+
+    - name: Filter not running VMs to be kept
+      ansible.builtin.shell: set -o pipefail && echo "{{ current_vms_all.stdout }}" | grep {{ vms_to_be_kept }}
+      args:
+        executable: /bin/bash
+      register: current_vms_all
+      changed_when: false
+      failed_when: false
+
+    - name: Current VMs to be kept
+      ansible.builtin.debug:
+        msg: "{{ current_vms_all.stdout }}"
+
+- name: Set current_vms fact
+  ansible.builtin.set_fact:
+    current_vms: "{% if current_vms_filtered.skipped | default(false) %}{{ current_vms.stdout }}{% else %}{{ current_vms_filtered.stdout }}{% endif %}"
+
+- name: Update current_vms with kept VMs
+  ansible.builtin.command: echo -e "{{ current_vms }}{% if not current_vms_all.skipped | default(false) %}\n{{ current_vms_all.stdout }}{% endif %}"
+  register: current_vms
+  failed_when: false
+  changed_when: false
+
+- name: Current VMs - after filtering
+  ansible.builtin.debug:
+    msg: "{{ current_vms.stdout }}"
 
 - name: Handle VMs
   block:
@@ -33,7 +104,7 @@
       command: virsh destroy {{ vm.name }}
       changed_when: true
       register: destroy_result
-      failed_when: (destroy_result.stderr != '') and
+      failed_when: (destroy_result.stderr | length > 0) and
         (('domain is not running' not in destroy_result.stderr) and
         ('failed to get domain' not in destroy_result.stderr))
 
@@ -41,7 +112,7 @@
       command: virsh undefine {{ vm.name }}
       changed_when: true
       register: undefine_result
-      failed_when: (undefine_result.stderr != '') and
+      failed_when: (undefine_result.stderr | length > 0) and
         ('failed to get domain' not in undefine_result.stderr)
 
     - name: Remove VM disk images if changing state

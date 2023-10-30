@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: intel-xpumanager
+  namespace: monitoring
+  labels:
+    app: intel-xpumanager
+spec:
+  selector:
+    matchLabels:
+      app: intel-xpumanager
+  namespaceSelector:
+    matchNames:
+      - "{{ xpumanager_namespace }}"
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 5s
+      scheme: https
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tlsConfig:
+        caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecureSkipVerify: true

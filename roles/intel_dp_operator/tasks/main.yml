@@ -63,7 +63,7 @@
     namespace: "{{ intel_dp_namespace }}"
     wait: yes
     wait_condition:
-      reason: MinimumReplicasAvailable
-      type: Available
+      reason: NewReplicaSetAvailable
+      type: Progressing
     wait_timeout: 240
   when: inventory_hostname == groups['kube_control_plane'][0]

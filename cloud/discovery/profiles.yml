@@ -14,7 +14,6 @@
 # - cpusets
 # - native_cpu_manager
 # - bond_cni
-# - topology_manager
 # - sriov_operator
 # - sriov_network_dp
 # - nic_drivers
@@ -32,7 +31,7 @@
 # - openssl
 # - tas
 # - gas
-# - ddp
+# - ddp_legacy
 # - network_userspace
 # - dpdk
 # - ovs_dpdk
@@ -62,7 +61,7 @@
 # - intel_ethernet_operator
 #     enabled
 #     flow_config
-#     ddp
+#     ddp_update
 #     fw_update
 # - intel_sriov_fec_operator
 
@@ -76,7 +75,6 @@ access:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -100,7 +98,7 @@ access:
   tac: off
   tas: off
   gas: off
-  ddp: off
+  ddp_legacy: off
   network_userspace: off
   dpdk: on
   ovs_dpdk: off
@@ -132,7 +130,7 @@ access:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: on
 
@@ -144,7 +142,6 @@ basic:
   kube_dashboard: on
   isolcpu: optional
   cpusets: optional
-  topology_manager: on
   sriov_operator: optional
   sriov_network_dp: optional
   nic_drivers: on
@@ -178,7 +175,6 @@ full_nfv:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -198,7 +194,7 @@ full_nfv:
   tac: on
   tas: on
   gas: optional
-  ddp: on
+  ddp_legacy: on
   network_userspace: on
   dpdk: on
   ovs_dpdk: on
@@ -229,7 +225,7 @@ full_nfv:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: optional
 
@@ -242,7 +238,6 @@ on_prem:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -296,7 +291,6 @@ regional_dc:
   kube_dashboard: on
   isolcpu: optional
   cpusets: optional
-  topology_manager: on
   sriov_operator: optional
   sriov_network_dp: optional
   nic_drivers: on
@@ -339,7 +333,6 @@ remote_fp:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
@@ -355,7 +348,7 @@ remote_fp:
   qat_dp: optional
   openssl: on
   tas: on
-  ddp: on
+  ddp_legacy: on
   bond_cni: optional
   network_userspace: optional
   dpdk: on
@@ -385,7 +378,7 @@ remote_fp:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
 
 storage:
@@ -395,14 +388,13 @@ storage:
   nfd: on
   kube_dashboard: on
   native_cpu_manager: on
-  topology_manager: on
   sriov_operator: on
   sriov_network_dp: optional
   nic_drivers: on
   qat: optional
   qat_dp: optional
   tas: on
-  ddp: optional
+  ddp_legacy: optional
   dpdk: on
   cstate: optional
   ufs: optional
@@ -421,7 +413,7 @@ storage:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
 
 build_your_own:
@@ -433,7 +425,6 @@ build_your_own:
   isolcpu: optional
   cpusets: optional
   native_cpu_manager: optional
-  topology_manager: optional
   sriov_operator: optional
   sriov_network_dp: optional
   nic_drivers: optional
@@ -453,7 +444,7 @@ build_your_own:
   tac: optional
   tas: optional
   gas: optional
-  ddp: optional
+  ddp_legacy: optional
   network_userspace: optional
   dpdk: optional
   ovs_dpdk: optional
@@ -484,6 +475,6 @@ build_your_own:
   intel_ethernet_operator:
     enabled: optional
     flow_config: optional
-    ddp: optional
+    ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: optional

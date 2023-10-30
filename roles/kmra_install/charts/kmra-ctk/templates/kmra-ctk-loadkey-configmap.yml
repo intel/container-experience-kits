@@ -20,3 +20,4 @@ data:
   DEFAULT_CLIENT_TOKEN_ID: {{ .Values.ctk_loadkey.default_client_token_id | quote }}
   PKCS11_PROXY_TLS_PSK_FILE: {{ .Values.ctk_loadkey.pkcs11_proxy_tls_psk_file | quote }}
   PKCS11_DAEMON_SOCKET: "tls://{{ .Values.ctk_loadkey.pkcs11_daemon_socket_hostname }}:{{ .Values.ctk_loadkey.pkcs11_daemon_socket_port }}"
+  ECDSA_KEYS: {{ .Values.ctk_loadkey.ecdsa_keys | default "false" | upper | quote }}

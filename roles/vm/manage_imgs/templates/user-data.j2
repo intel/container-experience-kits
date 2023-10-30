@@ -28,6 +28,11 @@ users:
 
 runcmd:
   - echo "Starting cloud-init runcmd execution"
+{% if configure_tdx | default(false) %}
+  - apt install --fix-broken
+  - sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& ima_hash=sha384 ima_policy=critical_data/' /etc/default/grub.d/50-cloudimg-settings.cfg
+  - update-grub2
+{% endif %}
   - for i in `cat /etc/environment`; do export $i; done
 {% if vm_image_distribution == "ubuntu" %}
   - netplan apply
@@ -46,10 +51,17 @@ packages:
   - vim
   - pciutils
 package_reboot_if_required: true
+{% elif configure_tdx | default(false) %}
+packages:
+  - python3-pip
+  - golang-go
+  - golang
+  - golang-doc
+  - ntp
 {% endif %}
 
 write_files:
-{% if vm_image_distribution == "ubuntu" %}
+{% if vm_image_distribution == "ubuntu" and not configure_tdx | default(false) %}
   - path: /etc/netplan/99-custom.yaml
     content: |
      network:
@@ -63,6 +75,34 @@ write_files:
     content: |
       Acquire::http { Proxy "{{ http_proxy | default('') }}"; };
       Acquire::https { Proxy "{{ https_proxy | default('') }}"; };
+{% endif %}
+{% if configure_tdx | default(false) %}
+  - content: |
+      network:
+          version: 2
+          renderer: networkd
+          ethernets:
+              en:
+                  match:
+                      name: "en*"
+                  dhcp4: true
+                  dhcp-identifier: mac
+    path: /etc/netplan/netplan.yaml
+  - path: /etc/apt/apt.conf.d/00-proxy
+    permissions: '0640'
+    owner: root
+    content: |
+      Acquire::http { Proxy "{{ http_proxy | default('') }}"; };
+      Acquire::https { Proxy "{{ https_proxy | default('') }}"; };
+  - content: |
+      ===========================================================================
+      Welcome to TDX guest.
+      Created by https://github.com/intel/tdx-tools
+      ===========================================================================
+    path: /etc/motd
+  - content: |
+      SUBSYSTEM=="misc",KERNEL=="tdx-guest",MODE="0666"
+    path: /etc/udev/rules.d/90-tdx.rules
 {% endif %}
 {% if vm_image_distribution == "rocky" %}
   - path: /etc/sysconfig/network-scripts/ifcfg-eth1

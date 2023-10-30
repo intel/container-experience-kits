@@ -66,6 +66,8 @@ The software provided here is for reference only and not intended for production
 
 2. Install python dependencies using one of the following methods
 
+   > **_NOTE:_** Ensure that at least python3.9 is installed on ansible host
+
     a) Non-invasive virtual environment using pipenv
 
     ```bash
@@ -102,7 +104,7 @@ The software provided here is for reference only and not intended for production
    > **_NOTE:_** It is **highly recommended** to read [this](docs/generate_profiles.md) file before profiles generation.
 
     ```bash
-    make examples ARCH=<atom,core,**icx**,spr> NIC=<fvl,**cvl**>
+    make examples ARCH=<atom,core,**icx**,spr,emr> NIC=<fvl,**cvl**>
     ```
 
 5. Copy example inventory file to the project root dir.

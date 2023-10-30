@@ -58,14 +58,30 @@
 
 - name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Docker POD
   block:
+    - name: set FEC device uuid
+      ansible.builtin.set_fact:
+        uuid: "00112233-4455-6677-8899-aabbccddeeff"
     - name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Docker POD
       ansible.builtin.command:
-        cmd: "./pf_bb_config acc200 -c acc200/acc200_config_vf_5g.cfg" # select .cfg file as desired
+        cmd: "./pf_bb_config acc200 -v {{ uuid }} -c acc200/acc200_config_vf_5g.cfg" # select .cfg file as desired
         chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
       register: pf_bb_config
       changed_when: false
-
     - debug: msg="{{ pf_bb_config.stdout }}"
+    - name: get the first FEC VF
+      ansible.builtin.shell: "set -o pipefail && lspci | grep -i acc | grep -i 57c1 | awk '{print $1}' | head -1"
+      args:
+        executable: /bin/bash
+      register: fec_first_vf
+      changed_when: false
+    - ansible.builtin.debug: msg="fec_first_vf is at {{ fec_first_vf.stdout }}"
+    - name: run basic bbdev test
+      ansible.builtin.command: >-
+        ./test-bbdev.py -e="-c 0xff0 -a 0000:{{ fec_first_vf.stdout }}
+        --vfio-vf-token={{ uuid }}" -t 6 -n 100 -b 80 -l 1 -c validation -v ./ldpc_dec_default.data
+      args:
+        chdir: "{{ dpdk_dir }}/app/test-bbdev"
+      changed_when: false
   when:
     - fec_dev == "acc200"
     - intel_flexran_type == "pod"

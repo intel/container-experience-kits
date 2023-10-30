@@ -54,3 +54,34 @@
   failed_when: false
 
 - debug: msg={{ fec_operator_devs.stdout }}
+
+- name: check vfio-token feature is valid
+  block:
+    - name: get vfio-token value
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: secret
+        name: vfio-token
+        namespace: "{{ intel_sriov_fec_operator_namespace }}"
+      register: vfio_token
+      no_log: True
+      changed_when: false
+    - name: get the first FEC VF
+      ansible.builtin.shell: "set -o pipefail && lspci | grep -i acc | grep -i 57c1 | awk '{print $1}' | head -1"
+      args:
+        executable: /bin/bash
+      register: fec_first_vf
+      changed_when: false
+    - ansible.builtin.debug: msg="fec_first_vf is at {{ fec_first_vf.stdout }}"
+    - name: run basic bbdev test
+      ansible.builtin.command: >-
+        ./test-bbdev.py -e="-c 0xff0 -a 0000:{{ fec_first_vf.stdout }}
+        --vfio-vf-token={{ vfio_token | json_query('resources[].data.VFIO_TOKEN') | b64decode }}"
+        -t 6 -n 100 -b 80 -l 1 -c validation -v ./ldpc_dec_default.data
+      args:
+        chdir: "{{ dpdk_dir }}/app/test-bbdev"
+      no_log: True
+      changed_when: false
+  when:
+    - fec_acc == "acc200"
+    - intel_flexran_type == "pod"

@@ -63,14 +63,16 @@
     executable: /bin/bash
   when: ansible_os_family == "RedHat"
 
-# Build workaround on Rocky 9.1
+# Build workaround on Rocky 9.1/9.2
 # Driver's Makefile condition on disabling SIOV on RHEL does not work on Rocky. As a workaround disabling SIOV manually.
 - name: "Disable SIOV on Rocky 9.1 (workaround)"
-  replace:
+  ansible.builtin.replace:
     dest: "{{ project_root_dir }}/dlb/driver/dlb2/Makefile"
     regexp: '^\s*ccflags-y \+= -DCONFIG_INTEL_DLB2_SIOV'
     replace: '#ccflags-y += -DCONFIG_INTEL_DLB2_SIOV'
-  when: ansible_distribution == 'Rocky' and ansible_distribution_version == '9.1'
+  when:
+    - ansible_distribution == 'Rocky'
+    - ansible_distribution_version == '9.1' or ansible_distribution_version == '9.2'
 
 - name: build Intel DLB driver
   make:

@@ -14,24 +14,35 @@
 ##   limitations under the License.
 ##
 ---
-- name: template cAdvisor Helm chart values and push to controller node
+- name: generate ssl certificate
+  include_role:
+    name: create_signed_k8s_certs
+  vars:
+    secret_name: "{{ rbac_proxy_ssl_secret_name }}"
+    service_name: cadvisor
+    key_pair_name: cadvisor-rbac-proxy
+    host_secrets_folder: "{{ rbac_proxy_ssl_mount_path }}"
+    k8s_namespace: "{{ cadvisor_namespace }}"
+    csr_cluster_name: "{{ cluster_name | default('cluster.local') }}"
+
+- name: template cAdvisor kustomize overlay values
   ansible.builtin.template:
-    src: "cadvisor_custom_values.yml.j2"
-    dest: "{{ (project_root_dir, 'charts', 'cadvisor', 'cadvisor-custom-values.yml') | path_join }}"
-    mode: 0644
+    src: "{{ ( 'overlay', item) | path_join }}.j2"
+    dest: "{{ (project_root_dir, 'cadvisor', 'deploy', 'kubernetes', 'overlays', 'cek', item) | path_join }}"
+    mode: '0644'
+  with_items:
+    - "kustomization.yaml"
+    - "rbac-proxy.yaml"
+    - "daemonset.yaml"
+    - "service.yaml"
 
-- name: Add Helm Repository - {{ cadvisor_helm_repo_url }}
-  kubernetes.core.helm_repository:
-    name: "{{ cadvisor_helm_repo_name }}"
-    url: "{{ cadvisor_helm_repo_url }}"
-    state: present
+- name: generate k8s manifest using kustomize
+  ansible.builtin.command: "/usr/local/bin/kubectl kustomize"
+  args:
+    chdir: "{{ (project_root_dir, 'cadvisor', 'deploy', 'kubernetes', 'overlays', 'cek') | path_join }}"
+  register: kustomize
+  changed_when: true
 
-- name: Deploy cAdvisor
-  kubernetes.core.helm:
-    name: "{{ cadvisor_release_name }}"
-    chart_ref: "{{ cadvisor_helm_chart_ref }}"
-    chart_version: "{{ cadvisor_helm_chart_version }}"
-    namespace: "{{ cadvisor_namespace }}"
-    create_namespace: true
-    values_files: "{{ (project_root_dir, 'charts', 'cadvisor', 'cadvisor-custom-values.yml') | path_join }}"
-    wait: true
+- name: apply k8s resources
+  k8s:
+    definition: "{{ kustomize.stdout }}"

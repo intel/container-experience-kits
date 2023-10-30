@@ -22,8 +22,6 @@ Sep 19 09:58:42 node1 kubelet[137442]: I0919 09:58:42.903203  137442 topology_ma
 This section describes one of two ways to change Topology Manager policy configuration after cluster deployment, by redeploying the Kubernetes playbook. It is only possible to use this method when BMRA has been deployed. For VMRA use the manual method mentioned below.
 1. Update the `group_vars/all.yml` file.
 ```
-# Enable Kubernetes built-in Topology Manager
-topology_manager_enabled: true
 # There are four supported policies: none, best-effort, restricted, single-numa-node.
 topology_manager_policy: "single-numa-node"
 ```

@@ -20,6 +20,11 @@ ARG https_proxy
 
 USER root
 
+RUN curl https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB -O GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+    && apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+    && apt-get install -y --no-install-recommends gnupg \
+    && echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-utils \
     git \
@@ -59,3 +64,5 @@ RUN chmod +x /home/dlstreamer/run_vehicle_detection_attribute.sh
 # USER dlstreamer
 # USER root
 CMD ["./run_vehicle_detection_attribute.sh"]
+
+HEALTHCHECK NONE

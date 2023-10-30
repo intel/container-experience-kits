@@ -40,6 +40,8 @@
     - "crds.yaml"
     - "common.yaml"
     - "csi/nfs/rbac.yaml"
+    - "filesystem-test.yaml"
+    - "object-test.yaml"
 
 - name: populate Rook Operator templates and copy to controller node
   vars:
@@ -59,6 +61,11 @@
     trim_blocks: false
     mode: preserve
 
+- name: make sure rook mon log files do not exist on host
+  ansible.builtin.file:
+    state: absent
+    path: "/var/lib/rook"
+
 - name: create Rook Common Resources
   kubernetes.core.k8s:
     state: present
@@ -71,3 +78,64 @@
     - "rbac.yaml"
   loop_control:
     pause: 5
+
+- name: block to deploy rook cephfs storage
+  block:
+    - name: populate cephfs storage class templates and copy to controller node
+      ansible.builtin.template:
+        src: "cephfs-storageclass.yaml.j2"
+        dest: "{{ (rook_helm_local_dir, 'temp', 'cephfs-storageclass.yaml') | path_join }}"
+        force: true
+        trim_blocks: false
+        mode: preserve
+    - name: k8s deploy rook-ceph cephfs filesystem and storageclass
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (rook_helm_local_dir, 'temp', item ) | path_join }}"
+      loop:
+        - "filesystem-test.yaml"
+        - "cephfs-storageclass.yaml"
+  when:
+    - rook_ceph.storage_type == "cephfs"
+
+- name: block to deploy rook-ceph block storage
+  block:
+    - name: populate block storage class templates and copy to controller node
+      ansible.builtin.template:
+        src: "block-storageclass.yaml.j2"
+        dest: "{{ (rook_helm_local_dir, 'temp', 'block-storageclass.yaml') | path_join }}"
+        force: true
+        trim_blocks: false
+        mode: preserve
+    - name: k8s deploy rook-ceph block storageclass
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (rook_helm_local_dir, 'temp', 'block-storageclass.yaml' ) | path_join }}"
+  when:
+    - rook_ceph.storage_type == "block"
+
+- name: block to deploy rook-ceph object storage
+  block:
+    - name: populate object storage class templates and copy to controller node
+      ansible.builtin.template:
+        src: "object-storageclass.yaml.j2"
+        dest: "{{ (rook_helm_local_dir, 'temp', 'object-storageclass.yaml') | path_join }}"
+        force: true
+        trim_blocks: false
+        mode: preserve
+    - name: k8s deploy rook-ceph object storage class
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (rook_helm_local_dir, 'temp', item ) | path_join }}"
+      loop:
+        - "object-test.yaml"
+        - "object-storageclass.yaml"
+  when:
+    - rook_ceph.storage_type == "object"
+
+# debug tools, set the ignore_errors to true
+- name: install rook-ceph kubectl plugin for status checking
+  ansible.builtin.command: >-
+    /usr/local/krew/bin/kubectl-krew install rook-ceph
+  changed_when: false
+  failed_when: false

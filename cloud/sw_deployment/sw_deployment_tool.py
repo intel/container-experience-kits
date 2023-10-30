@@ -9,7 +9,7 @@ import jinja2
 import yaml
 
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
-from ssh_connector import SSHConnector  # pylint:disable=C0413,E0401
+from ssh_connector import SSHConnector, SSHHostKey  # pylint:disable=C0413,E0401
 from docker_management import DockerManagement  # pylint:disable=C0413,E0401
 
 configuration = {
@@ -18,6 +18,7 @@ configuration = {
         'region': None
     },
     'ansible_host_ip': None,
+    'ansible_ssh_host_key': None,
     'controller_ips': [],
     'worker_ips': [],
     'ssh_key': None,
@@ -46,7 +47,7 @@ DISCOVERY_TOOL_PATH = "~/cwdf_deployment/discovery/discover.py"
 DEFAULT_CONFIG = os.path.join(ROOT_DIR, '../deployment/sw.yaml')
 
 nodes_list = []
-
+node_host_keys = {}
 
 @click.command()
 @click.option('-c', '--config',
@@ -180,9 +181,23 @@ def _remove_ssh_banner(ssh_client, node_ips_array, user):
     """
     for node_ip in node_ips_array:
         ssh_client.exec_command(f"ssh-keyscan -H {node_ip} >> /home/ubuntu/.ssh/known_hosts")
+        node_keyscan = ssh_client.exec_command(f"ssh-keyscan {node_ip}", return_parsed_output=True)
+        node_keyscan = [line for line in node_keyscan.splitlines() if not line.startswith('#')]
+
+        host_keys = []
+        for node_key in node_keyscan:
+            node_key = node_key.split()
+            host_keys.append(SSHHostKey(node_key[1], node_key[2]))
+        node_host_keys[node_ip] = host_keys
+
         if node_ip != "127.0.0.1":
             click.echo(f"{node_ip}, {user}")
-            ssh_node = SSHConnector(node_ip, user, 22, configuration['ssh_key'], ssh_client.client)
+            ssh_node = SSHConnector(ip_address=node_ip,
+                                    username=user,
+                                    port=22,
+                                    host_keys=node_host_keys[node_ip],
+                                    priv_key=configuration['ssh_key'],
+                                    gateway=ssh_client.client)
             ssh_node.exec_command('sudo rm /root/.ssh/authorized_keys')
             ssh_node.exec_command(f"sudo cp /home/{user}/.ssh/authorized_keys /root/.ssh/")
             if configuration["cloud_settings"]["provider"] == "azure":
@@ -212,13 +227,14 @@ def _install_dependencies_on_nodes(ssh_client, node_ips_array):
             ssh_node = SSHConnector(ip_address=node_ip,
                                     username="root",
                                     port=22,
+                                    host_keys=node_host_keys[node_ip],
                                     priv_key=configuration['ssh_key'],
                                     gateway=ssh_client.client)
-            ssh_node.exec_command(command='yum makecache && yum -y install pciutils.x86_64 golang',
+            ssh_node.exec_command(command='sudo apt-get update -y && sudo apt-get install -y pciutils golang',
                                   print_output=True)
             ssh_node.close_connection()
         else:
-            ssh_client.exec_command(command='yum makecache && yum -y install pciutils.x86_64 golang',
+            ssh_client.exec_command(command='sudo apt-get update -y && sudo apt-get install -y pciutils golang',
                                     print_output=True)
 
 
@@ -237,7 +253,12 @@ def _discovery_nodes(ssh_client, root_user, node_ips, node_type):
     for node_ip in node_ips:
         ssh_client.exec_command(f"ssh-keyscan -H {node_ip} >> /home/ubuntu/.ssh/known_hosts")
         if node_ip != "127.0.0.1":
-            ssh_node = SSHConnector(node_ip, root_user, 22, configuration['ssh_key'], ssh_client.client)
+            ssh_node = SSHConnector(ip_address=node_ip,
+                                    username=root_user,
+                                    port=22,
+                                    host_keys=node_host_keys[node_ip],
+                                    priv_key=configuration['ssh_key'],
+                                    gateway=ssh_client.client)
             node_hostname = ssh_node.exec_command(command='sudo cat /etc/hostname', return_parsed_output=True)
             ssh_node.close_connection()
         else:
@@ -268,7 +289,7 @@ def _create_inventory_file(ssh_client, nodes):
 
     """
     template_loader = jinja2.FileSystemLoader(searchpath=DATA_DIR)
-    environment = jinja2.Environment(loader=template_loader)
+    environment = jinja2.Environment(loader=template_loader, autoescape=True)
     template = environment.get_template("inventory.ini.j2")
     with open(INVENTORY_FILE, mode="w", encoding="utf-8") as inventory:
         inventory.write(template.render(hosts=nodes))
@@ -311,7 +332,8 @@ def _docker_login(node_ips, ssh_client, user, registry, registry_username, passw
 
     """
     for node_ip in node_ips:
-        ssh_node = SSHConnector(node_ip, user, 22, configuration['ssh_key'], ssh_client.client)
+        ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
+        ssh_node = SSHConnector(node_ip, user, 22, [ssh_host_key], configuration['ssh_key'], ssh_client.client)
         ssh_node.exec_command(command=f"docker login {registry} --username {registry_username} --password {password}", print_output=True)
         ssh_node.close_connection()
 
@@ -334,7 +356,8 @@ def cleanup(config):
 
     _parse_configuration_file(config=config)
 
-    client = SSHConnector(ip_address=configuration['ansible_host_ip'], username='ubuntu', priv_key=configuration['ssh_key'])
+    ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
+    client = SSHConnector(ip_address=configuration['ansible_host_ip'], username='ubuntu', host_keys=[ssh_host_key], priv_key=configuration['ssh_key'])
 
     for image in configuration['exec_containers']:
         image_name = image.replace('/', '-')
@@ -361,7 +384,8 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     """
     click.echo("-------------------")
     click.secho(f"Connecting to Ansible instance with IP: {configuration['ansible_host_ip']}", fg="yellow")
-    client = SSHConnector(ip_address=ansible_host_ip, username='ubuntu', priv_key=ssh_key)
+    ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
+    client = SSHConnector(ip_address=ansible_host_ip, username='ubuntu', host_keys=[ssh_host_key], priv_key=ssh_key)
 
     click.echo("-------------------")
     click.secho("Copy private SSH key to Ansible instance", fg="yellow")
@@ -491,7 +515,8 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
             configuration['exec_containers']):
         click.echo("-------------------")
         click.secho("Copy Docker images to cloud registry")
-        ssh_client = SSHConnector(ip_address=ansible_host_ip, username='ubuntu', priv_key=ssh_key)
+        ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
+        ssh_client = SSHConnector(ip_address=ansible_host_ip, username='ubuntu', host_keys=[ssh_host_key], priv_key=ssh_key)
         click.echo(configuration['exec_containers'])
         click.echo(f"From registry: {configuration['replicate_from_container_registry']}")
         docker_mgmt = DockerManagement(from_registry=configuration['replicate_from_container_registry'],

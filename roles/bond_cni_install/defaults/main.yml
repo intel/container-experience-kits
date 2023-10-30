@@ -16,4 +16,4 @@
 ---
 bond_cni_git_url: "https://github.com/intel/bond-cni.git"
 bond_cni_dir: "{{ (project_root_dir, 'bond-cni') | path_join }}"
-bond_cni_version: "98008131ca7c6bfb3cdf0021846b58891375686f"
+bond_cni_version: "1578bc19a1cb8ea137abab77f682fc3d5ebfdc54"

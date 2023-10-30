@@ -105,6 +105,17 @@
     dest: "{{ openssl_engine_dir }}/imbc_ipsec"
     force: yes
 
+- name: workaround to fix the imbc_ipsec compilation error for tdx kernel
+  ansible.builtin.file:
+    src: /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+    dest: /usr/lib/x86_64-linux-gnu/libstdc++.so
+    state: link
+    mode: '0644'
+  when:
+    - configure_tdx | default(false)
+    - not on_vms | default(false)
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '22.04'
+
 - name: build Intel MBC-IPsec Library
   command: 'make -j{{ nproc_out.stdout | int }} SAFE_DATA=y SAFE_PARAM=y SAFE_LOOKUP=y'
   args:

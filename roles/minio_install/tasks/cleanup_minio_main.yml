@@ -74,7 +74,5 @@
         name: kubernetes_ingress_install
         tasks_from: cleanup_kubernetes_ingress
 
-    - name: cleanup MinIO file systems
-      import_tasks: cleanup_minio_filesystems.yml
   tags:
     - minio

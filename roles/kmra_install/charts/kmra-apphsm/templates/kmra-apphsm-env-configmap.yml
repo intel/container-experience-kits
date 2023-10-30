@@ -8,4 +8,4 @@ data:
   http_proxy: {{ .Values.http_proxy | default "" | quote }}
   https_proxy: {{ .Values.https_proxy | default "" | quote }}
   no_proxy: {{ .Values.no_proxy | default "" | quote }}
-
+  ECDSA_KEYS: {{ .Values.apphsm.ecdsa_keys | default "false" | upper | quote }}

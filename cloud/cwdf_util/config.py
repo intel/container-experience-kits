@@ -24,7 +24,7 @@ config_schema = Schema({
             Optional("root_volume_type", default='gp2'): str
         }],
         Optional("eks"): {
-            Optional("kubernetes_version", default='1.26'): Or("1.24", "1.25", "1.26"),
+            Optional("kubernetes_version", default='1.27'): Or("1.25", "1.26", "1.27"),
             "subnets": [str],
             Optional("install_ebs_csi_driver", default=True): bool,
             Optional("custom_ami", default=None): str,
@@ -48,7 +48,7 @@ config_schema = Schema({
         Optional("enable_proximity_placement", default=False): bool,
         Optional("ansible_instance_size", default="Standard_B2s"): str,
         Optional("aks"): {
-            Optional("kubernetes_version", default='1.26'): Or("1.25", "1.26"),
+            Optional("kubernetes_version", default='1.27'): Or("1.26", "1.27"),
             Optional("cni", default="cilium"): Or("cilium", "kubenet"),
             Optional("enable_sgx", default=False): bool,
             "default_node_pool": {

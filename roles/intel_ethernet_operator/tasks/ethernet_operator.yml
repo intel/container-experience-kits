@@ -26,31 +26,22 @@
   register: gopath
   changed_when: false
 
-# Workaoround to get IEO daemon image build working
-- name: patch Intel Ethernet Operator Daemon Dockerfile
-  ansible.builtin.replace:
-    path: "{{ intel_ethernet_operator_dir }}/Dockerfile.daemon"
-    regexp: 'libbpf\.so\.0'
-    replace: 'libbpf.so.1'
-
-# Workaround for IEO labeler build issue
-- name: patch IEO Labeler to fix curl issue
-  lineinfile:
-    path: "{{ intel_ethernet_operator_dir }}/Dockerfile.labeler"
-    regexp: "^RUN apk update && apk add --no-cache curl.*"
-    line: "RUN apk update && apk add --no-cache curl"
-
 - name: build Intel Ethernet Operator
+  vars:
+    # in case of RHEL 9.2 & podman, SYS_CHROOT is missing from default caps.
+    # no need to limit only to RHEL OS, no impact to Ubuntu
+    podman_build_args: "--cap-add SYS_CHROOT"
   community.general.make:
     target: "{{ item }}"
     chdir: "{{ intel_ethernet_operator_dir }}"
     params:
-      VERSION: "{{ intel_ethernet_operator_img_ver }}"
+      VERSION: "{{ intel_ethernet_operator_build_version }}"
       IMAGE_REGISTRY: "{{ registry_local_address }}"
       IMGTOOL: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
       TLS_VERIFY: "{{ intel_ethernet_operator_make_tls }}"
       TARGET_PLATFORM: "{{ intel_ethernet_operator_target_platform }}"
       UFT_IMAGE: "{{ uft_image }}:{{ uft_image_ver }}"
+      DOCKERARGS: "{{ podman_build_args if container_runtime in ['crio', 'containerd'] else omit }}"
   register: ieo_build_status
   retries: 5
   delay: 120

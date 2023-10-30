@@ -57,6 +57,8 @@ intel_services_to_stop:
   - "sst-tf-configure.service"
   - "vpp.service"
   - "configure-sgx-udev.service"
+  - "ra_loopdevices.service"
 
 # Mentioned below folder location must match with roles/bootstrap/install_qat_drivers_services/defaults/main.yml
 qat_drivers_dir: "{{ (project_root_dir, 'qat_drivers') | path_join }}"
+intel_tdx_packages_dir: "{{ (project_root_dir, 'intel-tdx') | path_join }}"

@@ -1,0 +1,49 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- block:
+    - name: stop and remove grafana container
+      docker_container:
+        name: grafana
+        state: absent
+        user: root
+
+    - name: stop and remove prometheus container
+      docker_container:
+        name: prometheus
+        state: absent
+        user: root
+
+    - name: stop and remove node exporter container
+      docker_container:
+        name: node-exporter
+        state: absent
+
+    - name: delete telemetry network
+      community.docker.docker_network:
+        name: telemetry
+        state: absent
+        force: true
+
+    - name: delete prometheus and grafana folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ container_prometheus_stack_path }}"
+
+  when:
+    - container_runtime == 'docker'

@@ -18,14 +18,14 @@
   ansible.builtin.copy:
     src: "{{ (ipu_tmp_dir, ipu_nvm_image_tarball) | path_join }}"
     dest: "{{ (ipu_project_root_dir, ipu_nvm_image_tarball) | path_join }}"
-    mode: 0644
+    mode: '0644'
 
 - name: unarchive nvm image
   ansible.builtin.unarchive:
     src: "{{ (ipu_project_root_dir, ipu_nvm_image_tarball) | path_join }}"
     dest: "{{ ipu_project_root_dir }}"
-    remote_src: yes
-    mode: 0755
+    remote_src: true
+    mode: '0755'
 
 - name: list USB device binding
   ansible.builtin.find:
@@ -33,12 +33,28 @@
     file_type: "link"
   register: ftdi_sio_out
 
+- name: set USB device addresses
+  ansible.builtin.command:
+    cmd: "basename {{ ftdi_sio_out.files|selectattr('path', 'search', item)|map(attribute='path')|replace('[','')|replace(']','') }}"
+  with_items: "{{ usb_address_patterns }}"
+  register: selected_usb_addresses
+  when:
+    - ftdi_sio_out.files|selectattr('path', 'search', item)|map(attribute='path')|replace('[','')|replace(']','')
+
+- name: show selected USB device addresses to be unbind
+  ansible.builtin.debug:
+    msg: "USB: {{ item.stdout }}"
+  with_items: "{{ selected_usb_addresses.results }}"
+  when:
+    - not item.skipped | default(false)
+
 - name: unbind USB1 and USB3 from ftdi_sio driver
-  ansible.builtin.shell: "set -o pipefail && echo '{{ item }}' > /sys/bus/usb/drivers/ftdi_sio/unbind"
+  ansible.builtin.shell: "set -o pipefail && echo '{{ item.stdout }}' > {{ ftdi_sio_driver_dir }}/unbind"
   args:
     executable: /bin/bash
-  with_items: "{{ usb_addresses }}"
-  when: ftdi_sio_out.files|selectattr("path", "search", item)|list|length == 1
+  with_items: "{{ selected_usb_addresses.results }}"
+  when:
+    - not item.skipped | default(false)
 
 - name: add executable permission for EthProgrammer
   ansible.builtin.file:
@@ -58,28 +74,75 @@
   environment:
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: 1
 
-# ipmi ansible module does not support power cycle
-- name: power off IPU host
-  ansible.builtin.command:
-    cmd: "ipmitool -I lan -H {{ ipmi_ip }} -U {{ ipmi_user }} -P '{{ ipma_password }}' chassis power off"
-  changed_when: true
+- name: IPU images are flashed
+  ansible.builtin.debug:
+    msg: "IPU images are flashed - power cycle / reboot IPU host machine"
 
-- name: wait before power on again
-  ansible.builtin.pause:
-    prompt: "Waiting before power on..."
-    seconds: 10
+- name: block for powercycle via ipmitool
+  when:
+    - ipmi_ip is defined
+    - ipmi_user is defined
+    - ipma_password is defined
+  block:
+    - name: install ipmitool if needed
+      ansible.builtin.package:
+        name:
+          - ipmitool
+        state: present
+      delegate_to: localhost
+      become: true
+      when: not ipu_1gbe_connected_to_linkp | bool
 
-- name: power on IPU host
-  ansible.builtin.command:
-    cmd: "ipmitool -I lan -H {{ ipmi_ip }} -U {{ ipmi_user }} -P '{{ ipma_password }}' chassis power on"
-  changed_when: true
+    - name: Set IPU host address
+      ansible.builtin.set_fact:
+        ipu_host_address: >-
+          {% if hostvars[groups['ipu_host'][0]]['ip'] is defined %}{{ hostvars[groups['ipu_host'][0]]['ip'] }}{% else %}
+          {{ hostvars[groups['ipu_host'][0]]['ansible_host'] }}{% endif %}
 
-- name: wait for ssh connection to IPU host
-  ansible.builtin.wait_for:
-    port: 22
-    host: "{{ hostvars[groups['ipu_host'][0]]['ansible_default_ipv4']['address'] }}"
-    search_regex: OpenSSH
-    delay: 1
+    # inventory_hostname value bellow means that we want to delegate to current host. It skips delegation.
+    # So, tasks are delegated to localhost only when condition is met
+    - name: set node to be used for delegate_to
+      ansible.builtin.set_fact:
+        node_used_for_delegate_to: "{% if not ipu_1gbe_connected_to_linkp | bool %}localhost{% else %}{{ inventory_hostname }}{% endif %}"
+
+    # ipmi ansible module does not support power cycle
+    - name: power off IPU host
+      ansible.builtin.command:
+        cmd: "ipmitool -I lan -H {{ ipmi_ip }} -U {{ ipmi_user }} -P '{{ ipma_password }}' chassis power off"
+      changed_when: true
+      delegate_to: "{{ node_used_for_delegate_to }}"
+
+    - name: wait before power on again
+      ansible.builtin.pause:
+        prompt: "Waiting before power on..."
+        seconds: 10
+      delegate_to: "{{ node_used_for_delegate_to }}"
+
+    - name: power on IPU host
+      ansible.builtin.command:
+        cmd: "ipmitool -I lan -H {{ ipmi_ip }} -U {{ ipmi_user }} -P '{{ ipma_password }}' chassis power on"
+      changed_when: true
+      delegate_to: "{{ node_used_for_delegate_to }}"
+
+    - name: wait for ssh connection to IPU host
+      ansible.builtin.wait_for:
+        port: 22
+        host: "{{ ipu_host_address | trim }}"
+        search_regex: OpenSSH
+        delay: 1
+        timeout: 1200
+      delegate_to: "{{ node_used_for_delegate_to }}"
+
+- name: block for reboot when ipmi is not available
+  when:
+    - ipmi_ip is not defined or ipmi_user is not defined or ipma_password is not defined
+  block:
+    - name: reboot ipu host
+      ansible.builtin.reboot:
+        reboot_timeout: 1200
+      delegate_to: "{{ item }}"
+      become: true
+      with_items: "{{ groups['ipu_host'] }}"
 
 - name: wait for ssh connection to IPU-IMC
   ansible.builtin.wait_for:
@@ -94,14 +157,22 @@
   changed_when: false
   register: imc_hostname
 
+- name: Set IPU linkp address
+  ansible.builtin.set_fact:
+    ipu_linkp_address: >-
+      {% if hostvars[inventory_hostname]['ip'] is defined %}{{ hostvars[inventory_hostname]['ip'] }}{% else %}
+      {{ hostvars[inventory_hostname]['ansible_host'] }}{% endif %}
+
 - name: Update /etc/hosts with ipu_linkp
   ansible.builtin.blockinfile:
     path: /etc/hosts
     block: |
-      {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} {{ inventory_hostname }}
+      {{ ipu_linkp_address | trim }} {{ inventory_hostname }}
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ inventory_hostname }}"
   delegate_to: localhost
   become: false
+  when:
+    - ipu_linkp_address | trim | ansible.utils.ipaddr('bool')
 
 - name: Set login_user fact
   ansible.builtin.set_fact:
@@ -143,7 +214,7 @@
     src: "{{ inventory_file }}"
     dest: "{{ ipu_inventory_name }}"
     mode: '0644'
-    force: yes
+    force: true
     owner: "{{ local_login_user }}"
     group: "{{ local_login_user }}"
   run_once: true
@@ -159,7 +230,7 @@
         StrictHostKeyChecking no
         UserKnownHostsFile /dev/null
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ imc_hostname.stdout }}"
-    create: yes
+    create: true
     owner: "{{ local_login_user }}"
     group: "{{ local_login_user }}"
     mode: '0644'
@@ -192,8 +263,8 @@
       {{ imc_hostname.stdout }} ansible_host={{ imc_static_ip }} ip={{ imc_static_ip }} ansible_user={{ login_user }}
       ansible_ssh_user={{ ansible_user }} ansible_ssh_password='{{ ansible_password }}' inventory_dir={{ inventory_dir }}
       ansible_ssh_common_args='{{ ssh_options }} -o ProxyCommand="ssh -p 22 -W %h:%p {{ ssh_options }} -q {{ inventory_hostname }}"'
-    no_extra_spaces: yes
-    allow_no_value: yes
+    no_extra_spaces: true
+    allow_no_value: true
     mode: '0644'
     state: present
     backup: no
@@ -205,8 +276,8 @@
     dest: "{{ ipu_inventory_name }}"
     section: "ipu_imc"
     option: "{{ imc_hostname.stdout }}"
-    no_extra_spaces: yes
-    allow_no_value: yes
+    no_extra_spaces: true
+    allow_no_value: true
     mode: '0644'
     state: present
     backup: no
@@ -282,7 +353,7 @@
         StrictHostKeyChecking no
         UserKnownHostsFile /dev/null
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ acc_hostname.stdout }}"
-    create: yes
+    create: true
     owner: "{{ local_login_user }}"
     group: "{{ local_login_user }}"
     mode: '0644'
@@ -318,8 +389,8 @@
       ansible_ssh_user={{ ansible_user }} ansible_ssh_password='{{ ansible_password }}' inventory_dir={{ inventory_dir }}
       ansible_ssh_common_args='{{ ssh_options }} -o ProxyCommand="ssh -W %h:%p {{ ssh_options }} -o ProxyCommand=\"ssh -W {{ imc_static_ip }}:22
       {{ ssh_options }} {{ inventory_hostname }}\" {{ imc_static_ip }}"'
-    no_extra_spaces: yes
-    allow_no_value: yes
+    no_extra_spaces: true
+    allow_no_value: true
     mode: '0644'
     state: present
     backup: no
@@ -331,8 +402,8 @@
     dest: "{{ ipu_inventory_name }}"
     section: "ipu_acc"
     option: "{{ acc_hostname.stdout }}"
-    no_extra_spaces: yes
-    allow_no_value: yes
+    no_extra_spaces: true
+    allow_no_value: true
     mode: '0644'
     state: present
     backup: no

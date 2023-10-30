@@ -1,6 +1,6 @@
 auto vxlan{{ item.vxlan }}
 iface vxlan{{ item.vxlan }} inet manual
-        pre-up ip link add vxlan{{ item.vxlan }} type vxlan id {{ item.vxlan }} dstport 4789 dev {{ vxlan_interface }} group 239.0.0.1 ttl 5 || true
+        pre-up ip link add vxlan{{ item.vxlan }} type vxlan id {{ item.vxlan }} dstport 4799 dev {{ vxlan_interface }} group 239.0.0.1 ttl 5 || true
         up sleep 10
         post-up ip link set vxlan{{ item.vxlan }} master vxlanbr{{ item.vxlan }}
         post-up ip link set vxlan{{ item.vxlan }} up

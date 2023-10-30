@@ -10,7 +10,11 @@ spec:
   acceleratorSelector:
     pciAddress: "{{ fec_acc_dev }}"
   physicalFunction:  
+{% if intel_flexran_type == "host" %}
     pfDriver: pci-pf-stub
+{% elif intel_flexran_type == "pod" %}
+    pfDriver: vfio-pci
+{% endif %}
     vfDriver: vfio-pci
     vfAmount: 16
     bbDevConfig:

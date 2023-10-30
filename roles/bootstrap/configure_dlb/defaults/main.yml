@@ -14,6 +14,6 @@
 ##   limitations under the License.
 ##
 ---
-intel_dlb_driver_ver: "dlb_linux_src_release_8.4.0"
-intel_dlb_driver_url: "https://downloadmirror.intel.com/779942/{{ intel_dlb_driver_ver }}.txz"
-intel_dlb_driver_checksum: "sha1:AED28FE711213913D2B34160A7047199BEA46D97"
+intel_dlb_driver_ver: "dlb_linux_src_release_8.5.1"
+intel_dlb_driver_url: "https://downloadmirror.intel.com/787629/{{ intel_dlb_driver_ver }}.txz"
+intel_dlb_driver_checksum: "sha1:53BA0D21CDB5EBAAAB247FC9C73FAED7F0899B95"

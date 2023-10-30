@@ -25,12 +25,18 @@
   when:
     - "vm_cluster_name | default('') | length == 0"
 
+- name: Set vxlan bastion host
+  set_fact:
+    vxlan_bastion_host: >-
+      {% if hostvars[groups['vm_host'][0]]['ip'] is defined %}{{ hostvars[groups['vm_host'][0]]['ip'] }}{% else %}
+      {{ hostvars[groups['vm_host'][0]]['ansible_host'] }}{% endif %}
+
 - name: Prepare bastion host configuration for VXLAN in ~/.ssh/config
   blockinfile:
     path: "{{ local_login_user_dir }}/.ssh/config"
     block: |
       Host {{ item.value }}
-        ProxyCommand ssh {{ login_user }}@{{ hostvars[groups['vm_host'][0]]['ansible_default_ipv4']['address'] }} -W %h:%p
+        ProxyCommand ssh {{ login_user }}@{{ vxlan_bastion_host | trim }} -W %h:%p
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }} VXLAN"
     create: yes
     owner: "{{ local_login_user }}"
@@ -112,7 +118,7 @@
 - name: Update vm inventory file - kube*
   ini_file:
     dest: "{{ vm_inventory_name }}"
-    section: "{% if item.0.type == 'ctrl' %}{{ item.1 }}{% elif item.0.type == 'work' %}kube_node{% endif %}"
+    section: "{% if item.0.type == 'ctrl' %}{{ item.1 }}{% elif item.0.type == 'work' %}kube_node{% else %}vms{% endif %}"
     option: "{{ item.0.name }}"
     no_extra_spaces: yes
     allow_no_value: yes

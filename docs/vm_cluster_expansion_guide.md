@@ -1,7 +1,7 @@
 # VM cluster expansion guide
 
 
-VM cluster expansion means that we can add additional vm-work node(s) to existing VM cluster. They can be added on any existing vm_host machines or new vm_host machine(s) can be added as well. By default VM cluster expanssion feature won't re-create existing VMs. They will remain untouched during VM creation phase, nevertheless standard ansible deployment tasks will run on them as well. Corresponding ansible playbooks should be idempotent to ensure that running tasks again won't corrupt target system. Group vars for VM case contain new variable `vm_recreate_existing` with value set to `false`.
+VM cluster expansion means that we can add additional vm-work node(s) to existing VM cluster. They can be added on any existing vm_host machines or new vm_host machine(s) can be added as well. By default VM cluster expansion feature won't re-create existing VMs, which are in 'running' state. They will remain untouched during VM creation phase, nevertheless standard ansible deployment tasks will run on them as well. Corresponding ansible playbooks should be idempotent to ensure that running tasks again won't corrupt target system. Group vars for VM case contain new variable `vm_recreate_existing` with value set to `false`.
 In order to expand VM cluster, the original VM cluster have to be up and running.
 
 ```
@@ -11,7 +11,7 @@ vm_recreate_existing: false
 For VM cluster expansion deployment we should use the same ansible host, which was used for original VM cluster deployment.
 Deployment configuration can't be changed except adding definitions for new VMs. Configuration of existing VMs have to remain the same.
 
-**_NOTE:_** If you want to add new vm-work node to existing vm_host then the vm_host needs to have enough free available resoures for it.
+**_NOTE:_** If you want to add new vm-work node to existing vm_host then the vm_host needs to have enough free available resources for it.
 
 **_NOTE:_** VM cluster expansion deployment is not intended for any kind of configuration update on existing VMs.
 
@@ -98,12 +98,49 @@ If you want to update VM cluster including current VMs then `vm_recreate_existin
 In that case all existing VMs will be destroyed and re-created again.
 
 **_NOTE:_** All data, configurations and logs stored on VMs will be lost. Re-created VMs will get new IPs.
+**_NOTE:_** If `vm_recreate_existing` is set to `true` then following two lists `vm_recreate_listed_vms` and `vm_keep_listed_vms` are not evaluated.
 
 ```
 vm_recreate_existing: true
 ```
 
-To run this option use following command:
+
+If you want to update just specific VM(s) then keep `vm_recreate_existing` parameter on `false` and use another configuration parameter
+`vm_recreate_listed_vms` and insert VM names, which should be re-created, there. Default value for this paramater is empty list `[]`
+
+```
+vm_recreate_listed_vms: []
+```
+
+VMs to be re-created should be provided as list items E.g.:
+
+```
+vm_recreate_listed_vms:
+  - vm-work-2
+  - vm-1
+```
+
+
+If you want to keep existing VM, which is not in `running` state untouched from any reason then keep `vm_recreate_existing` parameter on `false`
+and use another configuration parameter `vm_keep_listed_vms` and insert VM names, which should be kept, there. Default value for this paramater is empty list `[]`
+
+```
+vm_keep_listed_vms: []
+```
+
+VMs to be kept should be provided as list items E.g.:
+
+```
+vm_keep_listed_vms:
+  - vm-work-3
+  - vm-1
+```
+
+**_NOTE:_** If the same VM name appears in both lists `vm_recreate_listed_vms` and `vm_keep_listed_vms` then `vm_keep_listed_vms` has precedence and VM will be kept.
+**_NOTE:_** Deployment procedure tries to start not running VMs, which were kept. Nevertheless subsequent ansible plays can fail if VM start was not successful or if they are in some inconsistent state.
+
+
+To run those options use following command:
 
 ```
 ansible-playbook -i inventory.ini playbooks/vm.yml

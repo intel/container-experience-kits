@@ -20,9 +20,10 @@
     dest: /etc/apt/preferences
     mode: '0644'
 
+# Although kinetic is EOL official, before we upgrade to Lunar, let's stick with Kinetic to support sgx epc for qemu
 - name: add 'kinetic' apt repository for qemu packages
-  apt_repository:
-    repo: "deb http://archive.ubuntu.com/ubuntu kinetic main"
+  ansible.builtin.apt_repository:
+    repo: "deb http://old-releases.ubuntu.com/ubuntu kinetic main"
 
 - name: Install dependencies
   include_role:

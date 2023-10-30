@@ -1,0 +1,182 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: copy csl_excat contents to kube node
+  when: excat_dp_enabled | default(false) | bool or inventory_hostname in groups['kube_control_plane']
+  block:
+    - name: create csl directory
+      ansible.builtin.file:
+        path: "{{ (project_root_dir, 'csl') | path_join }}"
+        state: directory
+        mode: '0644'
+
+    - name: extract the tar ball
+      ansible.builtin.unarchive:
+        src: "{{ csl_excat_tar_staging_location }}"
+        dest: "{{ (project_root_dir, 'csl') | path_join }}"
+        list_files: yes
+      register: csl_contents
+
+    - name: get csl_excat folder
+      set_fact:
+        csl_home: "{{ (project_root_dir, 'csl', csl_contents.files[0]) | path_join }}"
+
+- name: load local csl_excat admission container image
+  containers.podman.podman_load:
+    input: "{{ (csl_home, 'images', csl_excat_admission_image) | path_join }}"
+  when:
+    - inventory_hostname in groups['kube_control_plane']
+    - container_runtime == "crio"
+
+- name: load local csl_excat dp container image
+  containers.podman.podman_load:
+    input: "{{ (csl_home, 'images', csl_excat_dp_image) | path_join }}"
+  when:
+    - excat_dp_enabled | default(false) | bool
+    - container_runtime == "crio"
+
+- name: load local csl_excat admission container image
+  ansible.builtin.command:
+    cmd: "ctr -n k8s.io images import {{ csl_excat_admission_image }}"
+    chdir: "{{ (csl_home, 'images') | path_join }}"
+  changed_when: true
+  when:
+    - inventory_hostname in groups['kube_control_plane']
+    - container_runtime == "containerd"
+
+- name: load local csl_excat dp container image
+  ansible.builtin.command:
+    cmd: "ctr -n k8s.io images import {{ csl_excat_dp_image }}"
+    chdir: "{{ (csl_home, 'images') | path_join }}"
+  changed_when: true
+  when:
+    - excat_dp_enabled | default(false) | bool
+    - container_runtime == "containerd"
+
+- name: generate csr for csl_excat
+  ansible.builtin.command:
+    cmd: "./gencerts.sh certs {{ csl_excat_admission_name }} csl-excat 365"
+    chdir: "{{ (csl_home, 'deployments/helm') | path_join }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: mark kube node who supports excat
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Node
+      metadata:
+        name: "{{ item }}"
+        labels:
+          'excat': 'yes'
+  loop: "{{ groups['kube_node'] }}"
+  when:
+    - hostvars[item]['excat_dp_enabled'] | default(false) | bool
+    - inventory_hostname == groups['kube_control_plane'][0]
+
+- name: prepare RDT resources
+  when: excat_dp_enabled | default(false) | bool
+  block:
+    - name: install resctrl automount service
+      ansible.builtin.copy:
+        src: sys-fs-resctrl.mount
+        dest: /etc/systemd/system
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: install rdt-config.yaml
+      ansible.builtin.copy:
+        src: rdt-config.yaml
+        dest: /etc
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: start automount service
+      ansible.builtin.systemd:
+        name: sys-fs-resctrl.mount
+        state: started
+        enabled: yes
+
+    - name: enable crio RDT awareness
+      community.general.ini_file:
+        dest: "/etc/crio/crio.conf"
+        section: "crio.runtime"
+        option: 'rdt_config_file = "/etc/rdt-config.yaml"'
+        allow_no_value: yes
+        mode: '0644'
+        backup: no
+      when: container_runtime == "crio"
+
+    - name: enable containerd RDT awareness
+      ansible.builtin.blockinfile:
+        path: /etc/containerd/config.toml
+        mode: '0644'
+        block: |
+          ####
+            [plugins."io.containerd.service.v1.tasks-service"]
+              rdt_config_file = "/etc/rdt-config.yaml"
+      when: container_runtime == "containerd"
+
+    - name: reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: reload crio
+      ansible.builtin.service:
+        name: crio
+        state: restarted
+        enabled: yes
+      when: container_runtime == "crio"
+
+    - name: reload containerd
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+        enabled: yes
+      when: container_runtime == "containerd"
+
+# install helm chart on controller[0] only
+- name: prepare csl_excat helm chart
+  when: inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: patch node-role after kubernetes 1.24
+      ansible.builtin.replace:
+        path: "{{ (csl_home, 'deployments/helm', 'values.yaml') | path_join }}"
+        regexp: 'node-role.kubernetes.io/master'
+        replace: 'node-role.kubernetes.io/control-plane'
+      when: kube_version is version('v1.24', '>=')
+
+    - name: patch node-role after kubernetes 1.27
+      ansible.builtin.blockinfile:
+        path: "{{ (csl_home, 'deployments/helm', 'values.yaml') | path_join }}"
+        insertafter: "effect: NoSchedule"
+        block: |
+          ####
+              - key: node-role.kubernetes.io/master
+                effect: NoSchedule
+      when: kube_version is version('v1.27', '>=')
+
+    - name: install csl_excat helm chart
+      kubernetes.core.helm:
+        chart_ref: "{{ (csl_home, 'deployments/helm') | path_join }}"
+        release_name: "csl-excat"
+        release_namespace: "csl-excat"
+        create_namespace: true
+        values_files: "{{ (csl_home, 'deployments/helm', 'values.yaml') | path_join }}"
+        wait: true
+        timeout: 2m0s

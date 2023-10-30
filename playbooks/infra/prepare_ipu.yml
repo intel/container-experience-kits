@@ -40,8 +40,10 @@
 
 - hosts: ipu_imc
   roles:
+    - role: ipu/common
     - role: ipu/imc
 
 - hosts: ipu_acc
   roles:
+    - role: ipu/common
     - role: ipu/acc

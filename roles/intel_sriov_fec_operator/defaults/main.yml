@@ -22,9 +22,9 @@
 
 # Intel Smart Edge Open (SEO) SRIOV-FEC Operator
 intel_sriov_fec_operator_git: "https://github.com/smart-edge-open/sriov-fec-operator.git"
-intel_sriov_fec_operator_git_ref: "sriov-fec-operator-23.05"
+intel_sriov_fec_operator_git_ref: "sriov-fec-operator-23.34"
 intel_sriov_fec_operator_dir: "{{ (project_root_dir, 'intel-sriov-fec-operator') | path_join }}"
-intel_sriov_fec_operator_img_ver: "2.6.1"
+intel_sriov_fec_operator_img_ver: "2.7.1"
 intel_sriov_fec_operator_tool: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
 intel_sriov_fec_operator_make_tls: "false"
 # intel_sriov_fec_operator_target_platform: "K8S"
@@ -39,7 +39,7 @@ fec_acc_dev: "{{ fec_acc }}"
 
 # Operator Package Manager (OPM)
 opm_url: "https://github.com/operator-framework/operator-registry/releases/download/{{ opm_ver }}/linux-amd64-opm"
-opm_ver: "v1.26.3"
-opm_chk: "605b48722e7c387ac96c7bc9b1c410044cfc1e9e9f22323e4e7d74c8888798a5"
+opm_ver: "v1.28.0"
+opm_chk: "e18e5abc8febb63c9dc76db0f33475553d98495465bd2dca81c39dcdbc875c08"
 opm_dir: "/usr/local/bin/"
 opm_cmd: "opm"

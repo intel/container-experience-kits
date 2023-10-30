@@ -82,6 +82,12 @@
 
   when: dpdk_local_patches_dir is defined
 
+- name: Apply DPDK patches for media transport library (IMTL)
+  ansible.builtin.include_role:
+    name: imtl_install
+    tasks_from: dpdk_patch.yml
+  when: intel_media_transport_library_enabled | default(false)
+
 - name: include install_dpdk task for DPDK <= 20.08 versions
   include_tasks: "install_dpdk_make.yml"
   when: dpdk_version is version("19.11", ">=") and dpdk_version is version("20.08", "<")

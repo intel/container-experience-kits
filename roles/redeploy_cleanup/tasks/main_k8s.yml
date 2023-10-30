@@ -1,0 +1,170 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: uninstall k8s prometheus and grafana
+  include_role: # noqa  role-name[path] - including subrole
+    name: prometheus_install/kube_prometheus
+    tasks_from: cleanup.yml
+  tags:
+    - prometheus
+  when:
+    kubernetes | default(false) | bool
+
+- name: uninstall elasticsearch
+  ansible.builtin.include_role:
+    name: elasticsearch_install
+    tasks_from: cleanup
+  tags:
+    - elasticsearch
+
+- name: uninstall opentelemetry
+  ansible.builtin.include_role:
+    name: opentelemetry_install
+    tasks_from: cleanup
+  tags:
+    - opentelemetry
+
+# TODO: missing cleanup for Collectd
+# - name: Remove Collectd
+#   ansible.builtin.include_role:
+#     name: collectd_install
+#     tasks_from: cleanup
+#   tags:
+#     - monitoring
+
+- name: Remove Telegraf
+  ansible.builtin.include_role:
+    name: telegraf_install
+    tasks_from: cleanup
+  tags:
+    - monitoring
+
+- name: uninstall cAdvisor
+  ansible.builtin.include_role:
+    name: cadvisor_install
+    tasks_from: cleanup
+  tags:
+    - cadvisor
+
+- name: uninstall IDO
+  ansible.builtin.include_role:
+    name: intent_driven_orchestration
+    tasks_from: cleanup
+  tags:
+    - intent-driven-orchestration
+
+- name: uninstall LinkerD
+  ansible.builtin.include_role:
+    name: linkerd_service_mesh
+    tasks_from: uninstall
+  tags:
+    - linkerd-service-mesh
+
+- name: cleanup Intel XPUManager
+  include_role:
+    name: intel_xpumanager
+    tasks_from: xpumanager_cleanup
+  tags:
+    - xpumanager
+
+- name: cleanup cpu_ctlplane
+  ansible.builtin.include_role:
+    name: intel_cpu_controlplane
+    tasks_from: cleanup_cpu_controlplane
+  tags:
+    - cpu-ctlplane
+
+- name: cleanup Rook
+  ansible.builtin.include_role:
+    name: rook_install
+    tasks_from: cleanup_rook
+  tags:
+    - rook-ceph
+
+- name: cleanup Intel Media Analytics
+  ansible.builtin.include_role:
+    name: intel_media_analytics
+    tasks_from: cleanup_intel_media_analytics
+  tags:
+    - intel-media-analytics
+
+- name: cleanup FFmpeg
+  include_role:
+    name: ffmpeg_install
+    tasks_from: ffmpeg_cleanup
+  tags:
+    - intel-ffmpeg
+
+- name: cleanup sigstore policy controller
+  ansible.builtin.include_role:
+    name: sigstore_policy_controller
+    tasks_from: cleanup
+  tags:
+    - sigstore
+
+- name: cleanup csl_excat
+  ansible.builtin.include_role:
+    name: intel_csl_excat
+    tasks_from: cleanup
+  tags:
+    - intel_csl_excat
+
+- name: cleanup container_registry
+  ansible.builtin.include_role:
+    name: container_registry
+    tasks_from: cleanup
+  tags:
+    - registry
+
+- name: cleanup dyna config dpdk
+  include_role:
+    name: configure_dpdk
+    tasks_from: cleanup
+  tags:
+    - dyna_config_dpdk
+
+- name: cleanup intel oneAPI kits
+  include_role:
+    name: intel_oneapi_install
+    tasks_from: cleanup
+  tags:
+    - intel-oneapi
+
+- name: reset and remove Kubernetes cluster
+  ansible.builtin.import_tasks: k8s_cleanup.yml
+  when: kube_provisioner == "kubespray"
+
+- name: reset and remove rke2 cluster
+  ansible.builtin.import_tasks: rke2_cleanup.yml
+  when: kube_provisioner == "rke2"
+
+- name: remove Intel Container Experience Kit features artifacts
+  ansible.builtin.import_tasks: intel_cleanup.yml
+
+- name: uninstall MinIO
+  ansible.builtin.include_role:
+    name: minio_install
+    tasks_from: cleanup_minio_main
+  tags:
+    - minio
+
+- name: reboot
+  ansible.builtin.debug:
+    msg: rebooting after pre-redeploy cleanup
+  changed_when: true
+  notify:
+    - reboot server
+  when: reboot_after_cleanup | default(true)

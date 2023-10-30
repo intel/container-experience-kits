@@ -29,7 +29,7 @@ from ansible.plugins.action import ActionBase
 from ansible.errors import AnsibleActionFail
 
 # Minimum required vCPUs for the VM
-MINIMUM_VCPUS = 4
+MINIMUM_VCPUS = 2
 # Number of vCPUs (CPUs + threads) allocated for host OS
 HOST_OS_VCPUS = 16
 # Minimum required vCPUs for host OS

@@ -1,3 +1,18 @@
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+
 FROM ubuntu:22.04 as builder
 
 RUN apt-get update -y && \
@@ -18,12 +33,12 @@ WORKDIR /workspace
 
 COPY openssl.cnf.j2 openssl.cnf.j2
 
-RUN python3 -m pip install --no-cache-dir j2cli==0.3.10
 ENV openssl_install_path=/usr/
 ENV p11_module_path=/usr/local/lib/libpkcs11-proxy.so
-RUN j2 openssl.cnf.j2 > /workspace/openssl.cnf
+RUN python3 -m pip install --no-cache-dir j2cli==0.3.10 && \
+    j2 openssl.cnf.j2 > /workspace/openssl.cnf && \
+    git clone https://github.com/SUNET/pkcs11-proxy.git /workspace/pkcs11-proxy
 
-RUN git clone https://github.com/SUNET/pkcs11-proxy.git /workspace/pkcs11-proxy
 COPY 0001-Fix-slotID.patch /workspace
 WORKDIR /workspace/pkcs11-proxy
 
@@ -57,18 +72,20 @@ RUN apt-get update && \
     rm -rf  /var/log/*log /var/lib/apt/lists/* /var/log/apt/* /var/lib/dpkg/*-old /var/cache/debconf/*-old
 
 WORKDIR /oran/NetConfServer
-RUN git clone https://github.com/CESNET/libyang.git
+RUN git clone -b v2.1.111 --depth 1 https://github.com/CESNET/libyang.git
 WORKDIR /oran/NetConfServer/libyang/build
 RUN cmake -DENABLE_BUILD_TESTS=OFF .. && make && make install
 
 WORKDIR /oran/NetConfServer/libyang
-RUN git clone https://github.com/sysrepo/sysrepo.git
+RUN git clone -b v2.2.105 --depth 1 https://github.com/sysrepo/sysrepo.git
 WORKDIR /oran/NetConfServer/libyang/sysrepo/build
-RUN cmake -DSHM_DIR=/tmp/shm -DREPO_PATH=/tmp/sysrepo -DENABLE_TESTS=OFF .. && make && make install
-RUN ldconfig
+RUN cmake -DSHM_DIR=/tmp/shm -DREPO_PATH=/tmp/sysrepo -DENABLE_TESTS=OFF .. && \
+    make && \
+    make install && \
+    ldconfig
 
 WORKDIR /oran/NetConfServer/libyang/sysrepo
-RUN git clone https://github.com/CESNET/libnetconf2.git
+RUN git clone -b v2.1.37 --depth 1 https://github.com/CESNET/libnetconf2.git
 WORKDIR /oran/NetConfServer/libyang/sysrepo/libnetconf2
 COPY 0003-libnetconf2-add-pkcs11-support.patch .
 RUN git apply 0003-libnetconf2-add-pkcs11-support.patch
@@ -76,7 +93,7 @@ WORKDIR /oran/NetConfServer/libyang/sysrepo/libnetconf2/build
 RUN cmake -DENABLE_TLS=ON -DENABLE_SSH=ON -DENABLE_DNSSEC=OFF .. && make && make install
 
 WORKDIR /oran/NetConfServer/libyang/sysrepo/libnetconf2
-RUN git clone https://github.com/CESNET/netopeer2.git
+RUN git clone -b v2.1.71 --depth 1 https://github.com/CESNET/netopeer2.git
 WORKDIR /oran/NetConfServer/libyang/sysrepo/libnetconf2/netopeer2
 COPY 0004-netopeer2-comms-fix.patch .
 RUN git apply 0004-netopeer2-comms-fix.patch
@@ -97,6 +114,8 @@ COPY --from=builder --chown=${USER}:${USER} /workspace/openssl.cnf /etc/openssl.
 COPY --from=builder /workspace/pkcs11-proxy/lib* /usr/local/lib/
 
 ENV LD_LIBRARY_PATH="/usr/lib:/usr/local/lib"
+
+RUN ln -s /usr/lib/x86_64-linux-gnu/engines-3/ /usr/lib/engines-1.1
 
 COPY oran_commands.sh /workspace/oran_commands.sh
 RUN chmod u+x /workspace/oran_commands.sh && \

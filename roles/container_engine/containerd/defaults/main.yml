@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-containerd_version: 1.7.0
-containerd_archive_checksum: "b068b05d58025dc9f2fc336674cac0e377a478930f29b48e068f97c783a423f0"
+containerd_version: 1.7.3
+containerd_archive_checksum: "de7f61aacba88ee647a7dcde1ca77672ec44ab9fb3e58ae90c0efc9b2d8f3068"
 
 containerd_download_url: "https://github.com/containerd/containerd/releases/download/v{{ containerd_version }}/containerd-{{ containerd_version }}-linux-amd64.tar.gz" # noqa yaml[line-length]
 containerd_bin_dir: "/usr/local/bin"
@@ -30,7 +30,7 @@ containerd_archive:
   owner: "root"
   mode: "0755"
 
-containerd_sandbox_image: "k8s.gcr.io/pause:3.6"
+containerd_sandbox_image: "k8s.gcr.io/pause:3.9"
 
 containerd_storage_dir: "/var/lib/containerd"
 containerd_state_dir: "/run/containerd"

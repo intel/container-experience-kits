@@ -1,20 +1,23 @@
 {%- for iface in hostvars[node_name]['dataplane_interfaces'] %}
 {%- if iface.ddp_profile is defined and iface.bus_info.endswith(':00.0') and iface.pf_driver == "ice" %}
-{%- set intel_ethernet_operator_ddp_package = iface.ddp_profile %}
-{%- set intel_ethernet_operator_ddp_package_sum = intel_ethernet_operator_ddp_sums[iface.ddp_profile]%}
+{%- set ddp_package = (iface.ddp_profile | regex_replace('.pkg', '.zip')) %}
+{%- set ddp_package_checksum = (ddp_checksums.files | selectattr('path', 'search', ddp_package) | map(attribute='checksum') | list | first ) %}
 ---
 apiVersion: ethernet.intel.com/v1
 kind: EthernetClusterConfig
 metadata:
   name: {{ hostvars[node_name]['ansible_hostname'] }}-{{ iface.name }}-ddp-config
   namespace: "{{ intel_ethernet_operator_namespace }}"
+  labels:
+    app: intel-ethernet-operator
+    version: {{ intel_ethernet_operator_git_ref }}
 spec:
   nodeSelectors:
     kubernetes.io/hostname: {{ hostvars[node_name]['ansible_hostname'] }}
   deviceSelector:
     pciAddress: "0000:{{ iface.bus_info }}"
   deviceConfig:
-    ddpURL: "http://{{ cache_server_clusterip.stdout }}/{{ intel_ethernet_operator_ddp_package | regex_replace('.pkg', '.zip') }}"
-    ddpChecksum: "{{ intel_ethernet_operator_ddp_package_sum }}"
+    ddpURL: "http://{{ cache_server_clusterip.stdout }}/{{ ddp_package }}"
+    ddpChecksum: "{{ ddp_package_checksum }}"
 {% endif %}
 {% endfor %}

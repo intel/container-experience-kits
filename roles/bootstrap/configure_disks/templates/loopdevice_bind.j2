@@ -1,0 +1,24 @@
+#! /bin/sh
+
+max_devices={{ simulated_disk_num }}
+
+bind_loopdevices() {
+    for i in `seq 1 $max_devices`
+    do
+        mount -t ext4 -o loop /opt/cek/disks/tmp/diskimage$i /mnt/disks/ra_disk$i
+        echo "mounted /opt/cek/disks/tmp/diskimage$i to /mnt/disks/ra_disk$i"
+    done
+}
+
+detach_loopdevices() {
+    umount /mnt/disks/ra_disk?
+}
+
+option=${1:-""}
+
+if [ "$option" = "-d" ];
+then
+    detach_loopdevices
+else
+    bind_loopdevices
+fi

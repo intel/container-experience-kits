@@ -27,8 +27,9 @@
   when: ansible_os_family == 'Debian'
 
 - name: install packages
-  action: "{{ ansible_pkg_mgr }} \
-    name={{ install_dependencies[ansible_os_family] }} state=present"
+  ansible.builtin.package:
+    name: "{{ install_dependencies[ansible_os_family] }}"
+    state: present
   register: pkg_mgr_results
   retries: "{{ number_of_retries | default(5) }}"
   until: pkg_mgr_results is success

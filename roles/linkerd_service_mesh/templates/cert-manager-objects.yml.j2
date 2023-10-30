@@ -1,6 +1,6 @@
 ---
 apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
+kind: Issuer
 metadata:
   name: linkerd-selfsigned-issuer
   namespace: "{{ linkerd_namespace }}"
@@ -22,7 +22,7 @@ spec:
     size: 256
   issuerRef:
     name: linkerd-selfsigned-issuer 
-    kind: ClusterIssuer
+    kind: Issuer
     group: cert-manager.io
 ---
 apiVersion: cert-manager.io/v1
