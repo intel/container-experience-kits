@@ -93,6 +93,7 @@
     - role: intel_base_container
       profile_name: "{{ container_set | default('on_prem_aibox') }}"
       gpu_type: "Arc"
+      prc_network: false
       tags:
         - base_container
 

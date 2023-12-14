@@ -14,25 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-- name: cleanup xpumanager
-  include_role:
-    name: intel_xpumanager
-    tasks_from: xpumanager_cleanup
-  tags:
-    - xpumanager
+src_sof_firmware_path: "{{ (nda_firmware_path, 'intel/sof-ipc4') | path_join }}"
+src_sof_topology_path: "{{ (nda_firmware_path, 'intel/sof-ace-tplg') | path_join }}"
 
-- name: uninstall container prometheus and grafana
-  include_role: # noqa  role-name[path] - including subrole
-    name: prometheus_install/container_prometheus
-    tasks_from: cleanup.yml
-  tags:
-    - prometheus
-  when:
-    not kubernetes | default(false) | bool
-
-- name: cleanup npu driver
-  include_role: # noqa  role-name[path] - including subrole
-    name: bootstrap/install_npu_driver
-    tasks_from: cleanup.yml
-  tags:
-    - npu_driver
+dst_sof_firmware_path: "/lib/firmware/intel/sof-ipc4"
+dst_sof_topology_path: "/lib/firmware/intel/sof-ace-tplg"

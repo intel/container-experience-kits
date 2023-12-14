@@ -32,7 +32,7 @@
       To proceed, please add  '{{ cpu_id }}' to the list of unconfirmed CPUs in variable 'unconfirmed_cpu_models' in group_vars.\n
       Please be aware that by using CPU model that is not confirmed, some features may not work properly."
   when:
-    - configured_arch not in ['atom', 'core']
+    - configured_arch not in ['atom', 'core', 'ultra']
 
 - name: set skl, icx, clx, spr to false
   ansible.builtin.set_fact:

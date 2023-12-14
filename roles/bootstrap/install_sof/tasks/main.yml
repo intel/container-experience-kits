@@ -14,25 +14,24 @@
 ##   limitations under the License.
 ##
 ---
-- name: cleanup xpumanager
-  include_role:
-    name: intel_xpumanager
-    tasks_from: xpumanager_cleanup
-  tags:
-    - xpumanager
+- name: Copy SOF firmware to target
+  ansible.builtin.copy:
+    src: "{{ src_sof_firmware_path }}/"
+    dest: "{{ dst_sof_firmware_path }}/"
+    mode: '0644'
 
-- name: uninstall container prometheus and grafana
-  include_role: # noqa  role-name[path] - including subrole
-    name: prometheus_install/container_prometheus
-    tasks_from: cleanup.yml
-  tags:
-    - prometheus
-  when:
-    not kubernetes | default(false) | bool
+- name: Copy SOF topology to target
+  ansible.builtin.copy:
+    src: "{{ src_sof_topology_path }}/"
+    dest: "{{ dst_sof_topology_path }}/"
+    mode: '0644'
 
-- name: cleanup npu driver
-  include_role: # noqa  role-name[path] - including subrole
-    name: bootstrap/install_npu_driver
-    tasks_from: cleanup.yml
-  tags:
-    - npu_driver
+- name: Disable HDA as it conflicts with SOF
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/blacklist-hda.conf
+    mode: '0644'
+    content: |
+      blacklist snd_hda_intel
+      blacklist snd_hda_core
+  notify:
+    - reboot server

@@ -32,10 +32,10 @@ rm -rf ./opencv_src
 
 if [ "${NETWORK_TYPE}" = "prc_network" ]; then
     echo "Download from gitCode"
-    git clone -b ${OPENCV_VERSION} --depth 1 --recurse-submodules https://gitcode.net/opencv/opencv opencv_src
+    git clone -b "${OPENCV_VERSION}" --depth 1 --recurse-submodules https://gitcode.net/opencv/opencv opencv_src
 else
     echo "Download from github"
-    git clone -b ${OPENCV_VERSION} --depth 1 --recurse-submodules https://github.com/opencv/opencv.git opencv_src
+    git clone -b "${OPENCV_VERSION}" --depth 1 --recurse-submodules https://github.com/opencv/opencv.git opencv_src
 fi
 sed -i "s/, device_fd//" ./opencv_src/modules/gapi/test/streaming/gapi_streaming_vpl_device_selector.cpp
 
@@ -74,7 +74,7 @@ cmake -G Ninja -D BUILD_INFO_SKIP_EXTRA_MODULES=ON \
 -D WITH_OPENCLAMDFFT=OFF \
 -D WITH_OPENEXR=OFF \
 -D WITH_OPENJPEG=OFF \
--D WITH_QUIRC=OFF \
+-D WITH_QUIRC=ON \
 -D WITH_TBB=OFF \
 -D WITH_TIFF=OFF \
 -D WITH_VTK=OFF \

@@ -219,3 +219,40 @@
   when:
     - update_kernel | default(false)
     - ansible_distribution == 'Ubuntu'
+    - configured_arch not in ['ultra']
+
+- name: Install NDA kernel for none public platform
+  block:
+    - name: create NDA kernel path on target
+      ansible.builtin.file:
+        path: "{{ nda_kernel_path }}"
+        state: directory
+        mode: '0755'
+      when:
+        - inventory_hostname != "localhost"
+
+    - name: copy NDA kernel packages from localhost to target
+      ansible.builtin.copy:
+        src: "{{ nda_kernel_path }}/"
+        dest: "{{ nda_kernel_path }}"
+        mode: '0644'
+      when:
+        - inventory_hostname != "localhost"
+
+    - name: Find packages in NDA kernel path
+      find:
+        paths: "{{ nda_kernel_path }}"
+        patterns: "*.deb"
+      register: nda_kernel_packages
+
+    - name: Install NDA kernel packages
+      apt:
+        deb: "{{ item.path }}"
+      with_items:
+        - "{{ nda_kernel_packages.files }}"
+      notify:
+        - reboot server
+  when:
+    - update_kernel | default(false)
+    - ansible_distribution == 'Ubuntu'
+    - configured_arch in ['ultra']

@@ -103,6 +103,50 @@ gpu_dev_packages_u2204_20230912_client:
 gpu_tool_packages_u2204_20230912_client:
   - xpu-smi=1.2.16-27~22.04
 
+
+# MTL gpu related pcakges based on Beta BKC
+gpu_kmd_packages_u2204_mtl:
+  - linux-firmware=20220329.git681281e4-0ubuntu3.17-1ppa1~jammy3
+
+gpu_umd_rt_packages_u2204_mtl:
+  - intel-media-va-driver-non-free=23.2.4-1ppa1~jammy7
+  - libmfx1=23.2.2-1ppa1~jammy1
+  - libmfx-gen1.2=23.2.4-1ppa1~jammy1
+  - libvpl2=2023.3.0-1ppa1~jammy4
+  - libegl-mesa0=23.1.5-1ppa1~jammy1
+  - libegl1-mesa=23.0.2-1ppa1~jammy3
+  - libegl1-mesa-dev=23.0.2-1ppa1~jammy3
+  - libgbm1=23.1.5-1ppa1~jammy1
+  - libgl1-mesa-dev=23.1.5-1ppa1~jammy1
+  - libgl1-mesa-dri=23.1.5-1ppa1~jammy1
+  - libglapi-mesa=23.1.5-1ppa1~jammy1
+  - libgles2-mesa-dev=23.1.5-1ppa1~jammy1
+  - libglx-mesa0=23.1.5-1ppa1~jammy1
+  - libigdgmm12=22.3.7-1ppa1~jammy1
+  - libxatracker2=23.1.5-1ppa1~jammy1
+  - mesa-va-drivers=23.1.5-1ppa1~jammy1
+  - mesa-vdpau-drivers=23.1.5-1ppa1~jammy1
+  - mesa-vulkan-drivers=23.1.5-1ppa1~jammy1
+  - va-driver-all=2.19.0-1ppa1~jammy1
+  - libva2=2.19.0-1ppa1~jammy1
+
+gpu_dev_packages_u2204_mtl:
+  - libigfxcmrt7=23.2.4-1ppa1~jammy7
+  - libigfxcmrt-dev=23.2.4-1ppa1~jammy7
+  - libvpl-dev=2023.3.0-1ppa1~jammy4
+  - libmfx-gen-dev=23.2.4-1ppa1~jammy1
+  - libva-dev=2.19.0-1ppa1~jammy1
+  - mesa-common-dev=23.1.5-1ppa1~jammy1
+  - libxatracker-dev=23.1.5-1ppa1~jammy1
+
+gpu_system_packages_u2204_mtl:
+  - libwayland-egl1-mesa=23.0.2-1ppa1~jammy3
+  - libweston-9-0=9.0.0-4ppa1~jammy2
+  - libweston-9-dev=9.0.0-4ppa1~jammy2
+  - weston=9.0.0-4ppa1~jammy2
+  - xserver-xorg-core
+# - weston=10.0.0-1ppa1~jammy1
+
 # intel gpu release independent test packages
 gpu_test_packages:
   - hwinfo

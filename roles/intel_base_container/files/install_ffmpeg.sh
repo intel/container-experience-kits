@@ -61,8 +61,8 @@ git checkout $FFMPEG_UPSTREAM_VERSION -b $FFMPEG_PATCH_VERSION
 
 cd .. || exit
 if [ "${NETWORK_TYPE}" = "prc_network" ]; then
-    echo "Download from ghproxy mirror"
-    curl -L https://ghproxy.com/github.com/intel/cartwheel-ffmpeg/archive/refs/tags/$FFMPEG_PATCH_VERSION.tar.gz -o cartwheel-patch.tar.gz
+    echo "Download from github mirror"
+    curl -L https://hub.gitmirror.com/github.com/intel/cartwheel-ffmpeg/archive/refs/tags/$FFMPEG_PATCH_VERSION.tar.gz -o cartwheel-patch.tar.gz
 else
     echo "Download from github"
     curl -L https://github.com/intel/cartwheel-ffmpeg/archive/refs/tags/$FFMPEG_PATCH_VERSION.tar.gz -o cartwheel-patch.tar.gz

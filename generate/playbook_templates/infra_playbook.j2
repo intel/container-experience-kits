@@ -180,6 +180,14 @@
       when:
         - configure_fpga | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
+    - role: bootstrap/install_sof
+      when:
+        - configured_arch in ['ultra']
+        - not vm_enabled or on_vms | default(false) | bool
+    - role: bootstrap/install_npu_driver
+      when:
+        - configured_arch in ['ultra']
+        - not vm_enabled or on_vms | default(false) | bool
 {% endif %}
     - role: bootstrap/update_grub
       tags:

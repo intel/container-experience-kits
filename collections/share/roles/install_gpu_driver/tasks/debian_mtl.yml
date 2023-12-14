@@ -1,0 +1,97 @@
+---
+# The installation steps based 779460_Ubuntu_Kernel_Overlay_MTL-UH_GSG_0.8
+- name: Download MTL repo key
+  ansible.builtin.get_url:
+    url: "https://download.01.org/intel-linux-overlay/ubuntu/E6FA98203588250569758E97D176E3162086EE4C.gpg"
+    dest: "/etc/apt/trusted.gpg.d/mtl.gpg"
+    force: true
+    mode: '0644'
+
+- name: Add MTL deb repo
+  ansible.builtin.apt_repository:
+    filename: "intel-mtl"
+    repo: "deb https://download.01.org/intel-linux-overlay/ubuntu jammy main non-free multimedia"
+    state: present
+
+- name: Add MTL deb-src repo
+  ansible.builtin.apt_repository:
+    filename: "intel-mtl"
+    repo: "deb-src https://download.01.org/intel-linux-overlay/ubuntu jammy main non-free multimedia"
+    state: present
+    update_cache: true
+
+- name: Add MTL repo preference file
+  ansible.builtin.copy:
+    dest: /etc/apt/preferences.d/intel-mtl
+    mode: '0644'
+    content: |
+      Package: *
+      Pin: release o= intel-iot-linux-overlay
+      Pin-Priority: 2000
+
+- name: Force probe for MTL GPU and enable GUC
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    line: GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} i915.enable_guc=3 i915.max_vfs=7 i915.force_probe=* udmabuf.list_limit=8192"
+  register: boot_entry_cmdline
+
+- name: Update boot configure
+  ansible.builtin.command: "update-grub"
+  changed_when: false
+
+- name: Install gpu kmd and firmware packages
+  ansible.builtin.apt:
+    name: "{{ gpu_kmd_packages_u2204_mtl }}"
+    allow_downgrade: true
+  register: gpu_kmd
+
+- name: Install gpu user mode driver and runtime packages
+  ansible.builtin.apt:
+    name: "{{ gpu_umd_rt_packages_u2204_mtl }}"
+    allow_downgrade: true
+
+- name: Install gpu dev packages
+  ansible.builtin.apt:
+    name: "{{ gpu_dev_packages_u2204_mtl }}"
+    allow_downgrade: true
+
+- name: Install gpu system packages
+  ansible.builtin.apt:
+    name: "{{ gpu_system_packages_u2204_mtl }}"
+    allow_downgrade: true
+
+- name: Install gpu test packages
+  ansible.builtin.apt:
+    name: "{{ gpu_test_packages }}"
+    allow_downgrade: true
+
+- name: allow dmesg for normal account
+  sysctl:
+    name: kernel.dmesg_restrict
+    value: "0"
+    state: present
+    sysctl_file: /etc/sysctl.d/10-kernel-hardening.conf
+    reload: yes
+
+- name: Reboot the system for these changes to take effect
+  ansible.builtin.reboot:
+    reboot_timeout: 1200
+  when:
+    - inventory_hostname != 'localhost'
+    - boot_entry_cmdline.changed or
+      gpu_kmd.changed
+
+- name: Create render group if it doesn't exist
+  group:
+    name: render
+    state: present
+
+- name: Add the current user to the render node group
+  user:
+    name: "{{ ansible_user_id }}"
+    groups: render
+    append: true
+
+- name: Apply the current user to the new group id immediately
+  meta:
+    reset_connection

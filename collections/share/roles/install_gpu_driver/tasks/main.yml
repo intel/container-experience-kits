@@ -51,6 +51,14 @@
   when:
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
     - gpu_type != "Unknown"
+    - configured_arch not in ['ultra']
+
+- name: Install MTL GPU drivers on Ubuntu
+  include_tasks: debian_mtl.yml
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04")
+    - gpu_type != "Unknown"
+    - configured_arch in ['ultra']
 
 - name: Install GPU drivers on RHEL 8.x
   include_tasks: rhel.yml

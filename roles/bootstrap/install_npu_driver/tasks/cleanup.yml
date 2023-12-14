@@ -14,25 +14,22 @@
 ##   limitations under the License.
 ##
 ---
-- name: cleanup xpumanager
-  include_role:
-    name: intel_xpumanager
-    tasks_from: xpumanager_cleanup
-  tags:
-    - xpumanager
+- name: Check whether NPU driver path existing
+  ansible.builtin.stat:
+    path: "{{ dst_npu_driver_path }}"
+  register: check_path_result
 
-- name: uninstall container prometheus and grafana
-  include_role: # noqa  role-name[path] - including subrole
-    name: prometheus_install/container_prometheus
-    tasks_from: cleanup.yml
-  tags:
-    - prometheus
+- name: Uninstall NPU driver
+  ansible.builtin.command:
+    cmd: "./vpu-drv-installer -u"
+    chdir: "{{ dst_npu_driver_path }}"
+  become: true
+  register: uninstall_result
+  changed_when: uninstall_result.rc == 0
   when:
-    not kubernetes | default(false) | bool
+    - check_path_result.stat.exists
 
-- name: cleanup npu driver
-  include_role: # noqa  role-name[path] - including subrole
-    name: bootstrap/install_npu_driver
-    tasks_from: cleanup.yml
-  tags:
-    - npu_driver
+- name: Remvoe NPU driver path
+  ansible.builtin.file:
+    path: "{{ src_npu_driver_path }}"
+    state: absent

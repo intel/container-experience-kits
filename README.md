@@ -104,7 +104,7 @@ The software provided here is for reference only and not intended for production
    > **_NOTE:_** It is **highly recommended** to read [this](docs/generate_profiles.md) file before profiles generation.
 
     ```bash
-    make examples ARCH=<atom,core,**icx**,spr,emr> NIC=<fvl,**cvl**>
+    make examples ARCH=<atom,core,**icx**,spr,emr,ultra> NIC=<fvl,**cvl**>
     ```
 
 5. Copy example inventory file to the project root dir.

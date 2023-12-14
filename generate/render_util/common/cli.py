@@ -37,7 +37,8 @@ def parse_cli() -> argparse.Namespace:
                                  'on_prem_vss', 'on_prem_sw_defined_factory', 'regional_dc', 'remote_fp', 'build_your_own'},
                         # add new profiles here
                         help='''profile name which files, required in deployment, will be copied to the project root directory''')
-    parser.add_argument('--arch', '-a', type=str, default='icx', choices={"atom", "core", "skl", "clx", "icx", "spr", "emr"})  # please add arch acronyms here
+    parser.add_argument('--arch', '-a', type=str, default='icx',
+                        choices={"atom", "core", "skl", "clx", "icx", "spr", "emr", "ultra"})  # please add arch acronyms here
     parser.add_argument('--nic', '-n', type=str, default='cvl', choices={"cvl", "fvl"})  # please add new NICs here
     parser.add_argument('--mode', type=str, default='k8s', choices={"k8s", "vm", "cloud"},
                         help='generate configuration files for selected mode')  # please add new modes' name here

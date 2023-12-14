@@ -75,7 +75,15 @@ container_runtime_only_deployment: false
 # Note: enabling this may lead to unexpected results
 # Tip: you can set this per host using host_vars
 update_all_packages: false
+
+{% if arch in ['ultra'] %}
+update_kernel: true
+nda_kernel_path: "/tmp/linux-kernel-overlay"
+nda_firmware_path: "/tmp/firmware"
+nda_driver_path: "/tmp/driver"
+{% else %}
 update_kernel: false
+{% endif %}
 
 # Add arbitrary parameters to GRUB
 additional_grub_parameters_enabled: false

@@ -875,7 +875,7 @@
           Please be aware that by using CPU model that is not confirmed, some features may not work properly."
       when:
         - (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
-        - configured_arch not in ['atom', 'core']
+        - configured_arch not in ['atom', 'core', 'ultra']
 
     - name: check ubuntu pro token is not a placeholder
       ansible.builtin.assert:
@@ -1410,7 +1410,7 @@
       when:
         - ansible_processor_threads_per_core != 2
         - on_cloud is not defined or not on_cloud
-        - configured_arch not in ['atom', 'core']
+        - configured_arch not in ['atom', 'core', 'ultra']
         - profile_name not in ['on_prem_sw_defined_factory']
 
 # STORY: "collectd and telegraf are mutually exclusive"

@@ -29,7 +29,7 @@ source /opt/intel/openvino/setupvars.sh
 cd /opt/intel/nep/opencv_test/bin/ || exit
 ./opencv_perf_objdetect | tee "${opencv_output_path}"/opencv_test_output.txt
 result="Failed"
-if grep -n PASSED "${opencv_output_path}"/opencv_test_output.txt |grep "81 tests"
+if grep -n PASSED "${opencv_output_path}"/opencv_test_output.txt |grep "155 tests"
 then
     result="Passed"
 else
