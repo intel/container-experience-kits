@@ -14,32 +14,13 @@
 ##   limitations under the License.
 ##
 ---
-- name: clone inih repository
-  git:
-    repo: "https://github.com/benhoyt/inih"
-    version: "{{ inih_version }}"
-    dest: "{{ (intel_flexran_dir, 'source/inih') | path_join }}"
-    force: yes
-
-- name: build inih
-  make:
-    file: "Makefile.static"
-    chdir: "{{ (intel_flexran_dir, 'source/inih/extra') | path_join }}"
-
-- name: copy libinih.a
-  copy:
-    remote_src: yes
-    src: "{{ (intel_flexran_dir, 'source/inih/extra', 'libinih.a') | path_join }}"
-    dest: "{{ (intel_flexran_dir, 'source/inih/') | path_join }}"
-    mode: '0755'
-
 - name: clone pf-bb-config repository
-  git:
+  ansible.builtin.git:
     repo: "https://github.com/intel/pf-bb-config.git"
     version: "{{ intel_pfbb_version }}"
-    dest: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
+    dest: "{{ pf_bb_download_dir }}"
     force: yes
 
 - name: build pf-bb-config tool
-  make:
-    chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
+  community.general.make:
+    chdir: "{{ pf_bb_download_dir }}"

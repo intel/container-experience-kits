@@ -34,6 +34,8 @@ install_dependencies:
     - numactl-devel
     - libasan
     - SDL2-devel
+    - json-c-devel
+    - libpcap-devel
     # Following ones needed to build other dependencies from source
     - cmake
     - flex

@@ -14,67 +14,21 @@
 ##   limitations under the License.
 ##
 ---
-- name: create /opt/cni/bin
-  file:
-    path: "/opt/cni/bin"
-    state: directory
-    recurse: yes
-    mode: 0755
-
-- name: set path to the Userspace CNI plugin sources
-  set_fact:
-    userspace_cni_path: "{{ ansible_env.HOME }}/go/src/github.com/intel/userspace-cni-network-plugin"
-
-- name: clone Userspace CNI Plugin repository
-  git:
+- name: Clone Userspace CNI Plugin repository
+  ansible.builtin.git:
     repo: "{{ userspace_cni_git_url }}"
     version: "{{ userspace_cni_version }}"
     dest: "{{ userspace_cni_path }}"
     force: true
 
-- name: replace CentOS with Rocky in Makefile
-  replace:
-    path: "{{ userspace_cni_path }}/Makefile"
-    regexp: 'centos'
-    replace: 'rocky'
-    mode: 0600
-  when: ansible_distribution == "Rocky"
-
-
-# START OF BLOCK W/A to unblock userspace CNI
-- name: patch Userspace CNI plugin to build only ovs-dpdk part
-  ansible.posix.patch:
-    src: "userspace_cni.patch"
-    dest: "{{ userspace_cni_path }}/userspace/userspace.go"
-
-- name: build Userspace CNI plugin without VPP support
-  shell: >
-    source /etc/profile.d/golang.sh &&
-    export GO111MODULE=on &&
-    go build -v
-  args:
-    chdir: "{{ userspace_cni_path }}/userspace"
-    executable: /bin/bash
-    creates: "{{ userspace_cni_path }}/userspace/userspace"
-
-# - name: build Userspace CNI plugin
-#   shell: >
-#     source /etc/profile.d/golang.sh &&
-#     make clean &&
-#     export GO111MODULE=on &&
-#     make install-dep &&
-#     make install &&
-#     make
-#   args:
-#     chdir: "{{ userspace_cni_path }}"
-#     executable: /bin/bash
-#     creates: "{{ userspace_cni_path }}/userspace/userspace"
-
-# END OF BLOCK W/A to unblock userspace CNI
-
-- name: copy built Userspace CNI plugin binary to the CNI bin dir
-  copy:
-    remote_src: yes
-    src: "{{ userspace_cni_path }}/userspace/userspace"
-    dest: "/opt/cni/bin/userspace"
-    mode: 0755
+- name: Build, push and deploy Userspace CNI plugin
+  become: true
+  environment:
+    BUILDAH_FORMAT: 'docker'
+  community.general.make:
+    target: all
+    chdir: "{{ userspace_cni_path }}"
+    params:
+      IMAGE_BUILDER: "{{ buildtool }}"
+      IMAGE_REGISTRY: "{{ registry_local_address }}/"
+      IMAGE_VERSION: v1.4-prerelease # TODO use version reference when release is out

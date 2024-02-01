@@ -42,6 +42,12 @@
 - name: Prepare Cache server
   when: '"True" in is_ddp_update_enabled or "True" in is_fw_update_enabled'
   block:
+    - name: Create Intel Ethernet Operator directory to store yaml files
+      ansible.builtin.file:
+        path: "{{ intel_ethernet_operator_packages_dir }}"
+        state: directory
+        mode: '0750'
+
     - name: Download DDP packages
       vars:
         nic_driver: ice
@@ -67,48 +73,48 @@
           COPY packages /usr/share/nginx/html
 
     - block:
-        - name: build cache webserver image
+        - name: build cache webserver image - docker
           ansible.builtin.command: docker build -t {{ intel_ethernet_operator_cache_webserver_image }} -f Dockerfile .
           changed_when: true
           args:
             chdir: "{{ intel_ethernet_operator_files_dir }}"
 
-        - name: push cache webserver image
+        - name: push cache webserver image - docker
           ansible.builtin.command: docker push {{ intel_ethernet_operator_cache_webserver_image }}
           changed_when: true
       when:
         - '"docker" in container_runtime'
 
     - block:
-        - name: build cache webserver image
+        - name: build cache webserver image - podman
           ansible.builtin.command: podman build -t {{ intel_ethernet_operator_cache_webserver_image }} -f Dockerfile .
           changed_when: true
           args:
             chdir: "{{ intel_ethernet_operator_files_dir }}"
 
-        - name: push cache webserver image
+        - name: push cache webserver image - podman
           ansible.builtin.command: podman push {{ intel_ethernet_operator_cache_webserver_image }}
           changed_when: true
       when:
         - '"docker" not in container_runtime'
 
-    - name: populate cache webserver yaml files and push to controller node
+    - name: Template cache webserver resources
       ansible.builtin.template:
-        src: "{{ item.src }}"
-        dest: "{{ (intel_ethernet_operator_files_dir, item.dst) | path_join }}"
-        force: yes
-        mode: preserve
+        src: "{{ item.template }}"
+        force: true
+        dest: "{{ (intel_ethernet_operator_files_dir, item.name) | path_join }}"
+        mode: '0640'
       loop:
-        - {src: 'cache-server.yml.j2', dst: 'cache-server.yml'}
-        - {src: 'cache-server-svc.yml.j2', dst: 'cache-server-svc.yml'}
+        - { name: 'cache-server.yaml', template: 'cache-server.yaml.j2' }
+        - { name: 'cache-server-svc.yaml', template: 'cache-server-svc.yaml.j2' }
 
     - name: deploy cache webserver
       kubernetes.core.k8s:
         state: present
-        src: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
+        template: "{{ item }}"
       loop:
-        - cache-server.yml
-        - cache-server-svc.yml
+        - cache-server.yaml.j2
+        - cache-server-svc.yaml.j2
 
     - name: check if all pods are running
       ansible.builtin.shell: "set -o pipefail && kubectl get pods -n {{ intel_ethernet_operator_namespace }} | awk 'NR != 1 { print $3 }'"

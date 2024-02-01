@@ -18,10 +18,10 @@
   roles:
     - role: cluster_defaults
       tags: always
-    - role: bootstrap/configure_proxy
+    - role: bootstrap/configure_proxy # noqa role-name[path]
       tags: proxy
-    - role: ipu/common
-    - role: ipu/flash_ipu_ssd
+    - role: ipu/common # noqa role-name[path]
+    - role: ipu/flash_ipu_ssd # noqa role-name[path]
       when:
         - not ipu_1gbe_connected_to_linkp
 
@@ -29,21 +29,21 @@
   roles:
     - role: cluster_defaults
       tags: always
-    - role: bootstrap/configure_proxy
+    - role: bootstrap/configure_proxy # noqa role-name[path]
       tags: proxy
-    - role: ipu/common
-    - role: ipu/prepare_ipu_linkp
-    - role: ipu/flash_ipu_ssd
+    - role: ipu/common # noqa role-name[path]
+    - role: ipu/prepare_ipu_linkp # noqa role-name[path]
+    - role: ipu/flash_ipu_ssd # noqa role-name[path]
       when:
         - ipu_1gbe_connected_to_linkp
-    - role: ipu/flash_ipu_nvm
+    - role: ipu/flash_ipu_nvm # noqa role-name[path]
 
 - hosts: ipu_imc
   roles:
-    - role: ipu/common
-    - role: ipu/imc
+    - role: ipu/common # noqa role-name[path]
+    - role: ipu/imc # noqa role-name[path]
 
 - hosts: ipu_acc
   roles:
-    - role: ipu/common
-    - role: ipu/acc
+    - role: ipu/common # noqa role-name[path]
+    - role: ipu/acc # noqa role-name[path]

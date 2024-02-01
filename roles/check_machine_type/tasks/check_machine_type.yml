@@ -18,15 +18,20 @@
   ansible.builtin.set_fact:
     cpu_id: "{{ ansible_processor[2] | regex_search('\\$?\\d\\d\\d\\d\\%?\\@?\\w?|\\d\\d/\\d\\w') }}" # noqa jinja[spacing]
 
+- name: add dummy CPU ID for GNR in preflight
+  ansible.builtin.set_fact:
+    cpu_id: "9999"
+  when: cpu_id | length == 0
+
 - name: print CPU ID
   ansible.builtin.debug:
     msg: "CPU ID: {{ cpu_id }}"
 
 - name: check if CPU has confirmed support
   ansible.builtin.assert:
-    that: "cpu_id in {{ lookup('ansible.builtin.vars', 'confirmed_' + configured_arch + '_cpus') }} \
-           {% if configured_arch == 'clx' %} or cpu_id in {{ confirmed_clx_ncpus }} {% endif %} \
-           or cpu_id in {{ unconfirmed_cpu_models }}"
+    that: cpu_id in lookup('ansible.builtin.vars', 'confirmed_' + configured_arch + '_cpus')
+           {% if configured_arch == 'clx' %} or cpu_id in confirmed_clx_ncpus {% endif %}
+           or cpu_id in unconfirmed_cpu_models
     fail_msg:
       "CPU model '{{ cpu_id }}' present on target is not in the confirmed CPUs list.\n
       To proceed, please add  '{{ cpu_id }}' to the list of unconfirmed CPUs in variable 'unconfirmed_cpu_models' in group_vars.\n
@@ -34,13 +39,15 @@
   when:
     - configured_arch not in ['atom', 'core', 'ultra']
 
-- name: set skl, icx, clx, spr to false
+- name: set skl, icx, clx, spr, emr, gnr to false
   ansible.builtin.set_fact:
     is_skl: false
     is_clx: false
     is_clx_ncpu: false
     is_icx: false
     is_spr: false
+    is_emr: false
+    is_gnr: false
 
 - name: set is_skl architecture variable
   ansible.builtin.set_fact:
@@ -61,6 +68,16 @@
   ansible.builtin.set_fact:
     is_spr: true
   when: cpu_id in confirmed_spr_cpus
+
+- name: set is_emr architecture variable
+  ansible.builtin.set_fact:
+    is_emr: true
+  when: cpu_id in confirmed_emr_cpus
+
+- name: set is_gnr architecture variable
+  ansible.builtin.set_fact:
+    is_gnr: true
+  when: cpu_id in confirmed_gnr_cpus
 
 - name: check if clx_ncpu mode
   ansible.builtin.set_fact:

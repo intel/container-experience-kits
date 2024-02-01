@@ -21,5 +21,5 @@ intel_tdx_packages_dir: "{{ (project_root_dir, 'intel-tdx') | path_join }}"
 tdx_1_0_kernel_version: 5.19.17-mvp29v4+4
 tdx_1_0_tag: "2023ww33"
 
-tdx_1_5_kernel_version: 6.2.16-mvp30v3+7
-tdx_1_5_tag: "2023ww27"
+tdx_1_5_kernel_version: 6.2.16-v5.0
+tdx_1_5_tag: "2023ww41"

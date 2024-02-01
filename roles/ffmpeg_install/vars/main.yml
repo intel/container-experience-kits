@@ -65,11 +65,9 @@ install_dependencies:
     - zlib-devel
     - nasm
     - yasm-devel
-    - libx264-devel
-    - libx265-devel
+    - libva-devel
     - fdk-aac-free
     - lame-devel
     - opus
-    - libvpx6-devel
     - libmfx-devel
     - libvpl-devel

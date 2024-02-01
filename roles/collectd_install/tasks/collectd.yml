@@ -32,15 +32,11 @@
     group: root
     mode: 0755
 
-- name: check if namespace exists
-  command: kubectl get namespace {{ collectd_namespace }}
-  register: ns_exists
-  failed_when: no
-  changed_when: false
-
-- name: create a namespace
-  command: kubectl create namespace {{ collectd_namespace }}
-  when: '"NotFound" in ns_exists.stderr'
+- name: Create collectd namespace
+  kubernetes.core.k8s:
+    kind: namespace
+    name: "{{ collectd_namespace }}"
+    state: present
 
 - name: template collectd-serviceMonitor
   template:

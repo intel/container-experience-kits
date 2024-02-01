@@ -32,11 +32,11 @@
       become: yes
 
     - name: configure firewall on RedHat distributions
-      include_tasks: fw_redhat.yaml
+      include_tasks: fw_redhat.yml
       when: ansible_os_family == "RedHat"
 
     - name: configure firewall on Debian distributions
-      include_tasks: fw_debian.yaml
+      include_tasks: fw_debian.yml
       when: ansible_os_family == "Debian"
   when: firewall_enabled | default(false) | bool
 
@@ -58,11 +58,12 @@
   when: not firewall_enabled | default(false) | bool
 
 - name: configure SELinux
-  include_tasks: selinux.yaml
+  include_tasks: selinux.yml
 
 # fix for file size limit bug on RHEL-based distros, please see https://access.redhat.com/solutions/33993
 - name: fix file size limit settings bug
   shell: sed -i -r 's/^(session\s+required\s+pam_limits.so)/#\1/' /etc/pam.d/* # noqa command-instead-of-module
+  changed_when: true
   when: ansible_os_family == "RedHat"
 
 - name: increase file size limit settings

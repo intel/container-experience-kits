@@ -16,7 +16,7 @@
 ---
 # QATLibs
 intel_qatlib_download_url: "https://github.com/intel/qatlib.git"
-intel_qatlib_download_url_version: "23.08.0"
+intel_qatlib_download_url_version: "23.11.0"
 intel_qatlib_download_url_dir: "{{ (project_root_dir, 'intel_qatlibs') | path_join }}"
 
 intel_qat_4xxx_firmware_download_url: https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/qat_4xxx.bin

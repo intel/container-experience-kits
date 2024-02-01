@@ -13,8 +13,22 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-- name: copy Media Analytics Dockerfile to the controller node
+- name: create Media Analytics directory
+  ansible.builtin.file:
+    path: "{{ (dockerfiles_dir, 'media_analytics') | path_join }}"
+    state: directory
+    mode: '0755'
+
+- name: copy Media Analytics Dockerfile
   ansible.builtin.template:
     src: "Dockerfile.j2"
-    dest: "{{ (dockerfiles_dir, 'Dockerfile-intel_media_analytics') | path_join }}"
-    mode: 0644
+    dest: "{{ (dockerfiles_dir, 'media_analytics', 'Dockerfile') | path_join }}"
+    mode: '0644'
+
+- name: copy Media Analytics shell script
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ (dockerfiles_dir, 'media_analytics') | path_join }}"
+    mode: '0644'
+  with_fileglob:
+    - ./*.sh

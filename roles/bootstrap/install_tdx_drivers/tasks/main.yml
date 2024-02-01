@@ -18,4 +18,4 @@
   include_tasks: ubuntu.yml
   when:
     - ansible_distribution == "Ubuntu"
-    - ansible_distribution_version == "22.04"
+    - ansible_distribution_version is version('22.04', '==')

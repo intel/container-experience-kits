@@ -25,20 +25,19 @@
   roles:
     - role: cluster_defaults
       tags: always
-    - role: bootstrap/install_tdx_drivers
+    - role: bootstrap/install_tdx_drivers # noqa role-name[path]
       tags: tdx
       when:
         - configure_tdx | default(false) | bool
         - not on_vms | default(false) | bool
-    - role: bootstrap/set_tdx_kernel_flags
+    - role: bootstrap/set_tdx_kernel_flags # noqa role-name[path]
       tags: tdx
       when:
         - configure_tdx | default(false) | bool
         - not on_vms | default(false) | bool
-    - role: bootstrap/update_grub
+    - role: bootstrap/update_grub # noqa role-name[path]
       tags:
         - tdx
         - grub-update
         - intel-platform-qat-setup
-  environment:
-    - "{{ proxy_env | d({}) }}"
+  environment: "{{ proxy_env | d({}) }}"

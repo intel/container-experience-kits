@@ -102,30 +102,17 @@
   changed_when: false
   when: (additional_go_version | default('')) | length == 0
 
-- name: start procedure to install cfssl and cfssljson in required versions
+- name: Start procedure to install cfssl and cfssljson
   block:
-    - name: check current cfssl version
-      shell: go version -m $(which cfssl) | grep mod | awk '{print $3}'
-      changed_when: false
-      failed_when: false
-      register: cfssl_current_version
+    - name: Install cfssl to latest version
+      ansible.builtin.command: go install github.com/cloudflare/cfssl/cmd/cfssl@latest
+      register: go_command
+      changed_when: go_command.stdout | length > 0
 
-    - name: check latest cfssl version
-      shell: go list -m -versions github.com/cloudflare/cfssl | awk '{print $7}'  # $7 should be latest varsion
-      changed_when: false
-      failed_when: false
-      register: cfssl_latest_version
-
-    - name: install cfssl in latest version
-      command: go install github.com/cloudflare/cfssl/cmd/cfssl@latest
-      changed_when: true
-      when: cfssl_current_version.stdout != cfssl_latest_version.stdout
-
-    # NOTE(pklimowx): cfssljson doesn't return useful version information
-    # we have to lose 1s here
-    - name: install cfssljson in latest version
-      command: go install github.com/cloudflare/cfssl/cmd/cfssljson@latest
-      changed_when: true
+    - name: Install cfssljson to latest version
+      ansible.builtin.command: go install github.com/cloudflare/cfssl/cmd/cfssljson@latest
+      register: go_command
+      changed_when: go_command.stdout | length > 0
   when:
     - groups['kube_control_plane'] | length > 0
     - inventory_hostname == groups['kube_control_plane'][0]

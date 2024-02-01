@@ -34,8 +34,9 @@
   changed_when: false
   become: yes
 
+# service_facts module does not gather .swap unit files
 - name: get swap service unit name
-  shell: set -o pipefail | systemctl list-unit-files | grep \.swap | awk '{print $1}' # noqa command-instead-of-module
+  ansible.builtin.shell: set -o pipefail | systemctl list-unit-files | grep \.swap | awk '{print $1}' # noqa command-instead-of-module
   args:
     executable: /bin/bash
   register: unit_name
@@ -43,14 +44,14 @@
   become: yes
 
 - name: stop swap service
-  systemd:
+  ansible.builtin.systemd:
     state: stopped
     name: "{{ unit_name.stdout }}"
   become: yes
   when: '"swap" in unit_name.stdout'
 
 - name: mask swap service to /dev/null
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ unit_name.stdout }}"
     masked: yes
   become: yes

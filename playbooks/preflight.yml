@@ -121,7 +121,9 @@
 
     - name: Check Group Vars
       ansible.builtin.assert:
-        that: "group_vars_details.stat.exists and group_vars_details.stat.isdir"
+        that:
+          - group_vars_details.stat.exists
+          - group_vars_details.stat.isdir
         msg: "File group_vars/all.yml does NOT exist. Must be created per Guide"
 
     - name: read Host Vars
@@ -132,7 +134,9 @@
 
     - name: check Host Vars
       ansible.builtin.assert:
-        that: "item.stat.exists and item.stat.isreg"
+        that:
+          - item.stat.exists
+          - item.stat.isreg
         msg: "File host_vars/{{ item.item }}.yml does NOT exist. Must be created per Guide"
       with_items: "{{ host_vars_details.results }}"
 
@@ -144,7 +148,9 @@
 
     - name: check VM Host Vars
       ansible.builtin.assert:
-        that: "item.stat.exists and item.stat.isreg"
+        that:
+          - item.stat.exists
+          - item.stat.isreg
         msg: "File host_vars/{{ item.item }}.yml does NOT exist. Must be created per Guide"
       with_items: "{{ vm_host_vars_details.results }}"
 
@@ -164,6 +170,12 @@
       failed_when: check_ip_status.rc != 0
       register: check_ip_status
       when: vm_enabled and (not on_vms | default(false))
+
+    - name: check container_runtime value
+      ansible.builtin.assert:
+        that: container_runtime is in ['docker', 'containerd', 'crio']
+        msg: Incorrect container_runtime value !!
+          Make sure 'container_runtime' is in ['docker', 'containerd', 'crio']
 
     - name: handle the error for check passwordless access to VM hosts
       block:
@@ -228,14 +240,14 @@
 
     - name: check scale variable value
       ansible.builtin.assert:
-        that: "{{ scale | bool }}"
+        that: scale | bool
         fail_msg: "scale variable must be set to one of the following values { yes, on, 1, true }, case insensitive"
         success_msg: "scale variable is set to {{ scale }} \ncluster scaling is enabled"
       when: scale is defined
 
     - name: check vm_recreate_existing variable value
       ansible.builtin.assert:
-        that: "not {{ vm_recreate_existing | bool }}"
+        that: not vm_recreate_existing | bool
         fail_msg: "vm_recreate_existing has to be false for cluster scaling case"
         success_msg: "vm_recreate_existing variable is set to {{ vm_recreate_existing }} for cluster scaling"
       when:
@@ -253,8 +265,8 @@
             kube_version_number: "{{ rke2_version | regex_search('(?<=v)\\d+\\.\\d+') }}"
         - name: assert kube_version_number
           ansible.builtin.assert:
-            that: "{{ kube_version_number is version('1.25', '<=') }}"
-            fail_msg: "Maximum k8s version for rancher manager is v1.25, current version is v{{ kube_version_number }}, please update group_vars"
+            that: kube_version_number is version('1.28', '<=')
+            fail_msg: "Maximum k8s version for rancher manager is v1.28, current version is v{{ kube_version_number }}, please update group_vars"
       when: rancher_manager_enabled is defined and rancher_manager_enabled
 
 ##############################################
@@ -278,6 +290,10 @@
       when:
         - "'vm_host' in group_names"
         - on_vms is defined and on_vms
+
+    - name: show mapping of inventory_hostname to real hostname
+      ansible.builtin.debug:
+        msg: "inventory_hostname = {{ inventory_hostname }} -> real hostname = {{ hostvars[inventory_hostname]['ansible_hostname'] }}"
 
     - name: fail if deployment is VMRA and isolcpus is enabled
       ansible.builtin.assert:
@@ -304,7 +320,9 @@
 
     - name: check Host Vars for VMs
       ansible.builtin.assert:
-        that: "item.stat.exists and item.stat.isreg"
+        that:
+          - item.stat.exists
+          - item.stat.isreg
         msg: "File host_vars/{{ item.item.name }}.yml does NOT exist. Must be created per Guide"
       with_items: "{{ vm_host_vars_details.results }}"
       when:
@@ -340,6 +358,7 @@
       when:
         - vm_enabled and (not on_vms | default(false))
         - inventory_hostname in groups['k8s_cluster']
+        - hostvars[inventory_hostname]['ansible_virtualization_role']|default('') != 'guest'
       block:
         - name: check if mandatory parameter 'vxlan_physical_network' is present for the baremetal host
           assert:
@@ -352,7 +371,7 @@
         - name: check if mandatory parameter 'vxlan_physical_network' for the baremetal host has valid IP subnet
           assert:
             that:
-              - "vxlan_physical_network | ansible.utils.ipaddr('net')"
+              - vxlan_physical_network | ansible.utils.ipaddr('net')
             msg: |
               "vxlan_physical_network parameter for the host '{{ inventory_hostname }}' does not have valid IP subnet"
               "Current value is '{{ vxlan_physical_network }}'"
@@ -360,7 +379,7 @@
 
         - name: check if VXLAN physical network is available
           assert:
-            that: "hostvars[inventory_hostname]['ansible_all_ipv4_addresses'] | ansible.utils.ipaddr(vxlan_physical_network) | length > 0 "
+            that: hostvars[inventory_hostname]['ansible_all_ipv4_addresses'] | ansible.utils.ipaddr(vxlan_physical_network) | length > 0
             msg: |
               "vxlan_physical_network '{{ vxlan_physical_network }}' is not available on host '{{ inventory_hostname }}'"
               "Please correct the configuration or update network setup to ensure proper connectivity with vm_hosts"
@@ -376,7 +395,7 @@
         - name: check if mandatory parameter 'vxlan_gw_ip' for the baremetal host has valid IP
           assert:
             that:
-              - "vxlan_gw_ip | ansible.utils.ipaddr('address')"
+              - vxlan_gw_ip | ansible.utils.ipaddr('address')
             msg: |
               "vxlan_gw_ip parameter for the host '{{ inventory_hostname }}' does not have valid IP"
               "Current value is '{{ vxlan_gw_ip }}'"
@@ -386,12 +405,13 @@
     - name: Check requirements to enable VMs multinode setup
       when:
         - vm_enabled and (not on_vms | default(false))
-        - "(groups['vm_host'] | length > 1) or (groups['k8s_cluster'] | length > 0)"
+        - "(groups['vm_host'] | length > 1) or \
+          ('k8s_cluster' in group_names and hostvars[inventory_hostname]['ansible_virtualization_role']|default('') != 'guest')"
       block:
         - name: check if mandatory parameter 'dhcp' is present on vm_host[0]
           assert:
             that:
-              - "hostvars[groups['vm_host'][0]]['dhcp'] | default([]) | length"
+              - hostvars[groups['vm_host'][0]]['dhcp'] | default([]) | length
             msg: |
               "vxlan dhcp must be defined on {{ groups['vm_host'][0] }} for multiple hosts deployment"
           run_once: true
@@ -399,7 +419,7 @@
         - name: check if mandatory parameter 'vxlan_physical_network' is present for the first vm_host
           ansible.builtin.assert:
             that:
-              - "hostvars[groups['vm_host'][0]]['vxlan_physical_network'] is defined"
+              - hostvars[groups['vm_host'][0]]['vxlan_physical_network'] is defined
             msg: |
               "vxlan_physical_network parameter is not defined for the first vm_host '{{ groups['vm_host'][0] }}'"
               "Please correct the configuration"
@@ -408,7 +428,7 @@
         - name: check if mandatory parameter 'vxlan_physical_network' for the first vm_host has valid IP subnet
           ansible.builtin.assert:
             that:
-              - "hostvars[groups['vm_host'][0]]['vxlan_physical_network'] | ansible.utils.ipaddr('net')"
+              - hostvars[groups['vm_host'][0]]['vxlan_physical_network'] | ansible.utils.ipaddr('net')
             msg: |
               "vxlan_physical_network parameter for the first vm_host '{{ groups['vm_host'][0] }}' does not have valid IP subnet"
               "Current value is '{{ hostvars[groups['vm_host'][0]]['vxlan_physical_network'] }}'"
@@ -417,15 +437,17 @@
 
         - name: check if VXLAN physical network is available
           ansible.builtin.assert:
-            that: "hostvars[inventory_hostname]['ansible_all_ipv4_addresses'] | ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_physical_network']) |
-                   length > 0 "
+            that:
+              hostvars[inventory_hostname]['ansible_all_ipv4_addresses'] |
+              ansible.utils.ipaddr(hostvars[groups['vm_host'][0]]['vxlan_physical_network']) |
+              length > 0
             msg: |
               "vxlan_physical_network '{{ hostvars[groups['vm_host'][0]]['vxlan_physical_network'] }}' is not available on vm_host '{{ inventory_hostname }}'"
               "Please correct the configuration or update network setup to ensure proper connectivity between vm_hosts"
 
     - name: check for ip and ansible_host mismatch
       ansible.builtin.assert:
-        that: "ansible_host == ip"
+        that: ansible_host == ip
         msg: "Configuration mismatch detected between ansible_host={{ ansible_host }} and ip={{ ip }} on target '{{ inventory_hostname }}'"
       when:
         - ansible_host is defined
@@ -438,7 +460,9 @@
         msg: "Linux distribution on target is {{ ansible_distribution }} {{ ansible_distribution_version }} {{ ansible_distribution_release }}"
     - name: Check Linux Distro and Version
       ansible.builtin.assert:
-        that: "ansible_distribution in cek_supported_distros and ansible_distribution_version in cek_supported_distros_versions"
+        that:
+          - ansible_distribution in cek_supported_distros
+          - ansible_distribution_version in cek_supported_distros_versions
         msg:
           - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}' is NOT supported
           - Must be one of {{ cek_supported_distros }} and version {{ cek_supported_distros_versions }}
@@ -506,8 +530,8 @@
 
     - name: check k8s version
       ansible.builtin.assert:
-        that: "{{ kube_version is version('v1.22', '>=') }}"
-        msg: "Minimum supported k8s version is 1.22, please update kube_version variable with correct version"
+        that: kube_version is version('v1.26', '>=')
+        msg: "Minimum supported k8s version is 1.26, please update kube_version variable with correct version"
       when: kubernetes and not container_runtime_only_deployment
 
     - name: check RKE2 requirements
@@ -519,7 +543,7 @@
     - name: assert that Multus is enabled in the config
       ansible.builtin.assert:
         that:
-          - "kube_network_plugin_multus"
+          - kube_network_plugin_multus | default(false)
         fail_msg: "SRIOV and the Userspace CNI plugin require Multus for a fully functional cluster deployment"
       when: sriov_net_dp_enabled is defined and sriov_net_dp_enabled or
             sriov_cni_enabled is defined and sriov_cni_enabled or
@@ -528,7 +552,7 @@
     - name: assert that SRIOV Network Operator/SRIOV Network DP are mutually exclusive
       ansible.builtin.assert:
         that:
-          - "not sriov_net_dp_enabled"
+          - not sriov_net_dp_enabled | default(false)
         fail_msg:
           - "SRIOV Network Operator is enabled, SRIOV Network DP/SRIOV CNI should be disabled !!"
       when: sriov_network_operator_enabled is defined and sriov_network_operator_enabled
@@ -549,14 +573,15 @@
         - name: check OS for cpusets based on cgroups v1 only
           ansible.builtin.assert:
             that:
-              - (ansible_distribution == 'Ubuntu' and ansible_distribution_version == '20.04')
+              - ansible_distribution == "Ubuntu"
+              - ansible_distribution_version is version('20.04', '==')
             msg:
               - Unsupported configuration.
               - CPUs isolation ('cpusets') can be only enabled on Ubuntu 20.04.x.
 
         - name: check CPUs isolation
           ansible.builtin.assert:
-            that: ( "{{ cpusets }}" | length > 0 )
+            that: cpusets | length > 0
             msg:
               - Incorrect configuration. Conflicting or improper values detected
               - CPUs isolation ('cpusets') must be set according to the example file for host_vars. Please correct the configuration
@@ -592,14 +617,14 @@
 
         - name: check cpusets Total
           ansible.builtin.assert:
-            that: "{{ cpusets_list | length }} <= ansible_processor_vcpus"
+            that: cpusets_list | length <= ansible_processor_vcpus
             msg:
               - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
               - The number of cpusets {{ cpusets_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
 
         - name: check cpusets IDs
           ansible.builtin.assert:
-            that: "item | int <= ansible_processor_vcpus"
+            that: item | int <= ansible_processor_vcpus
             msg:
               - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
               - The CPU ID {{ item }} set for cpusets is NOT actually present on target. Please correct the configuration
@@ -607,7 +632,7 @@
 
         - name: check cpusets OS Reserved
           ansible.builtin.assert:
-            that: "item not in cpusets_list"
+            that: item not in cpusets_list
             msg:
               - Incorrect configuration pertaining cpusets. Conflicting or improper values detected
               - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for cpusets. Please correct the configuration
@@ -627,11 +652,10 @@
               - ansible_processor_threads_per_core = {{ ansible_processor_threads_per_core }}
               - ansible_processor_vcpus = {{ ansible_processor_vcpus }}
               - CPUs Reserved for OS = 0...{{ ansible_processor_count - 1 }}
-  #            - CPUs Reserved for OS = {{ lookup('sequence','0-{{ ansible_processor_count - 1 }}').split(',') }} # [E207] Nested jinja pattern
 
         - name: check CPUs isolation
           ansible.builtin.assert:
-            that: ( "{{ isolcpus }}" | length > 0 )
+            that: isolcpus | length > 0
             msg:
               - Incorrect configuration. Conflicting or improper values detected
               - CPUs isolation ('isolcpus') must be set according to the example file for host_vars. Please correct the configuration
@@ -667,14 +691,14 @@
 
         - name: check isolcpus Total
           ansible.builtin.assert:
-            that: "{{ isolcpus_list | length }} <= ansible_processor_vcpus"
+            that: isolcpus_list | length <= ansible_processor_vcpus
             msg: |
               Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
               The number of isolcpus {{ isolcpus_list | length }}, exceeds total CPUs on target {{ ansible_processor_vcpus }}. Please correct the configuration
 
         - name: check isolcpus IDs
           ansible.builtin.assert:
-            that: "item | int <= ansible_processor_vcpus"
+            that: item | int <= ansible_processor_vcpus
             msg:
               - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
               - The CPU ID {{ item }} set for isolcpus is NOT actually present on target. Please correct the configuration
@@ -682,7 +706,7 @@
 
         - name: check isolcpus OS Reserved
           ansible.builtin.assert:
-            that: "item not in isolcpus_list"
+            that: item not in isolcpus_list
             msg:
               - Incorrect configuration pertaining isolcpus. Conflicting or improper values detected
               - The CPU ID 0...{{ ansible_processor_count - 1 }} should NOT be set for isolcpus. Please correct the configuration
@@ -712,6 +736,23 @@
       tags:
         - intel-media-analytics
 
+    - name: Check KubeVirt configuration
+      ansible.builtin.import_role:
+        name: kubevirt_install
+        tasks_from: preflight.yml
+      when:
+        - kubernetes | default(false)
+        - kubevirt_enabled | default(false)
+      tags: kubevirt
+
+    - name: Check Infrstructure Power Manager configuration
+      ansible.builtin.import_role:
+        name: infrastructure_power_manager
+        tasks_from: preflight.yml
+      when:
+        - infrastructure_power_manager_enabled | default(false)
+      tags: infra-power-manager
+
 ####################################
 # Prerequisites for Worker Node(s) #
 ####################################
@@ -736,7 +777,8 @@
 
     - name: assert that (SRIOV Network DP/SRIOV CNI) and (SRIOV Network Operator) are mutually exclusive
       ansible.builtin.assert:
-        that: "not (sriov_net_dp_enabled and (sriov_network_operator_enabled | default(false)))"
+        that:
+          - not (sriov_net_dp_enabled | default(false) and sriov_network_operator_enabled | default(false))
         fail_msg:
           - "SRIOV Network DP/SRIOV CNI and SRIOV Network Operator are mutually exclusive. One must be disabled"
       when:
@@ -745,7 +787,7 @@
 
     - name: check DP Interfaces
       ansible.builtin.assert:
-        that: "dataplane_interfaces != []"
+        that: dataplane_interfaces != []
         msg: "Dataplane (DP) interface(s) on target '{{ ansible_hostname }}' must be set in host_vars. Please correct the configuration"
       when:
         - profile_name != 'build_your_own'
@@ -770,7 +812,7 @@
 
     - name: read Physical NICs PCIIDs
       ansible.builtin.set_fact:
-        phy_nics_pciids: "{{ phy_nics_pciids + [ ansible_facts[item]['pciid'] ] }}"
+        phy_nics_pciids: "{{ phy_nics_pciids + [ ansible_facts[item]['pciid'] | regex_replace('0000:(.*)', '\\1')  ] }}"
       with_items: "{{ ansible_interfaces }}"
       when: ansible_facts[item]['pciid'] is defined and ansible_facts[item]['type'] == "ether"
 
@@ -778,7 +820,7 @@
 
     - name: check DP Interfaces Bus Info
       ansible.builtin.assert:
-        that: ("{{ item.bus_info }}" in "{{ phy_nics_pciids }}")
+        that: item.bus_info in phy_nics_pciids
         msg: "Dataplane interface defined with PCI ID '{{ item.bus_info }}' does NOT exist on target. Please correct the configuration"
       with_items: "{{ dataplane_interfaces }}"
       when: dataplane_interfaces is defined and dataplane_interfaces != []
@@ -811,7 +853,7 @@
       block:
         - name: Check first DP interface driver
           ansible.builtin.assert:
-            that: "dataplane_interfaces[0].pf_driver == ansible_facts[item]['module']"
+            that: dataplane_interfaces[0].pf_driver == ansible_facts[item]['module']
             msg: >-
               "Dataplane interface '{{ dataplane_interfaces[0].bus_info }}' 'pf_driver' is set to '{{ dataplane_interfaces[0].pf_driver }}'.
               Please, set it to '{{ ansible_facts[item]['module'] }}'."
@@ -822,7 +864,7 @@
 
         - name: check if selected DDP package corresponds PF driver ice
           ansible.builtin.assert:
-            that: "{{ dataplane_interfaces[0].ddp_profile is regex('^ice_comms*') }}"
+            that: dataplane_interfaces[0].ddp_profile is regex('^ice_comms*')
             msg: "ddp_profile '{{ dataplane_interfaces[0].ddp_profile }}' doesn't correspond pf_driver '{{ dataplane_interfaces[0].pf_driver }}'"
           when:
             - dataplane_interfaces[0].ddp_profile is defined
@@ -832,7 +874,7 @@
 
         - name: check if selected DDP package corresponds PF driver i40e
           ansible.builtin.assert:
-            that: "{{ dataplane_interfaces[0].ddp_profile in ddp_profiles_allowed }}"
+            that: dataplane_interfaces[0].ddp_profile in ddp_profiles_allowed
             msg: "ddp_profile '{{ dataplane_interfaces[0].ddp_profile }}' doesn't correspond pf_driver '{{ dataplane_interfaces[0].pf_driver }}'"
           when:
             - dataplane_interfaces[0].ddp_profile is defined
@@ -849,6 +891,19 @@
       when:
         - dataplane_interfaces is defined and dataplane_interfaces | length > 0
 
+    - name: check total SRIOV VFs required for NIC device auto detection on VMs
+      ansible.builtin.include_role:
+        name: bootstrap/auto_detect_nic_devices # noqa role-name[path]
+        tasks_from: preflight
+      when:
+        - vms is defined
+        - dataplane_interfaces is defined
+        - dataplane_interfaces | default([]) | length == 0
+        - (update_nic_drivers is defined and update_nic_drivers) or
+          (install_ddp_packages is defined and install_ddp_packages) or
+          (sriov_cni_enabled is defined and sriov_cni_enabled) or
+          (sriov_network_operator_enabled is defined and sriov_network_operator_enabled)
+
     - name: Print processor info
       ansible.builtin.debug:
         msg: "ansible_processor model: {{ ansible_processor[2] }}"
@@ -859,6 +914,13 @@
         cpu_id: "{{ ansible_processor[2] | regex_search('\\$?\\d\\d\\d\\d\\%?\\@?\\w?|\\d\\d/\\d\\w') }}"
       when: (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
 
+    - name: add dummy CPU ID for GNR in preflight
+      ansible.builtin.set_fact:
+        cpu_id: "9999"
+      when:
+        - (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
+        - cpu_id | length == 0
+
     - name: print CPU ID
       ansible.builtin.debug:
         msg: "CPU ID: {{ cpu_id }}"
@@ -866,9 +928,9 @@
 
     - name: check if CPU has confirmed support (preflight)
       ansible.builtin.assert:
-        that: "cpu_id in {{ lookup('ansible.builtin.vars', 'confirmed_' + configured_arch + '_cpus') }} \
-               {% if configured_arch == 'clx' %} or cpu_id in {{ confirmed_clx_ncpus }} {% endif %} \
-               or cpu_id in {{ unconfirmed_cpu_models }}"
+        that: cpu_id in lookup('ansible.builtin.vars', 'confirmed_' + configured_arch + '_cpus')
+               {% if configured_arch == 'clx' %} or cpu_id in confirmed_clx_ncpus {% endif %}
+               or cpu_id in unconfirmed_cpu_models
         fail_msg:
           "CPU model '{{ cpu_id }}' present on target is not in the confirmed CPUs list.\n
           To proceed, please add  '{{ cpu_id }}' to the list of unconfirmed CPUs in variable 'unconfirmed_cpu_models' in group_vars.\n
@@ -876,6 +938,7 @@
       when:
         - (not vm_enabled) or (vm_enabled and (not on_vms | default(false)))
         - configured_arch not in ['atom', 'core', 'ultra']
+        - hostvars[inventory_hostname]['ansible_virtualization_role']|default('') != 'guest'
 
     - name: check ubuntu pro token is not a placeholder
       ansible.builtin.assert:
@@ -889,36 +952,71 @@
       when:
         - rt_kernel_enabled | default(false)
 
-    - name: check EMR QAT drvier package
+    - name: check NDA QAT drvier package
       block:
-        - name: print debug message EMR QAT driver package
+        - name: print debug message NDA QAT driver package
           ansible.builtin.debug:
-            msg="Expecting file {{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }} on local ansible host"
-        - name: probe for EMR QAT driver package
+            msg="Expecting file {{ (nda_qat_driver_folder, nda_qat_driver_package) | path_join }} for {{ configured_arch }} on local ansible host"
+        - name: probe for NDA QAT driver package
           delegate_to: localhost
           become: false
           ansible.builtin.stat:
-            path: "{{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }}"
+            path: "{{ (nda_qat_driver_folder, nda_qat_driver_package) | path_join }}"
             checksum_algorithm: sha1
-          register: emr_qat_driver
-        - name: print debug message for emr qat driver existence
+          register: nda_qat_driver
+        - name: print debug message for NDA QAT driver existence
           ansible.builtin.debug:
-            msg="{{ emr_qat_driver_package }} exists is {{ emr_qat_driver.stat.exists }}"
-        - name: check emr qat driver files exists
+            msg="{{ nda_qat_driver_package }} exists is {{ nda_qat_driver.stat.exists }}"
+        - name: check NDA QAT driver files exists
           ansible.builtin.assert:
-            that: "emr_qat_driver.stat.exists"
-            msg:
-              - Mandatory file {{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }} does NOT exist on localhost.
-              - Please acquire the zip file and place it in the location indicated above in order to deploy EMR QAT. See docs/emr.md
+            that: nda_qat_driver.stat.exists
+            msg: |
+              Mandatory file {{ (nda_qat_driver_folder, nda_qat_driver_package) | path_join }} does NOT exist on localhost.
+              Please acquire the zip file and place it in the location indicated above in order to deploy NDA QAT. See docs/{{ configured_arch }}.md
         - name: check the qat driver package integrity
           ansible.builtin.assert:
-            that: "emr_qat_driver.stat.checksum == '{{ emr_qat_driver_pkg_checksum }}'"
-            msg:
-              - File {{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }} on localhost is NOT the expected one.
-              - Please provide the correct file. See docs/emr.md
+            that: nda_qat_driver.stat.checksum == nda_qat_driver_pkg_checksum
+            msg: |
+              File {{ (nda_qat_driver_folder, nda_qat_driver_package) | path_join }} on localhost is NOT the expected one.
+              Real checksum -> {{ nda_qat_driver.stat.checksum }}, expected checksum > {{ nda_qat_driver_pkg_checksum }}
+              Please provide the correct file. See docs/{{ configured_arch }}.md
       when:
         - update_qat_drivers | default(false)
-        - configured_arch == "emr"
+        - configured_arch in ['emr', 'gnr']
+        - configured_arch == 'gnr' and (ansible_distribution != "Rocky" or (ansible_distribution == "Rocky" and ansible_distribution_version != "9.2"))
+
+    - name: check NDA QAT drvier package for Rocky 9.2
+      block:
+        - name: print debug message NDA QAT driver package for Rocky
+          ansible.builtin.debug:
+            msg="Expecting file {{ (nda_qat_driver_folder, nda_qat_driver_package_rocky) | path_join }} for {{ configured_arch }} on local ansible host"
+        - name: probe for NDA QAT driver package for Rocky
+          delegate_to: localhost
+          become: false
+          ansible.builtin.stat:
+            path: "{{ (nda_qat_driver_folder, nda_qat_driver_package_rocky) | path_join }}"
+            checksum_algorithm: sha1
+          register: nda_qat_driver
+        - name: print debug message for NDA QAT driver existence for Rocky
+          ansible.builtin.debug:
+            msg="{{ nda_qat_driver_package_rocky }} exists is {{ nda_qat_driver.stat.exists }}"
+        - name: check NDA QAT driver files exists for Rocky
+          ansible.builtin.assert:
+            that: nda_qat_driver.stat.exists
+            msg: |
+              Mandatory file {{ (nda_qat_driver_folder, nda_qat_driver_package_rocky) | path_join }} does NOT exist on localhost.
+              Please acquire the zip file and place it in the location indicated above in order to deploy NDA QAT. See docs/{{ configured_arch }}.md
+        - name: check the qat driver package integrity for Rocky
+          ansible.builtin.assert:
+            that: nda_qat_driver.stat.checksum == nda_qat_driver_pkg_checksum_rocky
+            msg: |
+              File {{ (nda_qat_driver_folder, nda_qat_driver_package_rocky) | path_join }} on localhost is NOT the expected one.
+              Real checksum -> {{ nda_qat_driver.stat.checksum }}, expected checksum > {{ nda_qat_driver_pkg_checksum_rocky }}
+              Please provide the correct file. See docs/{{ configured_arch }}.md
+      when:
+        - update_qat_drivers | default(false)
+        - configured_arch in ['gnr']
+        - ansible_distribution == "Rocky" and ansible_distribution_version is version('9.2', '==')
 
     - name: check QAT SVM precheck
       ansible.builtin.assert:
@@ -945,7 +1043,7 @@
 
         - name: assert QAT PCIIDs
           ansible.builtin.assert:
-            that: "lspci_qat_host.rc == 0"
+            that: lspci_qat_host.rc == 0
             fail_msg: "No QAT devices were found in system. Please configure properly the QAT PCIIDs in group_vars or disable this feature"
             success_msg: "QAT PCIIDs verification completed"
           when:
@@ -969,7 +1067,7 @@
 
         - name: check QAT Devices' Bus Info
           ansible.builtin.assert:
-            that: ("{{ item.qat_id }}" in """{{ lspci_qat.stdout }}""")
+            that: item.qat_id in lspci_qat.stdout
             msg: "QAT device defined with PCI ID '{{ item.qat_id }}' does NOT exist on target. Please correct the configuration"
           with_items: "{{ qat_devices }}"
         # STORY: "qat_sriov_numvfs should not exceed max supported (16) per each dev_ID"
@@ -981,7 +1079,7 @@
 
         - name: check QAT SRIOV VFs
           ansible.builtin.assert:
-            that: ({{ item.qat_sriov_numvfs }} <= 16)
+            that: item.qat_sriov_numvfs <= 16
             msg:
               - Incorrect configuration pertaining QAT SRIOV. Conflicting or improper values detected
               - When SRIOV VFs are set for QAT, max value is 16 for each ID (max 48 total per card). Please correct the configuration
@@ -990,13 +1088,12 @@
         - update_qat_drivers | default(false)
         - qat_devices is defined and qat_devices != []
 
-    - name: check QAT SRIOV VFs requirement for qat device auto detection
-      ansible.builtin.assert:
-        that: ({{ qat_sriov_numvfs_required }} <= 16)
-        msg:
-          - Incorrect configuration in qat_sriov_numvfs_required for requested number of QAT VTs
-          - When SRIOV VFs are set for QAT, max value is 16 for each ID (max 48 total per card). Please correct the configuration
+    - name: check total SRIOV VFs required for QAT device auto detection on VMs
+      ansible.builtin.include_role:
+        name: bootstrap/auto_detect_qat_devices # noqa role-name[path]
+        tasks_from: preflight
       when:
+        - vms is defined
         - update_qat_drivers | default(false)
         - qat_devices is defined and qat_devices == []
 
@@ -1007,6 +1104,13 @@
       when:
         - gpu_dp_enabled is defined and gpu_dp_enabled
         - profile_name != "on_prem_aibox"
+
+    - name: Check Intel In-Band Manageability configuration
+      ansible.builtin.include_role:
+        name: intel_inband_manageability
+        tasks_from: preflight
+      when:
+        - intel_inband_manageability_enabled | d(false)
 
     - name: Check GPU device plugin state
       ansible.builtin.assert:
@@ -1022,7 +1126,9 @@
       block:
         - name: FPGA OS precheck
           ansible.builtin.assert:
-            that: ((ansible_distribution == "Ubuntu") and (ansible_distribution_version == '22.04'))
+            that:
+              - ansible_distribution == "Ubuntu"
+              - ansible_distribution_version is version('22.04', '==')
             msg: >-
               Currently fpga is only supported on Ubuntu 22.04.
 
@@ -1043,7 +1149,7 @@
 
         - name: check fpga install scripts exists
           ansible.builtin.assert:
-            that: "fpga_register.stat.exists"
+            that: fpga_register.stat.exists
             msg:
               - "Mandatory file {{ (fpga_driver_staging_folder, fpga_install_script) | path_join }} does NOT exist on localhost."
               - "Please acquire the file from Intel Resource and Design Center and place it in the location indicated above in order to deploy fpga."
@@ -1063,7 +1169,8 @@
       ansible.builtin.assert:
         that:
           - gpu_dp_enabled
-        fail_msg: "gas installation requires gpu_dp_enabled set to true"
+          - gpu_dp_fractional_manager
+        fail_msg: "gas installation requires gpu_dp_enabled and gpu_dp_fractional_manager set to true"
         success_msg: "gas requirement verified"
       when:
         - gas_enabled | default(false)
@@ -1128,11 +1235,11 @@
           gpu_dp_enabled | default(false) or
           dsa_dp_enabled | default(false) or
           qat_dp_enabled | default(false) or
-          jaeger_operator | default(false) or
+          jaeger_enabled | default(false) or
           telegraf_enabled | default(false) or
-          prometheus_enabled | default(false) or
+          prometheus_stack_enabled | default(false) or
           opentelemetry_enabled | default(false) or
-          elasticsearch_enabled | default(false) or
+          eck_enabled | default(false) or
           linkerd_service_mesh.enabled | default(false)
         - kubernetes | default(false) | bool
 
@@ -1207,88 +1314,12 @@
           when: default_hugepage_size == "2M"
       when: hugepages_enabled | default(false) | bool
 
-# STORY: "vpp/ovsdpdk require hugepage enabled and configured"
-    - ansible.builtin.debug:
-        msg:
-          - vpp_enabled = {{ vpp_enabled }} (host_vars)
-          - ansible_distribution = {{ ansible_distribution }} (basic facts)
-          - ansible_distribution_version = {{ ansible_distribution_version }} (basic facts)
-          - example_net_attach_defs = {{ example_net_attach_defs }} (group_vars/all.yml)
-          - userspace_ovs_dpdk = {{ example_net_attach_defs['userspace_ovs_dpdk'] }} (group_vars/all.yml)
-          - userspace_vpp = {{ example_net_attach_defs['userspace_vpp'] }} (group_vars/all.yml)
-          - sriov_net_dp = {{ example_net_attach_defs['sriov_net_dp'] }} (group_vars/all.yml)
-          - userspace_cni_enabled = {{ userspace_cni_enabled }} (host_vars)
-          - sriov_cni_enabled = {{ sriov_cni_enabled }} (host_vars)
-          - sriov_network_operator_enabled = {{ sriov_network_operator_enabled }} (host_vars)
-          - bond_cni_enabled = {{ bond_cni_enabled }} (host_vars)
-          - ovs_dpdk_enabled = {{ ovs_dpdk_enabled }} (host_vars)
-          - userspace_cni_enabled = {{ userspace_cni_enabled }} (host_vars)
-          - hugepages_enabled = {{ hugepages_enabled }} (host_vars)
-          - default_hugepage_size = {{ default_hugepage_size }} (host_vars)
-          - number_of_hugepages_1G = {{ number_of_hugepages_1G }} (host_vars)
-          - number_of_hugepages_2M = {{ number_of_hugepages_2M }} (host_vars)
-      when: vpp_enabled is defined and vpp_enabled # host_vars
-
-    # W/A Disabled until userspace CNI compilation is fixed
-    - name: check OS for VPP compilation
-      ansible.builtin.fail:
-        msg: "VPP is temporarily not supported."
-      when: vpp_enabled is defined and vpp_enabled
-
-    - name: check OS for VPP compilation
-      ansible.builtin.assert:
-        that:
-          - (ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '22.04')
-        msg: "Unsupported configuration. VPP can be only enabled on Ubuntu >= 22.04"
-      when: vpp_enabled is defined and vpp_enabled
-
-    - name: check OVS DPDK Dependencies
-      ansible.builtin.assert:
-        that: >-
-          ({{ ovs_dpdk_enabled }} and not {{ vpp_enabled }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages_1G }} >= 0)
-          or {{ vpp_enabled }}
-        msg:
-          - Incorrect configuration pertaining OVS DPDK. Conflicting or improper values detected
-          - When OVS DPDK is enabled, VPP must be disabled and default_hugepage_size must be set to 1G according to host_vars example.
-          - Also check these conditions in group_vars, example_net_attach_defs['userspace_ovs_dpdk']=true, example_net_attach_defs['userspace_vpp']=false.
-          - Please correct the configuration
-      when: ovs_dpdk_enabled is defined and ovs_dpdk_enabled
-
-    - name: check VPP Dependencies
-      ansible.builtin.assert:
-        that: >-
-          ({{ vpp_enabled }} and not {{ ovs_dpdk_enabled }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages_2M }} >= 0)
-          or {{ ovs_dpdk_enabled }}
-        msg:
-          - Incorrect configuration pertaining VPP. Conflicting or improper values detected
-          - When VPP is enabled, OVS DPDK must be disabled and default_hugepage_size must be set to 2M according to host_vars example.
-          - Also check these conditions in group_vars, example_net_attach_defs['userspace_ovs_dpdk']=false, example_net_attach_defs['userspace_vpp']=true.
-          - Please correct the configuration.
-      when: vpp_enabled is defined and vpp_enabled
-
-
-# STORY: "cnis require net-attach-defs to be enabled"
-    - name: check CNI Config
-      ansible.builtin.assert:
-        that: >-
-          ({{ userspace_cni_enabled }} and {{ ovs_dpdk_enabled }} and {{ example_net_attach_defs['userspace_ovs_dpdk'] }} and not {{ vpp_enabled }} and
-          not {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "1G" and {{ number_of_hugepages_1G }} >= 0)
-          or ({{ userspace_cni_enabled }} and not {{ ovs_dpdk_enabled }} and not {{ example_net_attach_defs['userspace_ovs_dpdk'] }} and {{ vpp_enabled }}
-          and {{ example_net_attach_defs['userspace_vpp'] }} and {{ hugepages_enabled }} and
-          "{{ default_hugepage_size }}" == "2M" and {{ number_of_hugepages_2M }} >= 0)
-        msg:
-          - Incorrect configuration pertaining CNI. Conflicting or improper values detected.
-          - When Userspace CNI is enabled, either OVS DPDK or VPP must be enabled, default_hugepage_size must also set under these options.
-          - 1. If VPP is enabled, ovs_dpdk_enabled=false, default_hugepage_size = 2M in host_vars; and
-          - example_net_attach_defs['userspace_ovs_dpdk']=false, example_net_attach_defs['userspace_vpp']=true in group_vars.
-          - 2. If OVS DPDK is enabled, default_hugepage_size = 1G in host_vars; and
-          - vpp_enabled=false, example_net_attach_defs['userspace_ovs_dpdk']=true, example_net_attach_defs['userspace_vpp']=false in group_vars.
-          - Please correct the configuration.
-      when: userspace_cni_enabled is defined and userspace_cni_enabled
-
+    - name: Check Userspace CNI preflight
+      ansible.builtin.import_role:
+        name: userspace_cni_install
+        tasks_from: preflight.yml
+      tags: userspace-cni
+      when: userspace_cni_enabled | default(false)
 
 # STORY: "If SST enabled, confirm minimum kernel or kernel_update specified"
     - name: check platform before SST-PP verification
@@ -1300,8 +1331,8 @@
     - name: check Intel(R) SST-PP (feature perf-profile) requirements
       ansible.builtin.assert:
         that:
-          - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "20.04") or
-            (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.3")
+          - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('20.04', '>=')) or
+            (ansible_os_family == "RedHat" and ansible_distribution_version is version('8.3', '>='))
           - turbo_boost_enabled
         fail_msg:
           - "Playbook terminated cause of failure might to two reasons: Firstly, SST-PP is only supported in RedHat / Rocky >= 8.3 or Ubuntu >=20.04"
@@ -1413,23 +1444,11 @@
         - configured_arch not in ['atom', 'core', 'ultra']
         - profile_name not in ['on_prem_sw_defined_factory']
 
-# STORY: "collectd and telegraf are mutually exclusive"
-    - name: fail if collectd and telegraf are both enabled
-      ansible.builtin.assert:
-        that: >-
-          (({{ collectd_enabled | bool }}) and (not ({{ telegraf_enabled | bool }})))
-          or (not {{ collectd_enabled | bool }} and {{ telegraf_enabled | bool }})
-          or (not {{ collectd_enabled | bool }} and (not ({{ telegraf_enabled | bool }})))
-        msg: "CollectD and Telegraf are mutually exclusive, please enable only one."
-      when:
-        - collectd_enabled is defined
-        - telegraf_enabled is defined
-
 # STORY: "supported k8s versions require istio in >= 1.10"
     - name: fail if istio version is not compatible with current k8s version
       ansible.builtin.assert:
         that:
-          - "{{ istio_service_mesh.version is version('1.10', '>=') }}"
+          - istio_service_mesh.version is version('1.10', '>=')
         msg: |
           "Selected Istio service mesh version: '{{ istio_service_mesh.version }}' is not compatible with selected k8s version: '{{ kube_version }}'"
           "Please, refer to the compatibility table at https://istio.io/latest/docs/releases/supported-releases/"
@@ -1443,122 +1462,86 @@
     - name: check if sgx dp and cert manager are enabled when TCS enabled
       ansible.builtin.assert:
         that:
-          - "{{ sgx_dp_enabled | default(false) }}"
-          - "{{ cert_manager_enabled | default(false) }}"
+          - sgx_dp_enabled | default(false)
+          - cert_manager_enabled | default(false)
         msg: "sgx_dp and cert manager should be enabled in order to have TCS functional."
       when:
         - tcs.enabled | default(false)
-        - configured_arch in ['icx']
+        - configured_arch in ['icx', 'spr']
 
 # STORY: "TAC depends on TCS"
     - name: check if TCS is enabled when TAC enabled
       ansible.builtin.assert:
         that:
-          - "{{ tcs.enabled | default(false) }}"
-          - "{{ kmra.apphsm.enabled | default(false) }}"
-          - "{{ kmra.pccs.enabled | default(false) }}"
+          - tcs.enabled | default(false)
+          - kmra.apphsm.enabled | default(false)
+          - kmra.pccs.enabled | default(false)
         msg: "TCS, KMRA AppHSM and PCCS should be enabled in order to have TAC functional."
       when:
         - tac.enabled | default(false)
-        - configured_arch in ['icx']
+        - configured_arch in ['icx', 'spr']
 
-# STORY: "istio_service_mesh.sgx_signer' option is available only for icx platforms"
+# STORY: "istio_service_mesh.sgx_signer' option is available only for icx, spr platforms"
     - name: particular service mesh options are available only for specific platforms
       ansible.builtin.assert:
         that:
-          - "{{ not istio_service_mesh.sgx_signer.enabled | default(false) }}"
+          - not istio_service_mesh.sgx_signer.enabled | default(false)
         msg: "'istio_service_mesh.sgx_signer' option is not available for the configured platform architecture."
       when:
         - istio_service_mesh.enabled | default(false)
-        - configured_arch not in ['icx']
+        - configured_arch not in ['icx', 'spr']
 
 # STORY: "istio_service_mesh.sgx_signer' option must be true when profile is ca_custom"
     - name: particular service mesh options must be set together
       ansible.builtin.assert:
         that:
-          - "{{ istio_service_mesh.sgx_signer.enabled | default(false) }}"
+          - istio_service_mesh.sgx_signer.enabled | default(false)
         msg: "'istio_service_mesh.sgx_signer' must be enabled for custom-ca profile."
       when:
         - istio_service_mesh is defined
         - istio_service_mesh.enabled | default(false)
         - istio_service_mesh.profile == 'custom-ca' | default('default')
-        - configured_arch in ['icx']
+        - configured_arch in ['icx', 'spr']
 
-# STORY: TCS is available only for icx platforms"
+# STORY: TCS is available only for icx, spr platforms"
     - name: TCS is available only for specific platforms
       ansible.builtin.assert:
         that:
-          - "{{ not tcs.enabled | default(false) }}"
+          - not tcs.enabled | default(false)
         msg: "TCS is not available for the configured platform architecture."
       when:
-        - configured_arch not in ['icx']
+        - configured_arch not in ['icx', 'spr']
 
     - name: Make sure istio and linkerd are not enabled at the same time
       ansible.builtin.assert:
         that:
-          - "{{ not linkerd_service_mesh.enabled | default (false) }}"
+          - not linkerd_service_mesh.enabled | default (false)
         fail_msg: "You should not have enabled Istio and LinkerD service mesh on at the same time.
                    Please choose and enable only one service mesh."
       when:
         - istio_service_mesh.enabled | default(false)
 
-# STORY: TAC is available only for icx platforms"
+# STORY: TAC is available only for icx, spr platforms"
     - name: TAC is available only for specific platforms
       ansible.builtin.assert:
         that:
-          - "{{ not tac.enabled | default(false) }}"
+          - not tac.enabled | default(false)
         msg: "TAC is not available for the configured platform architecture."
       when:
-        - configured_arch not in ['icx']
+        - configured_arch not in ['icx', 'spr']
 
 # STORY: "istio_service_mesh.sgx_signer' option depends on KMRA AppHSM, KMRA PCCS, TCS, TAC.
     - name: check if KMRA Apps, TCS and TAC are enabled when service mesh sgx_signer option is enabled
       ansible.builtin.assert:
         that:
-          - "{{ kmra.apphsm.enabled | default(false) }}"
-          - "{{ kmra.pccs.enabled | default(false) }}"
-          - "{{ tcs.enabled | default(false ) }}"
-          - "{{ tac.enabled | default(false ) }}"
+          - kmra.apphsm.enabled | default(false)
+          - kmra.pccs.enabled | default(false)
+          - tcs.enabled | default(false )
+          - tac.enabled | default(false )
         msg: "In order to use service mesh sgx-signer option, please, enable KMRA AppHSM, KMRA PCCS, TCS, TAC."
       when:
         - istio_service_mesh.sgx_signer.enabled | default(false)
-        - configured_arch in ['icx']
-
-# STORY: TEMPORARY: "ovs dpdk version requirements"
-    - ansible.builtin.debug:
-        msg:
-          - install_dpdk = {{ install_dpdk }} (host_vars)
-          - dpdk_version = {{ dpdk_version }} (host_vars)
-          - ovs_dpdk_enabled = {{ ovs_dpdk_enabled }} (host_vars)
-          - ovs_version = {{ ovs_version }} (host_vars)
-      when:
-        - install_dpdk is defined # host_vars
-        - dpdk_version is defined # host_vars
-        - ovs_version is defined # host_vars
-        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled # host_vars
-
-    # Refer https://docs.openvswitch.org/en/latest/faq/releases/ to get OVS DPDK compatibility
-    - name: check OVS DPDK compatibility
-      ansible.builtin.assert:
-        that:
-          ovs_version == 'v3.2.0' and dpdk_version == '22.11.1'
-          or ovs_version == 'v3.1.1' and dpdk_version == '22.11.1'
-          or ovs_version == 'v3.0.1' and dpdk_version == '21.11.2'
-          or (ovs_version >= 'v2.17.0' and ovs_version <= 'v3.0.3') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
-          or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
-          or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
-          or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
-          or ovs_version == 'v2.14.1' and dpdk_version == '19.11.6'
-          or ovs_version == 'v2.14.0' and dpdk_version == '19.11.6'
-          or ovs_version == 'v2.13.3' and dpdk_version == '19.11.6'
-          or ovs_version == 'v2.13.2' and dpdk_version == '19.11.6'
-          or ovs_version == 'v2.13.1' and dpdk_version == '19.11.6'
-          or ovs_version == 'v2.13.0' and dpdk_version == '19.11.6'
-        msg: "OVS {{ ovs_version }} does not build with DPDK version {{ dpdk_version }}. Please correct the host_vars configuration"
-      when:
-        - dpdk_version is defined # host_vars
-        - ovs_version is defined # host_vars
-        - ovs_dpdk_enabled is defined and ovs_dpdk_enabled # host_vars
+        - configured_arch in ['icx', 'spr']
 
     - name: check Kubernetes Power Manager configuration
       ansible.builtin.include_role:
@@ -1575,14 +1558,13 @@
     - name: make sure isolcpus and cpusets are not enabled simultaneously
       ansible.builtin.assert:
         that:
-          - (not isolcpus_enabled and cpusets_enabled) or
-            (isolcpus_enabled and not cpusets_enabled)
+          - "[isolcpus_enabled, cpusets_enabled] is not all"
         msg:
           - "isolcpus_enabled and cpusets_enabled can't be enabled simultaneously."
           - "Please correct the host_vars configuration for target '{{ ansible_hostname }}'"
       when:
-        - (isolcpus_enabled is defined and isolcpus_enabled) or
-          (cpusets_enabled is defined and cpusets_enabled)
+        - isolcpus_enabled is defined
+        - cpusets_enabled is defined
 
     - name: check Intel SRIOV-FEC Operator requirements
       ansible.builtin.include_role:
@@ -1613,10 +1595,10 @@
     - name: check OS when DLB or DSA is enabled
       ansible.builtin.assert:
         that:
-          - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04'
+          - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('20.04', '==')
             and (update_kernel or ansible_kernel[0:4] is version('5.14', '>='))) or
-            (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '22.04') or
-            (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.6')
+            (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '>=')) or
+            (ansible_os_family == "RedHat" and ansible_distribution_version is version('8.6', '>='))
         success_msg: "DLB or DSA can succesfully be enabled on {{ ansible_distribution }} {{ ansible_distribution_version }}"
         msg: |
           DLB and DSA features are not supported on Ubuntu 20.04(with stock kernel) and RHEL/Rocky 8.5.
@@ -1633,7 +1615,7 @@
           ansible.builtin.assert:
             that:
               - ansible_distribution == "Ubuntu"
-              - ansible_distribution_version == "22.04"
+              - ansible_distribution_version is version('22.04', '==')
             msg: "Deploying SGX on VMRA is supported only on Ubuntu 22.04 VM host. Please change the o/s for VM host"
 
         - name: Check if configured SGX memory is not bigger than total memory
@@ -1654,7 +1636,7 @@
 # Storage preflight check
     - name: check storage persistent volumes
       ansible.builtin.assert:
-        that: "persistent_volumes != []"
+        that: persistent_volumes != []
         msg: "Persistent volumes on target '{{ ansible_hostname }}' must be set in host_vars. Please correct the configuration"
       when:
         - local_volume_provisioner_enabled | default(false) or
@@ -1721,45 +1703,23 @@
       tags: intel-oneapi
       when: intel_oneapi_enabled | default(false) | bool
 
-# STORY: "Observability: assert that all required compontents are enabled"
-    - name: assert that all observability/monitoring variables are disabled
-      ansible.builtin.assert:
-        that:
-          - not elasticsearch_enabled | default(false)
-          - not jaeger_operator | default(false)
-          - not opentelemetry_enabled | default(false)
-          - not kibana_enabled | default(false)
-        fail_msg: |
-          When both telegraf and collectd are disabled then the rest of Observability stack needs to be disabled: elastisearch, jaeger, opentelemtry and kibana.
-      when:
-        - not telegraf_enabled | default(false)
-        - not collectd_enabled | default(false)
+    - name: Check Kibana configuration
+      ansible.builtin.include_role:
+        name: kibana_install
+        tasks_from: preflight
+      when: kibana_enabled | default(false)
 
-    - name: assert that all observability/monitoring variables are enabled for telegraf
-      ansible.builtin.assert:
-        that:
-          - telegraf_enabled | default(false)
-          - elasticsearch_enabled | default(false)
-          - jaeger_operator | default(false)
-          - opentelemetry_enabled | default(false)
-          - kibana_enabled | default(false)
-        fail_msg: |
-          Observability needs to be enabled as a stack: telegraf, elastisearch, jaeger, opentelemtry and kibana.
-      when:
-        - telegraf_enabled | default(false)
+    - name: Check Jaeger configuration
+      ansible.builtin.include_role:
+        name: jaeger_install
+        tasks_from: preflight
+      when: jaeger_enabled | default(false)
 
-    - name: assert that all observability/monitoring variables are disabled for collectd
-      ansible.builtin.assert:
-        that:
-          - not telegraf_enabled | default(false)
-          - not elasticsearch_enabled | default(false)
-          - not jaeger_operator | default(false)
-          - not opentelemetry_enabled | default(false)
-          - not kibana_enabled | default(false)
-        fail_msg: |
-          When collectd is enabled then Observability stack needs to be disabled: telegraf, elastisearch, jaeger, opentelemtry and kibana.
-      when:
-        - collectd_enabled | default(false)
+    - name: Check OpenTelemetry configuration
+      ansible.builtin.include_role:
+        name: opentelemetry_install
+        tasks_from: preflight
+      when: opentelemetry_enabled | default(false)
 
     - name: Check Telegraf configuration
       ansible.builtin.include_role:

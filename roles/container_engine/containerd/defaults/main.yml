@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-containerd_version: 1.7.3
-containerd_archive_checksum: "de7f61aacba88ee647a7dcde1ca77672ec44ab9fb3e58ae90c0efc9b2d8f3068"
+containerd_version: 1.7.8
+containerd_archive_checksum: "5f1d017a5a7359514d6187d6656e88fb2a592d107e6298db7963dbddb9a111d9"
 
 containerd_download_url: "https://github.com/containerd/containerd/releases/download/v{{ containerd_version }}/containerd-{{ containerd_version }}-linux-amd64.tar.gz" # noqa yaml[line-length]
 containerd_bin_dir: "/usr/local/bin"
@@ -71,8 +71,12 @@ containerd_metrics_address: ""
 
 containerd_metrics_grpc_histogram: false
 
-containerd_registries:
-  "docker.io": "https://registry-1.docker.io"
+containerd_registries_mirrors:
+  - prefix: docker.io
+    mirrors:
+      - host: https://registry-1.docker.io
+        capabilities: ["pull", "resolve"]
+        skip_verify: false
 
 containerd_max_container_log_line_size: -1
 

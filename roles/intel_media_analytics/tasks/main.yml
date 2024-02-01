@@ -13,12 +13,64 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-- name: Get the group ID for GPU when gpu_dp_enabled
-  ansible.builtin.stat:
-    path: /dev/dri/renderD128
-  register: gpu_stat_gid
+- name: Prepare Media Analytics images
+  block:
+    - name: Get the group ID for GPU when gpu_dp_enabled
+      ansible.builtin.stat:
+        path: /dev/dri/renderD128
+      register: gpu_stat_gid
+      when: gpu_dp_enabled
+
+    - name: create Media Analytics folder
+      ansible.builtin.file:
+        path: "{{ (intel_media_analytics_local_folder) | path_join }}"
+        state: directory
+        mode: 0755
+
+    - name: copy Media Analytics shell script
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ (intel_media_analytics_local_folder) | path_join }}"
+        mode: 0644
+      with_fileglob:
+        - ./*.sh
+
+    - name: copy Media Analytics Dockerfile
+      ansible.builtin.template:
+        src: "templates/Dockerfile.j2"
+        dest: "{{ intel_media_analytics_local_folder}}/Dockerfile"
+        mode: 0644
+
+    - name: prepare and push containers images with docker
+      vars:
+        image: "{{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}"
+        tag: "{{ intel_media_analytics_image_tag }}"
+      ansible.builtin.shell:
+        cmd: |-
+          docker build -t {{ image }}:{{ tag }} -f Dockerfile .
+          docker push {{ image }}:{{ tag }}
+        chdir: "{{ (intel_media_analytics_local_folder) | path_join }}"
+      changed_when: true
+      when:
+        - container_runtime is in ['docker']
+        - inventory_hostname == groups['kube_node'][0]
+
+    - name: prepare and push containers images with containerd
+      vars:
+        image: "{{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}"
+        tag: "{{ intel_media_analytics_image_tag }}"
+      containers.podman.podman_image:
+        name: "{{ image }}:{{ tag }}"
+        path: "{{ (intel_media_analytics_local_folder) | path_join }}"
+        build:
+          file: Dockerfile
+          extra_args: "--build-arg http_proxy={{ http_proxy }} --build-arg https_proxy={{ https_proxy }}"
+        push: true
+      when:
+        - container_runtime is in ['containerd']
+        - inventory_hostname == groups['kube_node'][0]
   when:
-    - gpu_dp_enabled
+    - intel_media_analytics_enabled | default(false)
     - inventory_hostname in groups['kube_node']
 
 - name: install Media Analytics

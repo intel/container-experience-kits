@@ -50,6 +50,16 @@ qat_devices:
     qat_sriov_numvfs: 10
 ```
 
+**SRIOV QAT** and **SRIOV NIC** can be also configured automatically. To do so leave `dataplane_interfaces` and `qat_devices` empty, these options will be set automatically during playbook run. Both will be set up with maximum VFs available.
+```
+dataplane_interface_default_vf_driver: "iavf"
+dataplane_interfaces: []
+
+qat_devices: []
+```
+
+**_NOTE:_** It's not necessary to configure both SRIOV QAT and SRIOV NIC automatically, one can be configured manually while other is auto-configured.
+
 Next section provides VM related configuration options.
 The first option defines VM image distribution of cloud image, which will be used inside VMs.
   Currently supported distributions are: "ubuntu" and "rocky". Default is "ubuntu"
@@ -123,17 +133,38 @@ To enable VM cluster name feature uncomment vm_cluster_name parameter in host_va
 Next section provides definition of VMs, which will be created during deployment process, and which will be used as control and worker nodes there.
 
 vms option defines the list of VMs. Each VM is defined by following parameters:
-`type` defines type of VM and following types are supported: "ctrl" and "work"
+`type` defines type of VM and following types are supported: "ctrl", "work" and "vm"
 `name` defines hostname for the VM, which is assigned to VM. That name have to be used for corresponding host_vars file. e.g.: host_vars/vm-work-1.yml
 `cpu_total` defines total number of CPUs assigned to VM. If value `0` is added here then all available CPUs from one NUMA node are assigned to this VM.
             If value `0` is added together with optional parameter `alloc_all: true` then all available CPUs from VM host are assigned to this VM.
 `memory` defines amount of memory assigned to VM in MB
 `vxlan` defines vxlan id of the vxlan network, where VM will be connected to. It has to be the one, which was added to dhcp parameter above.
 
-`pci` defines list of PCI devices assigned to VM. It contains PCI ids for SRIOV NIC VFs and SRIOV QAT VFs which are assigned to VM. The list can be empty as well. PCI section is relevant only for VM type `work`. In example configuration bellow we've assigned 4 NIC VFs and 2 QAT VFs.
+`pci` defines list of PCI devices assigned to VM. It contains PCI ids for SRIOV NIC VFs and SRIOV QAT VFs which are assigned to VM. The list can be empty as well. PCI section is relevant only for VM types `work` and `vm`. In example configuration bellow we've assigned 4 NIC VFs and 2 QAT VFs.
 
-To be able to configure PCI ids for VFs we need to know their "naming convention". We need to connect to VM host and check PCI ids for VFs there.
+In case **SRIOV NIC** or **SRIOV QAT** are chosen to be configured automatically on VM host as described above, PCI devices list for VMs will be set automatically, so PCI parameter can be left empty `pci: []`. Desired number of NIC or QAT SRIOV VFs for worker node VMs can be specified as follows:
 
+```
+vms:
+  - type: "work"
+    name: "vm-work-1"
+    cpu_total: 16
+    memory: 61440
+    vxlan: 120
+    pci: []
+    nic_devices_count: 8
+    qat_devices_count: 4
+  - type: "work"
+    name: "vm-work-2"
+    cpu_total: 16
+    memory: 61440
+    vxlan: 120
+    pci: []
+    nic_devices_count: 8
+    qat_devices_count: 4
+```
+
+Otherwise if SRIOV NIC or SRIOV QAT were defined manually, to be able to configure PCI ids for VFs we need to know their "naming convention". We need to connect to VM host and check PCI ids for VFs there.
 
 **For SRIOV NIC VFs:**  
 
@@ -363,6 +394,28 @@ vms:
       - "3f:02.3"
 ```
 
+Example configuration if SRIOV QAT is configured automatically while SRIOV NIC is configured manually:
+
+```
+vms:
+  - type: "ctrl"
+    name: "vm-ctrl-1"
+    cpu_total: 8
+    memory: 20480
+    vxlan: 120
+  - type: "work"
+    name: "vm-work-1"
+    cpu_total: 16
+    memory: 61440
+    vxlan: 120
+    pci:
+      - "18:02.2"
+      - "18:02.3"
+      - "18:02.4"
+      - "18:02.5"
+    qat_devices_count: 16
+```
+
 Example expert mode configuration contains 2 VMs, 1 control and 1 work node.
 
 ```
@@ -403,6 +456,8 @@ There's also a set of configuration options that are applied in per-node manner 
 
 The first set of variables configure assigned SRIOV NIC VFs and SRIOV QAT VFs inside VM. It requires setting `iommu_enabled` as `false`.
 
+On worker nodes **SRIOV NIC** and **SRIOV QAT** can be also configured automatically regardless of whether they were configured automatically or manually on VM host. To do so leave `dataplane_interfaces` or `qat_devices` empty, devices will be discovered during the runtime.
+
 **For SRIOV NIC** it requires passing names of interfaces together with additional NIC parameters. In below example `dataplane_interfaces` configuration contains 4 interfaces, where the first one starting with bus_info "06:00.0". The number in PCI id is sequentially increasing. `sriov_numvfs` must be "0" here. We can't create new VFs out of provided VF.
 `pf_driver` and `default_vf_driver` are not use at the moment. All interfaces are assigned to kernel mode iavf driver inside VM.
 The number of interfaces defined here in `dataplane_interfaces` have to be the same as number of NIC VFs assigned to this VM !
@@ -413,6 +468,14 @@ The number of QAT devices defined here in `qat_devices` has to be the same as nu
 In our example configuration we've assigned 2 QAT VFs, so we have 2 devices defined here.
 
 This setting will add `vfio-pci.disable_denylist=1` kernel flags for Ubuntu/RHEL/Rocky specific versions, and as a result will reboot the target vm-work VM during deployment.
+
+```
+dataplane_interfaces: []
+
+qat_devices: []
+```
+
+or
 
 ```
 dataplane_interfaces:

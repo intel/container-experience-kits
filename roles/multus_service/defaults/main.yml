@@ -18,7 +18,7 @@ multus_service_namespace: "kube-system"         # Multus Service namespace
 multus_service_release_name: "multus-service"   # Multus Service Helm Charts release name
 
 multus_service_image: ghcr.io/k8snetworkplumbingwg/multus-service
-multus_service_digest: sha256:f53a6fcf3f728bec8fc6ceb1a6e5ad0ee0cc912ceb3c6610a3c8a468cb2736b9
+multus_service_digest: sha256:3d825327b9851d6045448d7db5323689d1eb4ae813eeac26ed8fcf5ee8d194fb
 
 # Placeholder to upstream where deployment k8s template is taken from
 # multus_service_git_url: "https://github.com/k8snetworkplumbingwg/multus-service.git"

@@ -21,7 +21,7 @@
 # WA till upstream fix reach official version - issue https://github.com/k8snetworkplumbingwg/sriov-cni/issues/241
 - name: WA till upstream fix reach official version for issue 241 - use commit id
   set_fact:
-    sriov_cni_version: "c1faa0805c92be6e5c629e9caf481f43cfee866c"
+    sriov_cni_version: "75f2f5e1d06390d680e2f639213a58cf91915734"
 
 - name: clone sriov-cni repository
   git:

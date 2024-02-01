@@ -1,0 +1,131 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Clone repository with DPDK patches for IPM
+  ansible.builtin.git:
+    repo: "{{ ipm_dpdk_patches_git_url }}"
+    dest: "{{ ipm_dpdk_patches_repo_dir }}"
+    version: "{{ ipm_dpdk_patches_commit }}"
+    force: true
+
+- name: Check patches dir exist for defined DPDK version
+  ansible.builtin.stat:
+    path: "{{ (ipm_dpdk_patches_base_dir, ipm_stripped_dpdk_version) | path_join  }}"
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: patch_dir
+
+- name: Select patch files if no patches available for defined version
+  when: not patch_dir.stat.exists
+  block:
+    - name: Get all versions of DPDK patches
+      ansible.builtin.find:
+        paths: "{{ ipm_dpdk_patches_base_dir }}"
+        file_type: directory
+      register: dpdk_patches_dirs
+
+    - name: Set newest available version of patches
+      ansible.builtin.set_fact:
+        newest_patch_version: "{{ (dpdk_patches_dirs.files | map(attribute='path') | map('basename') | list | community.general.version_sort)[-1] }}"
+
+    - name: Warn about using patches for different DPDK version
+      ansible.builtin.debug:
+        msg: |
+          IPM does not provide patches for DPDK v{{ dpdk_version }}.
+          Patches for highest available version of DPDK (v{{ newest_patch_version }}) used instead!
+
+- name: Set version of DPDK patches to use
+  ansible.builtin.set_fact:
+    ipm_dpdk_patches_dir: >-
+      {% if patch_dir.stat.exists -%}
+        {{ (ipm_dpdk_patches_base_dir, ipm_stripped_dpdk_version) | path_join }}
+      {%- else -%}
+        {{ (ipm_dpdk_patches_base_dir, newest_patch_version) | path_join }}
+      {%- endif %}
+
+- name: Handle DPDK patch symlink files
+  block:
+    - name: Identify links in DPDK patches
+      ansible.builtin.find:
+        paths: "{{ ipm_dpdk_patches_dir }}"
+        recurse: true
+        file_type: link
+      register: patch_link_list
+
+    - name: Get link targets for each patch link
+      stat:
+        path: "{{ item }}"
+      loop: "{{ (patch_link_list.files | map(attribute='path') | list | sort) }}"
+      register: patch_links
+
+    - name: replace links
+      copy:
+        remote_src: true
+        src: "{{ item.stat.lnk_source }}"
+        dest: "{{ item.stat.path }}"
+        mode: '0644'
+      loop: "{{ patch_links.results }}"
+
+- name: Handle patch files containing only link to other file
+  block:
+    - name: Find patch files that contain only link to another patch file
+      ansible.builtin.find:
+        paths: "{{ ipm_dpdk_patches_dir }}"
+        recurse: true
+        contains: '^\.\.\/\S*$'
+        read_whole_file: true
+      register: link_file_list
+
+    - name: Find original patch files from links
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      register: link_points_list
+      loop: "{{ link_file_list.files }}"
+      when: link_file_list.matched > 0
+
+    - name: Replace identified link files with real patch files
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ (item.source | dirname, item.content | b64decode) | path_join | realpath }}"
+        dest: "{{ item.source }}"
+        mode: '0644'
+        force: true
+      loop: "{{ link_points_list.results }}"
+      when: link_file_list.matched > 0
+
+- name: Identify DPDK patches to be used
+  ansible.builtin.find:
+    paths: "{{ ipm_dpdk_patches_dir }}"
+    recurse: true
+  register: patch_file_list
+
+- block:
+    - name: Apply DPDK patches
+      vars:
+        # Sort patch files
+        patch_files: "{{ (patch_file_list.files | map(attribute='path') | list | sort) }}"
+      ansible.posix.patch:
+        remote_src: true
+        src: "{{ item }}"
+        basedir: "{{ dpdk_dir }}"
+        strip: "{{ ipm_dpdk_patches_strip }}"
+        state: present
+      loop: "{{ patch_files }}"
+      when: patch_file_list.matched > 0
+  rescue:
+    - name: Report unsupported DPDK version
+      ansible.builtin.fail:
+        msg: "Patch of DPDK with files provided by IPM failed. It is likely IPM does not support DPDK v{{ dpdk_version }}."

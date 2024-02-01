@@ -37,7 +37,7 @@
 
 - name: check the sbx image integrity
   assert:
-    that: "provided_sbx.stat.checksum == '{{ kmra_defaults.apphsm.sbx_image_checksum }}'"
+    that: provided_sbx.stat.checksum == kmra_defaults.apphsm.sbx_image_checksum
     msg:
       - File {{ kmra_defaults.apphsm.sbx_image_staging_location }} on localhost is NOT the expected one.
       - Please provide the correct file.

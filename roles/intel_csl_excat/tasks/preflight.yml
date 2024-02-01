@@ -31,14 +31,14 @@
 
 - name: assert if no tar ball
   assert:
-    that: "provided_csl.stat.checksum | default('')"
+    that: provided_csl.stat.checksum | default('')
     msg:
       - File {{ csl_excat_tar_staging_location }} on localhost does not exist.
       - Please refer to group_vars/all.yml and search intel_csl_excat for how to get this tar ball.
 
 - name: check the csl_excat image integrity
   assert:
-    that: "provided_csl.stat.checksum | default('')  == '{{ csl_excat_image_checksum }}'"
+    that: provided_csl.stat.checksum | default('') == csl_excat_image_checksum
     msg:
       - File {{ csl_excat_tar_staging_location }} on localhost is NOT the expected one.
       - Please provide the correct file.

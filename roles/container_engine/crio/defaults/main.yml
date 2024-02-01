@@ -24,9 +24,9 @@ crio_log_level: "info"
 crio_metrics_port: "9090"
 crio_pause_image: "k8s.gcr.io/pause:3.9"
 
-crio_version: "v1.27.0"
+crio_version: "v1.28.1"
 crio_download_url: "https://storage.googleapis.com/cri-o/artifacts/cri-o.amd64.{{ crio_version }}.tar.gz"
-crio_archive_checksums: "8f99db9aeea00299cb3f28ee61646472014cac91930e4c7551c9153f8f720093"
+crio_archive_checksums: "63cee2e67e283e29d790caa52531bcca7bc59473fb73bde75f4fd8daa169d4bf"
 
 crio:
   version: "{{ crio_version }}"

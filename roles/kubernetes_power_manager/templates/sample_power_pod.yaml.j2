@@ -22,4 +22,4 @@ spec:
           cpu: "2"
           power.intel.com/{{ power_profile_name }}: "2"
   nodeSelector:
-    kubernetes.io/hostname: {{ power_node }}
+    kubernetes.io/hostname: {{ hostvars[power_node]['ansible_hostname'] }}

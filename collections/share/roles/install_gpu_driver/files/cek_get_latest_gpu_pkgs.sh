@@ -46,6 +46,8 @@ apt-cache madison libigdfcl-dev | head -n 1
 apt-cache madison libigfxcmrt7 | head -n 1
 apt-cache madison libigfxcmrt-dev | head -n 1
 apt-cache madison level-zero-dev | head -n 1
+apt-cache madison libvpl-dev | head -n 1
+
 
 echo "gpu_tool_packages :"
 apt-cache madison xpu-smi | head -n 1

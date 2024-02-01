@@ -50,48 +50,33 @@
                   unzip \
               && rm -rf /var/lib/apt/lists/*
 
+- name: Compile local MinIO
+  community.general.make:
+    chdir: "{{ minio_local_build_dir }}"
+  when: minio_build_image_locally
+
 # docker is used as container runtime:
-- name: prepare containers images
-  block:
-    - name: compile local MinIO
-      make:
-        chdir: "{{ minio_local_build_dir }}"
-      when: minio_build_image_locally
-
-    - name: build local MinIO custom image
-      command: >-
-        docker build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }} ./
-      args:
-        chdir: "{{ minio_local_build_dir }}"
-      changed_when: true
-      when: minio_build_image_locally
-
-    - name: push the local MinIO custom images to local registry
-      command: >-
-        docker push {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
-      when: minio_build_image_locally
+- name: Build and push MinIO custom image - docker
+  community.docker.docker_image:
+    build:
+      path: "{{ minio_local_build_dir }}"
+      dockerfile: Dockerfile
+    name: "{{ registry_local_address }}/{{ minio_local_build_name }}"
+    tag: "{{ minio_git_tag }}"
+    push: true
+    source: build
   when:
+    - minio_build_image_locally
     - container_runtime == "docker"
 
 # containerd/cri-o is used as container runtime:
-- name: prepare containers images
-  block:
-    - name: compile local MinIO
-      make:
-        chdir: "{{ minio_local_build_dir }}"
-      when: minio_build_image_locally
-
-    - name: build local MinIO custom image
-      command: >-
-        podman build -f Dockerfile -t {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }} ./
-      args:
-        chdir: "{{ minio_local_build_dir }}"
-      changed_when: true
-      when: minio_build_image_locally
-
-    - name: push the local MinIO custom images to local registry
-      command: >-
-        podman push {{ registry_local_address }}/{{ minio_local_build_name }}:{{ minio_git_tag }}
-      when: minio_build_image_locally
+- name: Build and push MinIO custom image - podman
+  containers.podman.podman_image:
+    name: "{{ registry_local_address }}/{{ minio_local_build_name }}"
+    tag: "{{ minio_git_tag }}"
+    path: "{{ minio_local_build_dir }}"
+    push: true
+    state: build
   when:
+    - minio_build_image_locally
     - container_runtime is in ['containerd', 'crio']

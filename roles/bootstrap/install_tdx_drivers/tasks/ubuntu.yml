@@ -47,27 +47,27 @@
         version: "{{ intel_tdx_tag }}"
         force: true
 
-    - name: block to fix the compilation error for tdx 1.5
-      block:
-        - name: fix the tdx migration module compilation error
-          ansible.builtin.lineinfile:
-            path: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04', 'intel-mvp-tdx-migration', 'build.sh') | path_join }}"
-            insertafter: "    ./sh_script/preparation.sh"
-            line: "    cp ./Cargo.lock ./deps/td-shim/"
-        - name: fix the tdx vtpm module compilation error
-          ansible.builtin.lineinfile:
-            path: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04', 'intel-mvp-vtpm-td', 'build.sh') | path_join }}"
-            insertafter: "    source sh_script/pre-build.sh"
-            line: "    cp ../../intel-mvp-tdx-migration/migtd/Cargo.lock ./deps/td-shim/"
-      when:
-        - tdx_version == "1.5"
+    - name: copy rust setup script to target machine
+      ansible.builtin.copy:
+        src: rust_setup.sh
+        dest: "{{ (intel_tdx_download_dir, 'rust_setup.sh') | path_join }}"
+        mode: '0755'
 
-    - name: cleanup the already built libraries and packages
-      ansible.builtin.command: >-
-        ./build-repo.sh cleanup
+    - name: run the rust setup script
+      ansible.builtin.command: ./rust_setup.sh
       args:
-        chdir: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04') | path_join }}"
+        chdir: "{{ intel_tdx_download_dir }}"
       changed_when: true
+      become: true
+      register: rust_setup_register
+
+    - name: print the rust installation log
+      ansible.builtin.debug:
+        msg: "{{ rust_setup_register.stdout }}"
+
+    - name: print the prompt information
+      ansible.builtin.debug:
+        msg: "start to compile the tdx driver, it will cost a long time(~1h), please wait"
 
     - name: compile the tdx source code
       ansible.builtin.command: >-
@@ -75,22 +75,23 @@
       args:
         chdir: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04') | path_join }}"
       changed_when: true
+      become: true
+      environment:
+        PATH: "{{ ansible_env.HOME }}/.cargo/bin:{{ ansible_env.PATH }}"
 
-- name: copy the comiled host/guest packages to {{ intel_tdx_packages_dir }}
-  block:
-    - name: copy host packages
-      ansible.builtin.copy:
-        src: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04', 'host_repo') | path_join }}"
-        dest: "{{ intel_tdx_packages_dir }}"
-        remote_src: yes
-        mode: '0644'
+    - name: generate copy_packages.sh script on target machine
+      ansible.builtin.template:
+        src: copy_packages.sh.j2
+        dest: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04', 'copy_packages.sh') | path_join }}"
+        mode: '0755'
 
-    - name: sync guest packages
-      ansible.builtin.copy:
-        src: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04', 'guest_repo') | path_join }}"
-        dest: "{{ intel_tdx_packages_dir }}"
-        remote_src: yes
-        mode: '0644'
+    - name: copy
+      ansible.builtin.command: >-
+        ./copy_packages.sh
+      args:
+        chdir: "{{ (intel_tdx_download_dir, 'build', 'ubuntu-22.04') | path_join }}"
+      changed_when: true
+      become: true
 
 - name: install the host packages
   # npm do not use the apt module due to it can not resolve the dependencies for multiple packages

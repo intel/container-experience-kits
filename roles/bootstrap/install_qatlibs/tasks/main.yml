@@ -108,7 +108,7 @@
 
     # using shell module instead of comand as it was giving aclocal: warning: causing playbook failure
     - name: run autogen before configure QATLibs
-      shell: './autogen.sh' # noqa 305 # command-instead-of-shell
+      ansible.builtin.shell: './autogen.sh' # noqa command-instead-of-shell
       args:
         chdir: "{{ intel_qatlib_download_url_dir }}"
         executable: /bin/bash
@@ -130,6 +130,6 @@
       command: "ldconfig"
       changed_when: true
   when:
-    - configured_arch in ["spr", "emr"]
+    - configured_arch in ["spr", "emr", "gnr"]
     - configure_qat | default(false) | bool
     - not update_qat_drivers | default(false) | bool

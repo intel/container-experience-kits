@@ -1,0 +1,12 @@
+[Unit]
+Description=Kill the OVS process to unlock the reboot
+Before=shutdown.target reboot.target halt.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/opt/cek/ovs-dpdk stop
+
+[Install]
+WantedBy=shutdown.target reboot.target halt.target

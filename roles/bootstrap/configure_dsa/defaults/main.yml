@@ -16,6 +16,6 @@
 ---
 idxd_config_git_url: "https://github.com/intel/idxd-config.git"
 idxd_config_dir: "/usr/src/idxd-config"
-idxd_config_git_ref: "accel-config-v4.0"
+idxd_config_git_ref: "accel-config-v4.1.4"
 
 dsa_devices_dir: "/sys/bus/dsa/devices/"

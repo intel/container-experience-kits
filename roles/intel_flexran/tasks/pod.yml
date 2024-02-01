@@ -16,10 +16,10 @@
 ---
 - name: Enable non root user to start Flexran pod on SPR-EE
   block:
-    - name: enable device_ownership_from_security_context in /etc/containerd/config.toml
+    - name: enable device_ownership_from_security_context in containerd daemon configuration
       ansible.builtin.lineinfile:
-        path: /etc/containerd/config.toml
-        insertafter: 'enable_unprivileged_icmp = false'
+        path: "{{ containerd_conf_file }}"
+        insertafter: 'enable_unprivileged_icmp'
         line: "    device_ownership_from_security_context = true"
     - name: containerd | restart containerd
       ansible.builtin.systemd:
@@ -27,11 +27,17 @@
         state: restarted
         enabled: yes
         daemon-reload: yes
+      when: kube_provisioner == 'kubespray'
+    - name: containerd | restart rke2 server
+      ansible.builtin.systemd:
+        name: rke2-server.service
+        state: restarted
+      when: kube_provisioner == 'rke2'
   when:
     - configured_arch == "spr"
     - container_runtime == "containerd"
 
-- name: generate FlexRAN Docker POD files
+- name: generate FlexRAN POD files
   template:
     src: "{{ item.src }}"
     dest: "{{ (intel_flexran_files_dir, item.dst) | path_join }}"
@@ -40,57 +46,32 @@
   loop:
     - {src: 'intel_flexran_pod_timer_mode_icx_sp.yaml.j2', dst: 'intel_flexran_pod_timer_mode_icx_sp.yaml'}
     - {src: 'intel_flexran_pod_xran_mode_icx_sp.yaml.j2', dst: 'intel_flexran_pod_xran_mode_icx_sp.yaml'}
-    - {src: 'intel_flexran_pod_timer_mode_spr_ee_non_root.yaml.j2', dst: 'intel_flexran_pod_timer_mode_spr_ee_non_root.yaml'}
-    - {src: 'intel_flexran_pod_xran_mode_spr_ee_non_root.yaml.j2', dst: 'intel_flexran_pod_xran_mode_spr_ee_non_root.yaml'}
+    - {src: 'intel_flexran_pod_timer_mode_spr_ee.yaml.j2', dst: 'intel_flexran_pod_timer_mode_spr_ee.yaml'}
+    - {src: 'intel_flexran_pod_xran_mode_spr_ee.yaml.j2', dst: 'intel_flexran_pod_xran_mode_spr_ee.yaml'}
 
-- name: create namespace for FlexRAN as Docker POD
-  k8s:
+- name: create namespace for FlexRAN as POD
+  kubernetes.core.k8s:
     name: "{{ intel_flexran_namespace }}"
     kind: Namespace
     state: present
 
 - name: label node for running FlexRAN as Docker POD
-  shell: "kubectl label node {{ groups['kube_node'][0] }} testnode=worker1" # noqa command-instead-of-shell
+  ansible.builtin.shell: >-
+    kubectl label node {{ groups['kube_node'][0] }} testnode=worker1
   args:
     executable: /bin/bash
   register: sriov_pod_delete
   changed_when: sriov_pod_delete.rc == 0
   failed_when: sriov_pod_delete.rc != 0
 
-- name: run FlexRAN as Docker POD in Timer test mode on ICX-SP
-  k8s:
+- name: run FlexRAN as Docker POD
+  kubernetes.core.k8s:
     state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode_icx_sp.yaml') | path_join }}"
-  when:
-    - intel_flexran_mode == "timer"
-    - configured_arch == "icx"
-
-- name: run FlexRAN as Docker POD in XRAN test mode on ICX-SP
-  k8s:
-    state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode_icx_sp.yaml') | path_join }}"
-  when:
-    - intel_flexran_mode == "xran"
-    - configured_arch == "icx"
-
-- name: run FlexRAN as POD in Timer test mode on SPR-EE
-  k8s:
-    state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_timer_mode_spr_ee_non_root.yaml') | path_join }}"
-  when:
-    - intel_flexran_mode == "timer"
-    - configured_arch == "spr"
-
-- name: run FlexRAN as POD in XRAN test mode on SPR-EE
-  k8s:
-    state: present
-    src: "{{ (intel_flexran_files_dir, 'intel_flexran_pod_xran_mode_spr_ee_non_root.yaml') | path_join }}"
-  when:
-    - intel_flexran_mode == "xran"
-    - configured_arch == "spr"
+    src: "{{ (intel_flexran_files_dir, flexran_pod[configured_arch][intel_flexran_mode]) | path_join }}"
 
 - name: cluster final check-point
   ansible.builtin.include_role:
     name: wait_for_kubernetes_ready
 
-- debug: msg="Intel FlexRAN deployment as Docker POD in {{ intel_flexran_mode }} test mode is complete."
+- ansible.builtin.debug:
+    msg: "Intel FlexRAN deployment as Docker POD in {{ intel_flexran_mode }} test mode on arch {{ configured_arch }} is complete."

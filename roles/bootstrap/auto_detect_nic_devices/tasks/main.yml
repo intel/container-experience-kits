@@ -1,0 +1,99 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: user configured dataplane_interfaces
+  ansible.builtin.debug: var=dataplane_interfaces
+
+- name: initializing new dataplane_interfaces list
+  ansible.builtin.set_fact:
+    new_dataplane_interfaces: []
+
+- name: get supported NIC PF devices
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ nic_supported_pf_dev_ids | join('|') }}'"
+    executable: /bin/bash
+  register: nic_pci_pf_devices
+  changed_when: false
+  failed_when: nic_pci_pf_devices.rc not in [0, 1]
+  when: not on_vms | default(false)
+
+- name: get supported NIC VF devices
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ nic_supported_vf_dev_ids | join('|') }}'"
+    executable: /bin/bash
+  register: nic_pci_vf_devices
+  changed_when: false
+  failed_when: nic_pci_vf_devices.rc not in [0, 1]
+  when: on_vms | default(false)
+
+- name: get NIC device bus IDs
+  ansible.builtin.set_fact:
+    nic_pci_devices: "{{ (nic_pci_vf_devices.stdout_lines if (on_vms | default(false)) else nic_pci_pf_devices.stdout_lines) |
+      map('split') | map('first') }}"
+
+- name: get NIC device uevent information
+  ansible.builtin.slurp:
+    src: "{{ ('/sys/bus/pci/devices', ('0000:' + item), 'uevent') | path_join }}"
+  with_items: "{{ nic_pci_devices }}"
+  register: nic_dev_uevent_reg
+  when: not on_vms | default(false)
+
+- name: read sriov_totalvfs for each NIC PF
+  ansible.builtin.slurp:
+    src: "{{ ('/sys/bus/pci/devices', ('0000:' + item), 'sriov_totalvfs') | path_join }}"
+  with_items: "{{ nic_pci_devices }}"
+  register: nic_dev_sriov_total_vfs_reg
+  when: not on_vms | default(false)
+
+- name: create new_dataplane_interfaces list
+  ansible.builtin.set_fact:
+    new_dataplane_interfaces: |-
+      [
+      {% for uevent, total_vfs in nic_dev_uevent_reg.results | zip(nic_dev_sriov_total_vfs_reg.results) %}
+        {
+          "pf_driver": "{{ uevent.content | b64decode | regex_search('DRIVER=(.+)', '\1') | first }}",
+          "bus_info": "{{ (uevent.content | b64decode | regex_search('PCI_SLOT_NAME=(.+)', '\1') | first)[5:] }}",
+          "ddp_profile": "{{ default_ddp_profile }}",
+          "default_vf_driver": "{{ dataplane_interface_default_vf_driver }}",
+          "sriov_numvfs": {{ total_vfs.content | b64decode | trim }},
+          "sriov_vfs": {},
+        },
+      {% endfor %}
+      ]
+  when: not on_vms | default(false)
+
+- name: create new_dataplane_interfaces list on VMs
+  ansible.builtin.set_fact:
+    new_dataplane_interfaces: |-
+      [
+      {% for dev in nic_pci_devices %}
+        {
+          "pf_driver": "iavf",
+          "bus_info": "{{ dev }}",
+          "default_vf_driver": "iavf",
+          "sriov_numvfs": 0,
+        },
+      {% endfor %}
+      ]
+  when: on_vms | default(false)
+
+- name: replace original dataplane_interfaces
+  ansible.builtin.set_fact:
+    dataplane_interfaces: "{{ new_dataplane_interfaces }}"
+
+- name: print new dataplane_interfaces
+  ansible.builtin.debug:
+    var: dataplane_interfaces

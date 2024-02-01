@@ -1,0 +1,9 @@
+apiVersion: "power.intel.com/v1"
+kind: TimeOfDay
+metadata:
+  name: timeofday-sample
+  namespace: {{ kubernetes_power_manager_namespace }}
+spec:
+  timeZone: {{ time_of_day.time_zone }}
+  schedule: {{ time_of_day.schedule }}
+  reservedCPUs: {{ time_of_day.reserved_cpus }}

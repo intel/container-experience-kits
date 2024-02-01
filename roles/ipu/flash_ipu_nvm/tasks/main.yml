@@ -31,30 +31,26 @@
   ansible.builtin.find:
     path: "{{ ftdi_sio_driver_dir }}"
     file_type: "link"
+
+- name: find selected USB device binding
+  ansible.builtin.find:
+    path: "{{ ftdi_sio_driver_dir }}"
+    file_type: "link"
+    patterns: "{{ usb_address_patterns }}"
+    use_regex: true
+    recurse: false
   register: ftdi_sio_out
 
-- name: set USB device addresses
-  ansible.builtin.command:
-    cmd: "basename {{ ftdi_sio_out.files|selectattr('path', 'search', item)|map(attribute='path')|replace('[','')|replace(']','') }}"
-  with_items: "{{ usb_address_patterns }}"
-  register: selected_usb_addresses
-  when:
-    - ftdi_sio_out.files|selectattr('path', 'search', item)|map(attribute='path')|replace('[','')|replace(']','')
-
-- name: show selected USB device addresses to be unbind
-  ansible.builtin.debug:
-    msg: "USB: {{ item.stdout }}"
-  with_items: "{{ selected_usb_addresses.results }}"
-  when:
-    - not item.skipped | default(false)
+- name: Construct USB device binding list
+  ansible.builtin.set_fact:
+    selected_usb_addresses: "{{ ftdi_sio_out.files | map(attribute='path') | map('basename') | list }}"
 
 - name: unbind USB1 and USB3 from ftdi_sio driver
-  ansible.builtin.shell: "set -o pipefail && echo '{{ item.stdout }}' > {{ ftdi_sio_driver_dir }}/unbind"
+  ansible.builtin.shell: "set -o pipefail && echo '{{ item }}' > {{ ftdi_sio_driver_dir }}/unbind"
   args:
     executable: /bin/bash
-  with_items: "{{ selected_usb_addresses.results }}"
-  when:
-    - not item.skipped | default(false)
+  with_items: "{{ selected_usb_addresses }}"
+  changed_when: false
 
 - name: add executable permission for EthProgrammer
   ansible.builtin.file:
@@ -72,7 +68,7 @@
   async: 1200 # Maximum allowed timeout in Seconds
   poll: 10 # Polling Interval in Seconds
   environment:
-    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: 1
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
 
 - name: IPU images are flashed
   ansible.builtin.debug:

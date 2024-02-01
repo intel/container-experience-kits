@@ -24,11 +24,13 @@
         chdir: "{{ (project_root_dir, 'cadvisor', 'deploy', 'kubernetes', 'overlays', 'cek') | path_join }}"
       register: kustomize
       changed_when: true
+      failed_when: false
 
     - name: delete k8s resources
       kubernetes.core.k8s:
         definition: "{{ kustomize.stdout }}"
         state: absent
+      failed_when: false
   tags:
     - cadvisor
 
@@ -36,3 +38,4 @@
   ansible.builtin.file:
     path: "{{ (project_root_dir, 'cadvisor') | path_join }}"
     state: absent
+  failed_when: false

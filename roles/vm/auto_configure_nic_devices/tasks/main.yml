@@ -1,0 +1,164 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create new_vms list
+  ansible.builtin.set_fact:
+    new_vms: []
+
+- name: get available NIC VF devices
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ nic_supported_vf_dev_ids | join('|') }}'"
+    executable: /bin/bash
+  register: nic_pci_vf_devices
+  changed_when: false
+  failed_when: nic_pci_vf_devices.rc not in [0, 1]
+
+- name: get NIC device bus IDs
+  ansible.builtin.set_fact:
+    nic_vf_devices: "{{ nic_pci_vf_devices.stdout_lines | map('split') | map('first') }}"
+
+- name: get configured worker and generic nodes
+  ansible.builtin.set_fact:
+    worker_nodes: "{{ vms | selectattr('type', 'in', ['work', 'vm']) }}"
+
+- name: get path for saved NIC PCI config
+  ansible.builtin.set_fact:
+    nic_pci_conf_path: "{{ (lookup('env', 'PWD'), '.nic-pci-' + inventory_hostname + '.yml') | path_join }}"
+
+- name: stat saved NIC PCI config
+  ansible.builtin.stat:
+    path: "{{ nic_pci_conf_path }}"
+  register: nic_pci_config_stat
+  delegate_to: localhost
+
+- name: read saved NIC PCI config
+  ansible.builtin.set_fact:
+    nic_vms_pci_config: "{{ lookup('file', nic_pci_conf_path) | from_yaml }}"
+  when:
+    - not vm_recreate_existing
+    - nic_pci_config_stat.stat.exists
+
+- name: get free NIC devices
+  ansible.builtin.set_fact:
+    free_nic_pci_devices: "{{ nic_vf_devices | difference(nic_vms_pci_config | map(attribute='nic_pci') | flatten) }}"
+  when:
+    - scale | d(false)
+    - nic_pci_config_stat.stat.exists
+    - not vm_recreate_existing
+
+- name: get new worker nodes if scaling
+  ansible.builtin.set_fact:
+    new_worker_nodes: "{{ worker_nodes | rejectattr('name', 'in', (nic_vms_pci_config | map(attribute='name'))) | list }}"
+  when:
+    - scale | d(false)
+    - nic_pci_config_stat.stat.exists
+    - not vm_recreate_existing
+
+- name: get new NIC VF devices count
+  ansible.builtin.set_fact:
+    new_nic_devices_sum: "{{ new_worker_nodes | map(attribute='nic_devices_count', default=0) | sum }}"
+  when:
+    - scale | d(false)
+    - nic_pci_config_stat.stat.exists
+    - not vm_recreate_existing
+
+- name: check if we have enough NIC VFs left available
+  ansible.builtin.assert:
+    that: (new_nic_devices_sum | int) <= (free_nic_pci_devices | length | int)
+    fail_msg:
+      "Not enough free NIC VFs left ({{ free_nic_pci_devices | length }}). New VMs configured to have {{ new_nic_devices_sum }} VFs."
+  when:
+    - scale | d(false)
+    - nic_pci_config_stat.stat.exists
+    - not vm_recreate_existing
+
+- name: create new worker node pci config
+  ansible.builtin.set_fact:
+    nic_vms_pci_config: |-
+      [
+      {% for node in worker_nodes %}
+        {
+          "name": "{{ node.name }}",
+          "nic_pci": {{
+            (nic_vf_devices[
+              (worker_nodes[0:loop.index0] | map(attribute='nic_devices_count', default=0) | sum):
+              (node.nic_devices_count | d(0)) + (worker_nodes[0:loop.index0] | map(attribute='nic_devices_count', default=0) | sum)
+            ])
+          }},
+        },
+      {% endfor %}
+      ]
+  when:
+    - vm_recreate_existing or
+      not nic_pci_config_stat.stat.exists
+
+- name: create new worker node pci config if scaling
+  ansible.builtin.set_fact:
+    scaled_nic_vms_pci_config: |-
+      [
+      {% for node in new_worker_nodes %}
+        {
+          "name": "{{ node.name }}",
+          "nic_pci": {{
+            (free_nic_pci_devices[
+              (new_worker_nodes[0:loop.index0] | map(attribute='nic_devices_count', default=0) | sum):
+              (node.nic_devices_count | d(0)) + (new_worker_nodes[0:loop.index0] | map(attribute='nic_devices_count', default=0) | sum)
+            ])
+          }},
+        },
+      {% endfor %}
+      ]
+  when:
+    - scale | d(false)
+    - not vm_recreate_existing
+
+- name: combine existing nic pci config if scaling
+  ansible.builtin.set_fact:
+    nic_vms_pci_config: "{{ nic_vms_pci_config + scaled_nic_vms_pci_config }}"
+  when:
+    - scale | d(false)
+    - not vm_recreate_existing
+
+- name: save NIC PCI config
+  ansible.builtin.copy:
+    content: "{{ nic_vms_pci_config | to_nice_yaml }}"
+    dest: "{{ nic_pci_conf_path }}"
+    mode: '0644'
+  delegate_to: localhost
+  when:
+    - vm_recreate_existing or
+      not nic_pci_config_stat.stat.exists or
+      scale | d(false)
+
+- name: combine new_vms list with user defined vms
+  ansible.builtin.set_fact:
+    new_vms: "{{ new_vms | d([]) + [item|combine(_selection)] }}"
+  loop: "{{ vms }}"
+  vars:
+    _selection: "{{ nic_vms_pci_config | selectattr('name', '==', item.name) | combine }}"
+
+- name: combine pci devices for each VM
+  ansible.builtin.set_fact:
+    new_vms: |-
+      [
+      {% for vm in new_vms %}
+        {{ vm | combine({'pci': (vm.pci | d([]) + (vm.nic_pci | d([])) )}) }},
+      {% endfor %}
+      ]
+
+- name: replace original vms config
+  ansible.builtin.set_fact:
+    vms: "{{ new_vms }}"

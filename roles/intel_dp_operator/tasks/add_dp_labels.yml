@@ -14,21 +14,45 @@
 ##   limitations under the License.
 ##
 ---
-- name: add labels for nodes with configured QAT
-  command: kubectl label nodes {{ hostvars[node_name]['ansible_hostname'] }} qat.configured=true --overwrite
+- name: Apply labels for nodes with configured QAT
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Node
+      metadata:
+        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
+        labels:
+          qat.configured: 'true'
   when:
     - qat_dp_enabled | default(false)
     - hostvars[node_name]['configure_qat'] | default(false)
     - hostvars[node_name]['qat_devices'] | length > 0
 
-- name: add labels for nodes with configured SGX
-  command: kubectl label nodes {{ hostvars[node_name]['ansible_hostname'] }} sgx.configured=true --overwrite
+- name: Apply labels for nodes with configured SGX
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Node
+      metadata:
+        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
+        labels:
+          sgx.configured: 'true'
   when:
     - sgx_dp_enabled | default(false)
     - hostvars[node_name]['configure_sgx'] | default(false)
 
-- name: add labels for nodes with configured DSA
-  command: kubectl label nodes {{ hostvars[node_name]['ansible_hostname'] }} dsa.configured=true --overwrite
+- name: Apply labels for nodes with configured DSA
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Node
+      metadata:
+        name: "{{ hostvars[node_name]['ansible_hostname'] }}"
+        labels:
+          dsa.configured: 'true'
   when:
     - dsa_dp_enabled | default(false)
     - hostvars[node_name]['configure_dsa_devices'] | default(false)

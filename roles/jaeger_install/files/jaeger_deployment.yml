@@ -5,6 +5,8 @@ metadata:
   namespace: monitoring
 spec:
   strategy: production
+  ingress:
+    enabled: false
   collector:
     maxReplicas: 1
     resources:
@@ -13,7 +15,7 @@ spec:
         memory: 500Mi
     options:
       es:
-        server-urls: https://elasticsearch-master.monitoring.svc:9200
+        server-urls: https://elasticsearch-main-es-http.monitoring.svc:9200
         index-prefix: jaeger_
         version: 7                                  # Necessary as it doesn't work with 8 yet
         create-index-templates: false               # Necessary as it doesn't work with 8 yet
@@ -28,7 +30,7 @@ spec:
       query:
         base-path: /jaeger
       es:
-        server-urls: https://elasticsearch-master.monitoring.svc:9200
+        server-urls: https://elasticsearch-main-es-http.monitoring.svc:9200
         index-prefix: jaeger_
         version: 7                                  # Necessary as it doesn't work with 8 yet
         create-index-templates: false               # Necessary as it doesn't work with 8 yet
@@ -41,7 +43,7 @@ spec:
     type: elasticsearch
     options:
       es:
-        server-urls: https://elasticsearch-master.monitoring.svc:9200
+        server-urls: https://elasticsearch-main-es-http.monitoring.svc:9200
         index-prefix: jaeger_
         version: 7                                  # Necessary as it doesn't work with 8 yet
         create-index-templates: false               # Necessary as it doesn't work with 8 yet

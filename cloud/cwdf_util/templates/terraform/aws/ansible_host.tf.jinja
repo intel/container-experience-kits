@@ -148,6 +148,15 @@ resource "tls_private_key" "ansible_ssh_rsa_host_key" {
   rsa_bits = 4096
 }
 
+resource "tls_private_key" "ansible_ssh_ecdsa_host_key" {
+  algorithm = "ECDSA"
+  ecdsa_curve = "P384"
+}
+
+resource "tls_private_key" "ansible_ssh_ed25519_host_key" {
+  algorithm = "ED25519"
+}
+
 resource "aws_instance" "ansible" {
   ami                    = data.aws_ami.ubuntu2204.id
   instance_type          = "{{ ansible_instance_type }}"
@@ -171,9 +180,9 @@ resource "aws_instance" "ansible" {
   user_data = <<EOF
 #!/bin/bash
 echo '${tls_private_key.ansible_ssh_rsa_host_key.private_key_pem}' > /etc/ssh/ssh_host_rsa_key
+echo '${tls_private_key.ansible_ssh_ecdsa_host_key.private_key_pem}' > /etc/ssh/ssh_host_ecdsa_key
+echo '${tls_private_key.ansible_ssh_ed25519_host_key.private_key_pem}' > /etc/ssh/ssh_host_ed25519_key
 rm /etc/ssh/ssh_host_dsa_key
-rm /etc/ssh/ssh_host_ed25519_key
-rm /etc/ssh/ssh_host_ecdsa_key
 apt-get -qq -y update
 apt-get -qq -y upgrade
 apt-get -qq -y install python3-pip python3-venv
@@ -217,6 +226,14 @@ output "ansible_host_public_ip" {
   value = aws_eip.ansible.public_ip
 }
 
-output "ansible_host_ssh_host_key" {
+output "ansible_host_ssh_host_key_rsa" {
   value = tls_private_key.ansible_ssh_rsa_host_key.public_key_openssh
+}
+
+output "ansible_host_ssh_host_key_ecdsa" {
+  value = tls_private_key.ansible_ssh_ecdsa_host_key.public_key_openssh
+}
+
+output "ansible_host_ssh_host_key_ed25519" {
+  value = tls_private_key.ansible_ssh_ed25519_host_key.public_key_openssh
 }

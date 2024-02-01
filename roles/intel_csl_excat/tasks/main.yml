@@ -70,6 +70,7 @@
   ansible.builtin.command:
     cmd: "./gencerts.sh certs {{ csl_excat_admission_name }} csl-excat 365"
     chdir: "{{ (csl_home, 'deployments/helm') | path_join }}"
+  changed_when: true
   when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: mark kube node who supports excat

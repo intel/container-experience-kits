@@ -2,11 +2,15 @@
 
 1. [Introduction](#introduction)
 2. [Check the existence of sample power pods on the cluster](#check-the-existence-of-sample-power-pods-on-the-cluster)
-3. [Check the frequencies which will be set by `balance-performance` Power Profile](#check-the-frequencies-which-will-be-set-by-balance-performance-power-profile)
+3. [Obtain frequencies applied by each Power Profile](#obtain-frequencies-applied-by-each-Power-Profile)
 4. [Obtain cores on which `balance-performance` Power Profile is applied](#obtain-cores-on-which-balance-performance-power-profile-is-applied)
 5. [Check the frequencies on cores](#check-the-frequencies-on-cores)
 6. [The Shared Profile](#the-shared-profile)
-7. [Known limitations](#known-limitations)
+7. [C-States](#c-states)
+8. [Uncore Frequency](#uncore-frequency)
+9. [Time of Day](#time-of-day)
+10. [Scaling Governors](#scaling-governors)
+11. [Known limitations](#known-limitations)
 
 ---
 
@@ -15,7 +19,7 @@
 Intel Power Manager is available for icx, spr, and clx architectures (you can find more about supported architectures in `generate_profiles` docs), and can be enabled in group vars.
 
 After a successful deployment, the user can utilize special resources to manipulate cores' frequencies.
-Sample pods can be deployed by setting `deploy_example_pods: true` in group vars.
+Sample pods can be deployed by setting `deploy_example_pods: true` in group vars and can be defined for each Power Node in specific host vars. 
 
 The results of Power Manager work can be obtained in the following way:
 
@@ -23,76 +27,58 @@ The results of Power Manager work can be obtained in the following way:
 
 ```bash
 kubectl get pods -n intel-power
-NAME                                 READY   STATUS    RESTARTS   AGE
-balance-performance-power-pod        1/1     Running   0          21m
-balance-power-power-pod              1/1     Running   0          21m
-controller-manager-f584c9458-682p5   1/1     Running   0          16h
-performance-power-pod                1/1     Running   0          21m
-power-node-agent-8cxmp               2/2     Running   0          16h
+NAME                                        READY   STATUS    RESTARTS   AGE
+balance-performance-power-pod-node1         1/1     Running   0          122m
+balance-power-power-pod-node1               1/1     Running   0          122m
+controller-manager-765ccfd89b-m42q4         1/1     Running   0          123m
+performance-power-pod-node1                 1/1     Running   0          122m
+power-node-agent-qhz4g                      1/1     Running   0          123m
 ```
 
 > NOTE: output may be different depending on the number of nodes and requested Power Profiles.
 
-Three pods, one for each profile, were deployed. Let's stick to `balance-performance-power-pod`.
+Three pods, one for each profile, were deployed. Let's stick to `balance-performance-power-pod-node1`.
 
-## Check the frequencies which will be set by `balance-performance` Power Profile
+# Obtain frequencies applied by each Power Profile
 
 ```bash
-kubectl get PowerProfiles -n intel-power balance-performance-node1 -o yaml
-apiVersion: power.intel.com/v1alpha1
-kind: PowerProfile
-metadata:
-  creationTimestamp: "2022-01-25T17:07:08Z"
-  generation: 1
-  name: balance-performance-node1
-  namespace: intel-power
-  resourceVersion: "17538"
-  uid: 05599219-d042-4b9c-9bbf-42ef67effd24
-spec:
-  epp: balance_performance
-  max: 2700
-  min: 2500
-  name: balance-performance-node1
+kubectl get PowerNodes -A -o yaml
 ```
-
-> NOTE: The max/min frequencies may differ on your machine.
-
-In `spec` the values max and min represent new frequencies that will be set to specific cores.
 
 ## Obtain cores on which `balance-performance` Power Profile is applied
 
 ```bash
-kubectl get PowerWorkloads -n intel-power balance-performance-node1-workload -o yaml
-apiVersion: power.intel.com/v1alpha1
+kubectl get PowerWorkloads -n intel-power balance-performance-node1 -o yaml
+apiVersion: power.intel.com/v1
 kind: PowerWorkload
 metadata:
-  creationTimestamp: "2022-01-26T10:12:00Z"
-  generation: 1
-  name: balance-performance-node1-workload
+  creationTimestamp: "2023-12-12T10:56:12Z"
+  generation: 2
+  name: balance-performance-node1
   namespace: intel-power
-  resourceVersion: "246287"
-  uid: f8720a7e-f7b2-4f31-bf4f-2a38ad8a7c07
+  resourceVersion: "8030"
+  uid: 6740161f-45e2-461d-ad41-063f6336b367
 spec:
-  name: balance-performance-node1-workload
-  nodeInfo:
+  name: balance-performance-node1
+  powerProfile: balance-performance
+  workloadNodes:
     containers:
     - exclusiveCpus:
       - 2
-      - 66
-      id: 495d5547a5211774e605c4a2ebe4b9fbcf44fbd056cc08e0847b68143627700a
+      - 74
+      id: containerd://31d40cf10a653f073bffb4fec6456e79be60fac4d838407272188e53e1d66fb8
       name: balance-performance-container
-      pod: balance-performance-power-pod
-      powerProfile: balance-performance-node1
+      pod: balance-performance-power-pod-node1
+      powerProfile: balance-performance
     cpuIds:
     - 2
-    - 66
+    - 74
     name: node1
-  powerProfile: balance-performance-node1
 ```
 
 > > NOTE: The cores may differ on your machine.
 
-`balance-performance` Power Profile is applied to core numbers 2 and 66
+`balance-performance` Power Profile is applied to core numbers 2 and 74
 
 You can also check all assigned cores in your Power Nodes with the following command:
 
@@ -104,13 +90,13 @@ kubectl get PowerNodes -A -o yaml
 
 ```bash
 cat /sys/devices/system/cpu/cpu2/cpufreq/scaling_max_freq
-2700000
+2825000
 cat /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
-2500000
-cat /sys/devices/system/cpu/cpu66/cpufreq/scaling_max_freq
-2700000
-cat /sys/devices/system/cpu/cpu66/cpufreq/scaling_min_freq
-2500000
+2625000
+cat /sys/devices/system/cpu/cpu74/cpufreq/scaling_max_freq
+2825000
+cat /sys/devices/system/cpu/cpu74/cpufreq/scaling_min_freq
+2625000
 ```
 
 In comparison, the core that was not obtained by Power Workload has the following values:
@@ -135,6 +121,22 @@ The Shared Profile has either a cluster-wide or single node impact. The Shared W
 
 The resources for Shared Profile are not visible in allocatable kubelet resources as cores will be scaled as soon as Shared Workload is deployed.
 
+## C-States
+
+C-States can be set in host_vars for each node by setting cstates.enabled to true. User can choose to change C-states for Shared Pool, specific PowerProfile or even specific core.
+
+## Uncore Frequency
+
+Uncore frequency can be configured on a system-wide, per-package and per-die level, again in host_vars for each node by setting uncore_frequency.enabled to true.
+
+## Time of Day
+
+Time of Day can be configured in host_vars by setting time_of_day.enabled to true. Currently, there is known limitation that there can only exist one time of day schedule in the cluster, so please note, that only first schedule in cluster will be applied.
+
+## Scaling Governors
+
+Scaling governors first need to have scaling driver configured in host_vars for each node. For choosing specific scaling governor, user can either set up global scaling governor in group_vars, or local scaling governor in host_vars.
+
 ## Known limitations
 
 1. The Performance Power Profile
@@ -156,7 +158,5 @@ You can see that this machine is not capable of utilizing the `performance` Powe
 More than one Shared Power Profile cannot be used on the same node. For example, it is not possible to use a global shared power profile configured in group vars and at the same time scale core with config for a specific node.
 
 Shared Profile will grab all cores that are not marked as exclusive - please consider not deploying shared profile if special pods will need access to cores scaled via performance, balance-performance, or balance-power profiles.
-
-Due to strong dependency on AppQoS the list for exclusive CPUs must not be empty even if there are no exclusive CPUs in the kubelet config at the moment. Please put the last core from the machine to the list of exclusive CPUs in host vars in that case.
 
 Shared Workload **may not** obtain all available cores, but will grab ones from the default pool if other profiles released them.

@@ -25,17 +25,31 @@
         "type": "adq-cni",
         "tunneling": "vxlan",
         "tunneling-interface": "vxlan.calico",
-        "kubeletServerName": "{{ kube_service_addresses | ipaddr('next_usable') }}",
+        "kubeletServerName": "{{ kube_service_addresses | ansible.utils.ipaddr('next_usable') }}",
         "kubeletPort": "443",
         "kubeletCAPath": "/etc/kubernetes/pki/ca.crt"
       }
 
 - block:
-    - name: restart Calico pods
-      ansible.builtin.shell: "kubectl delete pod $(kubectl get pods -n kube-system | grep calico | awk '{ print $1 }') -n kube-system"
-      args:
-        executable: /bin/bash
-      changed_when: true
+    - name: Find calico pods
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: kube-system
+        label_selectors:
+          - k8s-app in (calico-node, calico-kube-controllers)
+      register: calico_pods_stat
+      no_log: true
+
+    - name: Restart calico pods
+      kubernetes.core.k8s:
+        kind: Pod
+        namespace: kube-system
+        state: absent
+        name: "{{ item.metadata.name }}"
+      loop: "{{ calico_pods_stat.resources }}"
+      when:
+        - calico_pods_stat.resources is defined
+        - calico_pods_stat.resources | length > 0
 
     - name: create Intel ADQ Device Plugin directory
       ansible.builtin.file:

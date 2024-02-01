@@ -21,7 +21,7 @@
 
 - name: validate host vars interface names with system interface names before FW update
   assert:
-    that: "item.name in check_nics_in_system.stdout"
+    that: item.name in check_nics_in_system.stdout
     fail_msg:
       - "Interface name (bus_id) defined in host vars (dataplane interfaces) does not match interface name (bus_id) found in system."
       - "Please select correct interface name (bus_id) in (dataplane interfaces)"

@@ -10,17 +10,15 @@ Telemetry stack in RA project is consist of following components:
 ## How to work with monitoring stack:
 ## Telemetry 
 Various dashboards are available for monitoring telemetry in the NEP stack with the possibility of creating new dashboards or editing existing ones.
-Dashboards can be viewed by accessing Grafana.  This can be done in several ways:
+Dashboards can be viewed by accessing Grafana.  This can be done with following steps:
 
-1. By directly accessing Grafana through an open port:
+1. Create port forwarding from Grafana pod on Controller node:
 
-	    https://<controller_IP>:30000
-2. By creating an SSH tunnel with port forwarding (sometimes direct port access can be blocked by network management):
+	    kubectl port-forward -n monitoring service/grafana 30000:grafana-https
 
-	    ssh -L 30000:localhost:30000 <instance_username>@<controller_IP>
-	And in the browser open address:
+2. in the browser open address:
 	
-	    https://localhost:30000
+	    https://<controller_IP>:30000
 
 	In the basic settings, the user "admin" and the password "admin" are set for grafana.  We strongly recommend changing your password to a secure option.
 
@@ -30,16 +28,14 @@ Most cluster parameters can be monitored through Grafana.  Grafana provides seve
 Logs can be accessed in several ways.
 
  1. By using Kibana. 
-Same as Grafana you can access Kibana by two different ways:
-	 - By directly accessing Kibana through an open port:
+Same as Grafana you can access Kibana with following steps:
+	 - Create port forwarding from Kibana pod on Controller node:
 
-			https://<controller_IP>:30001
-	 - By creating an SSH tunnel with port forwarding:
+			kubectl port-forward -n monitoring service/kibana 30001:kibana-http
 
-			ssh -L 30001:localhost:30001 <instance_username>@<controller_IP>
 		And in the browser open address:
 	
-			https://localhost:30001
+			https://<controller_IP>:30001
 	- Username and login can be optain by these commands:
 		Username:
 		

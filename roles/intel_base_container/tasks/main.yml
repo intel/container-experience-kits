@@ -28,13 +28,21 @@
   debug:
     msg: "Base container set for : {{ profile_name }} "
 
-- name: Specify base container set
+- name: Specify AIBOX base container set
   set_fact:
     base_container_version: "{{ aibox_base_container_version }}"
     base_container_set: "{{ aibox_base_container_set }}"
     base_container_test_set: "{{ aibox_base_container_test_set }}"
   when:
     - profile_name == "on_prem_aibox"
+
+- name: Specify VSS base container set
+  set_fact:
+    base_container_version: "{{ vss_base_container_version }}"
+    base_container_set: "{{ vss_base_container_set }}"
+    base_container_test_set: "{{ vss_base_container_test_set }}"
+  when:
+    - profile_name in ["on_prem_vss", "on_prem"]
 
 - name: Generate base container Dockerfiles
   vars:
@@ -133,3 +141,36 @@
     - 'test_openvino_dev_entry.sh'
     - 'test_data'
   become: "{{ base_container_sudo }}"
+
+- name: Build base container images with docker
+  community.docker.docker_image:
+    build:
+      path: "{{ (base_container_dockerfile_path) | path_join }}"
+      dockerfile: "{{ item.filename }}"
+      args:
+        http_proxy: "{{ http_proxy }}"
+        https_proxy: "{{ https_proxy }}"
+    name: "{{ item.name }}"
+    tag: "{{ base_container_version }}"
+    push: false
+    source: build
+  with_items: "{{ base_container_set }}"
+  when:
+    - build_base_images | default(false) | bool
+    - container_runtime is in ['docker']
+    - inventory_hostname == groups['kube_node'][0]
+
+- name: prepare base container images with containerd
+  containers.podman.podman_image:
+    name: "{{ item.name }}"
+    tag: "{{ base_container_version }}"
+    path: "{{ (base_container_dockerfile_path) | path_join }}"
+    build:
+      file: "{{ item.filename }}"
+      extra_args: "--build-arg http_proxy={{ http_proxy }} --build-arg https_proxy={{ https_proxy }}"
+    push: false
+  with_items: "{{ base_container_set }}"
+  when:
+    - build_base_images | default(false) | bool
+    - container_runtime is in ['containerd']
+    - inventory_hostname == groups['kube_node'][0]

@@ -156,12 +156,17 @@ def deploy(deployment_dir, provisioner_tool):
         click.echo("Public ip: " + worker["public_ip"])
         click.echo("-------------------")
     ssh_username = provisioning_output["k8s_worker_username"]["value"]
-    ssh_host_key_raw = provisioning_output["ansible_host_ssh_host_key"]["value"][8:]
-    ssh_host_key = SSHHostKey("ssh-rsa", ssh_host_key_raw)
+    rsa_ssh_host_key_raw = provisioning_output["ansible_host_ssh_host_key_rsa"]["value"].split(' ')[1]
+    ecdsa_ssh_host_key_raw = provisioning_output["ansible_host_ssh_host_key_ecdsa"]["value"].split(' ')[1]
+    ecdsa_ssh_host_key_type = provisioning_output["ansible_host_ssh_host_key_ecdsa"]["value"].split(' ')[0]
+    ed25519_ssh_host_key_raw = provisioning_output["ansible_host_ssh_host_key_ed25519"]["value"].split(' ')[1]
+    rsa_ssh_host_key = SSHHostKey("ssh-rsa", rsa_ssh_host_key_raw)
+    ecdsa_ssh_host_key = SSHHostKey(ecdsa_ssh_host_key_type, ecdsa_ssh_host_key_raw)
+    ed25519_ssh_host_key = SSHHostKey("ssh-ed25519", ed25519_ssh_host_key_raw)
     click.echo("Opening SSH connection to Ansible host...")
     ssh = SSHConnector(ip_address=ansible_host_ip,
                        username='ubuntu',
-                       host_keys=[ssh_host_key],
+                       host_keys=[rsa_ssh_host_key, ecdsa_ssh_host_key, ed25519_ssh_host_key],
                        priv_key=private_key_path,
                        try_loop=True)
     click.echo("Opened SSH connection.")
@@ -218,7 +223,9 @@ def deploy(deployment_dir, provisioner_tool):
     with open(file=sw_config_path, mode='r', encoding='utf-8') as file:
         sw_configuration = yaml.load(file, Loader=yaml.FullLoader)
     sw_configuration['ansible_host_ip'] = ansible_host_ip
-    sw_configuration['ansible_ssh_host_key'] = ssh_host_key_raw
+    sw_configuration['ansible_ssh_rsa_host_key'] = rsa_ssh_host_key_raw
+    sw_configuration['ansible_ssh_ecdsa_host_key'] = ecdsa_ssh_host_key_raw
+    sw_configuration['ansible_ssh_ed25519_host_key'] = ed25519_ssh_host_key_raw
     sw_configuration['worker_ips'] = workers_ip
     sw_configuration['ssh_user'] = ssh_username
     sw_configuration['ssh_key'] = os.path.join('..', private_key_path)

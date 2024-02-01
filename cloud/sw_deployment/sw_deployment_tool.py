@@ -18,7 +18,9 @@ configuration = {
         'region': None
     },
     'ansible_host_ip': None,
-    'ansible_ssh_host_key': None,
+    'ansible_ssh_rsa_host_key': None,
+    'ansible_ssh_ecdsa_host_key': None,
+    'ansible_ssh_ed25519_host_key': None,
     'controller_ips': [],
     'worker_ips': [],
     'ssh_key': None,
@@ -332,8 +334,10 @@ def _docker_login(node_ips, ssh_client, user, registry, registry_username, passw
 
     """
     for node_ip in node_ips:
-        ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
-        ssh_node = SSHConnector(node_ip, user, 22, [ssh_host_key], configuration['ssh_key'], ssh_client.client)
+        ssh_host_key_rsa = SSHHostKey("ssh-rsa", configuration['ansible_ssh_rsa_host_key'])
+        ssh_host_key_ecdsa = SSHHostKey("ecdsa", configuration['ansible_ssh_ecdsa_host_key'])
+        ssh_host_key_ed25519 = SSHHostKey("ed25519", configuration['ansible_ssh_ed25519_host_key'])
+        ssh_node = SSHConnector(node_ip, user, 22, [ssh_host_key_rsa, ssh_host_key_ecdsa, ssh_host_key_ed25519], configuration['ssh_key'], ssh_client.client)
         ssh_node.exec_command(command=f"docker login {registry} --username {registry_username} --password {password}", print_output=True)
         ssh_node.close_connection()
 
@@ -356,8 +360,15 @@ def cleanup(config):
 
     _parse_configuration_file(config=config)
 
-    ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
-    client = SSHConnector(ip_address=configuration['ansible_host_ip'], username='ubuntu', host_keys=[ssh_host_key], priv_key=configuration['ssh_key'])
+    ssh_host_key_rsa = SSHHostKey("ssh-rsa", configuration['ansible_ssh_rsa_host_key'])
+    ssh_host_key_ecdsa = SSHHostKey("ecdsa", configuration['ansible_ssh_ecdsa_host_key'])
+    ssh_host_key_ed25519 = SSHHostKey("ed25519", configuration['ansible_ssh_ed25519_host_key'])
+    client = SSHConnector(
+        ip_address=configuration['ansible_host_ip'],
+        username='ubuntu',
+        host_keys=[ssh_host_key_rsa, ssh_host_key_ecdsa, ssh_host_key_ed25519],
+        priv_key=configuration['ssh_key']
+    )
 
     for image in configuration['exec_containers']:
         image_name = image.replace('/', '-')
@@ -384,8 +395,15 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
     """
     click.echo("-------------------")
     click.secho(f"Connecting to Ansible instance with IP: {configuration['ansible_host_ip']}", fg="yellow")
-    ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
-    client = SSHConnector(ip_address=ansible_host_ip, username='ubuntu', host_keys=[ssh_host_key], priv_key=ssh_key)
+    ssh_host_key_rsa = SSHHostKey("ssh-rsa", configuration['ansible_ssh_rsa_host_key'])
+    ssh_host_key_ecdsa = SSHHostKey("ecdsa", configuration['ansible_ssh_ecdsa_host_key'])
+    ssh_host_key_ed25519 = SSHHostKey("ed25519", configuration['ansible_ssh_ed25519_host_key'])
+    client = SSHConnector(
+        ip_address=ansible_host_ip,
+        username='ubuntu',
+        host_keys=[ssh_host_key_rsa, ssh_host_key_ecdsa, ssh_host_key_ed25519],
+        priv_key=ssh_key
+    )
 
     click.echo("-------------------")
     click.secho("Copy private SSH key to Ansible instance", fg="yellow")
@@ -515,8 +533,15 @@ def _deploy(provider, ansible_host_ip, ssh_key, ssh_user, custom_ami):
             configuration['exec_containers']):
         click.echo("-------------------")
         click.secho("Copy Docker images to cloud registry")
-        ssh_host_key = SSHHostKey("ssh-rsa", configuration['ansible_ssh_host_key'])
-        ssh_client = SSHConnector(ip_address=ansible_host_ip, username='ubuntu', host_keys=[ssh_host_key], priv_key=ssh_key)
+        ssh_host_key_rsa = SSHHostKey("ssh-rsa", configuration['ansible_ssh_rsa_host_key'])
+        ssh_host_key_ecdsa = SSHHostKey("ecdsa", configuration['ansible_ssh_ecdsa_host_key'])
+        ssh_host_key_ed25519 = SSHHostKey("ed25519", configuration['ansible_ssh_ed25519_host_key'])
+        ssh_client = SSHConnector(
+            ip_address=ansible_host_ip,
+            username='ubuntu',
+            host_keys=[ssh_host_key_rsa, ssh_host_key_ecdsa, ssh_host_key_ed25519],
+            priv_key=ssh_key
+        )
         click.echo(configuration['exec_containers'])
         click.echo(f"From registry: {configuration['replicate_from_container_registry']}")
         docker_mgmt = DockerManagement(from_registry=configuration['replicate_from_container_registry'],

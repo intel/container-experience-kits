@@ -14,6 +14,15 @@
 ##   limitations under the License.
 ##
 ---
+- name: Create Intel Ethernet Operator directory to store yaml files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0750'
+  loop:
+    - "{{ intel_ethernet_operator_flow_config_files_dir }}"
+    - "{{ intel_ethernet_operator_flow_config_rules_dir }}"
+
 - name: flow config files
   ansible.builtin.include_tasks: flow_config_files.yml
   loop: "{{ groups['kube_node'] }}"
@@ -29,18 +38,18 @@
     force: yes
     mode: preserve
   loop:
-    - {src: 'flow-config-sriov-network.yml.j2', dst: 'flow-config-sriov-network.yml'}
-    - {src: 'flow-config-node-agent.yml.j2', dst: 'flow-config-node-agent.yml'}
+    - {src: 'flow-config-sriov-network.yaml.j2', dst: 'flow-config-sriov-network.yaml'}
+    - {src: 'flow-config-node-agent.yaml.j2', dst: 'flow-config-node-agent.yaml'}
 
 - name: create SRIOV network attachment definition for the DCF VF pool
   kubernetes.core.k8s:
     state: present
-    src: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow-config-sriov-network.yml') | path_join }}"
+    src: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow-config-sriov-network.yaml') | path_join }}"
 
 - name: create FlowConfig Node Agent deployment CR
   kubernetes.core.k8s:
     state: present
-    src: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow-config-node-agent.yml') | path_join }}"
+    src: "{{ (intel_ethernet_operator_flow_config_files_dir, 'flow-config-node-agent.yaml') | path_join }}"
 
 - name: wait for FlowConfig Daemon
   ansible.builtin.pause: # TODO replace with condition wait, not simple as there are no labels in flowconfig daemon pods

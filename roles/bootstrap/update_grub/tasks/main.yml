@@ -16,6 +16,8 @@
 ---
 - name: update grub.cfg
   command: update-grub
+  notify:
+    - reboot server
   when: ansible_os_family == "Debian"
   changed_when: true
 
@@ -28,6 +30,7 @@
 
     - name: update MBR grub2.cfg
       command: grub2-mkconfig -o /etc/grub2.cfg
+      changed_when: true
       when: grub_mbr_cfg.stat.exists
 
     - name: check if grub2-efi.cfg config file exists (EFI variant)
@@ -37,6 +40,8 @@
 
     - name: update MBR grub2-efi.cfg on Rocky / RHEL < 9.0
       command: "grub2-mkconfig -o /etc/grub2-efi.cfg"
+      notify:
+        - reboot server
       when: grub_efi_cfg.stat.exists
       changed_when: true
   when:
@@ -52,40 +57,10 @@
 
     - name: update MBR grub.cfg on (Rocky / RHEL >= 9.0)
       command: "grub2-mkconfig -o /boot/efi/EFI/{{ ansible_distribution | lower }}/grub.cfg"
+      notify:
+        - reboot server
       when: grub_rhel_rocky_cfg.stat.exists
       changed_when: true
   when:
     - ansible_os_family == "RedHat"
-    - ansible_distribution_version >= "9.0"
-
-- name: create empty machine_id list from the worker nodes
-  set_fact:
-    machine_id_list: []
-
-- name: collect machine_id list for the worker nodes
-  set_fact:
-    machine_id_list: "{{ machine_id_list | default([]) + [hostvars[item]['ansible_machine_id'] | default([])] }}"
-  with_items:
-    - "{{ groups['kube_node'] }}"
-
-- block:
-    - name: detect that machine-id duplicates over multiple nodes
-      debug:
-        msg: "Detected there are /etc/machine-id duplicates {{ machine_id_list }}, will generate a new machine-id for groups['kube_node'] nodes"
-
-    - name: remove /etc/machine-id
-      file:
-        state: absent
-        path: /etc/machine-id
-        force: yes
-
-    - name: create new /etc/machine-id (debian)
-      command: dbus-uuidgen --ensure=/etc/machine-id
-      changed_when: true
-      when: ansible_os_family == "Debian"
-
-    - name: create new /etc/machine-id (redhat)
-      command: systemd-machine-id-setup
-      changed_when: true
-      when: ansible_os_family == "RedHat"
-  when: ( machine_id_list | unique | length < groups['kube_node'] | length )
+    - ansible_distribution_version is version('9.0', '>=')

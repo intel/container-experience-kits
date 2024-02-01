@@ -42,6 +42,13 @@ dataplane_interfaces:
     sriov_vfs: []
 ```
 
+`dataplane_interfaces` can be also configured automatically. All compatible NICs will be discovered and configured. Default VF driver is `iavf`, which can be changed by modifying `dataplane_interface_default_vf_driver`. Amount of VFs will be configured to maximum available on your NIC.
+
+```
+dataplane_interface_default_vf_driver: "iavf"
+dataplane_interfaces: []
+```
+
 Next option defines whether the SRIOV CNI plugin will be installed on the target worker node. Setting it to `true` will cause the Ansible scripts to build and install SRIOV CNI plugin in the `/opt/cni/bin` directory on the target server.
 ```
 sriov_cni_enabled: true`

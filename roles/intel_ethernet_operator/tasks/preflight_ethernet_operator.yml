@@ -95,3 +95,30 @@
         that: not minio_enabled | default(false)
         msg: "Flow Configuration requires MinIO to be disabled."
       when: intel_ethernet_operator_flow_config_enabled
+
+    - name: Check if flow config directory exists
+      block:
+        - name: Load flow_config_dir stats
+          ansible.builtin.stat:
+            path: "{{ hostvars[node_name]['intel_ethernet_operator']['flow_config_dir'] }}"
+          register: flow_config_dir_stat
+          delegate_to: localhost
+          become: false
+        - name: Check that flow config directory exists
+          ansible.builtin.assert:
+            that: flow_config_dir_stat.stat.exists
+            fail_msg: "Defined directory in parameter intel_ethernet_operator_flow_config_dir does not exist in ansible host."
+      when:
+        - intel_ethernet_operator_flow_config_enabled
+        - hostvars[node_name]['intel_ethernet_operator']['flow_config_dir'] is defined
+
+- name: Check if Operator is set to be built from soure when flow config is enabled
+  ansible.builtin.assert:
+    that:
+      - intel_ethernet_operator_local_build | default(false)
+    fail_msg:
+      - "IEO flow configuration requires Operator to be built from source."
+      - "Please set intel_ethernet_operator_local_build to 'true' in group_vars."
+  when:
+    - intel_ethernet_operator_flow_config_enabled
+    - inventory_hostname == groups['kube_control_plane'][0]

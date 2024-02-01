@@ -9,11 +9,9 @@ metadata:
   name: grafana
   namespace: monitoring
 spec:
-  type: NodePort
   ports:
   - name: grafana-https
     port: 3000
-    nodePort: 30000
     targetPort: grafana-https
   selector:
     app.kubernetes.io/component: grafana

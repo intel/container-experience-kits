@@ -114,12 +114,10 @@
 - name: configure Work Queues
   include_tasks: wqs_custom_config.yml
   vars:
-    WQ: "{{ work_queue }}" # noqa var-naming
+    work_queue: "{{ item }}"
     dsa_id: "{{ dsa_dev_id }}"
     max_single_wq_size: "{{ max_wq_size | int }}"
   loop: "{{ dsa_device.wqs }}"
-  loop_control:
-    loop_var: work_queue
 
 - name: enable device {{ dsa_device.name }}
   command: accel-config enable-device {{ dsa_device.name }}

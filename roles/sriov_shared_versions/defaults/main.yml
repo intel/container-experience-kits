@@ -15,9 +15,9 @@
 ##
 ---
 sriov_net_dp_image: "ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin"
-sriov_net_dp_tag: "v3.5.1"
+sriov_net_dp_tag: "v3.6.2"
 
 sriov_cni_url: "https://github.com/k8snetworkplumbingwg/sriov-cni.git"
 sriov_cni_version: "v2.7.0"
 # Once new version is released, remove version WA from roles/sriov_cni_install/tasks/main.yml
-# sriov_cni_version: "c1faa0805c92be6e5c629e9caf481f43cfee866c"
+# sriov_cni_version: "75f2f5e1d06390d680e2f639213a58cf91915734"

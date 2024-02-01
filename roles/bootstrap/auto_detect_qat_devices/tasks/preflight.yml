@@ -1,0 +1,48 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get count of configured QAT devices
+  ansible.builtin.set_fact:
+    user_configured_qat_devices_count: "{{ vms | map(attribute='qat_devices_count', default=0) | sum }}"
+
+- name: get supported QAT PF devices
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ qat_supported_pf_dev_ids | join('|') }}'"
+    executable: /bin/bash
+  register: qat_pci_pf_devices
+  changed_when: false
+  failed_when: qat_pci_pf_devices.rc not in [0, 1]
+
+- name: get QAT PF device bus IDs
+  ansible.builtin.set_fact:
+    qat_pci_devices: "{{ ['0000:'] | product(qat_pci_pf_devices.stdout_lines | map('split') | map('first'))| map('join') | list }}"
+
+- name: read sriov_totalvfs for each QAT PF
+  ansible.builtin.slurp:
+    src: "{{ ('/sys/bus/pci/devices', item, 'sriov_totalvfs') | path_join }}"
+  with_items: "{{ qat_pci_devices }}"
+  register: qat_dev_sriov_total_vfs_reg
+
+- name: get sum of QAT devices SRIOV VFs available
+  ansible.builtin.set_fact:
+    qat_device_sriov_vfs_sum: "{{ (qat_device_sriov_vfs_sum | d(0) | int) + (item.content | b64decode | trim | int) }}"
+  with_items: "{{ qat_dev_sriov_total_vfs_reg.results }}"
+
+- name: check if we have enough QAT VFs available
+  ansible.builtin.assert:
+    that: (user_configured_qat_devices_count | int) <= (qat_device_sriov_vfs_sum | int)
+    fail_msg:
+      "You have configured more QAT devices for VMs ({{ user_configured_qat_devices_count }}) than is available on system ({{ qat_device_sriov_vfs_sum }})."

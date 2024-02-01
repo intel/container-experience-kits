@@ -16,10 +16,10 @@
 ---
 calico_vpp_files_dir: "{{ (project_root_dir, 'calico-vpp-files') | path_join }}"
 
-k8s_calico_vpp_version: "v3.25.1"
+k8s_calico_vpp_version: "v3.26.0"
 # install operator to manage the installation, upgrade, and general lifecycle of a Calico cluster
 k8s_calico_tigera_operator: "https://raw.githubusercontent.com/projectcalico/calico/{{ k8s_calico_vpp_version }}/manifests/tigera-operator.yaml"
-k8s_calico_tigera_operator_checksum: "sha256:606a55409e98ede9aa13864348ab90093539eea61dafca9c92f040980ba07b58"
+k8s_calico_tigera_operator_checksum: "sha256:9d7513a65ebc5ba9b6bdf8f43060ccd23eb6751eb843ac158cff935181837cc4"
 # custom install resources to configure Calico
 k8s_calico_custom_resources: "https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{ k8s_calico_vpp_version }}/yaml/calico/installation-default.yaml"
 

@@ -42,7 +42,9 @@
 
     - name: Check Group Vars
       assert:
-        that: "group_vars_details.stat.exists and group_vars_details.stat.isdir"
+        that:
+          - group_vars_details.stat.exists
+          - group_vars_details.stat.isdir
         msg: "File group_vars/all.yml does NOT exist. Must be created per Guide"
 
     - name: read Host Vars
@@ -53,7 +55,9 @@
 
     - name: check Host Vars
       assert:
-        that: "item.stat.exists and item.stat.isreg"
+        that:
+          - item.stat.exists
+          - item.stat.isreg
         msg: "File host_vars/{{ item.item }}.yml does NOT exist. Must be created per Guide"
       with_items: "{{ host_vars_details.results }}"
 

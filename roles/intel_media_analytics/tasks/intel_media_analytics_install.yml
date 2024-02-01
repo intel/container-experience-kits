@@ -20,14 +20,6 @@
     state: directory
     mode: 0755
 
-- name: copy Media Analytics shell script to the controller node
-  ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: "{{ (intel_media_analytics_local_folder) | path_join }}"
-    mode: 0644
-  with_fileglob:
-    - ./*.sh
-
 - name: Copy YAML templates to  the controller node for each node
   ansible.builtin.template:
     src: "templates/media_analytics_sample_pod.yaml.j2"
@@ -35,28 +27,6 @@
     mode: 0644
   loop: "{{ groups['kube_node'] }}"
   when: hostvars[item].gpu_stat_gid.stat.gid is defined
-
-- name: copy Media Analytics Dockerfile to the controller node
-  ansible.builtin.template:
-    src: "templates/Dockerfile.j2"
-    dest: "{{ intel_media_analytics_local_folder}}/Dockerfile"
-    mode: 0644
-
-# docker is used as container runtime:
-- name: prepare containers images
-  block:
-    - name: prepare and push containers images
-      vars:
-        image: "{{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}"
-        tag: "{{ intel_media_analytics_local_build_tag }}"
-      ansible.builtin.shell:
-        cmd: |-
-          docker build -t {{ image }}:{{ tag }} -f Dockerfile .
-          docker push {{ image }}:{{ tag }}
-        chdir: "{{ (intel_media_analytics_local_folder) | path_join }}"
-      changed_when: true
-  when:
-    - container_runtime is in ['docker']
 
 - name: create a k8s namespace for Media Analytics
   kubernetes.core.k8s:

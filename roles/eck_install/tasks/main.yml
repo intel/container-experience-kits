@@ -1,0 +1,119 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Deploy elasticsearch
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: create storage directory
+      ansible.builtin.file:
+        path: "/etc/elasticsearch"
+        state: directory
+        owner: root
+        group: root
+        mode: 0744
+      delegate_to: "{{ groups['kube_node'][0] }}"
+
+    - name: create elasticsearch directory
+      ansible.builtin.file:
+        state: directory
+        dest: "{{ (project_root_dir, 'elasticsearch') | path_join }}"
+        mode: 0755
+
+    # In the absence of this configuration, Elasticsearch cannot be started.
+    # https://www.elastic.co/guide/en/elasticsearch/reference/8.11/_maximum_map_count_check.html
+    - name: Set map count
+      ansible.posix.sysctl:
+        name: vm.max_map_count
+        value: '5262144'
+        state: present
+      delegate_to: "{{ groups['kube_node'][0] }}"
+
+    # fix for core detection in the elasticsearch
+    - block:
+        - name: Fetch number of cores on machine
+          ansible.builtin.command: nproc
+          register: number_of_cores
+          changed_when: false
+          delegate_to: "{{ groups['kube_node'][0] }}" # in single-node, master is defined as kube_node as well
+
+        - name: Set number of cores for elasticsearch config
+          ansible.builtin.set_fact:
+            nproc_output: "{{ number_of_cores.stdout }}"
+
+    - name: populate elasticsearch files and push to controller node
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ project_root_dir }}/elasticsearch/{{ item | basename | regex_replace('.j2','') }}"
+        force: yes
+        mode: preserve
+      with_fileglob:
+        - ../templates/*.j2
+
+    - name: create monitoring namespace
+      kubernetes.core.k8s:
+        name: "{{ eck_namespace }}"
+        kind: Namespace
+        state: present
+
+    - name: install ECK custom resource definitions
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ eck_crds_url }}"
+
+    - name: create elasticsearch resources
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'elasticsearch', item) | path_join }}"
+      loop:
+        - elasticsearch_certs.yml
+        - elasticsearch_storageclass.yml
+        - elasticsearch_data.yml
+
+    - name: Wait till the elasticsearch certificate is created
+      kubernetes.core.k8s_info:
+        kind: Certificate
+        name: elasticsearch-tls
+        namespace: "{{ eck_namespace }}"
+        wait: yes
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_sleep: 10
+        wait_timeout: 360
+
+    - name: install ECK operator
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ eck_namespace }}"
+        src: "{{ eck_operator_url }}"
+
+    - name: deploy elasticsearch
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'elasticsearch', item) | path_join }}"
+      loop:
+        - elasticsearch.yml
+
+    - name: Wait till the elasticsearch is Ready
+      kubernetes.core.k8s_info:
+        kind: Elasticsearch
+        name: elasticsearch-main
+        namespace: "{{ eck_namespace }}"
+        wait: true
+        wait_condition:
+          type: ElasticsearchIsReachable
+          status: "True"
+        wait_timeout: 360

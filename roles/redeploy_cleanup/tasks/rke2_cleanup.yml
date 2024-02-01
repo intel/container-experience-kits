@@ -33,6 +33,7 @@
         - rke2_uninstall_sh.stat.exists
         - inventory_hostname == groups['kube_control_plane'][0]
       register: result
+      changed_when: true
       failed_when: "'error' in result.stderr"
 
 - name: remove rke2 cluster files

@@ -5,6 +5,8 @@ metadata:
   namespace: olm
 spec:
   sourceType: grpc
+  grpcPodConfig:
+    securityContextConfig: restricted
   image: "{{ intel_sriov_fec_operator_catalog_image }}"
   publisher: Intel
   displayName: SRIOV FEC Operators (Local)

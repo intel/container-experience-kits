@@ -66,4 +66,4 @@
       systemd:
         name: systemd-networkd.service
         state: restarted
-  when: kube_network_plugin in ["cilium"] and ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+  when: kube_network_plugin in ["cilium"] and ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '==')

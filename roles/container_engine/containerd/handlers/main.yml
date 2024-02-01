@@ -16,6 +16,7 @@
 ---
 - name: restart containerd
   command: /bin/true
+  changed_when: false
   notify:
     - containerd | restart containerd
     - containerd | wait for containerd
@@ -32,4 +33,5 @@
   register: containerd_ready
   retries: 8
   delay: 4
+  changed_when: false
   until: containerd_ready.rc == 0

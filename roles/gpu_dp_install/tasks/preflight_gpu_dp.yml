@@ -17,10 +17,16 @@
 
 - name: Preflight--Check OS support
   assert:
-    that: ((ansible_distribution == "Ubuntu") and (ansible_distribution_version == '22.04'))
+    that: ((ansible_distribution == "Ubuntu") and (ansible_distribution_version is version('22.04', '=='))) or
+          ((ansible_os_family == "RedHat") and (ansible_distribution_version is version('9.2', '==')))
     msg: >-
-      Currently GPU driver supports Ubuntu 22.04 while Redhat support is under development.
+      Currently GPU driver supports Ubuntu 22.04 and Redhat/Rocky 9.2.
       Please check https://dgpu-docs.intel.com/index.html for hardware support details
+
+- name: Preflight--Container runtime check
+  assert:
+    that: container_runtime != "docker"
+    msg: "Intel GPU Device Plugin does not support docker as container runtime."
 
 # Check GPU availability and preparation, the pre-defined product PCIID can be found in i915_pciids.h of kernel source tree, only DG1 is available now.
 - name: Preflight--Create empty setting list for configure_gpu on the worker node
@@ -60,7 +66,7 @@
 
     - name: Preflight--Validate the PCIID from each node is supported
       assert:
-        that: "'{{ (item | regex_search('8086:[0-9a-zA-Z]{4}')).split(':')[1] }}' in {{ gpu_pciids }}"
+        that: (item | regex_search('8086:[0-9a-zA-Z]{4}')).split(':')[1] in gpu_pciids
         msg:
           - "{{ (item | regex_search('8086:[0-9a-zA-Z]{4}')).split(':')[1] }} from "
           - "  {{ inventory_hostname }} is not in the pre-defined PCIID list of {{ gpu_pciids }}"

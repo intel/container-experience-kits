@@ -26,6 +26,6 @@ host_architecture: >-
   {%- endif -%}
 image_arch: "{{host_architecture | default('amd64')}}"
 
-helm_version: "v3.12.3"
+helm_version: "v3.13.1"
 helm_download_url: "https://get.helm.sh/helm-{{ helm_version }}-linux-{{ image_arch }}.tar.gz"
 helm_dest: "{{ rke2_root_dir }}/helm-{{ helm_version }}"

@@ -15,8 +15,11 @@
 ##
 ---
 nfd_image: "registry.k8s.io/nfd/node-feature-discovery"
-nfd_image_tag: "v0.13.1-minimal"
+nfd_version: "v0.14.3"
+nfd_image_tag: "{{ nfd_version }}-minimal"
 
+nfd_helm_name: "nfd"
+nfd_helm_repo: "https://kubernetes-sigs.github.io/node-feature-discovery/charts"
 nfd_namespace: "kube-system"
 
 nfd_sa_create: true

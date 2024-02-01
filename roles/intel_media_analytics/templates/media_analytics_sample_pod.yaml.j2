@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "{{ intel_media_analytics_sample_pod_name }}"
+  name: "{{ intel_media_analytics_sample_pod_name }}-{{ hostvars[item]['ansible_hostname'] }}"
   namespace: "{{ intel_media_analytics_namespace }}"
 spec:
   nodeSelector:
-    kubernetes.io/hostname: "{{ hostvars[item].inventory_hostname }}"
+    kubernetes.io/hostname: "{{ hostvars[item]['ansible_hostname'] }}"
   securityContext:
     runAsUser: 1000
     runAsGroup: {{ hostvars[item].gpu_stat_gid.stat.gid }}
   containers:
-  - name: "{{ intel_media_analytics_sample_pod_name }}"
-    image: {{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}:{{ intel_media_analytics_local_build_tag }}
+  - name: "{{ intel_media_analytics_sample_pod_name }}-{{ hostvars[item]['ansible_hostname'] }}"
+    image: {{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}:{{ intel_media_analytics_image_tag }}
     command: ['sh', '-c', 'echo "Hello, Media Analytics!" && sleep infinity']
 {%- if gpu_dp_enabled == true %}  
     resources:

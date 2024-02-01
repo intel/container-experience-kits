@@ -17,7 +17,8 @@
 - name: verify system subscription status on RHEL
   command: "subscription-manager list --available --all"
   register: check_subscription_status
-  failed_when: false
+  failed_when: false # TODO remove or set proper condition
+  changed_when: false
   when: ansible_distribution == 'RedHat'
 
 - debug:
@@ -29,6 +30,7 @@
 - name: enable powertools repository on Rocky < 9.0
 # noqa command-instead-of-module - yum is called intenionallly here
   command: yum config-manager --set-enabled powertools
+  changed_when: true
   when: ansible_distribution == 'Rocky' and ansible_distribution_version < '9.0'
 
 - name: enable CodeReady Linux Builder repository on RHEL 8
@@ -43,19 +45,20 @@
   rhsm_repository:
     name: codeready-builder-for-rhel-9-x86_64-rpms
   when:
-    - ansible_distribution == "RedHat" and ansible_distribution_version >= "9.0"
+    - ansible_distribution == "RedHat" and ansible_distribution_version is version('9.0', '>=')
     - "'This system is not yet registered' not in check_subscription_status.stderr"
   failed_when: false # allow to fail if o/s is not subscribed but need to warn user
 
 # Rocky 9.0 --set-enabled crb is required which is similar to --set-enabled powertools on Rocky <= 9.0
 - name: enable CRB to support dependent on packages from repositories
   command: "dnf config-manager --set-enabled crb -y"
-  when: ansible_distribution == "Rocky" and ansible_distribution_version >= "9.0"
+  changed_when: true
+  when: ansible_distribution == "Rocky" and ansible_distribution_version is version('9.0', '>=')
 
 - name: install epel-release on Rocky >= 9.0
   package:
     name: epel-release
-  when: ansible_distribution == "Rocky" and ansible_distribution_version >= "9.0"
+  when: ansible_distribution == "Rocky" and ansible_distribution_version is version('9.0', '>=')
 
 - name: obtain RPM-GPG-KEY-EPEL-8
   rpm_key:
@@ -63,7 +66,7 @@
     key: "{{ fedora_epel_repo_url }}/RPM-GPG-KEY-EPEL-8"
   when:
     - ansible_distribution in ['RedHat', 'Rocky']
-    - ansible_distribution_version >= '8'
+    - ansible_distribution_version is version('8', '>=')
     - ansible_distribution_version < '9'
 
 - name: install RPM-GPG-KEY-EPEL-8
@@ -71,7 +74,7 @@
     name: "{{ fedora_epel_repo_url }}/epel-release-latest-8.noarch.rpm"
   when:
     - ansible_distribution in ['RedHat', 'Rocky']
-    - ansible_distribution_version >= '8'
+    - ansible_distribution_version is version('8', '>=')
     - ansible_distribution_version < '9'
 
 - name: obtain RPM-GPG-KEY-EPEL-9
@@ -80,14 +83,14 @@
     key: "{{ fedora_epel_repo_url }}/RPM-GPG-KEY-EPEL-9"
   when:
     - ansible_distribution in ["RedHat", "Rocky"]
-    - ansible_distribution_version >= "9"
+    - ansible_distribution_version is version('9', '>=')
 
 - name: install RPM-GPG-KEY-EPEL-9
   package:
     name: "{{ fedora_epel_repo_url }}/epel-release-latest-9.noarch.rpm"
   when:
     - ansible_distribution in ["RedHat", "Rocky"]
-    - ansible_distribution_version >= "9"
+    - ansible_distribution_version is version('9', '>=')
 
 # CPUID package is missing on RHEL 9.0 / Rocky 9.0
 - name: block for downloading CPUID on RHEL / Rocky >= 9.0
@@ -116,7 +119,7 @@
         state: present
   when:
     - ansible_distribution in ['RedHat', 'Rocky']
-    - ansible_distribution_version >= '9'
+    - ansible_distribution_version is version('9', '>=')
 
 - name: get current kernel version
   command: uname -r
@@ -136,7 +139,7 @@
     - "https://dl.rockylinux.org/vault/rocky/8.5/BaseOS/x86_64/kickstart/Packages/k/kernel-devel-4.18.0-348.el8.0.2.x86_64.rpm"
   when:
     - ansible_distribution == "Rocky"
-    - ansible_distribution_version == '8.5'
+    - ansible_distribution_version is version('8.5', '==')
     - not update_kernel
 
 - name: get Rocky 9 packages for base o/s
@@ -171,7 +174,7 @@
         - "https://dl.rockylinux.org/{{ rocky_uri }}/rocky/{{ ansible_distribution_version }}/AppStream/x86_64/kickstart/Packages/k/kernel-devel-{{ current_kernel_version.stdout }}.rpm" # noqa yaml[line-length]
   when:
     - ansible_distribution == "Rocky"
-    - ansible_distribution_version >= '9.0'
+    - ansible_distribution_version is version('9.0', '>=')
     - not update_kernel
     - not on_vms | default (false)
 
@@ -188,13 +191,13 @@
     - "https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/kickstart/Packages/k/kernel-devel-{{ current_kernel_version.stdout }}.rpm"
   when:
     - ansible_distribution == "Rocky"
-    - ansible_distribution_version >= '9.0'
+    - ansible_distribution_version is version('9.0', '>=')
     - on_vms | default (false)
 
 - name: install epel-next-release on Rocky >= 9.0
   package:
     name: epel-next-release
-  when: ansible_distribution == "Rocky" and ansible_distribution_version >= "9.0"
+  when: ansible_distribution == "Rocky" and ansible_distribution_version is version('9.0', '>=')
 
 - name: install epel-release on Amazon Linux 2
   package:
@@ -206,7 +209,7 @@
   until: source_status is not failed
   when:
     - ansible_distribution == "Amazon"
-    - ansible_distribution_version == '2'
+    - ansible_distribution_version is version('2', '==')
 
 # pull the matching kernel headers if kernel is not updated
 - name: pull matching kernel headers from configured repos
@@ -238,14 +241,14 @@
     name: python3-pip
   when:
     - ansible_os_family == "RedHat"
-    - ansible_distribution_version >= '8'
+    - ansible_distribution_version is version('8', '>=')
 
 - name: install python3-devel
   package:
     name: python3-devel
   when:
     - ansible_os_family == "RedHat"
-    - ansible_distribution_version >= '8'
+    - ansible_distribution_version is version('8', '>=')
 
 # no harm to remove package it will be reinstalled / updated during dnf update
 - name: remove network-scripts package when update packages is required in Rocky / RHEL >= 9.0
@@ -253,7 +256,7 @@
     name: network-scripts
     state: absent
   when:
-    - ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0"
+    - ansible_os_family == "RedHat" and ansible_distribution_version is version('9.0', '>=')
     - update_all_packages | default(false)
 
 - name: update all packages
@@ -284,7 +287,7 @@
     link: /usr/bin/python
   when:
     - ansible_os_family == "RedHat"
-    - ansible_distribution_version >= '8'
+    - ansible_distribution_version is version('8', '>=')
 
 - name: install command line tools to collect hardware details
   package:
@@ -292,6 +295,7 @@
       - inxi
       - jq
       - lshw
+      - vim
     state: present
   when: ansible_os_family == "RedHat"
 
@@ -308,5 +312,5 @@
       - chrony
       - iputils
   when:
-    - ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version >= '8.4'
+    - ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version is version('8.4', '>=')
     - container_runtime == "docker"

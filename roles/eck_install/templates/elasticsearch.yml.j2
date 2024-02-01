@@ -1,0 +1,67 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch-main
+  namespace: "{{ eck_namespace }}"
+spec:
+  version: "{{ eck_elasticsearch_version }}"
+  nodeSets:
+  - name: es-cluster-node
+    count: 1
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 30Gi
+        storageClassName: elasticsearch
+    podTemplate:
+      metadata:
+        labels:
+          # additional labels for pods
+          app: elasticsearch
+      spec:
+        # needed to be run on node where vm.max_map_count was set
+        affinity:
+          nodeAffinity:
+            required:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: kubernetes.io/hostname
+                      operator: In
+                      values:
+{% if on_cloud|d(false) %}
+                        - {{ hostvars[groups['kube_node'][0]]['ansible_nodename'] }}
+{% else %}
+                        - {{ hostvars[groups['kube_node'][0]]['ansible_hostname'] }}
+{% endif %}
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 8Gi
+              cpu: 2
+          env:
+{% if "http_proxy" in proxy_env %}
+          - name: http_proxy
+            value: {{ proxy_env.http_proxy }}
+{% endif %}
+{% if "https_proxy" in proxy_env %}
+          - name: https_proxy
+            value: {{ proxy_env.https_proxy }}
+{% endif %}
+{% if "no_proxy" in proxy_env %}
+          - name: no_proxy
+            value: {{ proxy_env.no_proxy }}
+{% endif %}
+  http:
+    service:
+      spec:
+        # expose this cluster Service with a ClusterIP and add public ingress for access
+        type: ClusterIP
+    tls:
+      certificate:
+        secretName: elasticsearch-tls

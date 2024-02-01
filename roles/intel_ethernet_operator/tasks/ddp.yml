@@ -14,6 +14,12 @@
 ##   limitations under the License.
 ##
 ---
+- name: Create Intel Ethernet Operator directory to store yaml files
+  ansible.builtin.file:
+    path: "{{ intel_ethernet_operator_ddp_files_dir }}"
+    state: directory
+    mode: '0750'
+
 - name: Find DDP packages atributes
   ansible.builtin.find:
     path: "{{ intel_ethernet_operator_packages_dir }}"
@@ -25,15 +31,15 @@
   block:
     - name: Populate Intel Ethernet Operator yaml files and push to controller node
       ansible.builtin.template:
-        src: "ddp-update.yml.j2"
-        dest: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+        src: "ddp-update.yaml.j2"
+        dest: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yaml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: Apply DDP update on {{ node_name }}
       kubernetes.core.k8s:
         state: present
-        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yaml') | path_join }}"
 
     - name: Wait for start of node reboot
       ansible.builtin.wait_for:
@@ -88,7 +94,7 @@
 
     - name: Remove DDP CR after update
       kubernetes.core.k8s:
-        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yml') | path_join }}"
+        src: "{{ (intel_ethernet_operator_ddp_files_dir, node_name + '-ddp-update.yaml') | path_join }}"
         state: absent
 
     - name: Reload nic modules

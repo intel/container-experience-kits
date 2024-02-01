@@ -1,0 +1,14 @@
+#!/bin/bash
+
+case $1 in
+  Restart|restart)
+    /usr/local/share/openvswitch/scripts/ovs-ctl --no-ovs-vswitchd restart
+    /usr/local/share/openvswitch/scripts/ovs-ctl --no-ovsdb-server --db-sock="/usr/local/var/run/openvswitch/db.sock" restart
+    ;;
+  Stop|stop)
+    /usr/local/share/openvswitch/scripts/ovs-ctl --no-ovsdb-server --db-sock="/usr/local/var/run/openvswitch/db.sock" stop
+    /usr/local/share/openvswitch/scripts/ovs-ctl --no-ovs-vswitchd stop
+    ;;
+  *)
+    echo "Incorrect parameter"
+esac

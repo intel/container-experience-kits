@@ -32,8 +32,25 @@
     src: "files/kubespray_delay_wait.patch"
     dest: "{{ kubespray_dir }}/roles/kubernetes/preinstall/handlers/main.yml"
 
+- name: apply patch to kubernetes.core module
+  ansible.posix.patch:
+    src: "files/kubernetes_core.patch"
+    dest: "{{ kubernetes_module_dir }}/core/plugins/module_utils/client/discovery.py"
+
+# WA - to be removed at next kubespray bump!
+- name: apply patch to fix unsafe templating
+  ansible.posix.patch:
+    src: "files/kubespray_unsafe_template.patch"
+    dest: "{{ kubespray_dir }}/roles/kubernetes/preinstall/tasks/0040-verify-settings.yml"
+
 - name: Load patch checksum
   ansible.builtin.include_tasks: load_checksum.yml
+
+- name: Write checksum to kubernetes directory
+  ansible.builtin.copy:
+    dest: "{{ kube_patch_checksum_file }}"
+    content: "{{ patch_checksum }}"
+    mode: preserve
 
 - name: Write checksum to kubespray directory
   ansible.builtin.copy:

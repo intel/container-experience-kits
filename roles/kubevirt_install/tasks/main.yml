@@ -1,0 +1,46 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: KubeVirt | deploy operator
+  kubernetes.core.k8s:
+    src: "{{ kubevirt_operator_url }}"
+    namespace: "{{ kubevirt_namespace }}"
+    state: present
+
+- name: KubeVirt | deploy custom resources
+  kubernetes.core.k8s:
+    src: "{{ kubevirt_cr_url }}"
+    namespace: "{{ kubevirt_namespace }}"
+    state: present
+
+- name: KubeVirt | wait until all components are up
+  kubernetes.core.k8s_info:
+    namespace: "{{ kubevirt_namespace }}"
+    kind: KubeVirt
+    name: kubevirt
+    wait: true
+    wait_condition:
+      type: "Available"
+      status: "True"
+    wait_timeout: "240"
+
+# Installation of virt plugin via krew can be done manually but haven't managed to get it done via ansible
+- name: KubeVirt | install virtctl binary to manage VMs
+  become: true
+  ansible.builtin.get_url:
+    url: "{{ kubevirt_virtctl_url }}"
+    dest: /usr/local/bin/virtctl
+    mode: '0755'
+    force: true

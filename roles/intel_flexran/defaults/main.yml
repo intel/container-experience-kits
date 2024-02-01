@@ -21,34 +21,41 @@
 # CR = Custom Resource
 # ACC100/ACC200 = Intel vRAN Dedicated H/W SRIOV-FEC Accelerator Devices
 
-# - include_role: dpdk
-#   when: dpdk_dir is not defined # to allow tagged execution
 dpdk_dir: "{{ (project_root_dir, 'dpdk-' + dpdk_version) | path_join }}"
-# Intel FlexRAN
-# intel_flexran_repo: "Intel’s Developer Zone Portal aka RDC"
-# intel_flexran_token: "not public. pkg access requires NDA. see docs/flexran_guide.md"
 intel_flexran_staging_location: "/tmp/flexran/" # a directory on localhost (ansible host)
-intel_flexran_ver: "23.07" # "22.03" (RA22.06) "22.07" (RA22.08) "22.07.3" (RA22.11) "22.11" (RA23.02) "23.03" (RA23.07) "23.07" (RA23.10)
-intel_flexran_pod_version_icx_sp: "22.07" # (RA23.07)
-intel_flexran_pod_version_spr_ee: "23.07" # "23.03"(RA23.07)
+intel_flexran_ver: "23.11"
+intel_flexran_pod_version_icx_sp: "22.07"
+intel_flexran_pod_version_spr_ee: "23.07"
 intel_flexran_namespace: "default"
 intel_flexran_dir: "{{ (project_root_dir, 'intel-flexran') | path_join }}"
-intel_flexran_files_dir: "{{ (project_root_dir, 'intel-flexran-files') | path_join }}" # for FEC ACC CRs, kernel cmdline, etc
-intel_flexran_dpdk_ver: "22.11.1" # "21.11" for FlexRAN 22.03, 22.07, 22.07.3, 22.11
+intel_flexran_files_dir: "{{ (project_root_dir, 'intel-flexran-files') | path_join }}" # for FEC ACC CRs, etc
+intel_flexran_dpdk_ver: "22.11.1"
 intel_flexran_dpdk_dir: "{{ (project_root_dir, 'dpdk-' + intel_flexran_dpdk_ver) | path_join }}"
 
-intel_flexran_dpdk_zip: "dpdk_patch-{{ intel_flexran_ver }}.patch.zip"
-intel_flexran_dpdk_zip_chk: "dab1a0c3a0530be9904d62d3c3f4f88166b73360dcc11402500070237000f468" # SHA256 for dpdk_patch-22.07.3.patch.zip
-
 intel_flexran_dpdk_patch: "dpdk_patch-{{ intel_flexran_ver }}.patch"
-intel_flexran_dpdk_patch_chk: "fd80a13c454cd7930ada3704306d29bf8c3acfef2630b7d410f6c215d32028ff" # SHA256 for dpdk_patch-23.07.patch
+intel_flexran_dpdk_patch_chk: "d92f5ee0d5ff835550465142c41f3cb6fe9e9731420ae40826b5dbc1586247d9" # SHA256 for dpdk_patch-23.11.patch
 
-intel_flexran_patch: "FlexRAN-R{{ intel_flexran_ver }}.zip"
-intel_flexran_patch_chk: "1089d1bd3d86fe2f2198c497fa26e6f9322fd867f5f6ece087190499ff427593" # SHA256 for FlexRAN-R22.07.3.zip
-
-intel_pfbb_version: "v23.03"
-
-inih_version: "r44"
+intel_pfbb_version: "v23.11"
+pf_bb_download_dir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
+# pf_bb_config files
+pf_bb_cfg:
+  acc100:
+    host: "./acc100/acc100_config_pf_4g5g.cfg"
+    pod: "./acc100/acc100_config_vf_5g.cfg"
+  acc200:
+    host: "./acc200/acc200_config_pf_5g.cfg"
+    pod: "./acc200/acc200_config_vf_5g.cfg"
 
 rt_test_repo: "https://git.kernel.org/pub/scm/utils/rt-tests/rt-tests.git"
 rt_test_version: "v2.5"
+
+containerd_conf_file: "{{ '/var/lib/rancher/rke2/agent/etc/containerd/config.toml' if kube_provisioner == 'rke2' else '/etc/containerd/config.toml' }}"
+
+# flexran pod mode deployment files
+flexran_pod:
+  icx:
+    timer: "intel_flexran_pod_timer_mode_icx_sp.yaml"
+    xran: "intel_flexran_pod_xran_mode_icx_sp.yaml"
+  spr:
+    timer: "intel_flexran_pod_timer_mode_spr_ee.yaml"
+    xran: "intel_flexran_pod_xran_mode_spr_ee.yaml"

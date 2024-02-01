@@ -16,7 +16,7 @@
 istio_service_mesh_defaults:
   enabled: false
   image: istio/istioctl
-  version: 1.19.0
+  version: 1.20.1
   intel_preview:
     enabled: false
     image: intel/istioctl

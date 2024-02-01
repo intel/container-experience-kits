@@ -33,27 +33,17 @@
     group: root
   become: yes
 
-- name: check if namespace exists
-  command: kubectl get namespace {{ k8s_namespace }}
-  register: ns_exists
-  failed_when: no
-  changed_when: false
+- name: Create namespace
+  kubernetes.core.k8s:
+    kind: Namespace
+    name: "{{ k8s_namespace }}"
+    state: present
 
-- name: create a namespace
-  command: kubectl create namespace {{ k8s_namespace }}
-  when:
-    - '"NotFound" in ns_exists.stderr'
-
-- name: check if any pre-existing csr secrets exists in Kubernetes
-  command: kubectl get csr {{ secret_name }}.{{ k8s_namespace }}
-  register: csr_exists
-  failed_when: no
-  changed_when: false
-
-- name: delete any pre-existing certs/key/CSR from Kubernetes
-  command: kubectl delete csr {{ secret_name }}.{{ k8s_namespace }}
-  when:
-    - '"NotFound" not in csr_exists.stderr'
+- name: Remove any pre-existing csr secrets
+  kubernetes.core.k8s:
+    kind: CertificateSigningRequest
+    name: "{{ secret_name }}.{{ k8s_namespace }}"
+    state: absent
 
 - name: populate CSR template
   template:

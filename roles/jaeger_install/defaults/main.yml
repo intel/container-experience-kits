@@ -13,7 +13,7 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-jaeger_version: v1.49.0
+jaeger_version: v1.51.0
 jaeger_crd_url: https://github.com/jaegertracing/jaeger-operator/releases/download/{{ jaeger_version }}/jaeger-operator.yaml
 jaeger_annotations_key_to_remove: 'sidecar.jaegertracing.io/inject'
 jaeger_query_remove: >-

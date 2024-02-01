@@ -57,15 +57,33 @@
 # get a list of VFs PCI addresses and save the configuration
 - name: attach VFs driver
   block:
-    - name: fetch VFs pci addresses for a PF
-      shell: "for vf in /sys/class/net/{{ item.name }}/device/virtfn*;do basename $(readlink -f $vf);done | sort"
-      register: vf_pciids
-      args:
-        executable: /bin/bash
-      changed_when: false
+    - name: Fetch VFs device files
+      ansible.builtin.find:
+        paths: "/sys/class/net/{{ item.name }}/device/"
+        file_type: "link"
+        patterns: "virtfn*"
+        use_regex: true
+        recurse: false
+      register: vf_pciids_path
 
-    - name: save VF driver binding
-      lineinfile:
+    - name: Fetch VFs device IDs
+      ansible.builtin.stat:
+        path: "{{ device_path }}"
+      register: vf_pciids_stats
+      loop: "{{ vf_pciids_path.files | map(attribute='path') | list | sort }}"
+      loop_control:
+        loop_var: device_path
+      when:
+        - vf_pciids_path.matched > 0
+
+    - name: Get VFs pci addresses for a PF
+      ansible.builtin.set_fact:
+        vf_pciids: "{{ vf_pciids_stats.results | map(attribute='stat') | map(attribute='lnk_target') | map('basename') | list | sort }}"
+      when:
+        - vf_pciids_path.matched > 0
+
+    - name: Save VF driver binding
+      ansible.builtin.lineinfile:
         path: "{{ sriov_config_path }}/cek_interfaces_{{ item.name }}"
         line: "{{ this_item[0] }} {{ this_item[1].value }}"
         regexp: "^{{ this_item[0] }}"
@@ -74,10 +92,9 @@
         group: root
         mode: '0600'
       become: yes
-      loop: "{{ vf_pciids.stdout_lines | zip(vfs_acc | dict2items) | list }}"
+      loop: "{{ vf_pciids | zip(vfs_acc | dict2items) | list }}"
       loop_control:
         loop_var: this_item
       when:
-        - vf_pciids.stderr|length == 0
-        - vf_pciids.stdout_lines|length > 0
+        - vf_pciids_path.matched > 0
   when: shell_result.results | sum(attribute='rc') == 0

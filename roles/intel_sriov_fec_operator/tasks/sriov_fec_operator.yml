@@ -34,7 +34,7 @@
     - name: Add /sys to volumeMounts
       ansible.builtin.lineinfile:
         path: "{{ intel_sriov_fec_operator_dir }}/assets/300-daemon.yaml"
-        insertafter: "mountPath: /lib/modules"
+        insertbefore: "mountPath: /sriov_config/config"
         line: "            - name: sys\n              mountPath: /sys"
     - name: Add /sys to volumes
       ansible.builtin.lineinfile:

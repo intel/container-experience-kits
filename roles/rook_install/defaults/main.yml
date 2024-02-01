@@ -18,6 +18,8 @@ rook_namespace: "rook-ceph"                   # CPU control plane namespace
 rook_release_name: "rook-ceph"   # CPU control plane release name
 
 rook_git_url: "https://github.com/rook/rook.git"
-rook_git_tag: "v1.10.10"
+rook_git_tag: "v1.12.9"
 rook_git_local_dir: "{{ (project_root_dir, 'rook') | path_join }}"
 rook_helm_local_dir: "{{ (project_root_dir, 'charts', 'rook') | path_join }}"
+
+ceph_version: v17.2.6

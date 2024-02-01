@@ -17,7 +17,7 @@
 - name: check linux distro version and kernel for RKE2
   ansible.builtin.assert:
     that: >
-      - (ansible_distribution == 'Ubuntu' and ansible_distribution_version == '22.04')
+      - (ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('22.04', '=='))
     msg:
       - "RKE2 is supported only on Ubuntu 22.04 with RA"
 

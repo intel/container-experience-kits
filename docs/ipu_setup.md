@@ -91,7 +91,7 @@ To prepare needed deployment environment please follow listed steps from [README
 step 1. (basic)
 step 2. section b)
 step 3.
-step 4. (tested with defaults icx/cvl)
+step 4. (tested with icx/cvl)
 step 7. (k8s)
 step 8. proxy and mirror settings if needed
 

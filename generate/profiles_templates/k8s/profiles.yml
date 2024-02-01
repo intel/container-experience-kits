@@ -49,6 +49,7 @@
 #     frequency_scaling
 #     cstate
 #     uncore_frequency
+#     time_of_day
 # - telemetry:
 #     prometheus
 #     collectd
@@ -109,6 +110,12 @@
 # - calico_vpp
 # - ido
 # - imtl
+# - base_container
+# - inbm
+# - container_runtime_default - is in ['containerd', 'crio', 'docker']
+# - kubevirt
+# - infra_power_manager
+# - ingress_nginx
 
 access:
   name: access
@@ -126,7 +133,7 @@ access:
   bond_cni: off
   qat: optional
   qat_dp: optional
-  openssl: on
+  openssl: optional
   dsa: optional
   dsa_dp: optional
   dlb: optional
@@ -155,6 +162,7 @@ access:
     frequency_scaling: off
     cstate: off
     uncore_frequency: off
+    time_of_day: off
   telemetry:
     prometheus: on
     collectd: optional
@@ -188,7 +196,7 @@ access:
     flow_config: optional
     ddp_update: optional
     fw_update: optional
-  intel_sriov_fec_operator: on
+  intel_sriov_fec_operator: optional
   intel_oneapi:
     base: on
     ai: optional
@@ -201,6 +209,11 @@ access:
   calico_vpp: optional
   imtl: optional
   base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional
 
 basic:
   name: basic
@@ -220,6 +233,7 @@ basic:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -254,6 +268,113 @@ basic:
   calico_vpp: optional
   imtl: optional
   base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional
+
+base_video_analytics:
+  name: base_video_analytics
+  vm_mode: optional
+  on_vms: optional
+  nfd: on
+  kube_dashboard: optional
+  rancher_manager: optional
+  isolcpu: on
+  cpusets: off
+  intel_cpu_controlplane: optional
+  native_cpu_manager: on
+  sriov_operator: on
+  sriov_network_dp: optional
+  nic_drivers: on
+  bond_cni: off
+  qat: on
+  qat_dp: on
+  openssl: on
+  dsa: on
+  dsa_dp: on
+  dlb: off
+  dlb_dp: off
+  gpu: on
+  gpu_dp: on
+  sgx: on
+  sgx_dp: on
+  kmra:
+    sbx: off
+    oran: off
+    pccs: off
+    apphsm: off
+    ctk_demo: off
+  tcs: off
+  tac: off
+  tas: on
+  gas: on
+  ddp_legacy: on
+  network_userspace: on
+  vpp: optional
+  dpdk: on
+  ovs_dpdk: on
+  sst: optional
+  power:
+    manager: on
+    frequency_scaling: on
+    cstate: on
+    uncore_frequency: optional
+    time_of_day: optional
+  telemetry:
+    prometheus: on
+    collectd: off
+    telegraf: on
+    jaeger: on
+    opentelemetry: on
+    elasticsearch: on
+    kibana: off
+    intel_xpumanager: optional
+  istio_service_mesh:
+    enabled: off
+    tcpip_bypass_ebpf: off
+    tls_splicing: off
+    sgx_signer: off
+    intel_preview: off
+  linkerd_service_mesh:
+    enabled: off
+  wireguard: off
+  multus: on
+  firewall: optional
+  minio: off
+  lpvsp: on
+  rook_ceph: off
+  intel_media_analytics: off
+  intel_ffmpeg: off
+  cert_manager: on
+  registry: on
+  hugepages: on
+  intel_ethernet_operator:
+    enabled: on
+    flow_config: optional
+    ddp_update: on
+    fw_update: optional
+  intel_sriov_fec_operator: off
+  tadk: off
+  adq_dp: optional
+  intel_flexran: off
+  sigstore_policy_controller: off
+  intel_oneapi:
+    base: off
+    ai: off
+  cadvisor: on
+  fpga: off
+  tdx: optional
+  calico_vpp: optional
+  ido: off
+  imtl: on
+  base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: on
+  infra_power_manager: on
+  ingress_nginx: on
 
 full_nfv:
   name: full_nfv
@@ -301,6 +422,7 @@ full_nfv:
     frequency_scaling: on
     cstate: on
     uncore_frequency: on
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -348,6 +470,11 @@ full_nfv:
   ido: optional
   imtl: optional
   base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: on
+  infra_power_manager: optional
+  ingress_nginx: on
 
 on_prem:
   name: on_prem
@@ -391,6 +518,7 @@ on_prem:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -434,7 +562,12 @@ on_prem:
   calico_vpp: optional
   ido: optional
   imtl: optional
-  base_container: off
+  base_container: optional
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional
 
 on_prem_vss:
   name: on_prem_vss
@@ -449,13 +582,13 @@ on_prem_vss:
   sriov_network_dp: optional
   nic_drivers: on
   bond_cni: optional
-  qat: on
-  qat_dp: on
+  qat: optional
+  qat_dp: optional
   openssl: on
   dsa: on
   dsa_dp: on
-  dlb: on
-  dlb_dp: on
+  dlb: optional
+  dlb_dp: optional
   gpu: on
   gpu_dp: on
   sgx: on
@@ -480,6 +613,7 @@ on_prem_vss:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
+    time_of_day: optional
   telemetry:
     prometheus: optional
     collectd: optional
@@ -520,7 +654,12 @@ on_prem_vss:
   tdx: off
   calico_vpp: optional
   imtl: optional
-  base_container: off
+  base_container: on
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional
 
 on_prem_sw_defined_factory:
   name: on_prem_sw_defined_factory
@@ -568,6 +707,7 @@ on_prem_sw_defined_factory:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
+    time_of_day: optional
   telemetry:
     prometheus: optional
     collectd: optional
@@ -625,6 +765,11 @@ on_prem_sw_defined_factory:
   calico_vpp: optional
   imtl: optional
   base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional
 
 on_prem_aibox:
   name: on_prem_aibox
@@ -715,6 +860,11 @@ on_prem_aibox:
   calico_vpp: off
   imtl: optional
   base_container: on
+  inbm: optional
+  container_runtime_default: docker
+  kubevirt: off
+  infra_power_manager: off
+  ingress_nginx: off
 
 regional_dc:
   name: regional_dc
@@ -749,6 +899,7 @@ regional_dc:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: optional
@@ -793,6 +944,11 @@ regional_dc:
   ido: optional
   imtl: optional
   base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional
 
 remote_fp:
   name: remote_fp
@@ -834,6 +990,7 @@ remote_fp:
     frequency_scaling: on
     cstate: optional
     uncore_frequency: optional
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: on
@@ -878,6 +1035,11 @@ remote_fp:
   ido: optional
   imtl: optional
   base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional
 
 build_your_own:
   name: build_your_own
@@ -925,6 +1087,7 @@ build_your_own:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: optional
+    time_of_day: optional
   telemetry:
     prometheus: optional
     collectd: optional
@@ -988,3 +1151,8 @@ build_your_own:
   ido: optional
   imtl: optional
   base_container: off
+  inbm: off
+  container_runtime_default: containerd
+  kubevirt: optional
+  infra_power_manager: optional
+  ingress_nginx: optional

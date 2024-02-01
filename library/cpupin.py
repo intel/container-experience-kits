@@ -10,12 +10,14 @@ module: cpupin
 short_description: cpupin module get the available resources from host server and do the CPU
                    pinning for VMs
 
-version_added: "1.0"
+version_added: "1.1"
 
 description: cpupin module get the available resources from host server and do the CPU pinning for
              VMs. By default it selects CPUs from single NUMA node and do NUMA allignment for VMs
              With option alloc_all it selects all available CPUs from all NUMA nodes.
              It reserves configured amount of CPUs for host OS.
+             It preserve CPU allocations during VM redeployment and supports CPU reallocation
+             It returns unused CPUs back to the pool
 
 options:
     name: 
@@ -47,9 +49,14 @@ options:
         description: Do the actual cpu-pinning
         required: true
         type: boolean
+    host_name:
+        description: Name of the VM host machine
+        required: true
+        type: str
 
-author:
+authors:
     - Lumir Jasiok (lumirx.jasiok@intel.com)
+    - Jiri Prokes (jirix.prokes@intel.com)
 '''
 
 EXAMPLES = r'''

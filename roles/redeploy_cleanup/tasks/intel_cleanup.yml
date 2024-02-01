@@ -38,7 +38,8 @@
   block:
     - name: find ddp-i40e service
       shell:
-        cmd: systemctl list-unit-files | grep ddp-i40e | cut -d" " -f1 # noqa command-instead-of-module - systemctl is used intentionally here
+        cmd: set -o pipefail && systemctl list-unit-files | grep ddp-i40e | cut -d" " -f1 # noqa command-instead-of-module - systemctl is used intentionally
+        executable: /bin/bash
       register: ddp_i40e_service
       changed_when: false
       failed_when: false
@@ -194,7 +195,7 @@
       failed_when: false
   when:
     - ansible_os_family == "RedHat"
-    - ansible_distribution_version >= "9.0"
+    - ansible_distribution_version is version('9.0', '>=')
     - configure_sgx | default(false)
 
 - name: resume disks
@@ -245,7 +246,7 @@
   when:
     - configure_tdx | default(false) | bool
     - ansible_distribution == "Ubuntu"
-    - ansible_distribution_version == "22.04"
+    - ansible_distribution_version is version('22.04', '==')
 
 - debug:
     msg: "Intel Container Experience Kit features have been removed ..."

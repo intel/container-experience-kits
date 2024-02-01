@@ -16,13 +16,22 @@
 ---
 userspace_cni_git_url: "https://github.com/intel/userspace-cni-network-plugin.git"
 userspace_cni_version: "v1.3"
-
-vpp_version: "2302"
+userspace_cni_path: "{{ (project_root_dir, 'userspace_cni') | path_join }}"
 
 ovs_dir: "{{ (project_root_dir, 'ovs') | path_join }}"
 ovs_repo: https://github.com/openvswitch/ovs.git
+default_ovs_version: "v3.2.1"
+ovs_version: "{{ userspace_cni.ovs_version | default(default_ovs_version) }}"
 
 dpdk_dir: "{{ (project_root_dir, 'dpdk-' + dpdk_version) | path_join }}"
 dpdk_build: '{{ dpdk_dir }}/x86_64-native-linuxapp-gcc'
 
 vpp_dir: "{{ (project_root_dir, 'vpp') | path_join }}"
+vpp_version: "2310"
+
+buildtool: >-
+  {%- if container_runtime == 'docker' -%}
+  docker
+  {%- else -%}
+  podman
+  {%- endif -%}

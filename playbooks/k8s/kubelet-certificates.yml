@@ -61,12 +61,18 @@
       changed_when: false
       when: inventory_hostname == groups['kube_control_plane'][0]
 
-    - name: create certs from CSRs
-      shell:
-        cmd: "{{ gopath.stdout }}/bin/cfssl gencert -ca {{ kube_cert_dir }}/ca.crt \
-              -ca-key {{ kube_cert_dir }}/ca.key \
-              -profile kubernetes node-{{ item }}.json | {{ gopath.stdout }}/bin/cfssljson -bare {{ item }}"
+    - name: Create certs from CSRs
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          {{ gopath.stdout }}/bin/cfssl gencert
+          -ca {{ kube_cert_dir }}/ca.crt
+          -ca-key {{ kube_cert_dir }}/ca.key
+          -profile kubernetes node-{{ item }}.json
+          | {{ gopath.stdout }}/bin/cfssljson -bare {{ item }}
         chdir: "{{ kube_csr_dir }}"
+        executable: /bin/bash
+      changed_when: true
       when: inventory_hostname == groups['kube_control_plane'][0]
       loop: "{{ groups['k8s_cluster'] }}"
 

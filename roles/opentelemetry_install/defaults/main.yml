@@ -17,10 +17,10 @@
 opentelemetry_repo: "https://open-telemetry.github.io/opentelemetry-helm-charts"
 opentelemetry_operator_namespace: "monitoring"
 opentelemetry_operator_chart_name: "opentelemetry-operator"
-opentelemetry_operator_chart_version: "0.35.1"
+opentelemetry_operator_chart_version: "0.43.0"
 
 opentelemetry_collectors:
   gateway: true
   cadvisor: "{{ cadvisor_enabled | default(false) }}"
   telegraf: "{{ telegraf_enabled | default(false) }}"
-  elasticsearch: "{{ elasticsearch_enabled | default(false) }}"
+  elasticsearch: "{{ eck_enabled | default(false) }}"

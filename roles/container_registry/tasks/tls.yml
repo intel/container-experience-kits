@@ -80,7 +80,7 @@
         state: present
       register: csr_signing
 
-    - name: Approve CSR to sign certificate
+    - name: Approve CSR to sign certificate # noqa no-handler
       ansible.builtin.command: >-
         kubectl -n {{ registry_namespace }} certificate approve {{ registry_csr_name }}
       changed_when: true

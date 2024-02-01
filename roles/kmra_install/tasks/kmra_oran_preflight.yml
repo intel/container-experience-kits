@@ -48,7 +48,7 @@
 
     - name: check the oran image integrity
       assert:
-        that: "provided_oran.stat.checksum == '{{ kmra_oran.oran.oran_image_checksum }}'"
+        that: provided_oran.stat.checksum == kmra_oran.oran.oran_image_checksum
         msg:
           - File {{ kmra_oran.oran.oran_image_staging_location }} on localhost is NOT the expected one.
           - Please provide the correct file.

@@ -16,19 +16,14 @@
 ---
 - name: preflight xpumanager for k8s env
   block:
-    - name: check if Observability stack is enabled
+    - name: check if Prometheus stack is enabled
       ansible.builtin.assert:
         that:
-          - prometheus_enabled | d(false)
-          - telegraf_enabled | d(false)
-          - jaeger_operator | d(false)
-          - opentelemetry_enabled | d(false)
-          - elasticsearch_enabled | d(false)
-          - kibana_enabled | d(false)
+          - prometheus_stack_enabled | d(false)
         msg: |
           Incorrect configuration !!
-          XPUManager requires Onservability stack.
-          Please enable prometheus_enabled, telegraf_enabled, jaeger_operator, opentelemetry_enabled, elasticsearch_enabled, kibana_enabled in group_vars
+          XPUManager requires Prometheus stack to be deployed.
+          Please enable prometheus_stack_enabled in group_vars
 
     - name: check if GPU Device Plugin is enabled and configured
       ansible.builtin.assert:
@@ -57,10 +52,10 @@
     - name: check if Observability stack is enabled
       ansible.builtin.assert:
         that:
-          - prometheus_enabled | d(false)
+          - prometheus_stack_enabled | d(false)
         msg: |
           Incorrect configuration !!
           XPUManager requires Onservability stack.
-          Please enable prometheus_enabled in group_vars
+          Please enable prometheus_stack_enabled in group_vars
   when:
     - not kubernetes | default(false) | bool

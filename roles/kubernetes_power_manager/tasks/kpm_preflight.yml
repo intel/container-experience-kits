@@ -47,7 +47,7 @@
 
 - name: check global scaling governor
   ansible.builtin.assert:
-    that: kubernetes_power_manager.global_governor in {{ available_governors }}
+    that: kubernetes_power_manager.global_governor in available_governors
     fail_msg:
       - "{{ kubernetes_power_manager.global_governor }} governor is not supported"
   when:
@@ -57,7 +57,7 @@
 
 - name: check local scaling governor
   ansible.builtin.assert:
-    that: local_shared_profile.local_governor in {{ available_governors }}
+    that: local_shared_profile.local_governor in available_governors
     fail_msg:
       - "{{ local_shared_profile.local_governor }} governor is not supported"
   when:
@@ -67,9 +67,9 @@
 
 - name: check scaling driver
   ansible.builtin.assert:
-    that: frequency_scaling_driver is defined and frequency_scaling_driver == "acpi_cpufreq"
+    that: frequency_scaling_driver is defined and frequency_scaling_driver == "intel_cpufreq"
     fail_msg:
-      - "Governors {{ acpi_only_governors }} are only available with acpi_cpufreq scaling driver.
+      - "Governors {{ cpufreq_only_governors }} are only available with intel_cpufreq scaling driver.
           Please change scaling driver in host vars."
   when:
     - kubernetes_power_manager.global_governor is defined and kubernetes_power_manager.global_governor in ["userspace", "schedutil"] or

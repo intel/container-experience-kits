@@ -18,12 +18,12 @@ intel_media_analytics_namespace: "intel-media"
 intel_media_analytics__release_name: "intel-media"
 
 # Media Analytics
-intel_media_analytics_image_src: "intel/dlstreamer"
-intel_media_analytics_image_tag: "2022.3.0-ubuntu22-gpu555-dpcpp"
+intel_media_analytics_image_src: "vss-dlstreamer"
+intel_media_analytics_image_tag: "24.1"
 
 intel_media_analytics_local_folder: "{{ (project_root_dir, 'intel-media') | path_join }}"
 
 intel_media_analytics_local_build_name: "intel-media"
-intel_media_analytics_local_build_tag: "v23.02"
 
 intel_media_analytics_sample_pod_name: "intel-media"
+intel_media_analytics_pod_username: vss

@@ -14,20 +14,26 @@
 ##   limitations under the License.
 ##
 ---
+- name: Create Intel Ethernet Operator directory to store yaml files
+  ansible.builtin.file:
+    path: "{{ intel_ethernet_operator_fw_files_dir }}"
+    state: directory
+    mode: '0750'
+
 - name: Firmware update
   when: hostvars[node_name]['intel_ethernet_operator']['fw_update'] |d(false)
   block:
     - name: Populate Intel Ethernet Operator yaml files and push to controller node
       ansible.builtin.template:
         src: "firmware-update.yml.j2"
-        dest: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
+        dest: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yaml') | path_join }}"
         force: yes
         mode: preserve
 
     - name: Apply FW update on {{ node_name }}
       kubernetes.core.k8s:
         state: present
-        src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
+        src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yaml') | path_join }}"
 
     - name: Wait for start of node reboot
       ansible.builtin.wait_for:
@@ -78,7 +84,7 @@
     - name: Remove FW CR after update
       kubernetes.core.k8s:
         state: absent
-        src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yml') | path_join }}"
+        src: "{{ (intel_ethernet_operator_fw_files_dir, node_name + '-fw-update.yaml') | path_join }}"
 
     - name: Remove EthernetNodeConfig after update
       kubernetes.core.k8s:

@@ -14,22 +14,13 @@
 ##   limitations under the License.
 ##
 ---
-# add those bm host in mixed cluster to a group
-- hosts: k8s_cluster
-  tasks:
-    - name: Add hosts to inventory - bm_host
-      ansible.builtin.add_host:
-        hostname: "{{ inventory_hostname }}"
-        groups: "bm_host"
-        inventory_dir: '{{ inventory_dir }}'
-
 - hosts: vm_host
   roles:
-    - role: vm/compile_libvirt
+    - role: vm/compile_libvirt # noqa role-name[path]
       when:
-        - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+        - ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '==')
         - sgx_dp_enabled | default(false)
-    - role: vm/conf_libvirt
+    - role: vm/conf_libvirt # noqa role-name[path]
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -50,11 +41,14 @@
 - hosts: vm_host
   gather_facts: false
   roles:
-    - role: vm/prepare_vm_cluster
-    - role: vm/manage_imgs
-    - role: vm/manage_bridges
-    - role: vm/manage_vms
-    - role: vm/prepare_cek
+    - role: vm/auto_configure_nic_devices # noqa role-name[path]
+    - role: vm/auto_configure_qat_devices # noqa role-name[path]
+      when: configure_qat | d(false)
+    - role: vm/prepare_vm_cluster # noqa role-name[path]
+    - role: vm/manage_imgs # noqa role-name[path]
+    - role: vm/manage_bridges # noqa role-name[path]
+    - role: vm/manage_vms # noqa role-name[path]
+    - role: vm/prepare_cek # noqa role-name[path]
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -62,30 +56,30 @@
   gather_facts: false
   serial: 1
   roles:
-    - role: vm/prepare_bastion_host_config
+    - role: vm/prepare_bastion_host_config # noqa role-name[path]
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
-- hosts: vm_host
+- hosts: vm_host # noqa role-name[path]
   gather_facts: false
   roles:
-    - vm/prepare_cek_vxlan
+    - vm/prepare_cek_vxlan # noqa role-name[path]
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
 # need handle those baremetal hosts need connect to VMs
 - hosts: k8s_cluster
   vars:
-    - vms:
-        - name: dummy
-          vxlan: "{{ hostvars[groups['vm_host'][0]]['dhcp'][0] }}"
-    - dhcp: []
+    vms:
+      - name: dummy
+        vxlan: "{{ hostvars[groups['vm_host'][0]]['dhcp'][0] }}"
+    dhcp: []
   gather_facts: false
   serial: 1
   roles:
-    - role: vm/install_bm_libvirt
-    - role: vm/manage_bridges
-    - role: vm/prepare_bm_host_config_vxlan
+    - role: vm/install_bm_libvirt # noqa role-name[path]
+    - role: vm/manage_bridges # noqa role-name[path]
+    - role: vm/prepare_bm_host_config_vxlan # noqa role-name[path]
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
@@ -93,8 +87,8 @@
   gather_facts: false
   serial: 1
   roles:
-    - role: vm/prepare_bastion_host_config_vxlan
-    - role: vm/prepare_vm_inventory
+    - role: vm/prepare_bastion_host_config_vxlan # noqa role-name[path]
+    - role: vm/prepare_vm_inventory # noqa role-name[path]
   environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 

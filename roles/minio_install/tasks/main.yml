@@ -47,12 +47,6 @@
   include_role:
     name: whereabouts_install
 
-- name: install dependencies - kubernetes_ingress
-  include_role:
-    name: kubernetes_ingress_install
-  when:
-    minio_ingress_enabled | default(false)
-
 - name: clone MinIO operator/console/tenant
   include_tasks: clone_minio_operator.yml
   when:

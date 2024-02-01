@@ -1,0 +1,110 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Check vswitch definition
+  ansible.builtin.assert:
+    that:
+      - userspace_cni.vswitch is defined
+      - userspace_cni.vswitch in ['ovs', 'vpp']
+    fail_msg:
+      - "When Userspace CNI is enabled, userspace_cni.vswitch must be defined in host_vars for each node."
+      - "Supported vswitch values are: vpp, ovs"
+      - "Node {{ inventory_hostname }} has incorrect configuration: {{ userspace_cni.vswitch | default('undefined') }}."
+
+# VPP part
+- name: Check VPP configuration
+  when: userspace_cni.vswitch | default(false) == 'vpp'
+  block:
+    # W/A Disabled until userspace CNI compilation is fixed
+    - name: check OS for VPP compilation
+      ansible.builtin.fail:
+        msg: "VPP is temporarily not supported."
+
+    - name: VPP | Check example network attachment definitions
+      ansible.builtin.assert:
+        that:
+          - example_net_attach_defs['userspace_vpp'] | default('false')
+        fail_msg: "When VPP is enabled, example_net_attach_defs.userspace_vpp must be enabled as well."
+
+    - name: VPP | Check hugepages
+      ansible.builtin.assert:
+        that:
+          - hugepages_enabled | default(false)
+          - default_hugepage_size == "2M"
+          - number_of_hugepages_2M >=  0
+        fail_msg:
+          - When VPP is enabled, hugepages must be enabled and default_hugepage_size must be set to 2M according to host_vars example.
+          - Please correct the configuration
+
+    - name: VPP | Check OS for VPP compilation
+      ansible.builtin.assert:
+        that:
+          - (ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('22.04', '>='))
+        fail_msg: "Unsupported configuration. VPP can be only enabled on Ubuntu >= 22.04"
+
+
+# OVS DPDK part
+- name: Check OVS configuration
+  when: userspace_cni.vswitch | default(false) == 'ovs'
+  block:
+    - name: OVS | Check DPDK enabled
+      ansible.builtin.assert:
+        that:
+          - install_dpdk | default(false)
+          - dpdk_version is defined
+        fail_msg:
+          - When OVS is enabled, DPDK must be enabled as well.
+          - Please set 'dpdk_install' to 'true' in host_vars and set dpdk_version value.
+
+    - name: OVS | Warn if default version selected
+      ansible.builtin.debug:
+        msg: "OVS version not defined in host vars! Defaulting to version {{ ovs_version }}."
+      when: userspace_cni.ovs_version is not defined
+
+    # Refer https://docs.openvswitch.org/en/latest/faq/releases/ to get OVS DPDK compatibility
+    - name: OVS | Check DPDK compatibility
+      ansible.builtin.assert:
+        that:
+          ovs_version == 'v3.2.1' and dpdk_version == '22.11.1'
+          or ovs_version == 'v3.2.0' and dpdk_version == '22.11.1'
+          or ovs_version == 'v3.1.1' and dpdk_version == '22.11.1'
+          or ovs_version == 'v3.0.1' and dpdk_version == '21.11.2'
+          or (ovs_version >= 'v2.17.0' and ovs_version <= 'v3.0.3') and (dpdk_version >= '21.11' and dpdk_version <= '22.07')
+          or (ovs_version < 'v2.16.2' and ovs_version >= 'v2.16.0') and dpdk_version == '21.08'
+          or ovs_version == 'v2.15.0' and dpdk_version == '20.11'
+          or ovs_version == 'v2.14.2' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.14.1' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.14.0' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.3' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.2' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.1' and dpdk_version == '19.11.6'
+          or ovs_version == 'v2.13.0' and dpdk_version == '19.11.6'
+        fail_msg: "OVS {{ ovs_version }} does not build with DPDK version {{ dpdk_version }}. Please correct the host_vars configuration"
+
+    - name: OVS | Check example network attachment definitions
+      ansible.builtin.assert:
+        that:
+          - example_net_attach_defs['userspace_ovs_dpdk'] | default('false')
+        fail_msg: "When OVS DPDK is enabled, example_net_attach_defs.userspace_ovs_dpdk must be enabled as well."
+
+    - name: OVS | Check hugepages
+      ansible.builtin.assert:
+        that:
+          - hugepages_enabled | default(false)
+          - default_hugepage_size == "1G"
+          - number_of_hugepages_1G >=  0
+        fail_msg:
+          - When OVS is enabled, hugepages must be enabled and default_hugepage_size must be set to 1G according to host_vars example.
+          - Please correct the configuration

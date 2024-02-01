@@ -85,10 +85,8 @@
 
 - name: Install kernel dkms packages
   ansible.builtin.apt:
-    name: "{{ kernel_dkms_packages }}"
+    name: "{{ kernel_ubuntu_dkms_packages }}"
 
-# AXG 20230714 out of tree driver can't pass compilation on kernel 6.2,
-# use kernel in tree driver as workaround when kernel version > 6.2.
 - name: Install gpu kernel mode driver packages
   ansible.builtin.apt:
     name: "{{ gpu_kmd_packages }}"
@@ -114,7 +112,7 @@
 
 - name: Install gpu test packages
   ansible.builtin.apt:
-    name: "{{ gpu_test_packages }}"
+    name: "{{ gpu_ubuntu_test_packages }}"
     allow_downgrade: true
 
 - name: Reboot the system for these changes to take effect

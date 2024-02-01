@@ -3,15 +3,28 @@
 max_devices={{ simulated_disk_num }}
 
 bind_loopdevices() {
+{% if local_volume_provisioner_enabled | default(false) or minio_enabled | default(false) %}
     for i in `seq 1 $max_devices`
     do
         mount -t ext4 -o loop /opt/cek/disks/tmp/diskimage$i /mnt/disks/ra_disk$i
         echo "mounted /opt/cek/disks/tmp/diskimage$i to /mnt/disks/ra_disk$i"
     done
+{% elif rook_ceph.enabled | default(false) %}
+    for i in `seq 1 $max_devices`
+    do
+        losetup -f /opt/cek/disks/tmp/diskimage$i
+        echo "create loop device to /opt/cek/disks/tmp/diskimage$i"
+    done
+{% endif %}
 }
 
 detach_loopdevices() {
+{% if local_volume_provisioner_enabled | default(false) or minio_enabled | default(false) %}
     umount /mnt/disks/ra_disk?
+{% elif rook_ceph.enabled | default(false) %}
+    losetup -D
+    echo "detached loopdevices"
+{% endif %}
 }
 
 option=${1:-""}

@@ -46,6 +46,7 @@
 #     frequency_scaling
 #     cstate
 #     uncore_frequency
+#     time_of_day
 # - telemetry:
 #     prometheus
 #     collectd
@@ -81,6 +82,9 @@
 # - tadk
 # - cadvisor
 # - imtl
+# - container_runtime_default - is in ['containerd', 'crio', 'docker']
+# - infra_power_manager
+# - ingress_nginx
 ---
 access:
   name: access
@@ -127,6 +131,7 @@ access:
     frequency_scaling: off
     cstate: off
     uncore_frequency: off
+    time_of_day: off
   telemetry:
     prometheus: on
     collectd: off
@@ -163,6 +168,9 @@ access:
   adq_dp: off
   cadvisor: on
   imtl: off
+  container_runtime_default: containerd
+  infra_power_manager: optional
+  ingress_nginx: off
 
 basic:
   name: basic
@@ -182,6 +190,7 @@ basic:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: off
+    time_of_day: off
   telemetry:
     prometheus: on
     collectd: off
@@ -206,6 +215,9 @@ basic:
     ai: optional
   cadvisor: on
   imtl: off
+  container_runtime_default: containerd
+  infra_power_manager: optional
+  ingress_nginx: off
 
 full_nfv:
   name: full_nfv
@@ -253,6 +265,7 @@ full_nfv:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: off
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: off
@@ -290,6 +303,9 @@ full_nfv:
   adq_dp: off
   cadvisor: on
   imtl: off
+  container_runtime_default: containerd
+  infra_power_manager: optional
+  ingress_nginx: off
 
 on_prem:
   name: on_prem
@@ -330,6 +346,7 @@ on_prem:
     frequency_scaling: off
     cstate: optional
     uncore_frequency: off
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: off
@@ -362,6 +379,9 @@ on_prem:
     ai: optional
   cadvisor: on
   imtl: off
+  container_runtime_default: containerd
+  infra_power_manager: optional
+  ingress_nginx: off
 
 regional_dc:
   name: regional_dc
@@ -396,6 +416,7 @@ regional_dc:
     frequency_scaling: optional
     cstate: optional
     uncore_frequency: off
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: off
@@ -428,6 +449,9 @@ regional_dc:
     ai: optional
   cadvisor: on
   imtl: off
+  container_runtime_default: containerd
+  infra_power_manager: optional
+  ingress_nginx: off
 
 remote_fp:
   name: remote_fp
@@ -471,6 +495,7 @@ remote_fp:
     frequency_scaling: off
     cstate: optional
     uncore_frequency: off
+    time_of_day: optional
   telemetry:
     prometheus: on
     collectd: off
@@ -504,6 +529,9 @@ remote_fp:
     ai: optional
   cadvisor: optional
   imtl: off
+  container_runtime_default: containerd
+  infra_power_manager: optional
+  ingress_nginx: off
 
 build_your_own:
   name: build_your_own
@@ -549,6 +577,7 @@ build_your_own:
     frequency_scaling: off
     cstate: optional
     uncore_frequency: off
+    time_of_day: optional
   telemetry:
     prometheus: optional
     collectd: off
@@ -586,3 +615,6 @@ build_your_own:
   adq_dp: off
   cadvisor: optional
   imtl: off
+  container_runtime_default: containerd
+  infra_power_manager: optional
+  ingress_nginx: off

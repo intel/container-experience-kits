@@ -1,0 +1,29 @@
+#! /bin/bash
+
+GUEST_DEFAULT_PKG=" \
+linux-image-unsigned-6.2.16-* linux-headers-6.2.16-* linux-modules-6.2.16-* \
+"
+HOST_DEFAULT_PKG=" \
+linux-image-unsigned-6.2.16-*.deb linux-headers-6.2.16-* linux-modules-6.2.16-* linux-modules-extra-6.2.16-* \
+qemu-system-x86_7.2*.deb qemu-system-common_7.2*.deb qemu-system-data_7.2*.deb \
+ovmf_*_all.deb \
+libvirt-clients_*.deb libvirt0_*.deb libvirt-daemon_*.deb libvirt-daemon-system_*.deb libvirt-daemon-system-systemd_*.deb\
+ libvirt-daemon-driver-qemu_*.deb libvirt-daemon-config-network_*.deb libvirt-daemon-config-nwfilter_*.deb\
+ libvirt-login-shell_*.deb libvirt-daemon-driver-lxc_*.deb libvirt-dev_*.deb \
+mig-td_*_amd64.deb \
+vtpm-td_*_amd64.deb \
+"
+# copy packages
+cp host_repo/jammy/all/*.deb host_repo/jammy/amd64/
+cp guest_repo/jammy/all/*.deb guest_repo/jammy/amd64/
+
+mkdir {{ intel_tdx_packages_dir }}/host_repo
+pushd host_repo/jammy/amd64/
+cp $HOST_DEFAULT_PKG {{ intel_tdx_packages_dir }}/host_repo
+popd
+
+mkdir {{ intel_tdx_packages_dir }}/guest_repo
+pushd guest_repo/jammy/amd64/
+cp $GUEST_DEFAULT_PKG {{ intel_tdx_packages_dir }}/guest_repo
+popd
+

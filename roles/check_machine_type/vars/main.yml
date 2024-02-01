@@ -32,7 +32,6 @@ confirmed_core_cpus:
   - "12900"
   - "1360P"
 
-
 confirmed_skl_cpus:
   # Sky Lake Xeon Gold (quad)
   - "6152"
@@ -57,11 +56,14 @@ confirmed_icx_cpus:
   - "8358"
   - "8360Y"
   - "8380"
+  - "1747N"
   - "$0000%@"
 
 confirmed_spr_cpus:
+  - "5418N"
   - "6421N"
   - "6438N"
+  - "8468H"
   - "8470N"
   - "8471N"
   - "8478C"
@@ -76,3 +78,6 @@ confirmed_emr_cpus:
   - "0000"
   - "8592"
   - "6548N"
+
+confirmed_gnr_cpus:
+  - "9999"

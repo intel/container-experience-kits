@@ -16,7 +16,7 @@
 ---
 - name: install Intel-Speed-Select-Technology (ISST) tool on Ubuntu
   include_tasks: ubuntu_install_sst_tool.yml
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version >= '20.04'
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('20.04', '>=')
 
 - name: Intel(R)-Speed-Select-Technology (ISST) verification
   command: "intel-speed-select --info"
@@ -34,6 +34,7 @@
 
 - name: SST-BF verification
   command: "intel-speed-select base-freq enable -a"
+  changed_when: true
   register: sst_bf_verify
   when:
     - sst_bf_configuration_enabled is defined and sst_bf_configuration_enabled
@@ -41,6 +42,7 @@
 
 - name: SST-CP verification
   command: "intel-speed-select core-power enable -a"
+  changed_when: true
   register: sst_cp_verify
   when:
     - sst_cp_configuration_enabled is defined and sst_cp_configuration_enabled
@@ -48,6 +50,7 @@
 
 - name: SST-TF verification
   command: "intel-speed-select turbo-freq enable -a"
+  changed_when: true
   register: sst_tf_verify
   when:
     - sst_tf_configuration_enabled is defined and sst_tf_configuration_enabled
@@ -97,7 +100,7 @@
   when:
     - '"get-config-levels:0" in sst_pp_verify.stderr'
     - (ansible_distribution == "Ubuntu") or
-      (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.3")
+      (ansible_os_family == "RedHat" and ansible_distribution_version is version('8.3', '>='))
 
 # Intel(R) SST-PP (feature perf-profile) configuration
 - name: check if SST-PP dir exists
@@ -111,8 +114,8 @@
     - sst_pp_configuration_enabled is defined and sst_pp_configuration_enabled
     - not check_sst_pp_dir.stat.exists
     - '"Intel(R) SST-PP (feature perf-profile) is supported" in isst_verify.stderr_lines'
-    - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "20.04") or
-      (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.3")
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('20.04', '>=')) or
+      (ansible_os_family == "RedHat" and ansible_distribution_version is version('8.3', '>='))
 
 - debug:
     msg: "Intel(R) SST-PP (perf-profile) is not supported on platform, SST-PP deployment skipped"

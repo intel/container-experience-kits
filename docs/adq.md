@@ -124,9 +124,6 @@ spec:
   nodeSelector:
     kubernetes.io/hostname: "<controller hostname>" # Update this line with the hostname of the controller
   tolerations:
-    - key: "node-role.kubernetes.io/master"
-      effect: "NoSchedule"
-      operator: "Exists"
     - key: "node-role.kubernetes.io/control-plane"
       effect: "NoSchedule"
       operator: "Exists"

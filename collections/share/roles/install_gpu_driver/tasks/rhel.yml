@@ -1,3 +1,55 @@
 ---
-- name: GPU driver installation on RedHat
-  debug: msg="RedHat installation TBD"
+- name: Download Intel Graphics repository
+  ansible.builtin.get_url:
+    url: "{{ gpu_repo_rhel92_url }}"
+    dest: "/etc/yum.repos.d/"
+    mode: '0644'
+
+- name: Set fact for kernel version
+  ansible.builtin.set_fact:
+    kernel_ver: "{{ ansible_kernel }}"
+
+- name: Install kernel headers in case it missed
+  ansible.builtin.dnf:
+    name: kernel-headers-{{ kernel_ver }}
+    state: present
+
+- name: Install kernel dkms packages
+  ansible.builtin.dnf:
+    name: "{{ kernel_rhel_dkms_packages }}"
+
+- name: Install gpu kernel mode driver packages
+  ansible.builtin.dnf:
+    name: "{{ gpu_kmd_packages }}"
+    state: present
+  notify:
+    - reboot server
+
+- name: Install gpu user mode driver and runtime packages
+  ansible.builtin.dnf:
+    name: "{{ gpu_umd_rt_packages }}"
+    state: present
+
+- name: Install gpu dev packages
+  ansible.builtin.dnf:
+    name: "{{ gpu_dev_packages }}"
+    state: present
+
+- name: Install gpu tool packages
+  ansible.builtin.dnf:
+    name: "{{ gpu_tool_packages }}"
+    state: present
+
+- name: Install gpu test packages
+  ansible.builtin.dnf:
+    name: "{{ gpu_rhel_test_packages }}"
+    state: present
+
+- name: Add support for multi-gpu system
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    line: GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} pci=realloc=off"
+  register: boot_entry_cmdline
+  notify:
+    - Update grub on RedHat systems
+    - reboot server

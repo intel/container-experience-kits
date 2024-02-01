@@ -37,7 +37,7 @@
       vars:
         link_node_count: "{{ groups['kube_node'] | length }}"
       assert:
-        that: "{{ link_node_count }}  == 2"
+        that: link_node_count == 2
         msg: "Config dpdk link is a 2 nodes operation, but current nodes count is {{ link_node_count }}"
       tags:
         - dyna_config_dpdk
@@ -81,6 +81,19 @@
 
 # Execute gpu driver role on worker nodes
 - hosts: "{{node | default('kube_node')}}"
+  handlers:
+    - name: Update grub on RedHat systems
+      ansible.builtin.command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+      when: ansible_os_family == "RedHat"
+      changed_when: true
+    - name: Update grub on Ubuntu systems
+      ansible.builtin.command: "update-grub"
+      when: ansible_distribution == "Ubuntu"
+      changed_when: true
+    - name: reboot server
+      reboot: { reboot_timeout: 1200 }
+      when:
+        - inventory_hostname != "localhost"
   roles:
     - role: install_gpu_driver
       tags:

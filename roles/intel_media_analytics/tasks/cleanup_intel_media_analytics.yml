@@ -23,21 +23,40 @@
         name: "{{ intel_media_analytics_sample_pod_name }}"
         namespace: "{{ intel_media_analytics_namespace }}"
 
-    - name: remove Media Analytics image from local registry
+    - name: remove Media Analytics image from local registry with docker
       block:
         - name: delete the tag
           community.docker.docker_image:
             state: absent
             name: "{{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}"
-            tag: "{{ intel_media_analytics_local_build_tag }}"
+            tag: "{{ intel_media_analytics_image_tag }}"
             force_absent: true
       when:
         - container_runtime == "docker"
+
+    - name: remove Media Analytics images from local registry with podman
+      block:
+        - name: delete the tag
+          containers.podman.podman_image:
+            state: absent
+            name: "{{ registry_local_address }}/{{ intel_media_analytics_local_build_name }}"
+            tag: "{{ intel_media_analytics_image_tag }}"
+      when:
+        - container_runtime == "containerd"
 
     - name: remove Media Analytics folder
       ansible.builtin.file:
         path: "{{ (intel_media_analytics_local_folder) | path_join }}"
         state: absent
+
+    - name: Remove Media Analytics base container folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ base_container_path }}"
+        - "{{ base_container_dockerfile_path }}"
+        - "{{ base_container_test_path }}"
 
     - name: remove a k8s namespace
       kubernetes.core.k8s:

@@ -21,8 +21,8 @@
 - name: check supported OS for IPU
   ansible.builtin.assert:
     that:
-      - (ansible_distribution == "Rocky" and ansible_distribution_version == "9.1") or
-        (ansible_distribution == "Rocky" and ansible_distribution_version == "9.2") or
+      - (ansible_distribution == "Rocky" and ansible_distribution_version is version('9.1', '==')) or
+        (ansible_distribution == "Rocky" and ansible_distribution_version is version('9.2', '==')) or
         (ansible_distribution == "Fedora")
     fail_msg:
       - "Current OS - {{ ansible_distribution }} {{ ansible_distribution_version }} - is not supported for IPU"

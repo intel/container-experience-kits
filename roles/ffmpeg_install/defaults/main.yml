@@ -18,7 +18,7 @@ ffmpeg_path: "{{ (project_root_dir, 'ffmpeg') | path_join }}"
 ffmpeg_patch_path: "{{ (ffmpeg_path, 'ffmpeg_patch') | path_join }}"
 
 # ffmpeg upstream base version
-ffmpeg_commit_hash: "9b6d191"
+ffmpeg_commit_hash: "9e1ea3c"
 ffmpeg_git_url: "https://github.com/FFmpeg/FFmpeg.git"
 ffmpeg_configure_options_gpu: "--enable-shared --enable-vaapi --enable-libvpl"
 ffmpeg_configure_options_cpu: "--enable-shared"

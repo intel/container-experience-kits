@@ -6,8 +6,9 @@
 4. [Discover Supported Ethernet Network Adapters](#discover-supported-ethernet-network-adapters)
 5. [Discover Supported Profiles](#discover-supported-profiles)
 6. [Discover Additional Configuration](#discover-additional-configuration)
-7. [Example Commands](#example-commands)
-8. [Playbooks Generation](#playbook-generation)
+7. [Architecture and Ethernet Network Adapters type auto-detection](#architecture-and-ethernet-network-adapters-type-auto-detection)
+8. [Example Commands](#example-commands)
+9. [Playbooks Generation](#playbook-generation)
 
 ---
 
@@ -65,9 +66,10 @@ These three directories represent available modes of the CEK project.
 
 At the moment, Container Experience Kits supports the following machine architectures:
 
+* `gnr` - Granite Rapids - 'Next Generation Intel(R) Xeon(R) Scalable Processor'
 * `emr` - Emerald Rapids - '5th Generation Intel(R) Xeon(R) Scalable Processor'
-* `spr` - Sapphire Rapids - '4th Generation Intel(R) Xeon(R) Scalable Processor'
-* `icx` - IceLake (default) - '3rd Generation Intel(R) Xeon(R) Scalable Processor'
+* `spr` - Sapphire Rapids (default) - '4th Generation Intel(R) Xeon(R) Scalable Processor'
+* `icx` - IceLake - '3rd Generation Intel(R) Xeon(R) Scalable Processor'
 * `clx` - CascadeLake - '2nd Generation Intel(R) Xeon(R) Scalable Processor'
 * `skl` - SkyLake - '1st Generation Intel(R) Xeon(R) Scalable Processor'
 
@@ -102,6 +104,19 @@ If you would like to know more about CEK profiles read section 2.2 in [here](htt
 At the moment, Container Experience Kits supports the following optional configuration:
 
 * Configure mirrors for kubespray deployment - for detailed information, please read [mirrors guide](docs/mirrors.md)
+
+## Architecture and Ethernet Network Adapters type auto-detection
+
+Container Experience Kits can automatically detect your target machines architecture and Ethernet Network Adapter type.
+
+```bash
+# for k8s mode
+make auto-k8s-profile PROFILE=remote_fp HOSTS=10.10.10.11,10.10.10.12 USERNAME=root
+# or for vm mode
+make auto-vm-profile PROFILE=remote_fp HOSTS=10.10.10.11,10.10.10.12 USERNAME=root
+```
+
+> **_NOTE:_** Make sure that SSH key is copied to all Kubernetes cluster nodes or VM hosts (`ssh-copy-id <user>@<host>` command can be used for that).
 
 ## Example Commands
 

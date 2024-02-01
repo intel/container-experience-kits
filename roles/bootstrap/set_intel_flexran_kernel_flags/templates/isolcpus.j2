@@ -1,0 +1,30 @@
+{% set sockets = ansible_processor_count %}
+{% set cores = ansible_processor_cores %}
+{% set tpc = ansible_processor_threads_per_core %}
+
+{% if cores <= 32 and not ( cores == 32 and sockets == 2 ) %}
+# Assign 2 cores to housekeeping
+
+{% if tpc == 1 %}
+isolcpus: "1-{{ (cores * sockets) - 2 }}"
+housekeeping: "0,{{ (cores * sockets) - 1 }}"
+
+{% else %}
+isolcpus: "1-{{ (cores * sockets) - 2 }},{{ (cores * sockets) + 1 }}-{{ (cores * sockets * 2) - 2 }}"
+housekeeping: "0,{{ (cores * sockets) - 1 }}-{{ cores * sockets }},{{ (cores * sockets * 2) - 1 }}"
+
+{% endif %}
+{% else %}
+# Assign 4 cores to housekeeping
+
+{% if tpc == 1 %}
+isolcpus: "2-{{ (cores * sockets) - 3 }}"
+housekeeping: "0-1,{{ (cores * sockets) - 2 }}-{{ (cores * sockets) - 1 }}"
+
+{% else %}
+isolcpus: "2-{{ (cores * sockets) - 3 }},{{ (cores * sockets) + 2 }}-{{ (cores * sockets * 2) - 3 }}"
+housekeeping: "0-1,{{ (cores * sockets) - 2 }}-{{ (cores * sockets) + 1 }},{{ (cores * sockets * 2) - 2 }}-{{ (cores * sockets * 2) - 1 }}"
+
+{% endif %}
+{% endif %}
+pagesize: {% if cores < 32 %}"40"{% else %}"60"{% endif %}

@@ -18,7 +18,7 @@
   block:
     - name: check MinIO minimum number of nodes
       assert:
-        that: "{{ minio_tenant_servers | int }} <= {{ groups['kube_node'] | length | int }}"
+        that: (minio_tenant_servers | int) <= (groups['kube_node'] | length | int)
         msg: |
           "Incorrect configuration."
           "The number of MinIO tenant servers '{{ minio_tenant_servers | int }}' defined in group vars must be"
@@ -26,7 +26,7 @@
 
     - name: make sure the MinIO tenant volumes per server >= the MiniO PV list
       assert:
-        that: "{{ persistent_volumes | length | int }} >= {{ minio_tenant_volumes_per_server | int }}"
+        that: (persistent_volumes | length | int) >= (minio_tenant_volumes_per_server | int)
         msg:
           - "Incorrect configuration."
           - "The number of MinIO Persistent Volumes (PVs) '{{ persistent_volumes | length | int }}' defined in the host vars must be"

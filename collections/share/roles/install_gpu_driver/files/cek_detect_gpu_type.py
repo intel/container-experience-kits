@@ -1,6 +1,7 @@
 
 import os
 import sys
+import re
 
 intel_dgpu_types = {
     "56c0" : "Flex",
@@ -31,16 +32,15 @@ intel_dgpu_types = {
 
 
 def detect_gpu_type():
-    cmd = 'lspci | grep -i -E "Display|VGA" | grep Intel'
+    cmd = 'lspci -mmnn | grep -i -E "Display|VGA" | grep Intel'
     result = os.popen(cmd)
     info_list = result.read()
     lines = info_list.splitlines()
     line_count = len(lines)
     if line_count > 0 :
         line = lines[0]
-        idx1 = line.find("Device") + len("Device ")
-        idx2 = line.find(" ", idx1+1)
-        chip_id = line[idx1 : idx2].lower()
+        device = re.findall(r'\"(.*?)\"', line)[2]
+        chip_id = (device.split("["))[1].split("]")[0]
 
         if chip_id in intel_dgpu_types :
             gpu_type = intel_dgpu_types[chip_id]

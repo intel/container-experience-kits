@@ -10,5 +10,5 @@ spec:
   # IMPORTANT: The CPUs in reservedCPUs should match the value of the reserved system CPUs in your Kubelet config file
   reservedCPUs: {{ reserved_cpus }}
   powerNodeSelector:
-    kubernetes.io/hostname: {{ node_name }}
+    kubernetes.io/hostname: {{ hostvars[node_name]['ansible_hostname'] }}
   powerProfile: shared-{{ shared_workload_type }}

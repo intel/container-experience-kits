@@ -82,6 +82,12 @@
 
   when: dpdk_local_patches_dir is defined
 
+- name: Apply DPDK patches for Infrastructure Power manager (IPM)
+  ansible.builtin.include_role:
+    name: infrastructure_power_manager
+    tasks_from: dpdk_patch.yml
+  when: infrastructure_power_manager_enabled | default(false)
+
 - name: Apply DPDK patches for media transport library (IMTL)
   ansible.builtin.include_role:
     name: imtl_install

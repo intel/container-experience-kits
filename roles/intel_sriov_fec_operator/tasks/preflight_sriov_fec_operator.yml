@@ -28,7 +28,7 @@
 
     - name: SRIOV-FEC Operator - check distro
       ansible.builtin.assert:
-        that: ansible_distribution_version == "22.04" or ansible_distribution_version == "9.2"
+        that: ansible_distribution_version is version('22.04', '==') or ansible_distribution_version is version('9.2', '==')
         fail_msg: "Deploying Intel SR-IOV FEC Operator is supported only on Ubuntu 22.04 or RHEL 9.2. Please change the o/s or correct group_vars configuration" # noqa yaml[line-length]
         success_msg: "Assertion passed. Intel SR-IOV FEC Operator is supported and can be deployed on '{{ ansible_distribution }}' distro"
 

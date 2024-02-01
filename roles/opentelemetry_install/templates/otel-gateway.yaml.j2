@@ -43,7 +43,7 @@ spec:
         loglevel: info
 
       elasticsearch/log:
-        endpoints: [https://elasticsearch-master.monitoring.svc:9200]
+        endpoints: [https://elasticsearch-main-es-http.monitoring.svc:9200]
         tls:
           cert_file: /var/run/secrets/otel-elasticsearch-tls/tls.crt
           key_file: /var/run/secrets/otel-elasticsearch-tls/tls.key
@@ -52,7 +52,7 @@ spec:
         user: elastic
         password: {{ es_otel_credentials.stdout }}
 
-      jaeger:
+      otlp:
         endpoint: jaeger-collector-headless.monitoring.svc:14250
         tls:
           insecure: true
@@ -71,7 +71,7 @@ spec:
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [logging,jaeger]
+          exporters: [logging,otlp]
         metrics:
           receivers: [otlp]
           processors: [batch]

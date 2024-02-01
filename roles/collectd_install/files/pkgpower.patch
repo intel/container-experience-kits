@@ -1,0 +1,45 @@
+diff --git a/telemetry/pkgpower.py b/telemetry/pkgpower.py
+index 295791a..61e7cf1 100644
+--- a/telemetry/pkgpower.py
++++ b/telemetry/pkgpower.py
+@@ -106,6 +106,22 @@ def _get_node_id(nodepath):
+     match_nodepath = reg_ex.match(nodepath)
+     return int(match_nodepath.group("node"))
+
++def _is_pkg_exists(cpu):
++    power_path = os.path.join(
++        BASE_POWERCAP_PATH, "intel-rapl:{}".format(cpu.node_id))
++    max_power_file_path = os.path.join(power_path, "constraint_0_max_power_uw")
++    max_energy_file = os.path.join(power_path, "max_energy_range_uj")
++    energy_file = os.path.join(power_path, "energy_file")
++    if os.path.exists(power_path):
++        if (os.access(max_power_file_path, os.R_OK) and
++           os.access(max_energy_file, os.R_OK) and
++           os.access(energy_file, os.R_OK)):
++            return True
++        else:
++            return False
++    else:
++        return False
++
+ def config_func(_unused_config):
+     '''
+     call back function called by collectd, here
+@@ -118,10 +134,13 @@ def config_func(_unused_config):
+     node_ids = [_get_node_id(np) for np in nodes]
+     for node in node_ids:
+         cpu = _CpuPowerStatus(node)
+-        _get_max_power_consumption(cpu)
+-        _get_tdp_power(cpu)
+-        _get_pkg_name(cpu)
+-        __CPUS += [cpu]
++        if _is_pkg_exists(cpu):
++            _get_max_power_consumption(cpu)
++            _get_tdp_power(cpu)
++            _get_pkg_name(cpu)
++            __CPUS += [cpu]
++        else:
++            continue
+
+ def _read_pkg_power(cpu):
+     # first, read current power consumption value and timestamp

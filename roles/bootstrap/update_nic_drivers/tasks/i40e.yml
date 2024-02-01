@@ -86,8 +86,8 @@
   when:
     - not i40e_driver_build_failed
     - (i40e_installed_version.stdout != i40e_driver_version and mgmt_interface_driver.stdout == i40e_driver_name) or
-      (i40e_installed_version.stdout != i40e_driver_version and ((ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0") or
-      (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04") or update_kernel))
+      (i40e_installed_version.stdout != i40e_driver_version and ((ansible_os_family == "RedHat" and ansible_distribution_version is version('9.0', '>=')) or
+      (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '>=')) or update_kernel))
 
 - name: ensure that i40e module is loaded
   modprobe:

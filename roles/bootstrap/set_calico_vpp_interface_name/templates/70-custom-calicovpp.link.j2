@@ -1,0 +1,4 @@
+[Match]
+MACAddress={{ hostvars[inventory_hostname]['ansible_' + calico_vpp_interface_name].macaddress }}
+[Link]
+Name={{ calico_vpp.interface_name }}

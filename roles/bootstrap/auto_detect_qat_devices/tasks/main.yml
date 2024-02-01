@@ -15,69 +15,90 @@
 ##
 ---
 - name: user configured qat_devices
-  debug: var=qat_devices
+  ansible.builtin.debug: var=qat_devices
 
 - name: initializing new qat_devices list
-  set_fact:
+  ansible.builtin.set_fact:
     new_qat_devices: []
 
-- name: detect QAT PF ids from system
-  shell: "set -o pipefail && lspci -nn | egrep -i '{{ qat_supported_pf_dev_ids | join('|') }}' | cut -d' ' -f1"
-  args:
+- name: get supported QAT PF devices
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ qat_supported_pf_dev_ids | join('|') }}'"
     executable: /bin/bash
-  register: qat_pf_id_values
+  register: qat_pci_pf_devices
   changed_when: false
-  failed_when: qat_pf_id_values.rc != 0 and qat_pf_id_values.rc != 1
+  failed_when: qat_pci_pf_devices.rc not in [0, 1]
   when: not on_vms | default(false)
 
-# QAT PF can be possibly added to VM as well
-- name: detect QAT VF ids from system
-  shell: "set -o pipefail && lspci -nn | egrep -i '{{ (qat_supported_vf_dev_ids + qat_supported_pf_dev_ids) | join('|') }}' | cut -d' ' -f1"
-  args:
+- name: get supported QAT VF devices
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ qat_supported_vf_dev_ids | join('|') }}'"
     executable: /bin/bash
-  register: qat_vf_id_values
+  register: qat_pci_vf_devices
   changed_when: false
-  failed_when: qat_vf_id_values.rc != 0 and qat_vf_id_values.rc != 1
+  failed_when: qat_pci_vf_devices.rc not in [0, 1]
   when: on_vms | default(false)
 
-- name: change qat_sriov_numvfs_required to zero for VMs
-  set_fact:
-    qat_sriov_numvfs_required: 0
-  when: on_vms | default(false)
+- name: get QAT device bus IDs
+  ansible.builtin.set_fact:
+    qat_pci_devices: "{{ ['0000:'] |
+      product((qat_pci_vf_devices.stdout_lines if (on_vms | default(false)) else qat_pci_pf_devices.stdout_lines) |
+      map('split') | map('first'))| map('join') | list }}"
 
-- name: set common qat_id_values
-  set_fact:
-    qat_id_values: "{% if on_vms | default(false) %}{{ qat_vf_id_values.stdout_lines }}{% else %}{{ qat_pf_id_values.stdout_lines }}{% endif %}"
+- name: read sriov_totalvfs for each QAT PF
+  ansible.builtin.slurp:
+    src: "{{ ('/sys/bus/pci/devices', item, 'sriov_totalvfs') | path_join }}"
+  with_items: "{{ qat_pci_devices }}"
+  register: qat_dev_sriov_total_vfs_reg
+  when: not on_vms | default(false)
 
-- name: print QAT PF id in system
-  debug:
-    var: qat_id_values
+- name: get QAT device max SRIOV VFs
+  ansible.builtin.set_fact:
+    qat_device_sriov_total_vfs: "{{ qat_device_sriov_total_vfs | d({}) | combine({ item.item: (item.content | b64decode | trim) }) }}"
+  with_items: "{{ qat_dev_sriov_total_vfs_reg.results }}"
+  when: not on_vms | default(false)
 
-- name: print configured values
-  debug:
-    msg:
-      - "qat_sriov_numvfs_required = {{ qat_sriov_numvfs_required }}"
-      - "qat_vf_driver_required = {{ qat_vf_driver_required }}"
+- name: get QAT device uevent information
+  ansible.builtin.slurp:
+    src: "{{ ('/sys/bus/pci/devices', item, 'uevent') | path_join }}"
+  with_items: "{{ qat_pci_devices }}"
+  register: qat_dev_uevent_reg
+  when: not on_vms | default(false)
 
-- name: Create new_qat_devices list
-  set_fact:
-    new_qat_devices:
-      "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required,
-       'qat_default_vf_driver' : qat_vf_driver_required }] }}"
-  with_items: "{{ qat_id_values }}"
+- name: create new_qat_devices list
+  ansible.builtin.set_fact:
+    new_qat_devices: |-
+      [
+      {% for uevent, total_vfs in qat_dev_uevent_reg.results | zip(qat_dev_sriov_total_vfs_reg.results) %}
+        {
+          "qat_id": "{{ uevent.item }}",
+          "qat_sriov_numvfs": {{ total_vfs.content | b64decode | trim }},
+          "qat_default_vf_driver": "{{ uevent.content | b64decode | regex_search('DRIVER=(.+)', '\1') | default([qat_vf_driver_required[:-2]]) | first }}vf",
+          "qat_vfs": {}
+        },
+      {% endfor %}
+      ]
   changed_when: true
   when: not on_vms | default(false)
 
-- name: Create new_qat_devices list on VMs
-  set_fact:
-    new_qat_devices: "{{ new_qat_devices | default([]) + [{ 'qat_id' : '0000:' + item, 'qat_sriov_numvfs' : qat_sriov_numvfs_required }] }}"
-  with_items: "{{ qat_id_values }}"
+- name: create new_qat_devices list for VMs
+  ansible.builtin.set_fact:
+    new_qat_devices: |-
+      [
+      {% for item in qat_pci_devices %}
+        {
+          "qat_id": "{{ item }}",
+          "qat_sriov_numvfs": 0
+        },
+      {% endfor %}
+      ]
   changed_when: true
   when: on_vms | default(false)
 
 - name: replace original qat_devices
-  set_fact:
+  ansible.builtin.set_fact:
     qat_devices: "{{ new_qat_devices }}"
 
-- name: auto detected qat_devices
-  debug: var=qat_devices
+- name: print new qat_devices
+  ansible.builtin.debug:
+    var: qat_devices

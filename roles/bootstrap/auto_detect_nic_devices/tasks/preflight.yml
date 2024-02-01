@@ -1,0 +1,49 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: get count of configured NIC devices
+  ansible.builtin.set_fact:
+    user_configured_nic_devices_count: "{{ vms | map(attribute='nic_devices_count', default=0) | sum }}"
+
+- name: get supported NIC PF devices
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ nic_supported_pf_dev_ids | join('|') }}'"
+    executable: /bin/bash
+  register: nic_pci_pf_devices
+  changed_when: false
+  failed_when: nic_pci_pf_devices.rc not in [0, 1]
+  when: not on_vms | default(false)
+
+- name: get NIC PF device bus IDs
+  ansible.builtin.set_fact:
+    nic_pci_devices: "{{ ['0000:'] | product(nic_pci_pf_devices.stdout_lines | map('split') | map('first'))| map('join') | list }}"
+
+- name: read sriov_totalvfs for each NIC PF
+  ansible.builtin.slurp:
+    src: "{{ ('/sys/bus/pci/devices', item, 'sriov_totalvfs') | path_join }}"
+  with_items: "{{ nic_pci_devices }}"
+  register: nic_dev_sriov_total_vfs_reg
+
+- name: get sum of NIC devices SRIOV VFs available
+  ansible.builtin.set_fact:
+    nic_device_sriov_vfs_sum: "{{ (nic_device_sriov_vfs_sum | d(0) | int) + (item.content | b64decode | trim | int) }}"
+  with_items: "{{ nic_dev_sriov_total_vfs_reg.results }}"
+
+- name: check if we have enough NIC VFs available
+  ansible.builtin.assert:
+    that: (user_configured_nic_devices_count | int) <= (nic_device_sriov_vfs_sum | int)
+    fail_msg:
+      "You have configured more NIC devices for VMs ({{ user_configured_nic_devices_count }}) than is available on system ({{ nic_device_sriov_vfs_sum }})."

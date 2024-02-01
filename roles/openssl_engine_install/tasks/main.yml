@@ -19,17 +19,17 @@
     path: "{{ openssl_engine_dir }}"
   register: engine_stat_result
   when:
-    - inventory_hostname == groups['kube_node'][0]
+    - inventory_hostname in groups['kube_node']
 
 - name: enable OpenSSL*Engine
   include_tasks: openssl_engine_config.yml
   when:
-    - inventory_hostname == groups['kube_node'][0]
+    - inventory_hostname in groups['kube_node']
     - engine_stat_result.stat.exists
 
 - name: OpenSSL*Engine enablement skipped
   debug:
     msg: "OpenSSL*Engine enablement skipped, need to set openssl_install to true in host vars"
   when:
-    - inventory_hostname == groups['kube_node'][0]
+    - inventory_hostname in groups['kube_node']
     - not engine_stat_result.stat.exists

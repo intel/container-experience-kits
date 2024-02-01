@@ -19,7 +19,15 @@
     name: install_dependencies
 
 - name: add labels for Power Nodes
-  ansible.builtin.command: kubectl label nodes {{ hostvars[item]['ansible_hostname'] }} intel.power.node=true --overwrite
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Node
+      metadata:
+        name: "{{ hostvars[item]['ansible_hostname'] }}"
+        labels:
+          intel.power.node: 'true'
   loop: "{{ kubernetes_power_manager.power_nodes }}"
   when: inventory_hostname == groups['kube_control_plane'][0]
 

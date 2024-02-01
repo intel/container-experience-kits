@@ -16,7 +16,7 @@
 ---
 - name: validate linux distro version for Intel ECI
   ansible.builtin.assert:
-    that: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '22.04'
+    that: ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('22.04', '==')
     fail_msg: "Intel ECI is supported only on Ubuntu 22.04 ({{ ansible_distribution }} {{ ansible_distribution_version }} is not supported)"
     success_msg: "Assertion passed. Intel ECI is supported and can be deployed on target with Ubuntu 22.04"
 
@@ -39,7 +39,7 @@
 
 - name: validate Intel ECI repo
   ansible.builtin.assert:
-    that: intel_eci_repo_checksum == "{{ intel_eci_repo | checksum }}"
+    that: intel_eci_repo_checksum == (intel_eci_repo | checksum)
     msg:
       - Please configure intel_eci_repo in group vars.
       - Please contact eci-support@intel.com on how to access this repo.

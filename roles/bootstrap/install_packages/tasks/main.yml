@@ -37,8 +37,6 @@
       - jmespath==0.9.5
       - ruamel.yaml==0.16.13
       - cachetools==4.2.1
-      - markupsafe==1.1.1
-      - jinja2==2.11.3
       - openshift==0.12.1
       - kubernetes==12.0.1
       - six>=1.15.0
@@ -50,3 +48,11 @@
   retries: 5
   until: pip_result is succeeded
   delay: 5
+
+- name: install jinja2 on non-localhost machines
+  pip:
+    name:
+      - jinja2==2.11.3
+      - markupsafe==1.1.1
+    state: present
+  when: inventory_hostname != 'localhost'

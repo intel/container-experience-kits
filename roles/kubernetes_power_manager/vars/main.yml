@@ -31,5 +31,5 @@ combined_profiles: []
 multiplier: '{{ [kubernetes_power_manager.power_nodes | length / 20, 1.0] | min }}' # 20+ nodes will double the max basic value
 
 common_governors: ["performance", "powersave"]
-acpi_only_governors: ["userspace", "schedutil"]
-available_governors: "{{ common_governors + acpi_only_governors }}"
+cpufreq_only_governors: ["userspace", "schedutil"]
+available_governors: "{{ common_governors + cpufreq_only_governors }}"

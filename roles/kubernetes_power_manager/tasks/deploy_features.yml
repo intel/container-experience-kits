@@ -59,3 +59,25 @@
         state: present
         src: "{{ (kubernetes_power_manager_dir, 'cstates_' + power_node + '.yaml') | path_join }}"
       when: inventory_hostname == groups['kube_control_plane'][0]
+
+# Time of Day
+- name: prepare and deploy Time of Day
+  when:
+    - hostvars[power_node]['time_of_day']['enabled'] | default(false)
+    - inventory_hostname == groups['kube_control_plane'][0]
+  block:
+    - name: prepare required variables to deploy Time of Day
+      ansible.builtin.set_fact:
+        time_of_day: "{{ hostvars[power_node]['time_of_day'] }}"
+
+    - name: populate Time of Day template
+      ansible.builtin.template:
+        src: time_of_day.yaml.j2
+        dest: "{{ (kubernetes_power_manager_dir, 'time_of_day_' + power_node + '.yaml') | path_join }}"
+        force: yes
+        mode: preserve
+
+    - name: apply Time of Day
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (kubernetes_power_manager_dir, 'time_of_day_' + power_node + '.yaml') | path_join }}"

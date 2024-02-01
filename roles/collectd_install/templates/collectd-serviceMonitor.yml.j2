@@ -9,7 +9,7 @@ metadata:
 spec:
   endpoints:
   - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-    interval: {{ collectd_scrap_interval }}s
+    interval: {{ collectd_scrape_interval }}s
     port: https
     scheme: https
     tlsConfig:

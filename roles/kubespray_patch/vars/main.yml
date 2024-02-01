@@ -15,3 +15,7 @@
 ##
 kubespray_dir: "{{ (role_path, '../..', 'collections/ansible_collections/kubernetes_sigs/kubespray') | path_join }}"
 patch_checksum_file: "{{ (kubespray_dir, 'ra_patch_checksum') | path_join }}"
+
+# To fix BUG https://github.com/ansible-collections/kubernetes.core/issues/659
+kubernetes_module_dir: "{{ (role_path, '../..', 'collections/ansible_collections/kubernetes') | path_join }}"
+kube_patch_checksum_file: "{{ (kubernetes_module_dir, 'ra_patch_checksum') | path_join }}"

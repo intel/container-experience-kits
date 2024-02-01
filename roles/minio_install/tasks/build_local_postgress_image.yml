@@ -47,8 +47,10 @@
       changed_when: true
 
     - name: output huge_pages setting of the container
-      shell: >-
-        podman exec -it {{ minio_log_postgres_name }} cat /usr/share/postgresql/postgresql.conf.sample | grep huge_pages
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail && podman exec -it {{ minio_log_postgres_name }} cat /usr/share/postgresql/postgresql.conf.sample | grep huge_pages
+        executable: /bin/bash
       changed_when: true
 
     - name: commit the container
@@ -101,8 +103,10 @@
       changed_when: true
 
     - name: output huge_hages setting of the container
-      shell: >-
-        docker exec -it {{ minio_log_postgres_name }} cat /usr/share/postgresql/postgresql.conf.sample | grep huge_pages
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail && docker exec -it {{ minio_log_postgres_name }} cat /usr/share/postgresql/postgresql.conf.sample | grep huge_pages
+        executable: /bin/bash
       changed_when: true
 
     - name: commit the container

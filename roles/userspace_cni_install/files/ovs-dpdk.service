@@ -1,0 +1,12 @@
+[Unit]
+Description=RA OVS-DPDK Daemon Service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/opt/cek/ovs-dpdk restart
+ExecStop=/opt/cek/ovs-dpdk stop
+
+[Install]
+WantedBy=multi-user.target

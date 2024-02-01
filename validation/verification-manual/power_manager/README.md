@@ -104,6 +104,7 @@ To check Uncore Frequency, you can use following path:
 ```
 You can then check files 'max_freq_khz' or 'min_freq_khz' which should store your desired Uncore Frequency values.
 **Note:** Valid min and max values are determined by hardware. Die config will precede Package config, which will precede system-wide config.
+**Note:** To prevent both min and max frequency values of being the same value, please set "System BIOS > System Profile Settings > Uncore Frequency" from "Maximum" to "Dynamic" in machine's BIOS.
 
 To set up C-States, you can choose from three different options:
 ```
@@ -138,7 +139,57 @@ To check your desired scaling driver, you can do following:
 ```
 # cat /sys/devices/system/cpu/cpuX/cpufreq/scaling_driver
 ```
-And to check you desired scaling governor:
+**Note:** Scaling driver's available are: intel_pstate, intel_cpufreq
+
+To check your desired scaling governor:
 ```
 # cat /sys/devices/system/cpu/cpuX/cpufreq/scaling_governor
+```
+You can also check all available scaling governors:
+```
+# cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+```
+Time of Day can be used to schedule change of powerProfile or C-State for sharedPool, or powerProfile for sample pod. Schedule examples:
+```
+schedule:
+  - time: "14:24"
+    # powerProfile sets the profile for the shared pool
+    powerProfile: balance-performance
+
+    # this transitions exclusive pods matching a given label from one profile to another
+    # please ensure that only pods to be used by power manager have this label
+    pods:
+      - labels:
+          matchLabels:
+            power: "true"
+        target: balance-performance
+      - labels:
+          matchLabels:
+            special: "false"
+        target: balance-performance
+
+    # cState field simply takes a cstate spec
+    cState:
+      sharedPoolCStates:
+        C1: false
+        C6: true
+
+  - time: "14:26"
+    powerProfile: performance
+    cState:
+      sharedPoolCStates:
+        C1: true
+        C6: false
+
+  - time: "14:28"
+    powerProfile: balance-power
+    pods:
+      - labels:
+          matchLabels:
+            power: "true"
+        target: balance-power
+      - labels:
+          matchLabels:
+            special: "false"
+        target: performance
 ```

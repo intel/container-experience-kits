@@ -50,6 +50,8 @@ telegraf_config_profiles:
     - *basic
   build_your_own: &build_your_own
     - *basic
+  base_video_analytics:
+    - *basic
   on_prem_vss:
     - *basic
   on_prem_sw_defined_factory:
@@ -62,7 +64,7 @@ telegraf_chart_path: "{{ (project_root_dir, 'charts', 'telegraf') | path_join }}
 telegraf_root_path: "{{ (project_root_dir, 'telegraf') | path_join }}"
 telegraf_helm_values_file: "{{ telegraf_chart_path }}/values.yaml"
 
-telegraf_scrap_interval: 30
+telegraf_scrape_interval: 30
 telegraf_prometheus_metrics_endpoint_port: 9273
 
 telegraf_image_name: "docker.io/intel/observability-telegraf"

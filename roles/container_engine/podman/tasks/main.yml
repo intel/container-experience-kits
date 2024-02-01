@@ -22,7 +22,7 @@
     state: latest
   when:
     - '"crio" in container_runtime'
-    - ansible_distribution == "Ubuntu" and ansible_distribution_version == "22.04"
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '==')
 
 - name: install podman package
   package:

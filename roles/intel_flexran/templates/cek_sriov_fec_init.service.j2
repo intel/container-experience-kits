@@ -1,0 +1,14 @@
+[Unit]
+Description=Intel Container Experience Kits FEC device configuration
+AssertPathExists=/usr/local/bin/cek_sriov_fec_init.sh
+
+[Service]
+Environment=DEVBIND_TOOL=/usr/local/bin/dpdk-devbind.py
+Environment=CEK_FEC_INFO={{ fec_info_path }}/cek_fec_info
+Type=oneshot
+RemainAfterExit=true
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/local/bin/cek_sriov_fec_init.sh
+
+[Install]
+WantedBy=multi-user.target

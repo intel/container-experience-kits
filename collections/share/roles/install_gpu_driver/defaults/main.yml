@@ -11,56 +11,145 @@ gpu_repo_ubuntu_url: https://repositories.intel.com/gpu/ubuntu
 gpu_repo_spec_u2204_server: "jammy/production/2328 unified"
 gpu_repo_spec_u2204_client: "jammy client"
 
-kernel_dkms_packages:
+gpu_repo_rhel92_url: https://repositories.intel.com/gpu/rhel/9.2/production/2328/unified/intel-gpu-9.2.repo
+
+kernel_ubuntu_dkms_packages:
   - gawk
   - dkms
   - libc6-dev
 
+kernel_rhel_dkms_packages:
+  - gawk
+  - dkms
+
 # intel server gpu packages
-gpu_kmd_packages_u2204_20230912_server:
-  - intel-i915-dkms=1.23.6.29.230425.38+i53-1
-  - intel-fw-gpu=2023.30.2-233~22.04
+gpu_kmd_packages_u2204_20231219_server:
+  - intel-i915-dkms=1.23.6.42.230425.56+i81-1
+  - intel-fw-gpu=2023.39.2-255~22.04
 
-gpu_umd_rt_packages_u2204_20230912_server:
-  - intel-opencl-icd=23.22.26516.29-682~22.04
-  - intel-level-zero-gpu=1.3.26516.29-682~22.04
+gpu_umd_rt_packages_u2204_20231219_server:
+  - intel-opencl-icd=23.22.26516.34-682~22.04
+  - intel-level-zero-gpu=1.3.26516.34-682~22.04
   - level-zero=1.11.0-649~22.04
-  - intel-media-va-driver-non-free=23.2.4-678~22.04
-  - libmfx1=23.2.2-678~22.04
-  - libmfxgen1=23.2.4-678~22.04
-  - libvpl2=2023.3.0.0-678~22.04
-  - libegl-mesa0=23.2.0.20230712.1-2073~22.04
-  - libegl1-mesa=23.2.0.20230712.1-2073~22.04
-  - libegl1-mesa-dev=23.2.0.20230712.1-2073~22.04
-  - libgbm1=23.2.0.20230712.1-2073~22.04
-  - libgl1-mesa-dev=23.2.0.20230712.1-2073~22.04
-  - libgl1-mesa-dri=23.2.0.20230712.1-2073~22.04
-  - libglapi-mesa=23.2.0.20230712.1-2073~22.04
-  - libgles2-mesa-dev=23.2.0.20230712.1-2073~22.04
-  - libglx-mesa0=23.2.0.20230712.1-2073~22.04
+  - intel-media-va-driver-non-free=23.2.4-682~22.04
+  - libmfx1=23.2.2-682~22.04
+  - libmfxgen1=23.2.4-682~22.04
+  - libvpl2=2023.3.0.0-682~22.04
+  - libegl-mesa0=24.0.0.20231114.1-2088~22.04
+  - libegl1-mesa=24.0.0.20231114.1-2088~22.04
+  - libegl1-mesa-dev=24.0.0.20231114.1-2088~22.04
+  - libgbm1=24.0.0.20231114.1-2088~22.04
+  - libgl1-mesa-dev=24.0.0.20231114.1-2088~22.04
+  - libgl1-mesa-dri=24.0.0.20231114.1-2088~22.04
+  - libglapi-mesa=24.0.0.20231114.1-2088~22.04
+  - libgles2-mesa-dev=24.0.0.20231114.1-2088~22.04
+  - libglx-mesa0=24.0.0.20231114.1-2088~22.04
   - libigdgmm12=22.3.7-678~22.04
-  - libxatracker2=23.2.0.20230712.1-2073~22.04
-  - mesa-va-drivers=23.2.0.20230712.1-2073~22.04
-  - mesa-vdpau-drivers=23.2.0.20230712.1-2073~22.04
-  - mesa-vulkan-drivers=23.2.0.20230712.1-2073~22.04
-  - va-driver-all=2.19.0.2-64~u22.04
+  - libxatracker2=24.0.0.20231114.1-2088~22.04
+  - mesa-va-drivers=24.0.0.20231114.1-2088~22.04
+  - mesa-vdpau-drivers=24.0.0.20231114.1-2088~22.04
+  - mesa-vulkan-drivers=24.0.0.20231114.1-2088~22.04
+  - va-driver-all=2.20.0.2-75~u22.04
 
-gpu_dev_packages_u2204_20230912_server:
-  - libigc1=1.0.14062.15-682~22.04
-  - libigc-dev=1.0.14062.15-682~22.04
+gpu_dev_packages_u2204_20231219_server:
+  - libigc1=1.0.14062.19-682~22.04
+  - libigc-dev=1.0.14062.19-682~22.04
   - intel-igc-cm=1.0.202-682~22.04
-  - libigdfcl1=1.0.14062.15-682~22.04
-  - libigdfcl-dev=1.0.14062.15-682~22.04
-  - libigfxcmrt7=23.2.4-678~22.04
-  - libigfxcmrt-dev=23.2.4-678~22.04
+  - libigdfcl1=1.0.14062.19-682~22.04
+  - libigdfcl-dev=1.0.14062.19-682~22.04
+  - libigfxcmrt7=23.2.4-682~22.04
+  - libigfxcmrt-dev=23.2.4-682~22.04
   - level-zero-dev=1.11.0-649~22.04
-  - libvpl-dev=2023.3.0.0-678~22.04
+  - libvpl-dev=2023.3.0.0-682~22.04
 
-gpu_tool_packages_u2204_20230912_server:
-  - xpu-smi=1.2.16-27~22.04
+gpu_tool_packages_u2204_20231219_server:
+  - xpu-smi=1.2.22-34~22.04
 
+gpu_kmd_packages_rhel92_20230929_server:
+  - intel-i915-dkms-1.23.6.37.230425.49-114
+  - intel-fw-gpu-2023.39.2-255.el9
+
+gpu_umd_rt_packages_rhel92_20230929_server:
+  - intel-media-23.2.4-i682.el9_2
+  - intel-mediasdk-23.2.2-i682.el9_2
+  - libmfxgen1-23.2.4-i682.el9_2
+  - level-zero-1.11.0-682.el9_2
+  - intel-level-zero-gpu-1.3.26516.32-682.el9_2
+  - mesa-dri-drivers-23.2.0.20230712.1-2077.el9_2
+  - libdrm-2.4.114-1.el9
+  - mesa-libGL-23.2.0.20230712.1-2077.el9_2
+  - intel-metrics-discovery-1.12.166-682.el9_2
+  - intel-metrics-library-1.0.133-682.el9_2
+  - intel-igc-core-1.0.14062.16-682.el9_2
+  - libva-2.19.0.2-66.el9_2
+  - intel-gmmlib-22.3.7-i682.el9_2
+  - libmetee-3.1.5-65.el8_8
+  - intel-gsc-0.8.9-65.el8_8
+  - intel-igc-cm-1.0.202-682.el9_2
+  - intel-ocloc-23.22.26516.32-682.el9_2
+  - intel-opencl-23.22.26516.32-682.el9_2
+  - libva-utils-2.19.0.2-1.0.61.el9_2
+  - libvpl-tools-2023.3.0.0-i682.el9_2
+  - libvpl2-2023.3.0.0-i682.el9_2
+  - mesa-libEGL-23.2.0.20230712.1-2077.el9_2
+  - mesa-libgbm-23.2.0.20230712.1-2077.el9_2
+  - mesa-libxatracker-23.2.0.20230712.1-2077.el9_2
+  - mesa-vdpau-drivers-23.2.0.20230712.1-2077.el9_2
+  - mesa-vulkan-drivers-23.2.0.20230712.1-2077.el9_2
+
+gpu_dev_packages_rhel92_20230929_server:
+  - intel-gsc-devel-0.8.9-65.el8_8
+  - intel-igc-opencl-devel-1.0.14062.16-682.el9_2
+  - level-zero-devel-1.11.0-682.el9_2
+  - libmetee-devel-3.1.5-65.el8_8
+
+gpu_tool_packages_rhel92_20230929_server:
+  - xpu-smi-1.2.16-27.el9_2
 
 # intel client gpu packages
+gpu_kmd_packages_u2204_20231219_client:
+  - intel-i915-dkms=1.23.9.11.231003.15+i19-1
+  - intel-fw-gpu=2023.39.2-255~22.04
+
+gpu_umd_rt_packages_u2204_20231219_client:
+  - intel-opencl-icd=23.35.27191.42-775~22.04
+  - intel-level-zero-gpu=1.3.27191.42-775~22.04
+  - level-zero=1.14.0-744~22.04
+  - intel-media-va-driver-non-free=23.4.0-775~22.04
+  - libmfx1=23.2.2-775~22.04
+  - libmfxgen1=23.4.0-775~22.04
+  - libvpl2=2023.3.1.0-775~22.04
+  - libegl-mesa0=24.0.0.20231114.1-2088~22.04
+  - libegl1-mesa=24.0.0.20231114.1-2088~22.04
+  - libegl1-mesa-dev=24.0.0.20231114.1-2088~22.04
+  - libgbm1=24.0.0.20231114.1-2088~22.04
+  - libgl1-mesa-dev=24.0.0.20231114.1-2088~22.04
+  - libgl1-mesa-dri=24.0.0.20231114.1-2088~22.04
+  - libglapi-mesa=24.0.0.20231114.1-2088~22.04
+  - libgles2-mesa-dev=24.0.0.20231114.1-2088~22.04
+  - libglx-mesa0=24.0.0.20231114.1-2088~22.04
+  - libigdgmm12=22.3.12-742~22.04
+  - libxatracker2=24.0.0.20231114.1-2088~22.04
+  - mesa-va-drivers=24.0.0.20231114.1-2088~22.04
+  - mesa-vdpau-drivers=24.0.0.20231114.1-2088~22.04
+  - mesa-vulkan-drivers=24.0.0.20231114.1-2088~22.04
+  - va-driver-all=2.20.0.2-75~u22.04
+
+gpu_dev_packages_u2204_20231219_client:
+  - libigc1=1.0.15136.24-775~22.04
+  - libigc-dev=1.0.15136.24-775~22.04
+  - intel-igc-cm=1.0.206-775~22.04
+  - libigdfcl1=1.0.15136.24-775~22.04
+  - libigdfcl-dev=1.0.15136.24-775~22.04
+  - libigfxcmrt7=23.4.0-775~22.04
+  - libigfxcmrt-dev=23.4.0-775~22.04
+  - level-zero-dev=1.14.0-744~22.04
+  - libvpl-dev=2023.3.1.0-775~22.04
+
+gpu_tool_packages_u2204_20231219_client:
+  - xpu-smi=1.2.22-34~22.04
+
+
 gpu_kmd_packages_u2204_20230912_client:
   - intel-i915-dkms=1.23.7.17.230608.24+i37-1
   - intel-fw-gpu=2023.35.5-247~22.04
@@ -103,55 +192,63 @@ gpu_dev_packages_u2204_20230912_client:
 gpu_tool_packages_u2204_20230912_client:
   - xpu-smi=1.2.16-27~22.04
 
-
 # MTL gpu related pcakges based on Beta BKC
 gpu_kmd_packages_u2204_mtl:
-  - linux-firmware=20220329.git681281e4-0ubuntu3.17-1ppa1~jammy3
+  - linux-firmware
 
 gpu_umd_rt_packages_u2204_mtl:
-  - intel-media-va-driver-non-free=23.2.4-1ppa1~jammy7
-  - libmfx1=23.2.2-1ppa1~jammy1
-  - libmfx-gen1.2=23.2.4-1ppa1~jammy1
-  - libvpl2=2023.3.0-1ppa1~jammy4
-  - libegl-mesa0=23.1.5-1ppa1~jammy1
-  - libegl1-mesa=23.0.2-1ppa1~jammy3
-  - libegl1-mesa-dev=23.0.2-1ppa1~jammy3
-  - libgbm1=23.1.5-1ppa1~jammy1
-  - libgl1-mesa-dev=23.1.5-1ppa1~jammy1
-  - libgl1-mesa-dri=23.1.5-1ppa1~jammy1
-  - libglapi-mesa=23.1.5-1ppa1~jammy1
-  - libgles2-mesa-dev=23.1.5-1ppa1~jammy1
-  - libglx-mesa0=23.1.5-1ppa1~jammy1
-  - libigdgmm12=22.3.7-1ppa1~jammy1
-  - libxatracker2=23.1.5-1ppa1~jammy1
-  - mesa-va-drivers=23.1.5-1ppa1~jammy1
-  - mesa-vdpau-drivers=23.1.5-1ppa1~jammy1
-  - mesa-vulkan-drivers=23.1.5-1ppa1~jammy1
-  - va-driver-all=2.19.0-1ppa1~jammy1
-  - libva2=2.19.0-1ppa1~jammy1
+  - intel-media-va-driver-non-free
+  - libmfx1
+  - libmfx-gen1.2
+  - libvpl2
+  - libegl-mesa0
+  - libegl1-mesa
+  - libegl1-mesa-dev
+  - libgbm1
+  - libgl1-mesa-dev
+  - libgl1-mesa-dri
+  - libglapi-mesa
+  - libgles2-mesa-dev
+  - libglx-mesa0
+  - libigdgmm12
+  - libxatracker2
+  - mesa-va-drivers
+  - mesa-vdpau-drivers
+  - mesa-vulkan-drivers
+  - va-driver-all
+  - libva2
+  - libva-drm2
+  - libva-glx2
+  - libva-wayland2
+  - libva-x11-2
 
 gpu_dev_packages_u2204_mtl:
-  - libigfxcmrt7=23.2.4-1ppa1~jammy7
-  - libigfxcmrt-dev=23.2.4-1ppa1~jammy7
-  - libvpl-dev=2023.3.0-1ppa1~jammy4
-  - libmfx-gen-dev=23.2.4-1ppa1~jammy1
-  - libva-dev=2.19.0-1ppa1~jammy1
-  - mesa-common-dev=23.1.5-1ppa1~jammy1
-  - libxatracker-dev=23.1.5-1ppa1~jammy1
+  - libigfxcmrt7
+  - libigfxcmrt-dev
+  - libvpl-dev
+  - libmfx-gen-dev
+  - libva-dev
+  - mesa-common-dev
+  - libxatracker-dev
 
 gpu_system_packages_u2204_mtl:
-  - libwayland-egl1-mesa=23.0.2-1ppa1~jammy3
-  - libweston-9-0=9.0.0-4ppa1~jammy2
-  - libweston-9-dev=9.0.0-4ppa1~jammy2
-  - weston=9.0.0-4ppa1~jammy2
+  - libwayland-egl1-mesa
+  - libweston-10-0
+  - libweston-10-dev
+  - weston
   - xserver-xorg-core
-# - weston=10.0.0-1ppa1~jammy1
 
 # intel gpu release independent test packages
-gpu_test_packages:
+gpu_ubuntu_test_packages:
   - hwinfo
   - vainfo
   - clinfo
   - mesa-utils
   - vulkan-tools
   - intel-gpu-tools
+  - onevpl-tools
+
+gpu_rhel_test_packages:
+  - hwinfo
+  - clinfo
+  - vulkan-tools

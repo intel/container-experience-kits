@@ -29,7 +29,7 @@
   include_role:
     name: install_dependencies
 
-- name: Clone libvirt fork with sgx support
+- name: Clone libvirt - with sgx support
   git:
     repo: 'https://github.com/libvirt/libvirt.git'
     dest: "{{ (project_root_dir, 'libvirt') | path_join }}"
@@ -41,7 +41,7 @@
     enabled: no
     state: stopped
 
-- name: Adding libvrit group
+- name: Adding libvirt group
   group:
     name: "{{ item }}"
     state: present
@@ -70,12 +70,6 @@
   copy:
     src: qemu.conf
     dest: /etc/libvirt/qemu.conf
-    mode: '0644'
-
-- name: Copy x86_features.xml file
-  copy:
-    src: x86_features.xml
-    dest: /usr/share/libvirt/cpu_map/x86_features.xml
     mode: '0644'
 
 - name: Enabling libvirt

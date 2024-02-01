@@ -16,10 +16,10 @@
 ---
 runc_bin_dir: "/usr/local/bin"
 
-runc_version: v1.1.8
+runc_version: v1.1.9
 runc_download_url: "https://github.com/opencontainers/runc/releases/download/{{ runc_version }}/runc.amd64"
 
-runc_binary_checksum: "1d05ed79854efc707841dfc7afbf3b86546fc1d0b3a204435ca921c14af8385b"
+runc_binary_checksum: "b9bfdd4cb27cddbb6172a442df165a80bfc0538a676fbca1a6a6c8f4c6933b43"
 
 runc_binary:
   dest: "{{ (runc_bin_dir, 'runc') | path_join }}"

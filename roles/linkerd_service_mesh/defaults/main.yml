@@ -17,13 +17,12 @@
 # defaults file for linkerd-cli
 linkerd_cli_arch: "amd64"
 linkerd_release: "stable"
-linkerd_version: "2.13.6"
+linkerd_version: "2.14.6"
 linkerd_cli_version: "{{ linkerd_version }}"
 linkerd_cli_uri:
     "https://github.com/linkerd/linkerd2/releases/download/{{ linkerd_release }}-{{ linkerd_cli_version }}/\
     linkerd2-cli-{{ linkerd_release  }}-{{ linkerd_cli_version }}-linux-{{ linkerd_cli_arch }}"
 linkerd_cli_bin: "/usr/local/bin/linkerd"
-kubectl_cli_bin: "/usr/local/bin/kubectl"
 linkerd_namespace: "linkerd"
 linkerd_helm_repo: "https://helm.linkerd.io/{{ linkerd_release }}"
 linkerd_helm_values_file: "{{ (project_root_dir, 'linkerd', 'linkerd-control-plane-values.yml') | path_join }}"

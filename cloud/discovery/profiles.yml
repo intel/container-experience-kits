@@ -64,6 +64,7 @@
 #     ddp_update
 #     fw_update
 # - intel_sriov_fec_operator
+# - infra_power_manager
 
 ---
 access:
@@ -133,6 +134,7 @@ access:
     ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: on
+  infra_power_manager: optional
 
 basic:
   name: basic
@@ -165,6 +167,7 @@ basic:
     enabled: optional
     flow_config: optional
     fw_update: optional
+  infra_power_manager: optional
 
 full_nfv:
   name: full_nfv
@@ -228,6 +231,7 @@ full_nfv:
     ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: optional
+  infra_power_manager: optional
 
 on_prem:
   name: on_prem
@@ -282,6 +286,7 @@ on_prem:
     enabled: optional
     flow_config: optional
     fw_update: optional
+  infra_power_manager: optional
 
 regional_dc:
   name: regional_dc
@@ -323,6 +328,7 @@ regional_dc:
     enabled: optional
     flow_config: optional
     fw_update: optional
+  infra_power_manager: optional
 
 remote_fp:
   name: remote_fp
@@ -380,6 +386,7 @@ remote_fp:
     flow_config: optional
     ddp_update: optional
     fw_update: optional
+  infra_power_manager: optional
 
 storage:
   name: storage
@@ -415,6 +422,7 @@ storage:
     flow_config: optional
     ddp_update: optional
     fw_update: optional
+  infra_power_manager: optional
 
 build_your_own:
   name: build_your_own
@@ -478,3 +486,4 @@ build_your_own:
     ddp_update: optional
     fw_update: optional
   intel_sriov_fec_operator: optional
+  infra_power_manager: optional

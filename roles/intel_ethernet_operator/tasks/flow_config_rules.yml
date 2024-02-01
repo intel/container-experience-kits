@@ -16,44 +16,34 @@
 ---
 - name: prepare Flow Configuration rules if provided
   block:
-    - name: check if local Flow Configuration rules directory exists
-      ansible.builtin.stat:
-        path: "{{ hostvars[node_name]['intel_ethernet_operator']['flow_config_dir'] }}"
-      delegate_to: "localhost"
-      become: false
-      register: flow_config_rules_directory
-
     - name: find available Flow Configuration rules manifests
       ansible.builtin.find:
         paths: "{{ hostvars[node_name]['intel_ethernet_operator']['flow_config_dir'] }}"
         recurse: yes
       delegate_to: "localhost"
       become: false
-      when:
-        - flow_config_rules_directory.stat.exists | bool
-        - flow_config_rules_directory.stat.isdir | bool
       register: flow_config_rules_files_found
 
-    - name: copy Flow Configuration rules manifests
+    - name: Copy Flow Configuration rules manifests
       ansible.builtin.copy:
         src: "{{ file.path }}"
         dest: "{{ (intel_ethernet_operator_flow_config_rules_dir, hostvars[node_name]['inventory_hostname'] + '-' + file.path | basename) | path_join }}"
         force: yes
-        owner: root
-        mode: preserve
+        owner: "{{ ansible_user }}"
+        mode: '0640'
       loop: "{{ flow_config_rules_files_found.files }}"
       loop_control:
         loop_var: file
       when:
-        - not flow_config_rules_files_found.skipped | default(false)
         - flow_config_rules_files_found.matched > 0
 
-    - name: create Flow Configuration rules if provided
-      ansible.builtin.command: "kubectl apply -f ./"
-      args:
-        chdir: "{{ intel_ethernet_operator_flow_config_rules_dir }}"
+    - name: Create Flow Configuration rules if provided
+      kubernetes.core.k8s:
+        state: present
+        apply: true
+        definition: "{{ lookup('file', item.path) | from_yaml }}"
+      loop: "{{ flow_config_rules_files_found.files }}"
       when:
-        - not flow_config_rules_files_found.skipped | default(false)
         - flow_config_rules_files_found.matched > 0
 
   when: hostvars[node_name]['intel_ethernet_operator']['flow_config_dir'] is defined

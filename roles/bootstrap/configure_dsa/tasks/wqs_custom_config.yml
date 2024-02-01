@@ -16,37 +16,37 @@
 ---
 - name: check WQ size value
   fail:
-    msg: "The max size of single WQ is {{ max_single_wq_size }}, but for WQ{{ dsa_id }}.{{ WQ.id }} value {{ WQ.size }} was provided."
-  when: WQ.size | int > max_single_wq_size | int
+    msg: "The max size of single WQ is {{ max_single_wq_size }}, but for WQ{{ dsa_id }}.{{ work_queue.id }} value {{ work_queue.size }} was provided."
+  when: work_queue.size | int > max_single_wq_size | int
 
 - name: check WQ threshold value
   fail:
     msg: "Wrong threshold value. Possible reasons are: threshold is defined and WQ mode is not shared, threshold is >= WQ size.
-          Please check these settings for WQ{{ dsa_id }}.{{ WQ.id }}"
+          Please check these settings for WQ{{ dsa_id }}.{{ work_queue.id }}"
   when:
-    - WQ.threshold is defined and WQ.mode == 'dedicated' or WQ.threshold is defined and WQ.threshold >= WQ.size
+    - work_queue.threshold is defined and work_queue.mode == 'dedicated' or work_queue.threshold is defined and work_queue.threshold >= work_queue.size
 
 - name: check WQ priority value
   fail:
-    msg: "Valid range for priority is from 1 to 15, but got {{ WQ.prio }} for WQ{{ dsa_id }}.{{ WQ.id }}. Please update the config list."
-  when: WQ.prio < 1 or WQ.prio > 15
+    msg: "Valid range for priority is from 1 to 15, but got {{ work_queue.prio }} for WQ{{ dsa_id }}.{{ work_queue.id }}. Please update the config list."
+  when: work_queue.prio < 1 or work_queue.prio > 15
 
 - name: check WQ type value
   fail:
-    msg: "Valid types are: kernel, user, but '{{ WQ.type }}' provided for WQ{{ dsa_id }}.{{ WQ.id }}. Please update the config list."
-  when: WQ.type not in ['kernel', 'user']
+    msg: "Valid types are: kernel, user, but '{{ work_queue.type }}' provided for WQ{{ dsa_id }}.{{ work_queue.id }}. Please update the config list."
+  when: work_queue.type not in ['kernel', 'user']
 
 - name: check WQ group id value
   fail:
     msg: "Valid group IDs are from 0 to {{ max_groups.stdout | int - 1 }}, but WQ.group_id provided.
-          Please update config for WQ{{ dsa_id }}.{{ WQ.id }}."
-  when: WQ.group_id < 0 or WQ.group_id > (max_groups.stdout | int - 1)
+          Please update config for WQ{{ dsa_id }}.{{ work_queue.id }}."
+  when: work_queue.group_id < 0 or work_queue.group_id > (max_groups.stdout | int - 1)
 
 - name: check WQ block_on_fault value
   fail:
-    msg: "block_on_fault should be either 0 or 1, but {{ WQ.block_on_fault }} was provided.
-          Please update config for WQ{{ dsa_id }}.{{ WQ.id }}."
-  when: WQ.block_on_fault not in [0, 1]
+    msg: "block_on_fault should be either 0 or 1, but {{ work_queue.block_on_fault }} was provided.
+          Please update config for WQ{{ dsa_id }}.{{ work_queue.id }}."
+  when: work_queue.block_on_fault not in [0, 1]
 
 # NOTE(pklimowx): consider unification of wq configuration tasks. For now accel-config tool
 # will fail when try to write 'shared' into mode param explicitly (all WQs are shared by default).
@@ -54,28 +54,30 @@
 # (threshold can be set to -1 for Dedicated WQ using python style if-else)
 - name: configure Dedicated Work Queues
   command: >-
-    accel-config config-wq {{ dsa_device.name }}/wq{{ dsa_id }}.{{ WQ.id }}
-    --group-id={{ WQ.group_id }}
-    --mode={{ WQ.mode }}
-    --priority={{ WQ.prio }}
-    --wq-size={{ WQ.size }}
-    --max-batch-size={{ WQ.max_batch_size }}
-    --max-transfer-size={{ WQ.max_transfer_size }}
-    --block-on-fault={{ WQ.block_on_fault }}
-    --type={{ WQ.type }}
-    --name={{ WQ.mode }}-queue-{{ dsa_id }}.{{ WQ.id }}
-  when: WQ.mode == 'dedicated'
+    accel-config config-wq {{ dsa_device.name }}/wq{{ dsa_id }}.{{ work_queue.id }}
+    --group-id={{ work_queue.group_id }}
+    --mode={{ work_queue.mode }}
+    --priority={{ work_queue.prio }}
+    --wq-size={{ work_queue.size }}
+    --max-batch-size={{ work_queue.max_batch_size }}
+    --max-transfer-size={{ work_queue.max_transfer_size }}
+    --block-on-fault={{ work_queue.block_on_fault }}
+    --type={{ work_queue.type }}
+    --name={{ work_queue.mode }}-queue-{{ dsa_id }}.{{ work_queue.id }}
+  changed_when: true
+  when: work_queue.mode == 'dedicated'
 
 - name: configure Shared Work Queues
   command: >-
-    accel-config config-wq {{ dsa_device.name }}/wq{{ dsa_id }}.{{ WQ.id }}
-    --group-id={{ WQ.group_id }}
-    --threshold={{ WQ.threshold }}
-    --priority={{ WQ.prio }}
-    --wq-size={{ WQ.size }}
-    --max-batch-size={{ WQ.max_batch_size }}
-    --max-transfer-size={{ WQ.max_transfer_size }}
-    --block-on-fault={{ WQ.block_on_fault }}
-    --type={{ WQ.type }}
-    --name={{ WQ.mode }}-queue-{{ dsa_id }}.{{ WQ.id }}
-  when: WQ.mode == 'shared'
+    accel-config config-wq {{ dsa_device.name }}/wq{{ dsa_id }}.{{ work_queue.id }}
+    --group-id={{ work_queue.group_id }}
+    --threshold={{ work_queue.threshold }}
+    --priority={{ work_queue.prio }}
+    --wq-size={{ work_queue.size }}
+    --max-batch-size={{ work_queue.k_queue.max_batch_size }}
+    --max-transfer-size={{ work_queue.max_transfer_size }}
+    --block-on-fault={{ work_queue.block_on_fault }}
+    --type={{ work_queue.type }}
+    --name={{ work_queue.mode }}-queue-{{ dsa_id }}.{{ work_queue.id }}
+  changed_when: true
+  when: work_queue.mode == 'shared'

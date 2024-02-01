@@ -27,7 +27,7 @@
         name: create_signed_k8s_certs
       vars:
         secret_name: "{{ rbac_proxy_ssl_secret_name }}"
-        service_name: xpumanager
+        service_name: intel-xpumanager
         key_pair_name: xpumanager-rbac-proxy
         host_secrets_folder: "{{ rbac_proxy_ssl_mount_path }}"
         k8s_namespace: "{{ xpumanager_namespace }}"

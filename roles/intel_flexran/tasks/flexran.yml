@@ -14,57 +14,17 @@
 ##   limitations under the License.
 ##
 ---
-# no need. per POR, customer must manually pre-extract FlexRAN package on target(s)
-# - name: create Intel FlexRAN directory on worker node
-#   file:
-#     path: "{{ intel_flexran_dir }}"
-#     state: directory
-#     mode: '0755'
-
-# - name: unpack Intel FlexRAN tarball on target(s)
-#   unarchive:
-#     src: "{{ (intel_flexran_staging_location, intel_flexran_tarball) | path_join }}"
-#     dest: "{{ intel_flexran_dir }}"
-#     mode: '0755'
-
-# - name: extract Intel FlexRAN
-#   shell: "echo | ./extract.sh" # noqa no-changed-when
-#   args:
-#     chdir: "{{ intel_flexran_dir }}"
-
 # As the path to the libnuma library is different with Ubuntu, a soft link is created to avoid multiple changes to the makefiles
 # (FlexRAN hardcoded the path for libnuma)
 - name: create libnuma symlink
-  file:
+  ansible.builtin.file:
     src: "/usr/lib/x86_64-linux-gnu/libnuma.so"
     dest: "/usr/lib64/libnuma.so"
     state: link
   when: ansible_distribution in ['Ubuntu']
 
-- name: patch Intel FlexRAN for xx.yy.z release
-  block:
-    - name: copy Intel FlexRAN patch file
-      ansible.builtin.copy:
-        src: "{{ (intel_flexran_staging_location, intel_flexran_patch) | path_join }}"
-        dest: "{{ (intel_flexran_dir, intel_flexran_patch) | path_join }}"
-        mode: '0644'
-
-    - name: unzip Intel FlexRAN patch
-      ansible.builtin.unarchive:
-        src: "{{ (intel_flexran_dir, intel_flexran_patch) | path_join }}"
-        dest: "{{ intel_flexran_dir }}"
-        remote_src: yes
-        mode: '0755'
-
-    - name: apply Intel FlexRAN patch
-      ansible.builtin.command: "./FlexRAN-R{{ intel_flexran_ver }}.sh"
-      args:
-        chdir: "{{ intel_flexran_dir }}"
-      changed_when: true
-  when: intel_flexran_ver | length > 5
-
 - name: set DPDK path for Intel FlexRAN
-  copy:
+  ansible.builtin.copy:
     dest: "{{ (intel_flexran_dir, '.flexran_dpdk.path') | path_join }}"
     content: "{{ intel_flexran_dpdk_dir }}"
     mode: '0755'
@@ -74,35 +34,36 @@
     file: ../intel_oneapi_install/vars/main.yml
 
 - name: set oneAPI path for Intel FlexRAN
-  copy:
+  ansible.builtin.copy:
     dest: "{{ (intel_flexran_dir, '.flexran_icx.path') | path_join }}"
     content: "{{ intel_oneapi_install_dir }}"
     mode: '0755'
 
-- debug: msg="Intel FlexRAN mode is '{{ intel_flexran_mode }}'"
+- ansible.builtin.debug:
+    msg: "Intel FlexRAN mode is '{{ intel_flexran_mode }}'"
 
 - name: set Intel FlexRAN mode
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ (intel_flexran_dir, 'xran/build.sh') | path_join }}"
     regexp: '^SAMPLEAPP=0'
     line: SAMPLEAPP=1
   when: intel_flexran_mode == "xran"
 
-# Only for 5GISA. Also needs <PiplineSPR>1</PiplineSPR> in _timer.xml
-# - name: set Intel FlexRAN target isa
-#   set_fact:
-#     target_isa: "-i spr"
-#   when: configured_arch == "spr"
-
 - name: build Intel FlexRAN SDK
-  shell: "source set_env_var.sh -d && ./flexran_build.sh -e -r 5gnr {{ target_isa | default('') }} -m sdk"
+  ansible.builtin.shell: >-
+    source set_env_var.sh -d &&
+    ./flexran_build.sh -e -r 5gnr -m sdk
   args:
     executable: /bin/bash
     chdir: "{{ intel_flexran_dir }}"
   changed_when: true
 
 - name: build FlexRAN ALL for 5GNR
-  shell: "ldconfig && export RTE_SDK={{ intel_flexran_dpdk_dir }} && source set_env_var.sh -d && export PKG_CONFIG_PATH=$RTE_SDK/build/meson-uninstalled && ./flexran_build.sh -e -r 5gnr {{ target_isa | default('') }}"  # noqa yaml[line-length]
+  ansible.builtin.shell: >-
+    ldconfig && export RTE_SDK={{ intel_flexran_dpdk_dir }} &&
+    source set_env_var.sh -d &&
+    export PKG_CONFIG_PATH=$RTE_SDK/build/meson-uninstalled &&
+    ./flexran_build.sh -e -r 5gnr
   args:
     executable: /bin/bash
     chdir: "{{ intel_flexran_dir }}"

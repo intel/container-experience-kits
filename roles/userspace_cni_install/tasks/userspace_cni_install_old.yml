@@ -1,0 +1,64 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: create /opt/cni/bin
+  ansible.builtin.file:
+    path: "/opt/cni/bin"
+    state: directory
+    recurse: yes
+    mode: 0755
+
+- name: set path to the Userspace CNI plugin sources
+  ansible.builtin.set_fact:
+    userspace_cni_path: "{{ ansible_env.HOME }}/go/src/github.com/intel/userspace-cni-network-plugin"
+
+- name: clone Userspace CNI Plugin repository
+  ansible.builtin.git:
+    repo: "{{ userspace_cni_git_url }}"
+    version: "{{ userspace_cni_version }}"
+    dest: "{{ userspace_cni_path }}"
+    force: true
+
+- name: replace CentOS with Rocky in Makefile
+  ansible.builtin.replace:
+    path: "{{ userspace_cni_path }}/Makefile"
+    regexp: 'centos'
+    replace: 'rocky'
+    mode: 0600
+  when: ansible_distribution == "Rocky"
+
+# START OF BLOCK W/A to unblock userspace CNI
+- name: patch Userspace CNI plugin to build only ovs-dpdk part
+  ansible.posix.patch:
+    src: "userspace_cni.patch"
+    dest: "{{ userspace_cni_path }}/userspace/userspace.go"
+
+- name: build Userspace CNI plugin without VPP support
+  ansible.builtin.shell: >
+    source /etc/profile.d/golang.sh &&
+    export GO111MODULE=on &&
+    go build -v
+  args:
+    chdir: "{{ userspace_cni_path }}/userspace"
+    executable: /bin/bash
+    creates: "{{ userspace_cni_path }}/userspace/userspace"
+# END OF BLOCK W/A to unblock userspace CNI
+
+- name: copy built Userspace CNI plugin binary to the CNI bin dir
+  ansible.builtin.copy:
+    remote_src: yes
+    src: "{{ userspace_cni_path }}/userspace/userspace"
+    dest: "/opt/cni/bin/userspace"
+    mode: 0755

@@ -1,0 +1,9 @@
+network:
+  ethernets:
+    {{ calico_vpp_interface_name }}:
+      dhcp4: true
+      match:
+        macaddress: {{ hostvars[inventory_hostname]['ansible_' + calico_vpp_interface_name].macaddress }}
+      optional: true
+      set-name: {{ calico_vpp.interface_name }}
+  version: 2

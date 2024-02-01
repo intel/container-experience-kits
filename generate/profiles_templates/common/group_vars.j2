@@ -76,6 +76,7 @@ container_runtime_only_deployment: false
 # Tip: you can set this per host using host_vars
 update_all_packages: false
 
+
 {% if arch in ['ultra'] %}
 update_kernel: true
 nda_kernel_path: "/tmp/linux-kernel-overlay"
@@ -128,10 +129,10 @@ kubernetes: true
 
 # Kubernetes provisioner, Support: rke2(work with os ubuntu22.04 and containerd as container_runtime only), kubespray(default option)
 kube_provisioner: kubespray
-kube_version: v1.27.1    # test placeholder: n version
-#kube_version: v1.26.4   # test placeholder: n-1 version
-#kube_version: v1.25.9  # test placeholder: n-2 version
-rke2_version: v1.26.9+rke2r1 # test placeholder: n version
+kube_version: v1.28.3     # test placeholder: n version
+#kube_version: v1.27.7   # test placeholder: n-1 version
+#kube_version: v1.26.10  # test placeholder: n-2 version
+rke2_version: v1.28.3+rke2r1 # test placeholder: n version
 
 {% if kube_dashboard in ['on', 'optional'] %}
 # Kubernetes Dashboard
@@ -154,15 +155,19 @@ audit_policy_custom_rules: ""
 
 # Kubernetes container runtime: docker, containerd, crio
 # When "crio" is set, please enable "crio_registries" section
-{% if cloud_mode == 'on' %}
-container_runtime: containerd
-{% else %}
-container_runtime: docker
-{% endif %}
+container_runtime: {{ container_runtime_default }}
 
 {% if rancher_manager in ['on', 'optional'] %}
 # Rancher Manager(supported on rke2 currently)
 rancher_manager_enabled: {% if rancher_manager == 'on' %}true{% else %}false{% endif %}
+
+{% endif %}
+
+{% if kubevirt in ['on', 'optional'] %}
+# Kubevirt - virtual machine management add-on for Kubernetes
+# More info here: https://github.com/kubevirt/kubevirt
+kubevirt_enabled: {% if kubevirt == 'on' %}true{% else %}false{% endif %}
+
 {% endif %}
 
 ########################
@@ -176,7 +181,7 @@ kube_proxy_metrics_bind_address: 127.0.0.1
 kube_proxy_nodeport_addresses_cidr: 127.0.0.0/8
 
 kube_pods_subnet: 10.244.0.0/16
-{% if name in ['regional_dc', 'full_nfv', 'access', 'build_your_own'] %}
+{% if name in ['regional_dc', 'full_nfv', 'access', 'build_your_own', 'base_video_analytics'] %}
 {% set mask = 18 %}
 {% elif name == 'remote_fp' %}
 {% set mask = 19 %}
@@ -211,18 +216,31 @@ kube_network_plugin_multus: {% if multus == 'on' and calico_vpp != 'on' %}true{%
 # Set on true if you want to enable the eBPF dataplane support
 calico_bpf_enabled: false
 
+{% if ingress_nginx in ["on", "optional"] %}
+# Kubernetes Ingress Controller to support Ingress resources
+# Ingress can be accessed through the nodeport
+ingress_enabled: {% if ingress_nginx == 'on' %}true{% else %}false{% endif +%}
+# Uncomment if different nodeports are needed to be set
+#ingress_nodeport_http: 30123
+#ingress_nodeport_https: 30124
+
+{% endif %}
 {% if sriov_network_dp in ["on", "optional"] or network_userspace in ["on", "optional"] %}
+{% if network_userspace in ['on', 'optional'] %}
+# Userspace CNI
+userspace_cni_enabled: {% if network_userspace == 'on' %}true{% else %}false{% endif %}
+
+
+{% endif %}
 # Create reference net-attach-def objects
 example_net_attach_defs:
   # Values below should match host_vars CNI configuration
 {% if sriov_network_dp in ["on", "optional"] %}
-  sriov_net_dp: {% if sriov_network_dp == "on" %}true{% else %}false{% endif %}
-
+  sriov_net_dp: {% if sriov_network_dp == "on" %}true{% else %}false{% endif +%}
 {% endif %}
 {% if network_userspace in ["on", "optional"] %}
-  userspace_ovs_dpdk: {% if network_userspace == "on" %}true{% else %}false{% endif %}
-
-  userspace_vpp: false
+  userspace_ovs_dpdk: {% if ovs_dpdk == "on" %}true{% else %}false{% endif +%}
+  userspace_vpp: {% if vpp == "on" %}true{% else %}false{% endif +%}
 {% endif %}
 
 {% endif %}
@@ -317,7 +335,7 @@ rook_ceph:
   enabled: {% if rook_ceph == 'on' %}true{% else %}false{% endif %}
 
   storage_class: "rook-cephfs"    # Storage class name
-  storage_type: "cephfs"          # Storage type for rook-ceph, supported values[cephfs, block, object].
+  storage_type: "cephfs"          # Storage type for rook-ceph, supported values[cephfs, nfs, block, object].
   log_level: "DEBUG"              # The logging level for the operator: ["ERROR", "WARNING", "INFO", "DEBUG"]
   allow_loop_devices: true        # Allow using loop devices for osds in test clusters
   enable_nfs: true                # Enable the CSI NFS drivers
@@ -350,7 +368,6 @@ minio_deploy_test_mode: true                          # When true, use a file as
                                                       # When false, use an actual NVME or SSD device when creating storage
 minio_build_image_locally: true                       # Build custom MinIO image locally
 minio_awsclient_pods_enabled: true                    # Run AWS client pods for MinIO Tenant service
-minio_ingress_enabled: false                          # Enable MinIO tenant ingress
 
 {% endif %}
 ####################
@@ -365,6 +382,12 @@ sriov_net_dp_namespace: kube-system
 # Whether to build and store image locally or use one from public external registry
 sriov_net_dp_build_image_locally: false
 # SR-IOV network device plugin configuration.
+{% if nic == 'cvl' %}
+nic_supported_pf_dev_ids: ["1592", "1593", "159b"]
+{% else %}
+nic_supported_pf_dev_ids: ["158a", "158b", "1572", "0d58", "1583"]
+{% endif %}
+nic_supported_vf_dev_ids: ["154c", "10ed", "1889"]
 # For more information on supported configuration refer to: https://github.com/intel/sriov-network-device-plugin#configurations
 {% if intel_flexran == 'on' %}
 # sriovdp_config_data for Intel FlexRAN is defined in the helm_values for the sriov_dp_install role
@@ -412,23 +435,23 @@ sriovdp_config_data: |
 {% endif %}
 
 {% endif %}
-{% if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr', 'emr'] or
+{% if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr', 'emr', 'gnr'] or
     gpu_dp in ['on', 'optional'] or
     qat_dp in ['on', 'optional'] or
-    dsa_dp in ['on', 'optional'] and arch in ['spr', 'emr'] or
-    dlb_dp in ['on', 'optional'] and arch in ['spr', 'emr'] %}
+    dsa_dp in ['on', 'optional'] and arch in ['spr', 'emr', 'gnr'] or
+    dlb_dp in ['on', 'optional'] and arch in ['spr', 'emr', 'gnr'] %}
 # Intel Device Plugin Operator
 intel_dp_namespace: kube-system   # Namespace will be applied for SGX DP, GPU DP and QAT DP
 
 {% endif %}
-{% if dlb_dp in ['on', 'optional'] and arch in ['spr', 'emr'] %}
+{% if dlb_dp in ['on', 'optional'] and arch in ['spr', 'emr', 'gnr'] %}
 # Intel Dynamic Load Balancing Device Plugin (Intel DLB DP) for Kubernetes
 dlb_dp_enabled: {% if dlb_dp == 'on' %}true{% else %}false{% endif %}     # If true set configure_dlb_devices to true in host vars
 dlb_dp_build_image_locally: false
 dlb_dp_verbosity: 4
 
 {% endif %}
-{% if dsa_dp in ['on', 'optional'] and arch in ['spr', 'emr'] %}
+{% if dsa_dp in ['on', 'optional'] and arch in ['spr', 'emr', 'gnr'] %}
 # Intel Data Streaming Accelerator Device Plugin (Intel DSA DP) for Kubernetes
 dsa_dp_enabled: {% if dsa_dp == 'on' %}true{% else %}false{% endif %}     # If true set configure_dsa_devices to true in host vars
 dsa_dp_build_image_locally: false
@@ -460,6 +483,7 @@ qat_supported_pf_dev_ids:
   - "18a0"
   - "4940"
   - "4942"
+  - "4944"
 
 qat_supported_vf_dev_ids:
   - "443"
@@ -470,6 +494,7 @@ qat_supported_vf_dev_ids:
   - "18a1"
   - "4941"
   - "4943"
+  - "4945"
 
 {% endif %}
 {% if gpu_dp in ['on', 'optional'] %}
@@ -482,13 +507,13 @@ gpu_dp_build_image_locally: false
 # Configuration-options
 # To fully discover the below settings usage, please refer to: https://github.com/intel/intel-device-plugins-for-kubernetes/tree/v0.24.0/cmd/gpu_plugin
 gpu_dp_shared_devices: 10           # Number of containers (min. 1) that can share the same GPU device
-gpu_dp_monitor_resources: false     # Enable monitoring all GPU resources on the node
-gpu_dp_fractional_manager: false    # Enable handling of fractional resources for multi-GPU nodes
+gpu_dp_monitor_resources: {% if telemetry.intel_xpumanager == 'on' %}true{% else %}false{% endif %}     # Enable monitoring all GPU resources on the node
+gpu_dp_fractional_manager: {% if gas == 'on' %}true{% else %}false{% endif %}     # Enable handling of fractional resources for multi-GPU nodes
 gpu_dp_prefered_allocation: 'none'  # Available policies are: ['balanced', 'packed', 'none']
 {% else %}
 gpu_dp_enabled: false
 {% endif %}
-{% if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr', 'emr'] %}
+{% if sgx_dp in ['on', 'optional'] and arch in ['icx', 'spr', 'emr', 'gnr'] %}
 # Intel SGX Device Plugin for Kubernetes
 sgx_dp_enabled: {% if sgx_dp == 'on' %}true{% else %}false{% endif %}
 
@@ -533,6 +558,9 @@ sriov_network_operator_namespace: "sriov-network-operator"
 # Intel Ethernet Operator for Intel E810 Series network interface cards
 intel_ethernet_operator_enabled: {% if intel_ethernet_operator.enabled == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}
 
+# Set to true, if Operator should be build from source, needed for flow_confiration
+intel_ethernet_operator_local_build: {% if intel_ethernet_operator.flow_config == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}
+
 # Use together with flow_configuration set in hostvars
 intel_ethernet_operator_flow_config_enabled: {% if intel_ethernet_operator.flow_config == 'on' and nic == 'cvl' %}true{% else %}false{% endif %}
 
@@ -568,7 +596,7 @@ istio_service_mesh:
   # into the directory 'roles/istio_service_mesh/files/profiles/'.
   # 'custom-ca' profile name is reserved for usage by sgx_signer if sgx_signer option is enabled.
   # Any profile name provided will be overwritten in this case
-  profile: {% if istio_service_mesh.sgx_signer == 'on' and arch in ['icx'] %}custom-ca{% else %}default{% endif %}  # Istio profile
+  profile: {% if istio_service_mesh.sgx_signer == 'on' and arch in ['icx', 'spr'] %}custom-ca{% else %}default{% endif %}  # Istio profile
   intel_preview:
     enabled: {% if istio_service_mesh.intel_preview == 'on' %}true{% else %}false{% endif %}  # Enable intel istio preview
 {% if istio_service_mesh.tcpip_bypass_ebpf in ['on', 'optional'] %}
@@ -579,12 +607,12 @@ istio_service_mesh:
   tls_splicing:
     enabled: {% if istio_service_mesh.tls_splicing == 'on' %}true{% else %}false{% endif %}  # Enable TLS splicing demo
 {% endif %}
-{% if istio_service_mesh.sgx_signer in ['on', 'optional'] and arch in ['icx'] %}
+{% if istio_service_mesh.sgx_signer in ['on', 'optional'] and arch in ['icx', 'spr'] %}
   sgx_signer:
     enabled: {% if istio_service_mesh.sgx_signer == 'on' %}true{% else %}false{% endif %}   # Enable automated key management integration
     name: sgx-signer
 {% endif %}
-{% if istio_service_mesh.intel_preview in ['on', 'optional'] and arch not in ['spr', 'emr']%}
+{% if istio_service_mesh.intel_preview in ['on', 'optional'] and arch not in ['emr', 'gnr']%}
   # uncomment following section and enable intel_preview if sgx-mtls profile is selected
   {% if istio_service_mesh.intel_preview == 'optional' %}#{% endif %}set:   # Istio intel preview with sgx-mtls
   {% if istio_service_mesh.intel_preview == 'optional' %}#  {% endif %}- values.global.proxy.sgx.enabled=true   # Istio intel preview with sgx-mtls
@@ -605,61 +633,68 @@ linkerd_service_mesh:
 ## Telemetry & Observability ##
 ###############################
 
-# Telemetry configuration. There are two options, Telegraf and Collectd, which are mutually exclusive.
-# Default option is Telegraf.
-# If Telegraf is enabled then the following parts of the stack need to be enabled as well: elasticsearch,
-# jaeger, opentelemetry, kibana. Collectd has to be disabled in that case.
-# If Collectd is enabled then all Telegraf stack components need to be disabled.
-{% if telemetry.prometheus in  ['on', 'optional'] %}
-prometheus_enabled: {% if telemetry.prometheus == 'on'%}true{% else %}false{% endif %}
-
-{% endif %}
 {% if telemetry.collectd in ['on', 'optional'] %}
-collectd_enabled: {% if telemetry.collectd == 'on'%}true{% else %}false{% endif %}
+# Collectd is a daemon which collects system information and provides mechanisms to store and monitor the values in a variety of ways.
+# If Collectd is enabled then Telegraf must be disabled.
+collectd_enabled: {% if telemetry.collectd == 'on'%}true{% else %}false{% endif +%}
+collectd_scrape_interval: 30
 
 {% endif %}
 {% if telemetry.telegraf in ['on', 'optional'] %}
-telegraf_enabled: {% if telemetry.telegraf == 'on'%}true{% else %}false{% endif %}
+# Telegraf is an agent for collecting, processing, aggregating, and writing metrics.
+# If Telegraf is enabled then Collectd must be disabled.
+telegraf_enabled: {% if telemetry.telegraf == 'on'%}true{% else %}false{% endif +%}
+telegraf_scrape_interval: 30
 
 {% endif %}
 {% if telemetry.jaeger in  ['on', 'optional'] %}
-jaeger_operator: {% if telemetry.jaeger == 'on'%}true{% else %}false{% endif %}
+# Jaeger is a distributed tracing platform that can be used for monitoring microservices-based distributed systems.
+# Jaeger in RA sends tracing telemetry data to ElasticSearch, therefore elasticsearch must be enabled as well.
+jaeger_enabled: {% if telemetry.jaeger == 'on'%}true{% else %}false{% endif +%}
 
 {% endif %}
-{% if telemetry.opentelemetry in ['on', 'optional'] %}
-opentelemetry_enabled: {% if telemetry.opentelemetry == 'on'%}true{% else %}false{% endif %}
-
-{% endif %}
-{% if telemetry.elasticsearch in ['on', 'optional'] %}
-elasticsearch_enabled: {% if telemetry.elasticsearch == 'on'%}true{% else %}false{% endif %}
-
-{% endif %}
-{% if telemetry.kibana in ['on', 'optional'] %}
-kibana_enabled: {% if telemetry.kibana == 'on'%}true{% else %}false{% endif %}
-
-{% endif %}
-collectd_scrap_interval: 30
-telegraf_scrap_interval: 30
-
 {% if cadvisor in ['on', 'optional'] %}
-# cAdvisor
-cadvisor_enabled: {% if cadvisor == 'on' %}true{% else %}false{% endif %}
-
+# cAdvisor provides container users an understanding of the resource usage and performance characteristics of their running containers.
+# It is a running daemon that collects, aggregates, processes, and exports information about running containers
+cadvisor_enabled: {% if cadvisor == 'on' %}true{% else %}false{% endif +%}
+# Enablement of scraping specific CPU perf events
 cadvisor_sample_perf_events_enabled: false
 cadvisor_pik_perf_events_enabled: false
 
 {% endif %}
+{% if telemetry.opentelemetry in ['on', 'optional'] %}
+# Opentelemetry collectors are used to scrap metrics from telegraf and cAdvisor and pass them to elasticsearch and prometheus
+# If Opentelemetry is enabled, prometheus, jaeger and elasticsearch must be enabled as well.
+opentelemetry_enabled: {% if telemetry.opentelemetry == 'on'%}true{% else %}false{% endif +%}
 
+{% endif %}
+{% if telemetry.prometheus in  ['on', 'optional'] %}
+# Prometheus stack includes prometheus, node_exporter and grafana deployments.
+prometheus_stack_enabled: {% if telemetry.prometheus == 'on'%}true{% else %}false{% endif +%}
+
+{% endif %}
+{% if telemetry.elasticsearch in ['on', 'optional'] %}
+# Elasticsearch ECK is a distributed, RESTful search and analytics engine.
+eck_enabled: {% if telemetry.elasticsearch == 'on'%}true{% else %}false{% endif +%}
+
+{% endif %}
+{% if telemetry.kibana in ['on', 'optional'] %}
+# Kibana is used to visualize data from elasticsearch.
+# If Kibana is enabled, elasticsearch must be enabled as well.
+kibana_enabled: {% if telemetry.kibana == 'on'%}true{% else %}false{% endif +%}
+
+{% endif %}
 {% if telemetry.intel_xpumanager in ['on', 'optional'] %}
 # intel_xpumanager plugin collects information about Intel data center GPUs.
-intel_xpumanager_enabled: {% if telemetry.intel_xpumanager == 'on'%}true{% else %}false{% endif %}
+# If xpumanager is enabled, Prometheus stack must be enabled as well.
+intel_xpumanager_enabled: {% if telemetry.intel_xpumanager == 'on'%}true{% else %}false{% endif +%}
 
 {% endif %}
 
 ######################
 ## Power Management ##
 ######################
-{% if power.manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr', 'emr'] %}
+{% if power.manager in ['on', 'optional'] and arch in ['icx', 'clx', 'spr', 'emr', 'gnr'] %}
 # Kubernetes Power Manager
 kubernetes_power_manager:
   enabled: {% if power.manager == 'on' %}true{% else %}false{% endif %} # Enable/Disable power manager
@@ -668,24 +703,32 @@ kubernetes_power_manager:
     # - node1
     # - node2
 
-  build_image_locally: false                                              # Build Power Manager image locally
+  build_image_locally: true                                              # Build Power Manager image locally
   deploy_example_pods: true                                              # Deploy example Pods that will utilize special resources
   global_shared_profile_enabled: true                                    # Deploy custom Power Profile with user defined frequencies that can be applied to all power nodes
                                                                           # to make use of Shared Profile fill Shared Workload settings in host vars
   global_max_frequency: 1500                                              # Max frequency that will be applied for cores by Shared Workload
   global_min_frequency: 1000                                              # Min frequency that will be applied for cores by Shared Workload
 
-{% if power.frequency_scaling in ['on', 'optional'] and arch in ['icx', 'clx', 'spr', 'emr'] %}
+{% if power.frequency_scaling in ['on', 'optional'] and arch in ['icx', 'clx', 'spr', 'emr', 'gnr'] %}
   # !Please set up scaling driver in host_vars.yml file!
   # available governors:
   # "powersave" - Lowest frequency within the borders of min_frequency and max_frequency.
   # "performance" - Highest frequency within the borders of min_frequency and max_frequency.
-  # "userspace" - !ACPI ONLY! - Allow user space to set CPU frequency in scaling_setspeed attribute
-  # "schedutil" - !ACPI ONLY! - Uses data from CPU scheduler to set up frequency
+  # "userspace" - !CPUFREQ ONLY! - Allow user space to set CPU frequency in scaling_setspeed attribute
+  # "schedutil" - !CPUFREQ ONLY! - Uses data from CPU scheduler to set up frequency
   global_governor: "powersave"
-{% endif %}
 
 {% endif %}
+{% endif %}
+{% if infra_power_manager in ['on', 'optional'] %}
+# Warning: currently there's no support to deploy IPM.
+# Setting this parameter to true will only apply required DPDK patches provided by IPM.
+infrastructure_power_manager_enabled: {% if infra_power_manager == 'on' %}true{% else %}false{% endif %}
+
+
+{% endif %}
+
 ##############################
 ## Security & Certification ##
 ##############################
@@ -734,7 +777,7 @@ kmra:
 
 {% endif %}
 {% if tcs in ['on', 'optional'] and
-    arch in ['icx'] %}
+    arch in ['icx', 'spr'] %}
 # Trusted Certificate Service deployment
 # https://github.com/intel/trusted-certificate-issuer
 tcs:
@@ -743,7 +786,7 @@ tcs:
 
 {% endif %}
 {% if tac in ['on', 'optional'] and
-    arch in ['icx'] %}
+    arch in ['icx', 'spr'] %}
 # Trusted Attestation Controller deployment
 # https://github.com/intel/trusted-attestation-controller
 tac:
@@ -820,10 +863,15 @@ always_pull_enabled: false
 #  - http://mirror_ip:mirror_port
 #docker_insecure_registries:
 #  - http://docker_insecure_registry_ip
-#containerd_registries:
-#  "docker.io":
-#    - "https://registry-1.docker.io"
-#    - "http://mirror_ip:mirror_port"
+#containerd_registries_mirrors:
+#  - prefix: docker.io
+#    mirrors:
+#      - host: https://registry-1.docker.io
+#        capabilities: ["pull", "resolve"]
+#        skip_verify: false
+#      - host: https://containerd_insecure_registry
+#        capabilities: ["pull", "resolve"]
+#        skip_verify: true
 #crio_registries:
 #  - prefix: docker.io
 #    insecure: false
@@ -884,7 +932,8 @@ adq_dp:
 # In inventory.ini set "ip=" to IP address of CVL interface.
 # Additional requirements and details can be found in docs/calico_vpp.md
 calico_vpp:
-  enabled: {% if calico_vpp == 'on' %}true{% else %}false{% endif %}
+  enabled: {% if calico_vpp == 'on' %}true{% else %}false{% endif %} 
+  interface_name: "enxcalicovpp001"
 {% endif %}
 
 {% if intel_eci and (intel_eci.values() | reject('eq', 'off')) | list | length() > 0 %}
@@ -962,9 +1011,9 @@ mirror_urls:
 ffmpeg_install_enabled: {% if intel_ffmpeg == 'on' %}true{% else %}false{% endif %}
 
 ffmpeg_patches:
-  - url: "https://github.com/intel/cartwheel-ffmpeg/archive/refs/tags/2023q2.tar.gz"
+  - url: "https://github.com/intel/cartwheel-ffmpeg/archive/refs/tags/2023q3.tar.gz"
     type: "tar.gz"
-    sha256: "8c9a1b33bf1e034cd5ec0a9cf208cdb6e0846dae9d621040b83b1e5e31e59799"
+    sha256: "6d85524b99cc056b0823397d2b6f06e4375f61f59218b97b7b4713ba12739ae6"
     subdirectory: "patches/"
     patchset_enabled: true
     apply_all_patches: true
@@ -973,4 +1022,21 @@ ffmpeg_patches:
 
 {% if base_container in ['on', 'optional'] %}
 intel_base_container_enabled: {% if base_container == 'on' %}true{% else %}false{% endif %}
+
+{% endif %}
+
+{% if name == 'on_prem_vss' %}
+build_base_images: true
+{% else %}
+build_base_images: false
+{% endif %}
+
+{% if inbm in ['on', 'optional'] %}
+intel_inband_manageability_enabled: {% if inbm == 'on' %}true{% else %}false{% endif %}
+
+# Supported values for mode are 'inbc', 'cloud'.
+# If local inbc option is chosen then provisioning will be performed automatically, otherwise provisioning should be run manually using provision-tc command.
+# For more information please refer to
+# https://github.com/intel/intel-inb-manageability/blob/develop/docs/In-Band%20Manageability%20Installation%20Guide%20Ubuntu.md
+intel_inband_manageability_mode: 'inbc'
 {% endif %}

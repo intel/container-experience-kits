@@ -61,18 +61,5 @@
         name: minio_install
         tasks_from: cleanup_minio_whereabouts_helmchart
 
-    - name: load MinIO tenant ingress controller variables
-      include_vars: "{{ item }}"
-      with_first_found:
-        - files:
-            - "main.yml"
-          paths:
-            - "{{ (role_path, '..', 'kubernetes_ingress_install', 'defaults') | path_join }}"
-
-    - name: cleanup MinIO tenant ingress controller helmchart
-      include_role:
-        name: kubernetes_ingress_install
-        tasks_from: cleanup_kubernetes_ingress
-
   tags:
     - minio

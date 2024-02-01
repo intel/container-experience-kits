@@ -55,41 +55,31 @@
     dest: "{{ (minio_operator_helm_local_dir, 'tenant', 'temp', 'awscli', 'Dockerfile') | path_join }}"
     mode: 0644
 
-- debug:
+- ansible.builtin.debug:
     msg: Container Runtime - "{{ container_runtime }}"
 
 # docker is used as container runtime:
-- name: prepare containers images
-  block:
-    - name: build local AWS custom image
-      command: >-
-        docker build -f Dockerfile -t {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }} ./
-      args:
-        chdir: "{{ aws_local_build_dir }}"
-      changed_when: true
-      when: aws_build_image_locally
-
-    - name: push the local AWS custom images to local registry
-      command: >-
-        docker push {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }}
-      when: aws_build_image_locally
+- name: Build and push AWS custom image - docker
+  community.docker.docker_image:
+    build:
+      path: "{{ aws_local_build_dir }}"
+      dockerfile: Dockerfile
+    name: "{{ registry_local_address }}/{{ aws_local_build_name }}"
+    tag: "{{ aws_image_tag }}"
+    push: true
+    source: build
   when:
+    - aws_build_image_locally
     - container_runtime == "docker"
 
 # containerd/cri-o is used as container runtime:
-- name: prepare containers images
-  block:
-    - name: build local AWS custom image
-      command: >-
-        podman build -f Dockerfile -t {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }} ./
-      args:
-        chdir: "{{ aws_local_build_dir }}"
-      changed_when: true
-      when: aws_build_image_locally
-
-    - name: push the local AWS custom images to local registry
-      command: >-
-        podman push {{ registry_local_address }}/{{ aws_local_build_name }}:{{ aws_image_tag }}
-      when: aws_build_image_locally
+- name: Build and push AWS custom image - podman
+  containers.podman.podman_image:
+    name: "{{ registry_local_address }}/{{ aws_local_build_name }}"
+    tag: "{{ aws_image_tag }}"
+    path: "{{ aws_local_build_dir }}"
+    push: true
+    state: build
   when:
+    - aws_build_image_locally
     - container_runtime is in ['containerd', 'crio']

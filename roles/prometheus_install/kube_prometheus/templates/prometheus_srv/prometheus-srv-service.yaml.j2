@@ -7,13 +7,11 @@ metadata:
   labels:
     prometheus: k8s
 spec:
-  type: NodePort
   ports:
     - port: {{ prometheus_srv_proxy_port }}
       protocol: TCP
       name: nginx-https
       targetPort: nginx-https
-      nodePort: {{ prometheus_srv_node_port }}
   selector:
     prometheus: k8s
     app.kubernetes.io/component: prometheus

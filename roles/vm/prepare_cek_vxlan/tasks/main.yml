@@ -54,7 +54,7 @@
 - name: Store VXLAN MACs of running VMs
   set_fact:
     vm_vxlan_macs: "{{ vm_vxlan_macs | default({}) | combine( {item.item.name: item.stdout} ) }}"
-  when: item.changed and item.item.name is defined  # noqa 503 # no-handler
+  when: item.changed and item.item.name is defined  # noqa no-handler
   loop: "{{ vm_vxlan_mac_out.results }}"
 
 - name: Print vm_vxlan_macs
@@ -78,7 +78,7 @@
 - name: Store VXLAN IPs of running VMs
   set_fact:
     vm_vxlan_ips: "{{ vm_vxlan_ips | default({}) | combine( {item.item.name: item.stdout} ) }}"
-  when: item.changed and item.item.name is defined  # noqa 503 # no-handler
+  when: item.changed and item.item.name is defined  # noqa no-handler
   loop: "{{ vm_vxlan_ip_out.results }}"
 
 - name: Print vm_vxlan_ips

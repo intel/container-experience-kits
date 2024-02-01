@@ -80,17 +80,24 @@
     mode: 0755
 
 - name: get PowerPkg file
-  get_url:
-    url: https://raw.githubusercontent.com/intel/CommsPowerManagement/73bdab6f6e3861f3d86e15e36c363f343a142509/telemetry/pkgpower.py
-    dest: "{{ collectd_configuration_files_dir }}/pkgpower.py"
-    owner: root
-    group: root
-    mode: 0755
-    checksum: "sha1:4aa175aae132ca0d251d839462d23d971b039713"
+  block:
+    - name: download pkgpower file
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/intel/CommsPowerManagement/73bdab6f6e3861f3d86e15e36c363f343a142509/telemetry/pkgpower.py
+        dest: "{{ collectd_configuration_files_dir }}/pkgpower.py"
+        owner: root
+        group: root
+        mode: 0755
+        checksum: "sha1:4aa175aae132ca0d251d839462d23d971b039713"
+      register: pkgpower_download
+      until: pkgpower_download is not failed
+      retries: 5
+
+    - name: patch pkgpower file
+      ansible.posix.patch:
+        src: "pkgpower.patch"
+        dest: "{{ collectd_configuration_files_dir }}/pkgpower.py"
   when: "'pkgpower' in plugins"
-  register: pkgpower_download
-  until: pkgpower_download is not failed
-  retries: 5
 
 # Segmentation core dump issues in Ubuntu were previously caused by lshw; blocks will be recommended such as,
 # hwinfo for RHEL / ROCKY & lshw for Ubuntu.

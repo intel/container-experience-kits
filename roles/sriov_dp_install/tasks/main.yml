@@ -59,65 +59,42 @@
   retries: 5
   until: sriov_dp_image_build is success
 
-- name: tag SRIOV Network Device Plugin image
-  command: docker tag {{ sriov_net_dp_image }}:latest {{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_tag }}
+- name: Tag and push SRIOV Network Device Plugin image to local registry
+  community.docker.docker_image:
+    name: "{{ sriov_net_dp_image }}:latest"
+    repository: "{{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_tag }}"
+    push: true
+    source: local
   when:
     - inventory_hostname == groups['kube_node'][0]
     - sriov_net_dp_build_image_locally
     - container_runtime == "docker"
 
-- name: push SRIOV Network Device Plugin image to local registry
-  command: docker push {{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_tag }}
+- name: Set proxy args if defined
+  ansible.builtin.set_fact:
+    podman_proxy_args:
+      http_proxy: "{{ http_proxy | default(omit) }}"
+      https_proxy: "{{ https_proxy | default(omit) }}"
   when:
-    - inventory_hostname == groups['kube_node'][0]
-    - sriov_net_dp_build_image_locally
-    - container_runtime == "docker"
+    - http_proxy is defined or https_proxy is defined
 
-- name: build and tag SRIOV Network Device Plugin image behind proxy
-  shell: >-
-    podman build -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_tag }}
-    --build-arg=http_proxy=${http_proxy}
-    --build-arg=https_proxy=${https_proxy}
-    -f {{ item.file }} .
-  args:
-    chdir: "{{ sriov_net_dp_dir }}"
-  changed_when: true
-  with_items:
-    - {file: images/Dockerfile, name: sriov-device-plugin}
+- name: Build and push SRIOV Network Device Plugin image - podman
+  containers.podman.podman_image:
+    name: "{{ registry_local_address }}/sriov-device-plugin"
+    tag: "{{ sriov_net_dp_tag }}"
+    path: "{{ sriov_net_dp_dir }}"
+    build:
+      file: images/Dockerfile
+      extra_args: "{{ podman_proxy_args | default({}) }}"
+    push: true
+    state: build
   register: sriov_dp_image_build
   retries: 5
   until: sriov_dp_image_build is success
   when:
     - inventory_hostname == groups['kube_node'][0]
     - sriov_net_dp_build_image_locally
-    - '"docker" not in container_runtime'
-    - http_proxy is defined
-    - https_proxy is defined
-
-- name: build and tag SRIOV Network Device Plugin image
-  command: podman build -t {{ registry_local_address }}/{{ item.name }}:{{ sriov_net_dp_tag }} -f {{ item.file }} .
-  args:
-    chdir: "{{ sriov_net_dp_dir }}"
-  changed_when: true
-  with_items:
-    - {file: images/Dockerfile, name: sriov-device-plugin}
-  register: sriov_dp_image_build
-  retries: 5
-  until: sriov_dp_image_build is success
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - sriov_net_dp_build_image_locally
-    - '"docker" not in container_runtime'
-    - http_proxy is not defined
-    - https_proxy is not defined
-
-- name: push SRIOV Network Device Plugin image to local registry
-  command: podman push {{ registry_local_address }}/sriov-device-plugin:{{ sriov_net_dp_tag }}
-  changed_when: true
-  when:
-    - inventory_hostname == groups['kube_node'][0]
-    - sriov_net_dp_build_image_locally
-    - '"docker" not in container_runtime'
+    - container_runtime in ['containerd', 'crio']
 
 - name: create Helm charts directory if needed
   file:
@@ -152,9 +129,11 @@
     - inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install SRIOV Network Device Plugin helm chart
-  command: >-
-    helm upgrade -i sriov-net-dp
-    -f {{ (project_root_dir, 'charts', 'sriov-net-dp-values.yml') | path_join }}
-    {{ (project_root_dir, 'charts', 'sriov-net-dp') | path_join }}
+  kubernetes.core.helm:
+    chart_ref: "{{ (project_root_dir, 'charts', 'sriov-net-dp') | path_join }}"
+    release_name: sriov-net-dp
+    release_namespace: kube-system
+    values_files: "{{ (project_root_dir, 'charts', 'sriov-net-dp-values.yml') | path_join }}"
+    force: true
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

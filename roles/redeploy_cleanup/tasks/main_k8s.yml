@@ -23,12 +23,12 @@
   when:
     kubernetes | default(false) | bool
 
-- name: uninstall elasticsearch
+- name: uninstall eck
   ansible.builtin.include_role:
-    name: elasticsearch_install
+    name: eck_install
     tasks_from: cleanup
   tags:
-    - elasticsearch
+    - eck
 
 - name: uninstall opentelemetry
   ansible.builtin.include_role:
@@ -142,6 +142,19 @@
     tasks_from: cleanup
   tags:
     - intel-oneapi
+
+- name: Cleanup KubeVirt
+  ansible.builtin.include_role:
+    name: kubevirt_install
+    tasks_from: cleanup
+  tags:
+    - kubevirt
+
+- name: Cleanup Ingress Nginx
+  ansible.builtin.include_role:
+    name: ingress_nginx_install
+    tasks_from: cleanup
+  tags: ingress-nginx
 
 - name: reset and remove Kubernetes cluster
   ansible.builtin.import_tasks: k8s_cleanup.yml

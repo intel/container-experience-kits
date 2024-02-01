@@ -22,23 +22,17 @@ install_dependencies:
     - build-essential
     - autoconf
     - automake
+    - wget
     - libtool
     - shtool
-    - wget
   RedHat:
     - git
-    - gcc
     - make
     - autoconf
     - automake
-    - libtool
     - wget
+    - gcc
+    - libtool
 
-ovs_dpdk_lcore_mask: 0x1
 ovs_dpdk_pmd_mask: 0x2
-ovs_dpdk_socket_mem: "256,0"
 ovs_dpdk_extra: "--block="
-
-# supported unless proven otherwise
-vpp_supported: true
-userspace_cni_supported: false

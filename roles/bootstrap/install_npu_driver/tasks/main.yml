@@ -36,13 +36,16 @@
     patterns: "vpu-linux-drivers-ubuntu2204-release*.tar.gz"
   register: npu_driver_packages
 
-- name: Create NPU driver unarchive path
+- name: Clean old NPU driver
+  include_tasks: cleanup.yml
+
+- name: Create new NPU driver unarchive path
   ansible.builtin.file:
     path: "{{ src_npu_driver_path }}"
     state: directory
     mode: '0755'
 
-- name: Unarchive NPU drivers package
+- name: Unarchive new NPU driver package
   ansible.builtin.unarchive:
     src: "{{  npu_driver_packages.files[0].path }}"
     dest: "{{ src_npu_driver_path }}"

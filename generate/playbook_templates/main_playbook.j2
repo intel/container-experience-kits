@@ -1,4 +1,6 @@
 ---
+- name: SRIOV NIC and SRIOV QAT auto-detection
+  import_playbook: autodetect.yml
 - name: preflight checks
   import_playbook: preflight.yml
   when: preflight_enabled | default(true) | bool

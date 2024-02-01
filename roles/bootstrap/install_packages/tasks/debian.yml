@@ -33,7 +33,7 @@
   when:
     - configure_tdx | default(false)
     - on_vms | default(false)
-    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '22.04'
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '==')
 
 - name: disable automatic package updates
   apt:
@@ -62,6 +62,16 @@
     group: root
     mode: 0644
   when: ansible_os_family == "Debian"
+
+- name: wait for apt-get exit
+  ansible.builtin.shell: "set -o pipefail && echo -n $(ps -A | grep apt-get | awk '{print $1}')" # noqa command-instead-of-shell
+  args:
+    executable: /bin/bash
+  register: apt_get_out
+  delay: 10
+  retries: 10
+  until: apt_get_out.stdout | length == 0
+  changed_when: false
 
 - name: set ubuntu APT Source to tsinghua source
   set_fact:
@@ -117,7 +127,7 @@
         filename: devel-kubic-libcontainers-stable
   when:
     - '"docker" not in container_runtime'
-    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04'
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version is version('20.04', '==')
 
 - name: apt update
   apt: update_cache=yes
@@ -202,7 +212,7 @@
   when:
     - configure_tdx | default(false)
     - on_vms | default(false)
-    - ansible_distribution == "Ubuntu" and ansible_distribution_version == '22.04'
+    - ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '==')
 
 # hirsute (21.04) package for (image & headers) is 20.04. (Note: ansible_distribution_version will not be returned as the correct version)
 # Depending on the needs, we can split tasks for future Ubuntu releases if necessary.

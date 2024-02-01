@@ -68,7 +68,7 @@
       set_fact:
         flannel_backend_type: >-
           {% if minio_enabled is defined and minio_enabled -%}vxlan{%- else -%}
-          {% if ansible_distribution_version >= '21.04' -%}host-gw{%- else -%}vxlan{% endif %}{% endif %}
+          {% if ansible_distribution_version is version('21.04', '>=') -%}host-gw{%- else -%}vxlan{% endif %}{% endif %}
       when: kube_network_plugin == "flannel"
 
     - name: Disable DNS stub listener when needed
@@ -136,7 +136,6 @@
       set_fact:
         container_manager: crio
         download_container: false
-        skip_downloads: false
         etcd_deployment_type: host
       when: container_runtime == "crio"
 
@@ -144,13 +143,13 @@
 - name: Deploy cluster via Kubespray
   ansible.builtin.import_playbook: "{% if scale | default(false) | bool %}kubernetes_sigs.kubespray.scale{% else %}kubernetes_sigs.kubespray.cluster{% endif %}"
   vars:
-    any_errors_fatal: true
+    kube_owner: root
+    kube_cert_group: root
     kubeadm_enabled: true
     helm_enabled: true
     krew_enabled: true
     multus_conf_file: /host/etc/cni/net.d/templates/00-multus.conf
     multus_image_tag: "v3.9.3-amd64"
-    nginx_image_tag: 1.24.0-alpine
     calico_node_livenessprobe_timeout: 15
     calico_node_readinessprobe_timeout: 15
     kube_proxy_mode: iptables
@@ -176,7 +175,7 @@
     kube_kubeadm_controller_extra_args:
       service-account-private-key-file: "{{ kube_cert_dir }}/sa.key"
     kubelet_cpu_manager_policy: "{% if native_cpu_manager_enabled | default(false) %}static{% else %}none{% endif %}"
-    kubelet_topoloy_manager_policy: "{{ topology_manager_policy | default('none') }}"
+    kubelet_topology_manager_policy: "{{ topology_manager_policy | default('none') }}"
     kubelet_topology_manager_scope: "{{ topology_manager_scope | default('container') }}"
     kubelet_config_extra_args:
       protectKernelDefaults: true
@@ -236,6 +235,7 @@
       register: flannel_endpoint
     - name: disable offloading features on flannel.1
       command: ethtool --offload flannel.1 rx off tx off
+      changed_when: true
       become: yes
       when:
         - kube_network_plugin == "flannel"
@@ -250,6 +250,12 @@
       retries: 30
       delay: 5
       when: inventory_hostname == groups['kube_control_plane'][0]
+
+    - name: install calico vpp
+      ansible.builtin.include_role:
+        name: calico_vpp_install
+      tags: calico-vpp
+      when: calico_vpp.enabled | default(false) | bool
 
     - name: allow traffic on wireguard interface
       block:
@@ -361,9 +367,6 @@
       when:
         - cert_manager_enabled | default(false) or
           registry_enable | default(false)
-    - role: calico_vpp_install
-      tags: calico-vpp
-      when: calico_vpp.enabled | default(false) | bool
     - role: container_registry
       tags: registry
       when:

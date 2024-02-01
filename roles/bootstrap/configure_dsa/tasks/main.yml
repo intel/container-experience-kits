@@ -15,14 +15,14 @@
 ##
 ---
 - name: install dependencies for Intel DSA devices
-  include_role:
+  ansible.builtin.include_role:
     name: install_dependencies
 
 - name: install accel-config tool
-  include_tasks: install_accel_config.yml
+  ansible.builtin.include_tasks: install_accel_config.yml
 
 - name: get number of DSA devices
-  find:
+  ansible.builtin.find:
     paths: "{{ dsa_devices_dir }}"
     file_type: any
     use_regex: yes
@@ -31,7 +31,7 @@
   register: found_dsa_devices
 
 - name: apply default configuration for DSA devices
-  include_tasks: dsa_default_config.yml
+  ansible.builtin.include_tasks: dsa_default_config.yml
   vars:
     dsa_id: "{{ item.path | basename | replace('dsa', '') }}"
   with_items: "{{ found_dsa_devices.files }}"
@@ -40,13 +40,13 @@
     - dsa_devices | default([]) | length | int == 0
 
 - name: fail if configured number of DSA devices is greater than actual number of DSA devices on the node
-  fail:
+  ansible.builtin.fail:
     msg: "Max supported DSA devices by node is {{ found_dsa_devices.matched }}, but configuration for {{ dsa_devices | length }} was provided.
           Please update dsa_devices list in host_vars."
   when: dsa_devices | default([]) | length > found_dsa_devices.matched
 
 - name: apply custom configuration for DSA devices
-  include_tasks: dsa_custom_config.yml
+  ansible.builtin.include_tasks: dsa_custom_config.yml
   vars:
     dsa_device: "{{ item }}"
   loop: "{{ dsa_devices }}"
@@ -56,12 +56,13 @@
 
 # config will be saved to /etc/accel-config/accel-config.conf as default.
 - name: save accel-config configuration
-  command: accel-config save-config
+  ansible.builtin.command: accel-config save-config
   changed_when: true
 
 # WA for configuring DSA devices
 # in some CPU SKUs with specific BIOS version, wq_cap.wq_ats_support is disabled, so wq_ats_disable cannot be written.
 - name: modify accel-config.conf
+  when: not is_gnr
   block:
     - name: remove ats_disable parameter
       ansible.builtin.lineinfile:
@@ -75,7 +76,7 @@
         replace: "\"threshold\":0"
 
 - name: create systemd unit file
-  copy:
+  ansible.builtin.copy:
     src: "{{ (role_path , 'files', 'dsa_config.service') | path_join }}"
     dest: /lib/systemd/system/dsa_config.service
     owner: root
@@ -83,7 +84,7 @@
     mode: '0644'
 
 - name: ensure that systemd service is enabled
-  systemd:
+  ansible.builtin.systemd:
     name: dsa_config
     enabled: yes
     daemon_reload: yes

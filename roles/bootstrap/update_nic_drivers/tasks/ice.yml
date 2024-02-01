@@ -111,8 +111,8 @@
   when:
     - not ice_driver_build_failed
     - (ice_installed_version.stdout != ice_driver_version and mgmt_interface_driver.stdout == ice_driver_name) or
-      (ice_installed_version.stdout != ice_driver_version and ((ansible_os_family == "RedHat" and ansible_distribution_version >= "9.0") or
-      (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "22.04") or update_kernel))
+      (ice_installed_version.stdout != ice_driver_version and ((ansible_os_family == "RedHat" and ansible_distribution_version is version('9.0', '>=')) or
+      (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '>=')) or update_kernel))
 
 - name: ensure that ice module is loaded
   modprobe:

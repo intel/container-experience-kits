@@ -15,7 +15,8 @@
 ##
 ---
 - name: set DP VFs on DP0 for FlexRAN in Docker POD
-  shell: "for i in {0..3}; do ip link set {{ dataplane_interfaces[0].name }} vf ${i} mac 00:11:22:33:00:${i}0; done; ip link show {{ dataplane_interfaces[0].name }}" # noqa yaml[line-length]
+  ansible.builtin.shell: >-
+    for i in {0..3}; do ip link set {{ dataplane_interfaces[0].name }} vf ${i} mac 00:11:22:33:00:${i}0; done; ip link show {{ dataplane_interfaces[0].name }}
   args:
     executable: /bin/bash
   register: vfs_macs_dp0
@@ -23,7 +24,8 @@
   failed_when: vfs_macs_dp0.rc != 0
 
 - name: set DP VFs on DP1 for FlexRAN in Docker POD
-  shell: "for i in {0..3}; do ip link set {{ dataplane_interfaces[1].name }} vf ${i} mac 00:11:22:33:00:${i}1; done; ip link show {{ dataplane_interfaces[1].name }}" # noqa yaml[line-length]
+  ansible.builtin.shell: >-
+    for i in {0..3}; do ip link set {{ dataplane_interfaces[1].name }} vf ${i} mac 00:11:22:33:00:${i}1; done; ip link show {{ dataplane_interfaces[1].name }}
   args:
     executable: /bin/bash
   register: vfs_macs_dp1
@@ -31,45 +33,73 @@
   failed_when: vfs_macs_dp1.rc != 0
 
 - name: show DP VFs config
-  debug: msg="{{ vfs_macs_dp0.stdout }}\n{{ vfs_macs_dp1.stdout }}"
+  ansible.builtin.debug:
+    msg: "{{ vfs_macs_dp0.stdout }}\n{{ vfs_macs_dp1.stdout }}"
 
-- name: load vfio-pci
-  modprobe:
-    name: vfio-pci
-    state: present
+- name: copy NIC VFs MAC setup script to /usr/local/bin
+  copy:
+    src: "{{ role_path }}/files/cek_flexran_nic_mac.sh"
+    dest: /usr/local/bin/cek_flexran_nic_mac.sh
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: create systemd unit file
+  template:
+    src: cek_flexran_nic_mac.service.j2
+    dest: /lib/systemd/system/cek_flexran_nic_mac.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+
+- name: ensure that systemd service is enabled on startup and restarted to apply the configuration
+  systemd:
+    name: cek_flexran_nic_mac
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  become: yes
 
 - name: show DPDK devices binding for FlexRAN in Docker POD
-  ansible.builtin.command: "{{ (intel_flexran_dpdk_dir, 'usertools', 'dpdk-devbind.py -s') | path_join }}"
+  ansible.builtin.command: >-
+    dpdk-devbind.py -s
   register: devbind_status
   changed_when: false
 
-- debug: msg="{{ devbind_status.stdout }}"
+- ansible.builtin.debug:
+    msg: "{{ devbind_status.stdout }}"
 
 - name: restart SRIOV NET DP daemonset to re-initialize resources for FlexRAN in Docker POD
-  ansible.builtin.command: kubectl rollout restart -n kube-system daemonset sriov-net-dp-kube-sriov-device-plugin-amd64
+  ansible.builtin.command: >-
+    kubectl rollout restart -n kube-system daemonset sriov-net-dp-kube-sriov-device-plugin-amd64
   register: sriov_ds_restart
   changed_when: sriov_ds_restart.rc == 0
   failed_when: sriov_ds_restart.rc != 0 or ("restarted" not in sriov_ds_restart.stdout)
 
-- debug: msg="{{ sriov_ds_restart.stdout }}"
+- ansible.builtin.debug:
+    msg: "{{ sriov_ds_restart.stdout }}"
 
 - name: cluster check-point
   ansible.builtin.include_role:
     name: wait_for_kubernetes_ready
 
 - name: short wait for SRIOV DP to instate FEC VF resource
-  pause:
+  ansible.builtin.pause:
     seconds: 10
 
 - name: dump resources for FlexRAN in Docker POD
-  shell: "set -o pipefail && kubectl get node {{ groups['kube_node'][0] }} -o json | jq '.status.allocatable'" # noqa command-instead-of-shell
+  ansible.builtin.shell: >-
+    set -o pipefail && kubectl get node {{ groups['kube_node'][0] }} -o json | jq '.status.allocatable'
   args:
     executable: /bin/bash
   register: node_resources
   changed_when: false
   failed_when: node_resources.rc != 0
 
-- debug: msg="{{ node_resources.stdout }}"
+- ansible.builtin.debug:
+    msg: "{{ node_resources.stdout }}"
 
 - name: check 'intel_fec_5g resources' for FlexRAN in Docker POD
   ansible.builtin.assert:

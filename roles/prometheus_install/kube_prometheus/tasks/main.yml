@@ -90,9 +90,14 @@
         executable: /bin/bash
       changed_when: true
 
+    - name: create password for prometheus
+      ansible.builtin.set_fact:
+        prometheus_srv_password: "{{ lookup('ansible.builtin.password', '/dev/null', seed=inventory_hostname) }}"
+
     - name: generate htpasswd file
       ansible.builtin.command: htpasswd -Bbn {{ prometheus_srv_user }} {{ prometheus_srv_password }}
       register: htpasswd
+      changed_when: true
       when:
         - prometheus_srv_expose | default(false)
 

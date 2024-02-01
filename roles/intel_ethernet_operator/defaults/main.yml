@@ -55,3 +55,5 @@ intel_ethernet_operator_flow_config_rules_dir: "{{ (intel_ethernet_operator_flow
 
 intel_ethernet_operator_fw_url: "https://downloadmirror.intel.com/786047/E810_NVMUpdatePackage_v4_30_Linux.tar.gz"
 intel_ethernet_operator_fw_sum: "993d79ac623b71c5378855738917495a0fa8ffb8"
+
+ieo_catalog_name: operatorhubio-catalog # gets overriden when local build is enabled

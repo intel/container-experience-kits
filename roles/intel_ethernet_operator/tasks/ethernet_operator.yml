@@ -14,103 +14,109 @@
 ##   limitations under the License.
 ##
 ---
-- name: clone Intel Ethernet Operator repository
-  ansible.builtin.git:
-    repo: "{{ intel_ethernet_operator_git }}"
-    version: "{{ intel_ethernet_operator_git_ref }}"
-    dest: "{{ intel_ethernet_operator_dir }}"
-    force: true
-
-- name: get GOPATH
-  ansible.builtin.command: go env GOPATH
-  register: gopath
-  changed_when: false
-
-- name: build Intel Ethernet Operator
-  vars:
-    # in case of RHEL 9.2 & podman, SYS_CHROOT is missing from default caps.
-    # no need to limit only to RHEL OS, no impact to Ubuntu
-    podman_build_args: "--cap-add SYS_CHROOT"
-  community.general.make:
-    target: "{{ item }}"
-    chdir: "{{ intel_ethernet_operator_dir }}"
-    params:
-      VERSION: "{{ intel_ethernet_operator_build_version }}"
-      IMAGE_REGISTRY: "{{ registry_local_address }}"
-      IMGTOOL: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
-      TLS_VERIFY: "{{ intel_ethernet_operator_make_tls }}"
-      TARGET_PLATFORM: "{{ intel_ethernet_operator_target_platform }}"
-      UFT_IMAGE: "{{ uft_image }}:{{ uft_image_ver }}"
-      DOCKERARGS: "{{ podman_build_args if container_runtime in ['crio', 'containerd'] else omit }}"
-  register: ieo_build_status
-  retries: 5
-  delay: 120
-  until:
-    - "'Github rate-limiter failed the request.' not in ieo_build_status.stdout"
-  environment:
-    PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-  loop:
-    - build_all
-    - push_all
-    - catalog-build
-    - catalog-push
-
-- name: create Intel Ethernet Operator directory to store yaml files
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: '0644'
-  loop:
-    - "{{ intel_ethernet_operator_files_dir }}"
-    - "{{ intel_ethernet_operator_packages_dir }}"
-    - "{{ intel_ethernet_operator_fw_files_dir }}"
-    - "{{ intel_ethernet_operator_ddp_files_dir }}"
-    - "{{ intel_ethernet_operator_flow_config_files_dir }}"
-    - "{{ intel_ethernet_operator_flow_config_rules_dir }}"
-
-- name: create Intel Ethernet Operator namespace
+- name: Create Intel Ethernet Operator namespace
   kubernetes.core.k8s:
     name: "{{ intel_ethernet_operator_namespace }}"
     kind: Namespace
     state: present
 
-- name: populate Intel Ethernet Operator yaml files and push to controller node
+- name: Create IEO templates directory
+  ansible.builtin.file:
+    state: directory
+    path: "{{ intel_ethernet_operator_files_dir }}"
+    mode: '0750'
+
+- name: Create Intel Ethernet Operator Catalog from source
+  when: intel_ethernet_operator_local_build | default(false)
+  block:
+    - name: Clone Intel Ethernet Operator repository
+      ansible.builtin.git:
+        repo: "{{ intel_ethernet_operator_git }}"
+        version: "{{ intel_ethernet_operator_git_ref }}"
+        dest: "{{ intel_ethernet_operator_dir }}"
+        force: true
+
+    - name: Get GOPATH
+      ansible.builtin.command: go env GOPATH
+      register: gopath
+      changed_when: false
+
+    - name: Build Intel Ethernet Operator
+      vars:
+        # in case of RHEL 9.2 & podman, SYS_CHROOT is missing from default caps.
+        # no need to limit only to RHEL OS, no impact to Ubuntu
+        podman_build_args: "--cap-add SYS_CHROOT"
+      community.general.make:
+        target: "{{ item }}"
+        chdir: "{{ intel_ethernet_operator_dir }}"
+        params:
+          VERSION: "{{ intel_ethernet_operator_build_version }}"
+          IMAGE_REGISTRY: "{{ registry_local_address }}"
+          IMGTOOL: "{{ 'docker' if container_runtime == 'docker' else 'podman' }}"
+          TLS_VERIFY: "{{ intel_ethernet_operator_make_tls }}"
+          TARGET_PLATFORM: "{{ intel_ethernet_operator_target_platform }}"
+          UFT_IMAGE: "{{ uft_image }}:{{ uft_image_ver }}"
+          DOCKERARGS: "{{ podman_build_args if container_runtime in ['crio', 'containerd'] else omit }}"
+      register: ieo_build_status
+      retries: 5
+      delay: 120
+      until:
+        - "'Github rate-limiter failed the request.' not in ieo_build_status.stdout"
+      environment:
+        PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      loop:
+        - build_all
+        - push_all
+        - catalog-build
+        - catalog-push
+
+    - name: Set local IEO catalog name
+      ansible.builtin.set_fact:
+        ieo_catalog_name: local-ieo-catalog
+
+    - name: Template Catalog resource to target machine
+      ansible.builtin.template:
+        src: "catalog.yaml.j2"
+        force: yes
+        dest: "{{ (intel_ethernet_operator_files_dir, 'catalog.yaml') | path_join }}"
+        mode: '0640'
+
+    - name: Deploy local IEO catalog
+      kubernetes.core.k8s:
+        state: present
+        template: "catalog.yaml.j2"
+
+    - name: Wait for Catalog source to be running
+      kubernetes.core.k8s_info:
+        api_version: "operators.coreos.com/v1alpha1"
+        kind: CatalogSource
+        namespace: olm
+        name: "{{ ieo_catalog_name }}"
+      register: catalog_info
+      retries: 12
+      delay: 5
+      until: |
+        catalog_info.resources is defined and
+        catalog_info.resources | length != 0 and
+        catalog_info.resources[0].status.connectionState.lastObservedState | default("NOTREADY") == "READY"
+
+
+- name: Template Subscription & OperatorGroup resources to target machine
   ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ (intel_ethernet_operator_files_dir, item.dst) | path_join }}"
-    force: true
-    mode: preserve
+    src: "{{ item.template }}"
+    dest: "{{ (intel_ethernet_operator_files_dir, item.name) | path_join }}"
+    mode: '0640'
   loop:
-    - {src: 'catalog.yml.j2', dst: 'catalog.yml'}
-    - {src: 'operator-group.yml.j2', dst: 'operator-group.yml'}
-    - {src: 'subscription.yml.j2', dst: 'subscription.yml'}
+    - { name: 'operator-group.yaml', template: 'operator-group.yaml.j2' }
+    - { name: 'subscription.yaml', template: 'subscription.yaml.j2' }
 
-- name: Deploy Catalog source and OperatorGroup
+- name: Deploy Intel Ethernet Operator via Subscription & OperatorGroup
   kubernetes.core.k8s:
     state: present
-    src: "{{ (intel_ethernet_operator_files_dir, item) | path_join }}"
+    template: "{{ item }}"
   loop:
-    - catalog.yml
-    - operator-group.yml
-
-- name: wait for Catalog source to be running
-  kubernetes.core.k8s_info:
-    api_version: "operators.coreos.com/v1alpha1"
-    kind: CatalogSource
-    namespace: "{{ intel_ethernet_operator_namespace }}"
-    name: intel-ethernet-operators
-  register: catalog_info
-  retries: 12
-  delay: 5
-  until: |
-    catalog_info.resources is defined and
-    catalog_info.resources | length != 0 and
-    catalog_info.resources[0].status.connectionState.lastObservedState | default("NOTREADY") == "READY"
-
-- name: create Subscription
-  kubernetes.core.k8s:
-    state: present
-    src: "{{ (intel_ethernet_operator_files_dir, 'subscription.yml') | path_join }}"
+    - operator-group.yaml.j2
+    - subscription.yaml.j2
 
 - name: wait for Ethernet Operator deployment
   kubernetes.core.k8s_info:

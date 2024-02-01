@@ -40,6 +40,15 @@ vms:
       - "18:02.7"
       - "b1:01.3"
       - "b3:01.3"
+# Or in case with auto-configuration of SRIOV NIC and SRIOV QAT
+  - type: "work"
+    name: "vm-work-4"
+    cpu_total: 16
+    memory: 20480
+    vxlan: 128
+    pci: []
+    nic_devices_count: 4
+    qat_devices_count: 2
 ```
 
 New host_vars file needs to be created for added vm-work node. In our case host_vars/vm-work-4.yml.
@@ -76,6 +85,15 @@ vms:
       - "18:02.7"
       - "b1:01.3"
       - "b3:01.3"
+# Or in case with auto-configuration of SRIOV NIC and SRIOV QAT
+  - type: "work"
+    name: "vm-work-5"
+    cpu_total: 16
+    memory: 20480
+    vxlan: 128
+    pci: []
+    nic_devices_count: 4
+    qat_devices_count: 2
 ```
 
 

@@ -33,3 +33,9 @@ install_dependencies:
     - cpio
     - rpm2cpio
     - python3-dev
+    - nasm
+    - llvm
+    - clang
+    - ocaml
+    - ocamlbuild
+    - mini-dinstall

@@ -24,13 +24,22 @@
               Incorrect Media Analytics configuration !!
               Make sure 'gpu_dp_enalbed: true' to enable Media Analytics
 
-      - name: Media Analytics - support only docker runtime
+      - name: Media Analytics - support docker and containerd
         ansible.builtin.assert:
             that:
-                - container_runtime == 'docker'
+                - container_runtime is in ['docker', 'containerd']
             msg: |
               Incorrect Media Analytics configuration !!
-              Make sure 'container_runtime: docker' to enable Media Analytics
+              Make sure 'container_runtime' is either 'docker' or 'containerd' to enable Media Analytics
+
+      - name: Media Analytics - check if intel_base_container_enabled and build_base_images enabled
+        ansible.builtin.assert:
+            that:
+                - intel_base_container_enabled | default(false)
+                - build_base_images | default(false)
+            msg: |
+              Incorrect Media Analytics configuration !!
+              Make sure 'intel_base_container_enabled: true' and 'build_base_images: true' to enable Media Analytics
   when:
       - kubernetes
       - intel_media_analytics_enabled | default(false)

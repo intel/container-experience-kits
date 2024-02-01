@@ -31,7 +31,7 @@
     - name: edit isolated_cores in /etc/tuned/realtime-variables.conf
       ansible.builtin.lineinfile:
         path: /etc/tuned/realtime-variables.conf
-        line: isolated_cores=1-30,33-62
+        line: "isolated_cores={{ isol_vars.isolcpus }}"
     - name: uncomment isolate_managed_irq=Y in /etc/tuned/realtime-variables.conf
       ansible.builtin.lineinfile:
         path: /etc/tuned/realtime-variables.conf

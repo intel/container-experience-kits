@@ -16,6 +16,7 @@
 ---
 - name: restart docker
   command: /bin/true
+  changed_when: false
   notify:
     - reload systemd
     - reload docker
@@ -32,6 +33,7 @@
 
 - name: wait for docker
   command: "{{ docker_bin_dir }}/docker images"
+  changed_when: false
   register: docker_ready
   retries: 20
   delay: 1

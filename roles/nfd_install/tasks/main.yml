@@ -23,18 +23,10 @@
   changed_when: false
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: copy NFD Helm chart to the controller node
-  copy:
-    src: "{{ (role_path, 'charts', 'node-feature-discovery') | path_join }}"
-    dest: "{{ (project_root_dir, 'charts') | path_join }}"
-    mode: 0755
-  when: inventory_hostname == groups['kube_control_plane'][0]
-
-- name: add correct appVersion to Chart.yml
-  replace:
-    path: "{{ (project_root_dir, 'charts', 'node-feature-discovery', 'Chart') | path_join }}.yaml"
-    regexp: '^appVersion: (.*)$'
-    replace: 'appVersion: "{{ nfd_image_tag }}"'
+- name: add NFD helm repo
+  kubernetes.core.helm_repository:
+    name: "{{ nfd_helm_name }}"
+    repo_url: "{{ nfd_helm_repo }}"
   when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: populate NFD Helm chart values template and push to controller node
@@ -59,11 +51,12 @@
     - inventory_hostname == groups['kube_control_plane'][0]
     - on_cloud is defined and on_cloud
 
-- name: Deploy NFD chart using values files on target
+- name: Deploy NFD
   kubernetes.core.helm:
     name: node-feature-discovery
     release_state: present
-    chart_ref: "{{ (project_root_dir, 'charts', 'node-feature-discovery') | path_join }}"
+    chart_ref: "nfd/node-feature-discovery"
+    chart_version: "{{ nfd_version }}"
     release_namespace: "{{ nfd_namespace }}"
     values_files: "{{ (project_root_dir, 'charts', 'nfd-values.yml') | path_join }}"
     wait: yes

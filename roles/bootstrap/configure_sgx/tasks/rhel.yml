@@ -75,7 +75,9 @@
 - name: Setting packages for Rocky / RHEL >= 9.0 for sgx platform
   block:
     - name: install software specific to Rocky / RHEL >= 9.0 for sgx platform
-      shell: "set -o pipefail && rpm --reinstall --nodeps '{{ sgx_rpm_directory }}/{{ item }}-{{ sgx_pkg_version }}-1.el8.x86_64.rpm'"
+      ansible.builtin.shell:
+        cmd: "set -o pipefail && rpm --reinstall --nodeps '{{ sgx_rpm_directory }}/{{ item }}-{{ sgx_pkg_version }}-1.el9.x86_64.rpm'"
+        executable: /bin/bash
       loop:
         - libsgx-launch
         - libsgx-epid
@@ -91,7 +93,9 @@
       failed_when: false
 
     - name: install aesm service
-      shell: "set -o pipefail && rpm --reinstall --nodeps '{{ sgx_rpm_directory }}/{{ item }}-{{ sgx_pkg_version }}-1.el8.x86_64.rpm'"
+      ansible.builtin.shell:
+        cmd: "set -o pipefail && rpm --reinstall --nodeps '{{ sgx_rpm_directory }}/{{ item }}-{{ sgx_pkg_version }}-1.el9.x86_64.rpm'"
+        executable: /bin/bash
       loop:
         - sgx-aesm-service
       when: "'sgx-aesm-service' not in aesm_package.stdout"
@@ -109,7 +113,7 @@
         state: directory
         mode: 0644
 
-    - name: downloading protobuf from rocky 8 repository
+    - name: downloading protobuf from rocky repository
       get_url:
         url: "{{ protobuf_repository }}/{{ protobuf_version }}"
         dest: "{{ (project_root_dir, protobuf_dir, protobuf_version) | path_join }}"
@@ -120,8 +124,9 @@
       delay: "{{ retry_delay | default(3) }}"
 
     - name: unpack protobuf rpm
-      shell: 'rpm2cpio {{ protobuf_version }} | cpio -idmv'
-      args:
+      ansible.builtin.shell:
+        cmd: 'set -o pipefail && rpm2cpio {{ protobuf_version }} | cpio -idmv'
+        executable: /bin/bash
         chdir: "{{ (project_root_dir, protobuf_dir) | path_join }}"
       changed_when: true
 
@@ -133,7 +138,7 @@
         group: root
         mode: 0755
         dest: "{{ ('/', protobuf_library_dir, protobuf_library_version_long) | path_join }}"
-  when: ansible_distribution_version >= '9.0'
+  when: ansible_distribution_version is version('9.0', '>=')
 
 - name: install common software for sgx platform
   package:
@@ -165,7 +170,7 @@
 - name: wait for aesmd service to start
   pause: # there is no smart way how to check if systemd service will stay running
     minutes: 1
-  when: ansible_distribution_version >= '9.0'
+  when: ansible_distribution_version is version('9.0', '>=')
 
 - name: get aesmd service facts
   service_facts:

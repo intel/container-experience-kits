@@ -8,7 +8,7 @@ To generate mirror links in group vars for any profile, set MIRRORS=true for mak
 Example:
 
 ```bash
-    make k8s-profile PROFILE=full_nfv ARCH=icx NIC=cvl MIRRORS=true
+    make k8s-profile PROFILE=full_nfv ARCH=spr NIC=cvl MIRRORS=true
 ```
 
 ## Set correct values for mirror links and file URLs

@@ -22,6 +22,12 @@ The software provided here is for reference only and not intended for production
         export PROFILE=access
         ```
 
+    - For **Kubernetes Edge Ready Infrastructure** deployment:
+
+        ```bash
+        export PROFILE=base_video_analytics
+        ```
+
     - For **Kubernetes Regional Data Center Infrastructure** deployment:
 
         ```bash
@@ -99,15 +105,26 @@ The software provided here is for reference only and not intended for production
     ansible-galaxy install -r collections/requirements.yml
     ```
 
-4. Generate example host_vars, group_vars and inventory files for Intel Container Experience Kits profiles.
+4. Copy SSH key to all Kubernetes nodes or VM hosts you are going to use.
+
+    ```bash
+    ssh-copy-id <user>@<host>
+    ```
+
+5. Generate example host_vars, group_vars and inventory files for Intel Container Experience Kits profiles.
 
    > **_NOTE:_** It is **highly recommended** to read [this](docs/generate_profiles.md) file before profiles generation.
 
+    Architecture and Ethernet Network Adapter type can be auto-discovered:
     ```bash
-    make examples ARCH=<atom,core,**icx**,spr,emr,ultra> NIC=<fvl,**cvl**>
+    make auto-examples HOSTS=X.X.X.X,X.X.X.X USERNAME=<user>
+    ```
+    or specified manually:
+    ```bash
+    make examples ARCH=<atom,core,icx,**spr**,emr,gnr,ultra> NIC=<fvl,**cvl**>
     ```
 
-5. Copy example inventory file to the project root dir.
+6. Copy example inventory file to the project root dir.
 
     ```bash
     cp examples/k8s/${PROFILE}/inventory.ini .
@@ -121,7 +138,7 @@ The software provided here is for reference only and not intended for production
 
     > **_NOTE:_** For cloud profiles no inventory.ini file is created, as it will be generated during machine provisioning. As a result, step 6 can be skipped.
 
-6. Update inventory file with your environment details.
+7. Update inventory file with your environment details.
 
     For VM case: update details relevant for vm_host
 
@@ -133,7 +150,7 @@ The software provided here is for reference only and not intended for production
 
     In `all_system_facts.txt` file you will find details about your hardware, operating system and network interfaces, which will help to properly configure Ansible variables in the next steps.
 
-7. Copy group_vars and host_vars directories to the project root dir.
+8. Copy group_vars and host_vars directories to the project root dir.
 
     ```bash
     cp -r examples/k8s/${PROFILE}/group_vars examples/k8s/${PROFILE}/host_vars .
@@ -151,7 +168,7 @@ The software provided here is for reference only and not intended for production
     cp -r examples/cloud/${PROFILE}/group_vars examples/cloud/${PROFILE}/host_vars .
     ```
 
-8. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
+9. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
 
     > **_NOTE:_** Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
 
@@ -165,13 +182,13 @@ The software provided here is for reference only and not intended for production
       Needed details are at least dataplane_interfaces
       For more details see [VM case configuration guide](docs/vm_config_guide.md)
 
-9. **Mandatory:** Apply patch for Kubespray collection.
+10. **Mandatory:** Apply patch for Kubespray collection.
 
     ```bash
     ansible-playbook -i inventory.ini playbooks/k8s/patch_kubespray.yml
     ```
 
-10. Execute `ansible-playbook`.
+11. Execute `ansible-playbook`.
 
     > **_NOTE:_** For Cloud case this step is not used. See the [cloud/](cloud/) directory for more details
     
@@ -193,6 +210,10 @@ The software provided here is for reference only and not intended for production
     ```
 
     > **_NOTE:_** VMs are accessible from ansible host via ssh vm-ctrl-1 or ssh vm-work-1
+
+## Cleanup
+
+Refer to the [documentation](docs/redeploy_cleanup.md) to see details about how to cleanup existing deployment or specific feature.
 
 ## Configuration
 

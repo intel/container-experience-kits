@@ -13,6 +13,6 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-prometheus_stack_version: 2.47.0
-grafana_version: 10.1.2
-node_exporter_version: 1.6.1
+prometheus_stack_version: 2.48.0
+grafana_version: 10.2.2
+node_exporter_version: 1.7.0

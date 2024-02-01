@@ -40,7 +40,7 @@
         chdir: "{{ operator_sdk_dir }}"
 
     - name: install Operator Lifecycle Manager (OLM)
-      command: "operator-sdk olm install --version {{ operator_lm_version }}"
+      command: "operator-sdk olm install --version {{ operator_lm_version }} --timeout 4m"
       environment:
         PATH: "{{ gopath.stdout }}/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ operator_sdk_dir }}"
       changed_when: true
@@ -50,7 +50,7 @@
       args:
         executable: /bin/bash
       register: olm_pods_status
-      retries: 30
+      retries: 3
       delay: 10
       until:
         - "'Error' not in olm_pods_status.stdout"

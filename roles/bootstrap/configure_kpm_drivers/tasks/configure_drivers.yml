@@ -22,14 +22,14 @@
         state: present
         persistent: present
 
-- name: acpi_cpufreq scaling driver
+- name: intel_cpufreq scaling driver
   when:
-    - hostvars[inventory_hostname]['frequency_scaling_driver'] == "acpi_cpufreq"
+    - hostvars[inventory_hostname]['frequency_scaling_driver'] == "intel_cpufreq"
     - inventory_hostname in kubernetes_power_manager.power_nodes
   block:
     - name: set kernel flags to disable intel_pstate scaling driver
       ansible.builtin.set_fact:
-        intel_pstate_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} intel_pstate=disable intel_pstate=no_hwp"'
+        intel_pstate_cmdline: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} intel_pstate=passive"'
 
     - name: disable intel_pstate in /etc/default/grub
       ansible.builtin.lineinfile:
@@ -55,5 +55,5 @@
   notify:
     - reboot server
   when:
-    - hostvars[inventory_hostname]['frequency_scaling_driver'] == "acpi_cpufreq" or
+    - hostvars[inventory_hostname]['frequency_scaling_driver'] == "intel_cpufreq" or
       hostvars[inventory_hostname]['uncore_frequency']['enabled'] | default(false) | bool

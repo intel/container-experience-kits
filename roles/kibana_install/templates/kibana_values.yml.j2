@@ -1,8 +1,8 @@
 ---
-elasticsearchHosts: "https://elasticsearch-master.monitoring.svc:9200"
+elasticsearchHosts: "https://elasticsearch-main-es-http.monitoring.svc:9200"
 elasticsearchCertificateSecret: elasticsearch-tls
 elasticsearchCertificateAuthoritiesFile: ca.crt
-elasticsearchCredentialSecret: elasticsearch-master-credentials
+elasticsearchCredentialSecret: kibana-elastic-credentials
 
 replicas: 1
 
@@ -64,10 +64,10 @@ updateStrategy:
   type: "Recreate"
 
 service:
-  type: NodePort
+  type: ClusterIP
   loadBalancerIP: ""
   port: 5601
-  nodePort: 30001
+  # nodePort: 30001
   labels: {}
   annotations: {}
   # cloud.google.com/load-balancer-type: "Internal"

@@ -1,0 +1,42 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+- name: Preflight - KubeVirt | Check container runtime
+  run_once: true
+  ansible.builtin.assert:
+    that: container_runtime in ['containerd', 'crio']
+    fail_msg: Kubevirt deployment is supported only with containerd or crio CRIs.
+
+- name: Preflight - KubeVirt | Check HW virtualization enabled
+  block:
+    - name: Check Intel Virtualization Technology
+      ansible.builtin.shell: "set -o pipefail && lscpu | grep 'Virtualization:'"
+      args:
+        executable: /bin/bash
+      register: virtualization_tech
+      changed_when: false
+      failed_when: false
+
+    - ansible.builtin.debug: msg="{{ virtualization_tech.stdout }}"
+      when:
+        - virtualization_tech|length > 0
+
+    - name: Warn about Intel Virtualization Technology
+      ansible.builtin.fail:
+        msg: |
+          "Warning: Intel Virtualization Technology is DISABLED on target."
+          "Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
+      when:
+        - "'VT-x' not in virtualization_tech.stdout"

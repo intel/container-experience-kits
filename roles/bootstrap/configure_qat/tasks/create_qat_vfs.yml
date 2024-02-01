@@ -34,11 +34,13 @@
     # in case when QAT SR-IOV VFs have been already configured we reset it first to avoid "device or resource busy" error
     - name: reset QAT SR-IOV Virtual Functions
       shell: echo 0 > /sys/bus/pci/devices/{{ item.qat_id }}/sriov_numvfs
+      changed_when: true
       when: existing_vfs.stdout|int != 0 and existing_vfs.stdout|int != item.qat_sriov_numvfs
             and (existing_vfs.stdout|int != total_vfs.stdout|int or item.qat_sriov_numvfs|int == 0)
 
     - name: enable QAT SR-IOV Virtual Functions
       shell: echo {{ item.qat_sriov_numvfs }} > /sys/bus/pci/devices/{{ item.qat_id }}/sriov_numvfs
+      changed_when: true
       when: existing_vfs.stdout|int != item.qat_sriov_numvfs
             and (existing_vfs.stdout|int != total_vfs.stdout|int or item.qat_sriov_numvfs|int == 0)
 

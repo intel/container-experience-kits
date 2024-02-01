@@ -107,7 +107,7 @@
 
     - name: copy OVMF.fd to ovmf folder
       ansible.builtin.copy:
-        src: /usr/share/tdvf/OVMF.fd
+        src: /usr/share/qemu/OVMF.fd
         dest: /usr/share/ovmf/OVMF.fd
         remote_src: yes
         mode: '0644'

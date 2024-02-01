@@ -14,5 +14,5 @@
 ##   limitations under the License.
 ##
 ---
-cert_manager_version: "v1.11.1"
+cert_manager_version: "v1.12.5"
 cert_manager_crd_url: "https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.crds.yaml"

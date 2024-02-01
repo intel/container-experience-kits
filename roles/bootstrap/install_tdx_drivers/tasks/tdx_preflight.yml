@@ -30,6 +30,6 @@
 - name: check linux distro version for tdx
   ansible.builtin.assert:
     that: >
-      - (ansible_distribution == 'Ubuntu' and ansible_distribution_version == '22.04')
+      - (ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('22.04', '=='))
     msg:
       - "TDX is verified only on Ubuntu 22.04 with RA"

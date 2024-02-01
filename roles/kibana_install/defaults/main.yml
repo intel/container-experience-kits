@@ -13,6 +13,8 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
+kibana_chart_repo: "https://helm.elastic.co"
+kibana_chart_name: "elastic"
 kibana_chart_version: "8.5.1"
 kibana_namespace: "monitoring"
 kibana_release_name: "kibana"

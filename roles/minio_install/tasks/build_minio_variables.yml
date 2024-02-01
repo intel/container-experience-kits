@@ -37,7 +37,7 @@
       set_fact:
         temp_minio_interfaces: "{{ temp_minio_interfaces | default([]) + [item | combine({'nodename': minio_hostname})] }}"
       vars:
-        minio_hostname: "{{ inventory_hostname }}"
+        minio_hostname: "{{ hostvars[inventory_hostname]['ansible_hostname'] }}"
       loop: "{{ hostvars[inventory_hostname]['dataplane_interfaces'] }}"
       when:
         - inventory_hostname in groups['kube_node']

@@ -31,7 +31,7 @@
 - name: Store primary IPs of running VMs
   set_fact:
     vm_ips: "{{ vm_ips | default({}) | combine( {item.item.name: item.stdout.splitlines() | first} ) }}"
-  when: item.changed and item.item.name is defined  # noqa 503 # no-handler
+  when: item.changed and item.item.name is defined  # noqa no-handler
   loop: "{{ vm_out.results }}"
   tags:
     - intel-platform-qat-setup

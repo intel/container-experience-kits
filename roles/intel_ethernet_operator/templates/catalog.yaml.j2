@@ -1,0 +1,13 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: {{ ieo_catalog_name }}
+  namespace: olm
+  labels:
+    app: intel-ethernet-operator
+    version: {{ intel_ethernet_operator_git_ref }}
+spec:
+  sourceType: grpc
+  image: {{ intel_ethernet_operator_catalog_image }}
+  publisher: Intel
+  displayName: Intel ethernet operators (Local)

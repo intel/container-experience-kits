@@ -1,6 +1,6 @@
 agent: |
   [agent]
-    interval = "5s"
+    interval = "{{ telegraf_scrape_interval }}s"
     round_interval = true
     metric_batch_size = 10000
     metric_buffer_limit = 100000

@@ -22,6 +22,7 @@
       - not kube_network_plugin_multus
       - hugepages_enabled | default(false)
       - number_of_hugepages_1G >= 16
+      - install_dpdk | default(false)
     fail_msg: |
       Make sure that following variables are set correctly:
          - kube_network_plugin: cni
@@ -29,9 +30,13 @@
          - kube_network_plugin_multus: false
          - hugepages_enabled: true
          - number_of_hugepages_1G: 16 (at least 16)
+         - install_dpdk: true
     success_msg: "Required Calico VPP Dataplane variables are set correctly"
 
 - ansible.builtin.debug: msg="the given IP in inventory.ini is {{ ip }}"
+
+- name: do facts module to get latest information
+  ansible.builtin.setup:
 
 - name: parse interfaces from given IP
   set_fact:

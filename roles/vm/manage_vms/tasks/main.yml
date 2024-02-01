@@ -18,7 +18,7 @@
   include_role:
     name: bootstrap/allocate_cpus # noqa role-name[path] - role in bootstrap
   when:
-    - isolcpus_cpus_total is not defined and not isolcpus_cpus_total
+    - (isolcpus_cpus_total is not defined) or (not isolcpus_cpus_total)
 
 - name: Start VMs
   include_tasks: start_vm.yml

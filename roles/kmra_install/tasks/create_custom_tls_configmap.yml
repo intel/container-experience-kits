@@ -118,9 +118,10 @@
 
 - name: set fact of all secrets
   ansible.builtin.set_fact:
-    "custom_tls_{{ item['source'] | basename | replace('.','')}}": "{{ item['content'] | replace(\"'\",'') | b64decode }}"
-  no_log: true
+    custom_tls_secrets: "{{ custom_tls_secrets | default({}) | \
+       combine({ item['source'] | basename | replace('.','_'): item['content'] | replace(\"'\",'') | b64decode }) }}"
   loop: "{{ secret_files.results }}"
+  no_log: true
 
 - name: create configmap for the kmra app custom-tls
   kubernetes.core.k8s:
@@ -132,14 +133,15 @@
         name: kmra-apphsm-custom-config
         namespace: "{{ kmra.namespace }}"
       data:
-        server_cu.key: "{{ custom_tls_token_server_cukey }}"
-        server_cu.crt: "{{ custom_tls_token_server_cucrt }}"
-        server_du.key: "{{ custom_tls_token_server_dukey }}"
-        server_du.crt: "{{ custom_tls_token_server_ducrt }}"
-        server_ric.key: "{{ custom_tls_token_server_rickey }}"
-        server_ric.crt: "{{ custom_tls_token_server_riccrt }}"
-        client.key: "{{ custom_tls_token_clientkey }}"
-        client.crt: "{{ custom_tls_token_clientcrt }}"
+        server_cu.key: "{{ custom_tls_secrets['token_server_cu_key'] }}"
+        server_cu.crt: "{{ custom_tls_secrets['token_server_cu_crt'] }}"
+        server_du.key: "{{ custom_tls_secrets['token_server_du_key'] }}"
+        server_du.crt: "{{ custom_tls_secrets['token_server_du_crt'] }}"
+        server_ric.key: "{{ custom_tls_secrets['token_server_ric_key'] }}"
+        server_ric.crt: "{{ custom_tls_secrets['token_server_ric_crt'] }}"
+        client.key: "{{ custom_tls_secrets['token_client_key'] }}"
+        client.crt: "{{ custom_tls_secrets['token_client_crt'] }}"
+  no_log: true
 
 - name: clean up tmp directory
   ansible.builtin.file:
@@ -157,20 +159,22 @@
     - name: get ca crt base64
       ansible.builtin.shell: >-
         set -o pipefail &&
-        echo -n "{{ custom_tls_cacrt }}" | openssl x509 -outform der | base64 -w0
+        echo -n "{{ custom_tls_secrets['ca_crt'] }}" | openssl x509 -outform der | base64 -w0
       register: ca_crt_str
       args:
         executable: /bin/bash
       changed_when: true
+      no_log: true
 
     - name: get client crt base64
       ansible.builtin.shell: >-
         set -o pipefail &&
-        echo -n "{{ custom_tls_token_clientcrt }}" | openssl x509 -outform der | base64 -w0
+        echo -n "{{ custom_tls_secrets['token_client_crt'] }}" | openssl x509 -outform der | base64 -w0
       register: client_crt_str
       args:
         executable: /bin/bash
       changed_when: true
+      no_log: true
 
     - name: populate tls_truststore.xml
       ansible.builtin.template:
@@ -181,11 +185,12 @@
     - name: get client finger
       ansible.builtin.shell: >-
         set -o pipefail &&
-        echo -n "{{ custom_tls_cacrt }}" | openssl x509 -noout -fingerprint | cut -b '18-'
+        echo -n "{{ custom_tls_secrets['ca_crt'] }}" | openssl x509 -noout -fingerprint | cut -b '18-'
       register: finger_str
       args:
         executable: /bin/bash
       changed_when: true
+      no_log: true
 
     - name: populate tls_listen.xml
       ansible.builtin.template:
@@ -198,18 +203,18 @@
   no_log: true
   loop:
     - {
-      key: "{{ custom_tls_token_server_cukey }}",
-      crt: "{{ custom_tls_token_server_cucrt }}",
+      key: "{{ custom_tls_secrets['token_server_cu_key'] }}",
+      crt: "{{ custom_tls_secrets['token_server_cu_crt'] }}",
       xml: 'tls_keystore_cu.xml'
     }
     - {
-      key: "{{ custom_tls_token_server_dukey }}",
-      crt: "{{ custom_tls_token_server_ducrt }}",
+      key: "{{ custom_tls_secrets['token_server_du_key'] }}",
+      crt: "{{ custom_tls_secrets['token_server_du_crt'] }}",
       xml: 'tls_keystore_du.xml'
     }
     - {
-      key: "{{ custom_tls_token_server_rickey }}",
-      crt: "{{ custom_tls_token_server_riccrt }}",
+      key: "{{ custom_tls_secrets['token_server_ric_key'] }}",
+      crt: "{{ custom_tls_secrets['token_server_ric_crt'] }}",
       xml: 'tls_keystore_ric.xml'
     }
 
@@ -223,15 +228,16 @@
 - name: read all sysrepo files
   ansible.builtin.slurp:
     src: "{{ item.path }}"
-  register: sysrepo_files
+  register: sysrepo_files_content
   no_log: true
   loop: "{{ sysrepo_list.files }}"
 
 - name: set fact of all sysrepo files
   ansible.builtin.set_fact:
-    "sysrepo_{{ item['source'] | basename | replace('.','')}}": "{{ item['content'] | replace(\"'\",'') | b64decode }}"
+    sysrepo_files: "{{ sysrepo_files | default({}) | \
+       combine({ item['source'] | basename | replace('.','_'): item['content'] | replace(\"'\",'') | b64decode }) }}"
+  loop: "{{ sysrepo_files_content.results }}"
   no_log: true
-  loop: "{{ sysrepo_files.results }}"
 
 - name: create configmap for the netopeer2 app
   kubernetes.core.k8s:
@@ -244,26 +250,26 @@
         namespace: "{{ cosign_enforce_namespace }}"
       data:
         tls_keystore.xml: "{{ item.xml }}"
-        tls_listen.xml: "{{ sysrepo_tls_listenxml }}"
-        tls_truststore.xml: "{{ sysrepo_tls_truststorexml }}"
+        tls_listen.xml: "{{ sysrepo_files['tls_listen_xml'] }}"
+        tls_truststore.xml: "{{ sysrepo_files['tls_truststore_xml'] }}"
   no_log: true
   loop:
     - {
       key: "{{ kmra.oran_netopeer2_server.release_name }}-cu",
-      xml: "{{ sysrepo_tls_keystore_cuxml }}"
+      xml: "{{ sysrepo_files['tls_keystore_cu_xml'] }}"
     }
     - {
       key: "{{ kmra.oran_netopeer2_server.release_name }}-du",
-      xml: "{{ sysrepo_tls_keystore_duxml }}"
+      xml: "{{ sysrepo_files['tls_keystore_du_xml'] }}"
     }
     - {
       key: "{{ kmra.oran_netopeer2_server.release_name }}-ric",
-      xml: "{{ sysrepo_tls_keystore_ricxml }}"
+      xml: "{{ sysrepo_files['tls_keystore_ric_xml'] }}"
     }
     # just reuse cu keystore for client sysrepo format check only
     - {
       key: "{{ kmra.oran_netopeer2_client.release_name }}",
-      xml: "{{ sysrepo_tls_keystore_cuxml }}"
+      xml: "{{ sysrepo_files['tls_keystore_cu_xml'] }}"
     }
 
 - name: clean up tmp directory

@@ -58,3 +58,6 @@ install_dependencies:
     - libzstd-devel.x86_64
     - iproute-devel.x86_64
 #    - pyelftools # RH8.6RT: "failures": "No package pyelftools available."
+
+fec_info_path: /etc/cek
+sriov_config_path: /etc/cek

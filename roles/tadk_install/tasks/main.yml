@@ -32,8 +32,8 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
-- name: populate template files with values
-  template:
+- name: Populate template files with values
+  ansible.builtin.template:
     src: "{{ item }}.j2"
     dest: "{{ (dest_path, 'tadk', item) | path_join }}"
     force: yes
@@ -44,11 +44,13 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
 
-- name: deploy the helm
-  ansible.builtin.command: >-
-    helm upgrade -i {{ deploy_name }} --create-namespace --namespace {{ tadk_namespace }}
-    -f {{ (dest_path, 'tadk', 'values.yaml') | path_join }} {{ (dest_path, 'tadk') | path_join }}
-  args:
-    chdir: "{{ (dest_path, 'tadk') | path_join }}"
+- name: Deploy tadk helm chart
+  kubernetes.core.helm:
+    chart_ref: "{{ (dest_path, 'tadk') | path_join }}"
+    release_name: "{{ deploy_name }}"
+    release_namespace: "{{ tadk_namespace }}"
+    values_files: "{{ (dest_path, 'tadk', 'values.yaml') | path_join }}"
+    create_namespace: true
+    force: true
   when:
     - inventory_hostname == groups['kube_control_plane'][0]

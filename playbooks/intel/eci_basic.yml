@@ -22,8 +22,7 @@
       tags: intel-eci
       when:
         - intel_eci_enabled | default(false) | bool
-  environment:
-    - "{{ proxy_env | d({}) }}"
+  environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true
 
 # This tasks is used to configure host and extract some information used for vm
@@ -43,6 +42,5 @@
       tags: intel-eci
       when:
         - intel_eci_enabled | default(false) | bool
-  environment:
-    - "{{ proxy_env | d({}) }}"
+  environment: "{{ proxy_env | d({}) }}"
   any_errors_fatal: true

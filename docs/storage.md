@@ -41,6 +41,19 @@ rook_ceph:
   storage_class: "rook-cephfs"    # Storage class name
   storage_type: "cephfs"          # Storage type for rook-ceph, supported values[cephfs, block, object]  
 ```
+## Remote Storage
+For the remote storage, the container runtime only support containerd and crio. Below is the steps to configure the remote storage functionality:
+```
+1. configure the storage node in group_vars/all.ym
+  storage_nodes: []    #if no setting, all kubenode will be used as storage node.
+  # storage_nodes:
+  #   - node0
+  #   - node1
+2. configure the disk in the host_vars/<storage_node>.yml
+  Described in the disk configuration session.
+```
+Then, you can deploy the cluster, after the cluster successfully deployed, you can use the remote storage function in the cluster.
+
 ## Disk Configuration
 Same as described in local volume static provisioner.
 

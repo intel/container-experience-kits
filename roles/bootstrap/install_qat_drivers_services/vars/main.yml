@@ -22,6 +22,7 @@ install_dependencies:
     - wget
     - make
     - yasm
+    - nasm
     - libboost-all-dev
     - libnl-genl-3-dev
     - zlib1g
@@ -41,5 +42,6 @@ install_dependencies:
     - perl
     - usbutils
     - yasm
+    - nasm
     - boost-devel
     - libnl3-devel

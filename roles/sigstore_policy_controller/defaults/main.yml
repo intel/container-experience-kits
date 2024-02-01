@@ -26,7 +26,7 @@ container_registry_secret: container-registry-secret
 
 sigstore_chart_name: sigstore
 sigstore_chart_repo: https://sigstore.github.io/helm-charts
-policy_controller_release: 0.6.5
+policy_controller_release: 0.6.7
 sigstore_chart_tag: "policy-controller-{{ policy_controller_release }}"
 policy_controller_release_name: policy-controller
 policy_controller_dir: "{{ (project_root_dir, 'policy-controller') | path_join }}"

@@ -22,6 +22,7 @@
     path: "{{ calico_vpp_files_dir }}"
     state: directory
     mode: '0755'
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: download tigera-operator deployment file
   ansible.builtin.get_url:
@@ -32,11 +33,20 @@
   register: tigera_operator_download
   until: tigera_operator_download is not failed
   retries: 5
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Update tigera-operator deployment file
+  ansible.builtin.lineinfile:
+    path: "{{ (calico_vpp_files_dir, 'tigera-operator.yaml') | path_join }}"
+    insertafter: 'kubernetes.io/os: linux'
+    line: '        node-role.kubernetes.io/control-plane: ""'
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install tigera-operator
   kubernetes.core.k8s:
     state: present
     src: "{{ (calico_vpp_files_dir, 'tigera-operator.yaml') | path_join }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: wait for tigera-operator ready
   kubernetes.core.k8s_info:
@@ -48,6 +58,7 @@
       reason: NewReplicaSetAvailable
       type: Progressing
     wait_timeout: 240
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: generate calico and calico-vpp deployment file
   ansible.builtin.template:
@@ -58,6 +69,7 @@
   loop:
     - {src: 'calico.yaml.j2', dst: 'calico.yaml'}
     - {src: 'calico-vpp.yaml.j2', dst: 'calico-vpp.yaml'}
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 # Pause 15 secs for waiting the calico basic part start firslty, and then calico vpp
 - name: deploy calico
@@ -69,11 +81,13 @@
     - 'calico-vpp.yaml'
   loop_control:
     pause: 15
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 # API Server will be in shortly disconnected status during calico cni initialization, so wait for a while
 - name: wait for calico cni to be fully initialized
   pause:
-    seconds: 180
+    seconds: 300
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: wait for calico-vpp to be ready
   kubernetes.core.k8s_info:
@@ -89,6 +103,7 @@
       ds_status.resources | length > 0 and
       ds_status.resources[0].status.numberReady > 0
     )
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: wait for calico to be ready
   block:
@@ -123,6 +138,7 @@
           ds_status.resources | length > 0 and
           ds_status.resources[0].status.numberReady > 0
         )
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: restart kubelet service
   ansible.builtin.systemd:
@@ -133,7 +149,9 @@
 - name: install calicoctl
   ansible.builtin.include_tasks:
     file: calicoctl.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]
 
 - name: install calivppctl
   ansible.builtin.include_tasks:
     file: calivppctl.yml
+  when: inventory_hostname == groups['kube_control_plane'][0]

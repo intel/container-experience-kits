@@ -13,8 +13,8 @@
 ##   See the License for the specific language governing permissions and
 ##   limitations under the License.
 ##
-crictl_version: "v1.27.0"
-crictl_binary_checksum: "d335d6e16c309fbc3ff1a29a7e49bb253b5c9b4b030990bf7c6b48687f985cee"
+crictl_version: "v1.28.0"
+crictl_binary_checksum: "8dc78774f7cbeaf787994d386eec663f0a3cf24de1ea4893598096cb39ef2508"
 
 crictl_repo_url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/"
 crictl_download_url: "{{ crictl_repo_url }}{{ crictl_version }}/crictl-{{ crictl_version }}-{{ ansible_system | lower }}-amd64.tar.gz"

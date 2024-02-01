@@ -14,28 +14,24 @@
 ##   limitations under the License.
 ##
 ---
-- name: assert that hugepages are enabled
-  assert:
-    that: hugepages_enabled | default(false)
-    fail_msg: "Hugepages are disabled. Please configure hugepages in the host vars or disable OVS-DPDK installation."
-
-- name: clone OVS git repository
-  git:
+- name: Clone OVS git repository
+  ansible.builtin.git:
     repo: '{{ ovs_repo }}'
     dest: '{{ ovs_dir }}'
-    version: '{{ ovs_version | default("master") }}'
+    version: '{{ ovs_version }}'
     force: yes
   register: ovs_changed
 
-- name: check whether bootstrap is required
-  stat: path={{ ovs_dir }}/configure
+- name: Check whether bootstrap is required
+  ansible.builtin.stat:
+    path: "{{ ovs_dir }}/configure"
   register: ovs_config_status
 
 - name: bootstrap OVS
-# noqa no-handler - more than one condition, can't be a handler
   command: ./boot.sh
   args:
     chdir: "{{ ovs_dir }}"
+  changed_when: true
   when: not ovs_config_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
 
 - name: Check if OVS Makefile exists
@@ -50,11 +46,11 @@
 - name: install dpdk-devel to prepare OVS-DPDK build in RHEL / Rocky >= 8.2
   dnf:
     name: dpdk-devel
-  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version is version('8.2', '>=')
 
 - name: update the dynamic linker cache in RHEL / Rocky >= 8.2
   command: "ldconfig"
-  when: ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
+  when: ansible_os_family == "RedHat" and ansible_distribution_version is version('8.2', '>=')
   changed_when: true
 
 - name: prepare OVS-DPDK build in RHEL / Rocky >= 8.2
@@ -63,8 +59,9 @@
     chdir: "{{ ovs_dir }}"
   environment:
     PKG_CONFIG_PATH: "/usr/local/lib64/pkgconfig:/usr/share/pkgconfig:/usr/lib64/pkgconfig"
+  changed_when: true
   when:
-    - ansible_os_family == "RedHat" and ansible_distribution_version >= '8.2'
+    - ansible_os_family == "RedHat" and ansible_distribution_version is version('8.2', '>=')
     - not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
 
 - name: prepare OVS-DPDK build
@@ -74,6 +71,7 @@
     chdir: "{{ ovs_dir }}"
   environment:
     PKG_CONFIG_PATH: "/usr/local/lib64/pkgconfig:/usr/share/pkgconfig:/usr/lib64/pkgconfig"
+  changed_when: true
   when:
     - ansible_distribution == 'Ubuntu'
     - not ovs_makefile_status.stat.exists or (ovs_rebuild is defined) or ovs_changed.changed
@@ -120,6 +118,7 @@
 
 - name: create database configuration
   command: '/usr/local/bin/ovsdb-tool create /usr/local/etc/openvswitch/conf.db /usr/local/share/openvswitch/vswitch.ovsschema'
+  changed_when: true
   when: not ovs_dbconfig_status.stat.exists
 
 - name: start OVS database server
@@ -129,7 +128,7 @@
   changed_when: true
 
 - name: set OVS dpdk-socket-mem
-  command: '/usr/local/bin/ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="{{ ovs_dpdk_socket_mem  }}"'
+  command: '/usr/local/bin/ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-socket-mem="{{ userspace_cni.ovs_dpdk_socket_mem  }}"'
   changed_when: true
 
 - name: set OVS dpdk-init
@@ -141,7 +140,7 @@
   changed_when: true
 
 - name: set OVS dpdk-lcore-mask
-  command: '/usr/local/bin/ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-lcore-mask={{ ovs_dpdk_lcore_mask }}'
+  command: '/usr/local/bin/ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-lcore-mask={{ userspace_cni.ovs_dpdk_lcore_mask }}'
   changed_when: true
 
 - name: WA for bug in DPDK initial device scan - block qat devices
@@ -233,11 +232,48 @@
   when:
     - qat_devices is defined and (qat_devices|length>0)
 
-- name: start OVS vswitchd
-  command: /usr/local/share/openvswitch/scripts/ovs-ctl --no-ovsdb-server --db-sock="/usr/local/var/run/openvswitch/db.sock" restart
-  environment:
-    OVS_RUNDIR: /usr/local/var/run/openvswitch
-  changed_when: true
+- name: copy ovs-dpdk script to /opt/cek/
+  ansible.builtin.copy:
+    src: "ovs-dpdk"
+    dest: /opt/cek/ovs-dpdk
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: copy ovs-dpdk.service script to /lib/systemd/ folder
+  ansible.builtin.copy:
+    src: "ovs-dpdk.service"
+    dest: /lib/systemd/system/ovs-dpdk.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+
+- name: copy ovs-reboot.service script to /lib/systemd/ folder
+  ansible.builtin.copy:
+    src: "ovs-reboot.service"
+    dest: /lib/systemd/system/ovs-reboot.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+
+- name: ensure that ovs-dpdk service is enabled and restarted
+  ansible.builtin.systemd:
+    name: ovs-dpdk
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  become: yes
+
+- name: ensure that ovs-reboot service is enabled and restarted
+  ansible.builtin.systemd:
+    name: ovs-reboot
+    state: stopped
+    enabled: yes
+    daemon_reload: yes
+  become: yes
 
 - name: create OVS bridge
   command: /usr/local/bin/ovs-vsctl --may-exist add-br br0 -- set bridge br0 datapath_type=netdev

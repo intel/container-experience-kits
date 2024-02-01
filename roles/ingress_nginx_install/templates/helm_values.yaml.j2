@@ -1,0 +1,32 @@
+## ingress-nginx Helm chart configuration
+## Ref: https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/values.yaml
+##
+
+# -- Override the deployment namespace; defaults to .Release.Namespace
+namespaceOverride: {{ ingress_nginx_namespace }}
+
+commonLabels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+
+controller:
+  ## nginx configuration
+  ## Ref: https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/index.md
+  ##
+  config:
+    use-forwarded-headers: "true"
+    ssl-ciphers: "AES128-CCM-SHA256:CHACHA20-POLY1305-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256"
+    ssl-protocols: "TLSv1.2 TLSv1.3"
+  priorityClassName: "k8s-cluster-critical"
+  # -- Bare-metal considerations via the host network https://kubernetes.github.io/ingress-nginx/deploy/baremetal/#via-the-host-network
+  # Ingress status was blank because there is no Service exposing the Ingress-Nginx Controller in a configuration using the host network, the default --publish-service flag used in standard cloud setups does not apply
+  reportNodeInternalIp: false
+  # -- Use a `DaemonSet` or `Deployment`
+  service:
+    type: NodePort
+    nodePorts:
+      http: {{ ingress_nodeport_http }}
+      https: {{ ingress_nodeport_https }}
+    ## Set external traffic policy to: "Local" to preserve source IP on providers supporting it.
+    ## Ref: https://kubernetes.io/docs/tutorials/services/source-ip/#source-ip-for-services-with-typeloadbalancer
+    externalTrafficPolicy: Local

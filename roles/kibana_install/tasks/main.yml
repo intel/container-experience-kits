@@ -17,18 +17,41 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
   block:
+    - name: Get Elasticsearch credentials
+      ansible.builtin.shell: >-
+          set -o pipefail && kubectl get secrets --namespace=monitoring
+          elasticsearch-main-es-elastic-user -ojsonpath='{.data.elastic}'
+      changed_when: false
+      register: elastic_pass
+      args:
+        executable: /bin/bash
+
     - name: create kibana folder
       ansible.builtin.file:
         state: directory
         dest: "{{ (project_root_dir, 'kibana') | path_join }}"
         mode: 0755
 
-    - name: populate kibana values file and push to controller node
+    - name: populate kibana template files and push to controller node
       ansible.builtin.template:
-        src: "kibana_values.yml.j2"
-        dest: "{{ (project_root_dir, 'kibana', 'kibana_values.yml') | path_join }}"
+        src: "{{ item }}"
+        dest: "{{ project_root_dir }}/kibana/{{ item | basename | regex_replace('.j2','') }}"
         force: yes
         mode: preserve
+      with_fileglob:
+        - ../templates/*.j2
+
+    - name: create kibana elastic secret
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (project_root_dir, 'kibana', item) | path_join }}"
+      loop:
+        - kibana_elastic_secret.yml
+
+    - name: add elasticsearch chart repo
+      kubernetes.core.helm_repository:
+        name: "{{ kibana_chart_name }}"
+        repo_url: "{{ kibana_chart_repo }}"
 
     - name: deploy kibana
       kubernetes.core.helm:

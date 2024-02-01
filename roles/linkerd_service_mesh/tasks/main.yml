@@ -54,7 +54,9 @@
     wait: true
 
 - name: Delete LinkerD Heartbeat CronJob if http_proxy is enabled
-  ansible.builtin.shell: "set -o pipefail && {{ kubectl_cli_bin }} delete cronjob linkerd-heartbeat -n linkerd"
-  args:
-    executable: /bin/bash
+  kubernetes.core.k8s:
+    kind: CronJob
+    name: linkerd-heartbeat
+    namespace: "{{ linkerd_namespace }}"
+    state: absent
   when: http_proxy is defined or https_proxy is defined

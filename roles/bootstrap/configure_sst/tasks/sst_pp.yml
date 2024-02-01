@@ -141,9 +141,10 @@
 
 - name: check vailable online CPUs values for auto config
   shell:
-    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59"
+    cmd: "set -o pipefail && turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59"
   args:
     executable: /bin/bash
+  changed_when: false
   register: read_turbostat_output
   when: '"auto" in sst_tf_online_cpus'
 
@@ -155,11 +156,15 @@
     - '"auto" in sst_tf_online_cpus'
 
 - name: save turbostat output for auto config to SST-PP dir path
-  shell:
-    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_auto.txt"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1
+      | head -n 59 > sst_pp_turbostat_output_when_auto.txt
   args:
     executable: /bin/bash
     chdir: "{{ project_root_dir }}/sst_pp_config"
+  changed_when: false
   when:
     - '"enable" in sst_tf_config'
     - '"auto" in sst_tf_online_cpus'
@@ -174,11 +179,12 @@
 # Config SST-TF turbo-freq when all are disabled
 - name: check available online CPUs values when SST-BF,SST-CP and SST-TF are disabled
   shell:
-    cmd: turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59
+    cmd: set -o pipefail && turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59
   args:
     executable: /bin/bash
     chdir: "{{ project_root_dir }}/sst_pp_config"
   register: turbostat_output_for_disabled
+  changed_when: false
   when:
     - '"disable" in sst_bf_config'
     - '"disable" in sst_cp_config'
@@ -193,8 +199,11 @@
     - '"disable" in sst_tf_config'
 
 - name: save turbostat output to SST-PP dir when SST-BF,SST-CP and SST-TF are disabled
-  shell:
-    cmd: "turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59 > sst_pp_turbostat_output_when_disabled.txt"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      turbostat -c {{ online_cpus_range.stdout }} --show Package,Core,CPU,Bzy_MHz -i 1
+      | head -n 59 > sst_pp_turbostat_output_when_disabled.txt
   args:
     executable: /bin/bash
     chdir: "{{ project_root_dir }}/sst_pp_config"

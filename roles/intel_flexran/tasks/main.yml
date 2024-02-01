@@ -14,7 +14,14 @@
 ##   limitations under the License.
 ##
 ---
-- debug: msg="Entering FlexRAN Role"
+- ansible.builtin.debug:
+    msg: "Entering FlexRAN Role"
+
+- name: create Intel FlexRAN files directory
+  ansible.builtin.file:
+    path: "{{ intel_flexran_files_dir }}"
+    state: directory
+    mode: '0755'
 
 - name: remove oRU from inventory (if defined) to skip its tasks in 'timer' test mode
   block:
@@ -82,7 +89,8 @@
     - inventory_hostname == groups['kube_node'][0]
     - not intel_sriov_fec_operator_enabled
 
-- debug: msg="FEC Accelerator device at {{ fec_acc }} is {{ fec_dev }}"
+- ansible.builtin.debug:
+    msg: "FEC Accelerator device at {{ fec_acc }} is {{ fec_dev }}"
   when: inventory_hostname == groups['kube_node'][0]
 
 - name: bind dpdk drivers to FEC ACC device(s)

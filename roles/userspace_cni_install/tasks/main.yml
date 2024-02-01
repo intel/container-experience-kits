@@ -14,34 +14,21 @@
 ##   limitations under the License.
 ##
 ---
-- name: install dependencies
-  include_role:
+- name: Install dependencies
+  ansible.builtin.include_role:
     name: install_dependencies
 
-- name: determine whether VPP can be installed on the target
-  set_fact:
-    vpp_supported: false
-  when: ansible_os_family == 'RedHat' and ansible_distribution_version >= '8'
-
-- name: install OVS-DPDK
-  include_tasks: ovs_install.yml
-  when: ovs_dpdk_enabled | default(false)
-
-- name: install userspace cni if supported
-  include_tasks: userspace_cni_install.yml
+- name: Install OVS-DPDK
+  ansible.builtin.include_tasks: ovs_install.yml
   when:
-    - userspace_cni_enabled
-    - ovs_dpdk_enabled or vpp_supported
+    - userspace_cni.vswitch | default(false) == 'ovs'
 
-- name: warn if VPP is enabled but isn't supported
-  debug:
-    msg: VPP enabled in the config, but cannot be installed because the OS isn't supported. Continuing without VPP support.
+- name: Install VPP
+  ansible.builtin.include_tasks: vpp_install.yml
   when:
-    - vpp_enabled | default(false)
-    - not vpp_supported
+    - userspace_cni.vswitch | default(false) == 'vpp'
 
-- name: install VPP
-  include_tasks: vpp_install.yml
+- name: Install Userspace CNI
+  ansible.builtin.include_tasks: userspace_cni_install_old.yml
   when:
-    - vpp_enabled | default(false)
-    - vpp_supported | default(false)
+    - userspace_cni_enabled | default(false)

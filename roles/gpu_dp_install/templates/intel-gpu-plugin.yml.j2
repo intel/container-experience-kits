@@ -13,5 +13,3 @@ spec:
   preferredAllocationPolicy: {{ gpu_dp_prefered_allocation | default('none') }}
   nodeSelector:
     intel.feature.node.kubernetes.io/gpu: "true"
-    # check if node has required PCI IDs
-    feature.node.kubernetes.io/pci-0380_8086.present: 'true'

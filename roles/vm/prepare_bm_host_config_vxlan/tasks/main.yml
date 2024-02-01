@@ -109,3 +109,10 @@
     ansible_user: "{{ login_user }}"
     inventory_dir: '{{ inventory_dir }}'
     groups: all
+
+# add those bm host in mixed cluster to a group
+- name: Add hosts to inventory - bm_host
+  ansible.builtin.add_host:
+    hostname: "{{ inventory_hostname }}"
+    groups: "bm_host"
+    inventory_dir: '{{ inventory_dir }}'

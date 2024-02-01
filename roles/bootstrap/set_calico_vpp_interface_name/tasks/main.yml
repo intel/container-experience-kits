@@ -1,0 +1,50 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+---
+- name: create default network configure file for Rocky and RHEL
+  block:
+    - name: create /etc/systemd/network directory
+      ansible.builtin.file:
+        path: "/etc/systemd/network"
+        state: directory
+        mode: '0755'
+    - name: create network configure file
+      ansible.builtin.template:
+        src: "70-custom-calicovpp.link.j2"
+        dest: "/etc/systemd/network/70-custom-calicovpp.link"
+        mode: '0744'
+      notify:
+        - reboot server
+  when:
+    - ansible_distribution in ['RedHat', 'Rocky'] and ansible_distribution_version is version('9.2', '>=')
+
+- name: create netplan configure file for calicovpp for Ubuntu
+  block:
+    - name: create netplan configure file
+      ansible.builtin.template:
+        src: "10-calico-vpp.yaml.j2"
+        dest: "/etc/netplan/10-calico-vpp.yaml"
+        mode: '0744'
+    - name: apply netplan for calicovpp
+      ansible.builtin.command: sudo netplan apply
+      changed_when: true
+    - name: wait 5 seconds for netplan apply
+      pause:
+        seconds: 5
+      notify:
+        - reboot server
+  when:
+    - ansible_distribution == 'Ubuntu'

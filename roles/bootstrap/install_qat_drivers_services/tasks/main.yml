@@ -34,6 +34,26 @@
     - on_vms | default(false)
     - hostvars[hostvars[inventory_hostname]['vm_host']]['qat_oot_driver_build_failed'] | default(false)
 
+- name: WA for QAT OOT driver issue on RHEL/Rocky
+  when:
+    - on_vms | default(false)
+    - hostvars[hostvars[inventory_hostname]['vm_host']]['ansible_os_family'] == "RedHat"
+    - configured_arch in ['gnr']
+  block:
+    - name: try to use intree qat driver on kube_control_plane
+      ansible.builtin.set_fact:
+        qat_oot_driver_build_failed: true
+        update_qat_drivers: false
+      with_items: "{{ groups['kube_control_plane'] }}"
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      run_once: true
+
+    - name: try to use intree qat driver
+      ansible.builtin.set_fact:
+        qat_oot_driver_build_failed: true
+        update_qat_drivers: false
+
 - name: install QAT OOT driver
   ansible.builtin.include_tasks: qat_oot_driver_install.yml
   when:

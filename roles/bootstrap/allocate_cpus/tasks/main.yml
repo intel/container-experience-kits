@@ -14,6 +14,16 @@
 ##   limitations under the License.
 ##
 ---
+- name: Remove old cpu allocations
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_fileglob:
+    - "~/.cpupin/{{ hostvars[inventory_hostname]['ansible_hostname'] }}_*"
+  delegate_to: localhost
+  become: false
+  when: vm_recreate_existing | default(true)
+
 - name: Allocate requested number of CPUs
   cpupin:
     name: "{{ item.name }}"
@@ -23,6 +33,7 @@
     number_host_os: "{{ cpu_host_os if cpu_host_os is defined else omit }}"
     alloc_all: "{{ item.alloc_all if item.alloc_all is defined else omit }}"
     pinning: false
+    host_name: "{{ hostvars[inventory_hostname]['ansible_hostname'] }}"
   loop: "{{ vms }}"
   changed_when: true
   register: allocated_cpus

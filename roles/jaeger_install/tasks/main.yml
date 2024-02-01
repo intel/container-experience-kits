@@ -55,8 +55,8 @@
 
     - name: Get Elasticsearch credentials
       ansible.builtin.shell: >-
-          kubectl get secrets --namespace=monitoring
-          elasticsearch-master-credentials -ojsonpath='{.data.password}' | base64 -d
+          set -o pipefail && kubectl get secrets --namespace=monitoring
+          elasticsearch-main-es-elastic-user -ojsonpath='{.data.elastic}' | base64 -d
       changed_when: false
       register: elastic_pass
       args:

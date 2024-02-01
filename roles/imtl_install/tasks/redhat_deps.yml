@@ -20,56 +20,9 @@
     version: "{{ item.version }}"
     force: true
   loop:
-    - name: jsonc
-      url: https://github.com/json-c/json-c.git
-      version: json-c-0.16
-    - name: libpcap
-      url: https://github.com/the-tcpdump-group/libpcap.git
-      version: libpcap-1.9
     - name: gtest
       url: https://github.com/google/googletest.git
       version: v1.13.x
-
-- name: Build jsonc
-  vars:
-    build_dir: "{{ (imtl_deps_dir, 'jsonc/build') | path_join }}"
-  block:
-    - name: (jsonc) Create build dir
-      ansible.builtin.file:
-        path: "{{ build_dir }}"
-        state: directory
-        mode: 0750
-    - name: (jsonc) Run cmake
-      ansible.builtin.command:
-        cmd: cmake ../
-        chdir: "{{ build_dir }}"
-      changed_when: true # TDOD
-    - name: (jsonc) Run make
-      community.general.make:
-        chdir: "{{ build_dir }}"
-    - name: (jsonc) Run make install
-      become: true
-      community.general.make:
-        target: install
-        chdir: "{{ build_dir }}"
-
-- name: Build libpcap
-  vars:
-    build_dir: "{{ (imtl_deps_dir, 'libpcap') | path_join }}"
-  block:
-    - name: (libpcap) Run configure
-      ansible.builtin.command:
-        cmd: ./configure
-        chdir: "{{ build_dir }}"
-      changed_when: true # TDOD
-    - name: (libpcap) Run make
-      community.general.make:
-        chdir: "{{ build_dir }}"
-    - name: (libpcap) Run make install
-      become: true
-      community.general.make:
-        target: install
-        chdir: "{{ build_dir }}"
 
 - name: Build gtest
   vars:

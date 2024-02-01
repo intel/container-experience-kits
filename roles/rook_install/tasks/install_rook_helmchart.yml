@@ -42,6 +42,7 @@
     - "csi/nfs/rbac.yaml"
     - "filesystem-test.yaml"
     - "object-test.yaml"
+    - "nfs-test.yaml"
 
 - name: populate Rook Operator templates and copy to controller node
   vars:
@@ -98,6 +99,25 @@
   when:
     - rook_ceph.storage_type == "cephfs"
 
+- name: block to deploy rook cephfs storage
+  block:
+    - name: populate cephfs storage class templates and copy to controller node
+      ansible.builtin.template:
+        src: "nfs-storageclass.yaml.j2"
+        dest: "{{ (rook_helm_local_dir, 'temp', 'nfs-storageclass.yaml') | path_join }}"
+        force: true
+        trim_blocks: false
+        mode: preserve
+    - name: k8s deploy rook-ceph cephfs filesystem and storageclass
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (rook_helm_local_dir, 'temp', item ) | path_join }}"
+      loop:
+        - "nfs-test.yaml"
+        - "nfs-storageclass.yaml"
+  when:
+    - rook_ceph.storage_type == "nfs"
+
 - name: block to deploy rook-ceph block storage
   block:
     - name: populate block storage class templates and copy to controller node
@@ -132,6 +152,24 @@
         - "object-storageclass.yaml"
   when:
     - rook_ceph.storage_type == "object"
+
+- name: block to deploy persistent volume claim
+  block:
+    - name: populate persistent volume claim
+      ansible.builtin.template:
+        src: "pvc.yaml.j2"
+        dest: "{{ (rook_helm_local_dir, 'temp', 'pvc.yaml') | path_join }}"
+        force: true
+        trim_blocks: false
+        mode: preserve
+    - name: k8s deploy persistent volume claim
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ (rook_helm_local_dir, 'temp', 'pvc.yaml' ) | path_join }}"
+  when:
+    - rook_ceph.storage_type == "object" or
+      rook_ceph.storage_type == "nfs" or
+      rook_ceph.storage_type == "cephfs"
 
 # debug tools, set the ignore_errors to true
 - name: install rook-ceph kubectl plugin for status checking

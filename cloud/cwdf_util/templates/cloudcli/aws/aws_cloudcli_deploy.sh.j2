@@ -47,21 +47,35 @@ ANSIBLE_INSTANCE_IMAGE=$(aws ec2 describe-images \
 ANSIBLE_INSTANCE_TYPE="t3.medium"
 ANSIBLE_INSTANCE_NAME="cwdf-infra-{{ cloud_config.job_id }}-ansible-instance"
 
-# Generate Ansible instance SSH Host Key
-if [ ! -f ./ansible_host ]
+# Generate Ansible instance SSH Host Keys
+if [ ! -f ${SCRIPT_DIR}/ansible_host_rsa ]
 then
-  ssh-keygen -q -N "" -t rsa -f ./ansible_host
+  ssh-keygen -q -N "" -t rsa -f ${SCRIPT_DIR}/ansible_host_rsa
 fi
-ANSIBLE_INSTANCE_HOST_PRIVKEY=$(cat ./ansible_host)
-ANSIBLE_INSTANCE_HOST_PUBKEY=$(cat ./ansible_host.pub)
+ANSIBLE_INSTANCE_HOST_RSA_PRIVKEY=$(cat ${SCRIPT_DIR}/ansible_host_rsa)
+ANSIBLE_INSTANCE_HOST_RSA_PUBKEY=$(cat ${SCRIPT_DIR}/ansible_host_rsa.pub)
+
+if [ ! -f ${SCRIPT_DIR}/ansible_host_ed25519 ]
+then
+  ssh-keygen -q -N "" -t ed25519 -f ${SCRIPT_DIR}/ansible_host_ed25519
+fi
+ANSIBLE_INSTANCE_HOST_ED25519_PRIVKEY=$(cat ${SCRIPT_DIR}/ansible_host_ed25519)
+ANSIBLE_INSTANCE_HOST_ED25519_PUBKEY=$(cat ${SCRIPT_DIR}/ansible_host_ed25519.pub)
+
+if [ ! -f ${SCRIPT_DIR}/ansible_host_ecdsa ]
+then
+  ssh-keygen -q -N "" -t ecdsa -f ${SCRIPT_DIR}/ansible_host_ecdsa
+fi
+ANSIBLE_INSTANCE_HOST_ECDSA_PRIVKEY=$(cat ${SCRIPT_DIR}/ansible_host_ecdsa)
+ANSIBLE_INSTANCE_HOST_ECDSA_PUBKEY=$(cat ${SCRIPT_DIR}/ansible_host_ecdsa.pub)
 
 # Ansible instance entrypoint script
 ANSIBLE_INSTANCE_ENTRYPOINT="$(cat <<- "EOM"
 #!/usr/bin/env bash
-echo $ANSIBLE_INSTANCE_HOST_PRIVKEY > /etc/ssh/ssh_host_rsa_key
+echo $ANSIBLE_INSTANCE_HOST_RSA_PRIVKEY > /etc/ssh/ssh_host_rsa_key
+echo $ANSIBLE_INSTANCE_HOST_ED25519_PRIVKEY > /etc/ssh/ssh_host_ed25519_key
+echo $ANSIBLE_INSTANCE_HOST_ECDSA_PRIVKEY > /etc/ssh/ssh_host_ecdsa_key
 rm /etc/ssh/ssh_host_dsa_key
-rm /etc/ssh/ssh_host_ed25519_key
-rm /etc/ssh/ssh_host_ecdsa_key
 apt-get -qq -y update
 apt-get -qq -y upgrade
 apt-get -qq -y install python3-pip python3-venv
@@ -371,13 +385,19 @@ JSON_OUTPUT=$(jq -n \
                  --arg cloud_provider "aws" \
                  --arg cr_url $ECR_URL \
                  --arg k8s_worker_username "ubuntu" \
-                 --arg host_key "$ANSIBLE_INSTANCE_HOST_PUBKEY" \
+                 --arg rsa_host_key "$ANSIBLE_INSTANCE_HOST_RSA_PUBKEY" \
+                 --arg ecdsa_host_key "$ANSIBLE_INSTANCE_HOST_ECDSA_PUBKEY" \
+                 --arg ed25519_host_key "$ANSIBLE_INSTANCE_HOST_ED25519_PUBKEY" \
                  '{ansible_host_public_ip:
                     {value: $ansible_host_ip},
                    cloud_provider: 
                     {value: $cloud_provider},
-                   ansible_ssh_host_key:
-                    {value: $host_key},
+                   ansible_ssh_rsa_host_key:
+                    {value: $rsa_host_key},
+                   ansible_ssh_ecdsa_host_key:
+                    {value: $ecdsa_host_key},
+                   ansible_ssh_ed25519_host_key:
+                    {value: $ed25519_host_key},
                    cr_url: 
                     {value: $cr_url},
                    k8s_worker_username: 

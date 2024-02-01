@@ -1,0 +1,26 @@
+##
+##   Copyright (c) 2020-2023 Intel Corporation.
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##   you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+##
+
+# IPM dpdk patches
+ipm_dpdk_patches_git_url: https://github.com/intel/CommsPowerManagement/
+ipm_dpdk_patches_commit: 69a53d2b0068d45c592d0fdc6f82b9f354fa9d84
+ipm_dpdk_patches_repo_dir: "{{ (project_root_dir, 'ipm_dpdk_patches') | path_join }}"
+ipm_dpdk_patches_base_dir: "{{ ipm_dpdk_patches_repo_dir }}/ipm/patches/dpdk/"
+# IPM dpdk patches source has patches only for major.minor DPDK versions, strip patch version if present
+ipm_stripped_dpdk_version: "{{ dpdk_version | regex_replace('^([0-9]+).([0-9]+).*$', '\\1.\\2') }}"
+ipm_dpdk_patches_strip: 1
+
+ipm_max_dpdk_version_supported: "22.11.1"

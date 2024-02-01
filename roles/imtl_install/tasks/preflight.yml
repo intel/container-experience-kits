@@ -33,6 +33,14 @@
       Please set update_nic_drivers option to 'true'.
   when: intel_media_transport_library.patch_nic_driver | default(false)
 
+- name: Check ICE driver version support
+  ansible.builtin.assert:
+    that:
+      - ice_driver_version | default('1.0') is ansible.builtin.version('{{ imtl_min_ice_version }}', '>=')
+      - ice_driver_version | default('1.0') is ansible.builtin.version('{{ imtl_max_ice_version }}', '<=')
+    fail_msg: |
+      Intel Media Transport Library {{ imtl_version }} does support only ICE versions >= {{ imtl_min_ice_version }} and <= {{ imtl_max_ice_version }}.
+
 - name: Check iommu enabled
   ansible.builtin.assert:
     that:
@@ -52,10 +60,10 @@
 - name: Check DPDK version support
   ansible.builtin.assert:
     that:
-      - dpdk_version | default('1.0') is ansible.builtin.version('23.07', '<')
-      - dpdk_version | default('1.0') is ansible.builtin.version('21.05', '>=')
+      - dpdk_version | default('1.0') is ansible.builtin.version(imtl_max_dpdk_version, '<=')
+      - dpdk_version | default('1.0') is ansible.builtin.version(imtl_min_dpdk_version, '>=')
     fail_msg: |
-      Intel Media Transport Library {{ imtl_version }} does support only dpdk versions >= 21.05 and < 23.07.
+      Intel Media Transport Library {{ imtl_version }} does support only dpdk versions >= {{ imtl_min_dpdk_version }} and <= {{ imtl_max_dpdk_version }}.
 
 - name: Check target NIC FW version to be used for update
   ansible.builtin.assert:

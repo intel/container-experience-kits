@@ -15,107 +15,115 @@
 ##
 ---
 - name: install dependencies for Intel DLB driver
-  include_role:
+  ansible.builtin.include_role:
     name: install_dependencies
 
 # dependencies are not limited to packages
 - name: insert mdev module
-  modprobe:
+  community.general.modprobe:
     name: mdev
     state: present
 
 - name: load mdev module on boot
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/modules-load.d/mdev.conf
     line: mdev
-    create: yes
-    mode: 0644
-  become: yes
+    create: true
+    mode: '0644'
+  become: true
 
 # build and install Intel DLB driver
 - name: download DLB driver
-  become: yes
-  get_url:
+  become: true
+  ansible.builtin.get_url:
     url: "{{ intel_dlb_driver_url }}"
     dest: "{{ project_root_dir }}"
     checksum: "{{ intel_dlb_driver_checksum }}"
     timeout: 60
-    mode: 0644
+    mode: '0644'
   register: dlb_download
   until: dlb_download is not failed
   retries: 5
 
 - name: untar DLB driver on Ubuntu
-  unarchive:
+  ansible.builtin.unarchive:
     src: "{{ dlb_download.dest }}"
     dest: "{{ project_root_dir }}"
-    list_files: yes
-    remote_src: yes
-    mode: 0774
-  become: yes
+    list_files: true
+    remote_src: true
+    mode: '0774'
+  become: true
   when: ansible_os_family == "Debian"
 
 # Ansible built-in unarchive not working as expected in RHEL / Rocky using shell as alternative
 - name: extract DLB driver package on RHEL / Rocky
-  shell: "tar --xz -xf {{ intel_dlb_driver_ver }}.txz" # noqa command-instead-of-module
+  ansible.builtin.shell: "tar --xz -xf {{ intel_dlb_driver_ver }}.txz" # noqa command-instead-of-module
   args:
     chdir: "{{ project_root_dir }}"
     executable: /bin/bash
+  changed_when: true
   when: ansible_os_family == "RedHat"
 
 # Build workaround on Rocky 9.1/9.2
 # Driver's Makefile condition on disabling SIOV on RHEL does not work on Rocky. As a workaround disabling SIOV manually.
-- name: "Disable SIOV on Rocky 9.1 (workaround)"
+- name: "Disable SIOV on Rocky 9.1/9.2 (workaround)"
   ansible.builtin.replace:
     dest: "{{ project_root_dir }}/dlb/driver/dlb2/Makefile"
     regexp: '^\s*ccflags-y \+= -DCONFIG_INTEL_DLB2_SIOV'
     replace: '#ccflags-y += -DCONFIG_INTEL_DLB2_SIOV'
   when:
     - ansible_distribution == 'Rocky'
-    - ansible_distribution_version == '9.1' or ansible_distribution_version == '9.2'
+    - ansible_distribution_version in ['9.1', '9.2']
 
 - name: build Intel DLB driver
-  make:
+  community.general.make:
     chdir: "{{ project_root_dir }}/dlb/driver/dlb2"
 
 - name: check if DLB module is loaded
-  command: lsmod
+  ansible.builtin.command: lsmod
   register: dlb_module
   failed_when: false
   changed_when: false
 
 - name: insert DLB module
-  command: insmod dlb2.ko
+  ansible.builtin.command: insmod dlb2.ko
   args:
     chdir: "{{ project_root_dir }}/dlb/driver/dlb2"
+  changed_when: true
   when: "'dlb' not in dlb_module.stdout"
 
+- name: create dlb2 module directory in kernel drivers
+  ansible.builtin.file:
+    path: "/usr/lib/modules/{{ ansible_kernel }}/kernel/drivers/dlb2"
+    state: directory
+    mode: '0755'
+
 - name: link dlb2 module to kernel drivers
-  file:
+  ansible.builtin.file:
     state: link
-    src: "{{ project_root_dir }}/dlb/driver/dlb2"
-    dest: "/usr/lib/modules/{{ ansible_kernel }}/kernel/drivers/dlb2"
-    force: yes
-    mode: 0644
+    src: "{{ project_root_dir }}/dlb/driver/dlb2/dlb2.ko"
+    dest: "/usr/lib/modules/{{ ansible_kernel }}/kernel/drivers/dlb2/dlb2.ko"
+    force: true
+    mode: '0644'
 
 - name: setup DLB module loading on boot
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/modules-load.d/dlb2.conf
     line: dlb2
-    create: yes
-    mode: 0644
-  become: yes
+    create: true
+    mode: '0644'
+  become: true
 
 - name: check if DLB devices are present on the system
-  find:
+  ansible.builtin.find:
     path: /dev
     file_type: any
-    use_regex: yes
+    use_regex: true
     pattern: "^(dlb)[0-9]*$"  # devices have to start with "dlb" followed by the ID at the end
   register: dlb_devices
 
 - name: assert DLB devices presence
-  assert:
+  ansible.builtin.assert:
     that:
       - dlb_devices.matched > 0
     fail_msg:

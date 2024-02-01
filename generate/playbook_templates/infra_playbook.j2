@@ -1,5 +1,17 @@
 ---
 # apply common cluster node configuration
+- hosts: k8s_cluster
+  roles:
+    - role: cluster_defaults
+      tags: always
+      when: "'bm_host' in group_names"
+    - role: bootstrap/configure_proxy
+      tags:
+        - proxy
+        - intel-platform-sgx-setup
+        - intel-platform-qat-setup
+      when: "'bm_host' in group_names"
+
 - hosts: k8s_cluster,vms,vm_host
   handlers:
     - name: reboot server
@@ -7,6 +19,15 @@
       when:
         - inventory_hostname != "localhost"
   pre_tasks:
+    - name: Tag target systems with RA version used
+      become: true
+      ansible.builtin.copy:
+        dest: "/etc/ra_deployment_info"
+        mode: '0644'
+        content: |
+          ra_version_commit: {{'{{' }} ra_git_commit {{ '}}' }}
+          ra_version_dirty: {{ '{{' }} ra_git_is_dirty {{ '}}' }}
+      when: ra_is_git | default(false)
     - name: End play for VM host and BM host
       meta: end_host
       when:
@@ -16,6 +37,7 @@
   roles:
     - role: cluster_defaults
       tags: always
+    - role: bootstrap/update_machine_id
     - role: bootstrap/configure_proxy
       tags:
         - proxy
@@ -25,7 +47,7 @@
     - role: bootstrap/run_dhclient_systemd_service_on_boot
       tags: run-dhclient-service-on-boot
       when:
-        - ansible_os_family != "RedHat" or ansible_distribution_version <= "9.0"
+        - ansible_os_family != "RedHat" or ansible_distribution_version is version('9.0', '<=')
         - enable_dhclient_systemd_service | default(false)
     - role: bootstrap/update_grub
       tags:
@@ -68,6 +90,12 @@
 # apply worker node kernel configuration
 - hosts: kube_node,vms,vm_host
   handlers:
+    - name: Update grub on RedHat systems
+      ansible.builtin.command: "grub2-mkconfig -o /boot/grub2/grub.cfg"
+      when: ansible_os_family == "RedHat"
+    - name: Update grub on Ubuntu systems
+      ansible.builtin.command: "update-grub"
+      when: ansible_distribution == "Ubuntu"
     - name: reboot server
       reboot: { reboot_timeout: 1200 }
       when:
@@ -125,13 +153,6 @@
         - local_volume_provisioner_enabled | default(false) | bool or
           minio_enabled | default(false) | bool or
           rook_ceph.enabled | default(false) | bool
-    - role: bootstrap/auto_detect_qat_devices
-      tags:
-        - auto-detect-qat-device
-        - intel-platform-qat-setup
-      when:
-        - configure_qat | default(false) | bool
-        - qat_devices | default([]) | length == 0
     - role: bootstrap/set_sriov_kernel_flags
       tags:
         - setup-sriov
@@ -148,26 +169,29 @@
         - iommu_enabled | default(true) | bool
         - ((configure_dsa_devices is defined and configure_dsa_devices) or
           (configure_dlb_devices is defined and configure_dlb_devices)) and
-          ((ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and update_kernel) or
-          (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04') or
-          (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.6'))
+          ((ansible_distribution == "Ubuntu" and ansible_distribution_version is version('20.04', '==') and update_kernel) or
+          (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('21.04', '>=')) or
+          (ansible_os_family == "RedHat" and ansible_distribution_version is version('8.6', '>=')))
     - role: bootstrap/set_rdt_kernel_flags
       when: telegraf_enabled | default(false) | bool
     - role: bootstrap/set_intel_flexran_kernel_flags
       when: intel_flexran_enabled | default(false) | bool
-{% if playbook_name in ['full_nfv', 'remote_fp', 'on_prem', 'on_prem_vss', 'build_your_own'] %}
+    - role: bootstrap/set_calico_vpp_interface_name
+      tags: calico-vpp
+      when: calico_vpp.enabled | default(false) | bool
+{% if playbook_name in ['full_nfv', 'remote_fp', 'on_prem', 'on_prem_vss', 'build_your_own', 'base_video_analytics'] %}
     - role: bootstrap/configure_sst
       tags: sst
       when:
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version >= "20.04") or
-          (ansible_os_family == "RedHat" and ansible_distribution_version >= "8.3")
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('20.04', '>=')) or
+          (ansible_os_family == "RedHat" and ansible_distribution_version is version('8.3', '>='))
         - sst_bf_configuration_enabled | default(false) | bool or
           sst_cp_configuration_enabled | default(false) | bool or
           sst_tf_configuration_enabled | default(false) | bool or
           sst_pp_configuration_enabled | default(false) | bool
         - not vm_enabled or on_vms | default(false) | bool
 {% endif %}
-{% if playbook_name in ['full_nfv', 'on_prem', 'on_prem_vss', 'on_prem_aibox', 'regional_dc', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'on_prem', 'on_prem_vss', 'on_prem_aibox', 'regional_dc', 'build_your_own', 'base_video_analytics'] %}
     - role: bootstrap/set_pcie_kernel_flags
       when:
         - configure_fpga | default(false) | bool
@@ -211,7 +235,7 @@
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
 
-{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own', 'base_video_analytics'] %}
 # install worker node qat software
 - hosts: kube_node,vms,vm_host
   handlers:
@@ -240,9 +264,9 @@
       tags: dlb-dp
       when:
         - configure_dlb_devices is defined and configure_dlb_devices
-        - (ansible_distribution == "Ubuntu" and ansible_distribution_version == '20.04' and update_kernel) or
-          (ansible_distribution == "Ubuntu" and ansible_distribution_version >= '21.04') or
-          (ansible_os_family == "RedHat" and ansible_distribution_version >= '8.6')
+        - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('20.04', '==') and update_kernel) or
+          (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('21.04', '>=')) or
+          (ansible_os_family == "RedHat" and ansible_distribution_version is version('8.6', '>='))
     - role: bootstrap/configure_dsa
       tags: dsa-dp
       when: configure_dsa_devices | default(false)
@@ -281,6 +305,7 @@
       tags:
         - determine-dataplane-interfaces
         - update-nic-firmware
+        - intel-ethernet-operator
       when:
         - dataplane_interfaces | default([]) | length > 0
     - role: bootstrap/update_nic_drivers
@@ -317,6 +342,7 @@
         - determine-dataplane-interfaces
         - setup-sriov-nic
         - sriov-network-operator
+        - intel-ethernet-operator
       when:
         - dataplane_interfaces | default([]) | length > 0
     - role: install_dpdk
@@ -324,9 +350,9 @@
         - dpdk
         - intel-platform-qat-setup
       when:
-        - ovs_dpdk_enabled | default(false) | bool or install_dpdk | default(true) | bool
+        - install_dpdk | default(true) | bool
 {% endif %}
-{% if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'remote_fp', 'build_your_own', 'base_video_analytics'] %}
     - role: install_ddp_pkgs
       when:
         - install_ddp_packages | default(true) | bool
@@ -338,13 +364,9 @@
         - install_dpdk | default(true) | bool
         - iommu_enabled | default(true) | bool
         - not on_vms | default(false) | bool
-        - (kubernetes | default(true) | bool
-          and not container_runtime_only_deployment | default(false) | bool
-          and not sriov_network_operator_enabled | default(false) | bool
-          or (not kubernetes | default(true) | bool
-          and container_runtime_only_deployment | default(false) | bool))
+        - not sriov_network_operator_enabled | default(false) | bool
 {% endif %}
-{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'build_your_own', 'base_video_analytics'] %}
     - role: bootstrap/install_qatlibs
       tags: qatlibs
       when:
@@ -367,7 +389,7 @@
       when:
         - openssl_install | default(false) | bool
 {% endif %}
-{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'regional_dc', 'build_your_own'] %}
+{% if playbook_name in ['full_nfv', 'access', 'on_prem', 'on_prem_vss', 'remote_fp', 'regional_dc', 'build_your_own', 'base_video_analytics'] %}
     - role: bootstrap/configure_sgx
       tags:
         - sgx

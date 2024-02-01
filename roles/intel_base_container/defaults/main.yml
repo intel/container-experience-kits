@@ -19,7 +19,8 @@ base_container_dockerfile_path: "{{ (base_container_path, 'dockerfile') | path_j
 base_container_test_path: "{{ (base_container_path, 'test') | path_join }}"
 base_container_sudo: true
 
-aibox_base_container_version: 3.1
+aibox_base_container_version: 4.0
+vss_base_container_version: 24.1
 
 aibox_base_container_set:
   - { name: aibox-base,
@@ -160,4 +161,38 @@ aibox_base_container_test_set:
       entryname: test_opencv_entry.sh,
       testname: test_opencv.sh,
       username: aibox
+  }
+
+vss_base_container_set:
+  - { name: vss-dlstreamer,
+      base: ubuntu,
+      base_version: 22.04,
+      filename: Dockerfile.dlstreamer,
+      buildname: build_dlstreamer.sh,
+      username: vss,
+      adduser: true,
+      gpu_stack: true,
+      gpu_stack_version: default,
+      oneapi_base: false,
+      oneapi_ai: false,
+      openvino: true,
+      openvino_dev: true,
+      openvino_version: 2023.0.0,
+      dlstreamer: true,
+      dlstreamer_version: 2023.0.0,
+      ffmpeg: false,
+      ffmpeg_version: default,
+      opencv: false,
+      opencv_version: default,
+      dpdk: false,
+  }
+
+vss_base_container_test_set:
+  - { name: test-vss-dlstreamer,
+      base: vss-dlstreamer,
+      base_version: "{{ vss_base_container_version }}",
+      filename: Dockerfile.test-dlstreamer,
+      entryname: test_dlstreamer_entry.sh,
+      testname: test_dlstreamer.sh,
+      username: vss
   }

@@ -18,7 +18,7 @@ collectd_configuration_files_dir: "{{ (host_collectd_folder, 'collectd.conf.d') 
 barometer_collectd_dir: "{{ (project_root_dir, 'barometer') | path_join }}"
 collectd_deployment_dir: "{{ (project_root_dir, 'k8s', 'collectd') | path_join }}"
 
-collectd_scrap_interval: 30
+collectd_scrape_interval: 30
 collectd_write_threads: 25
 collectd_read_threads: 25
 collectd_timeout: 2
@@ -97,6 +97,8 @@ collectd_plugins:
     - ovs_events
     - ovs_pmd_stats
     - ovs_stats
+  base_video_analytics:
+    - *full_nfv
   build_your_own:
     - *full_nfv
   on_prem_vss:

@@ -14,74 +14,58 @@
 ##   limitations under the License.
 ##
 ---
-- name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Host
-  block:
-    - name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Host
-      command: "./pf_bb_config acc100 -c ./acc100/acc100_config_pf_4g5g.cfg" # select .cfg file as desired
-      args:
-        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
-      register: pf_bb_config
-      changed_when: false
+- name: Set common pf_bb_cfg command
+  ansible.builtin.set_fact:
+    pf_bb_cfg_cmd: "./pf_bb_config {{ fec_dev }} -c {{ pf_bb_cfg[fec_dev][intel_flexran_type] }}"
 
-    - debug: msg="{{ pf_bb_config.stdout }}"
-  when:
-    - fec_dev == "acc100"
-    - intel_flexran_type == "host"
-
-- name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Docker POD
-  block:
-    - name: configure ACC100 FEC device with pf_bb tool for FlexRAN in Docker POD
-      command: "./pf_bb_config acc100 -c ./acc100/acc100_config_vf_5g.cfg" # select .cfg file as desired
-      args:
-        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
-      register: pf_bb_config
-      changed_when: false
-
-    - debug: msg="{{ pf_bb_config.stdout }}"
-  when:
-    - fec_dev == "acc100"
-    - intel_flexran_type == "pod"
-
-- name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Host
-  block:
-    - name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Host
-      command: "./pf_bb_config acc200 -c ./acc200/acc200_config_pf_5g.cfg" # select .cfg file as desired
-      args:
-        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
-      register: pf_bb_config
-      changed_when: false
-
-    - debug: msg="{{ pf_bb_config.stdout }}"
-  when:
-    - fec_dev == "acc200"
-    - intel_flexran_type == "host"
-
-- name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Docker POD
-  block:
-    - name: set FEC device uuid
-      ansible.builtin.set_fact:
-        uuid: "00112233-4455-6677-8899-aabbccddeeff"
-    - name: configure ACC200 FEC device with pf_bb tool for FlexRAN in Docker POD
-      ansible.builtin.command:
-        cmd: "./pf_bb_config acc200 -v {{ uuid }} -c acc200/acc200_config_vf_5g.cfg" # select .cfg file as desired
-        chdir: "{{ (intel_flexran_dir, 'source/pf-bb-config') | path_join }}"
-      register: pf_bb_config
-      changed_when: false
-    - debug: msg="{{ pf_bb_config.stdout }}"
-    - name: get the first FEC VF
-      ansible.builtin.shell: "set -o pipefail && lspci | grep -i acc | grep -i 57c1 | awk '{print $1}' | head -1"
-      args:
-        executable: /bin/bash
-      register: fec_first_vf
-      changed_when: false
-    - ansible.builtin.debug: msg="fec_first_vf is at {{ fec_first_vf.stdout }}"
-    - name: run basic bbdev test
-      ansible.builtin.command: >-
-        ./test-bbdev.py -e="-c 0xff0 -a 0000:{{ fec_first_vf.stdout }}
-        --vfio-vf-token={{ uuid }}" -t 6 -n 100 -b 80 -l 1 -c validation -v ./ldpc_dec_default.data
-      args:
-        chdir: "{{ dpdk_dir }}/app/test-bbdev"
-      changed_when: false
+- name: Set Flexran pod mode w/ ACC200 pf_bb_cfg command
+  ansible.builtin.set_fact:
+    pf_bb_cfg_cmd: "./pf_bb_config {{ fec_dev }} -v 00112233-4455-6677-8899-aabbccddeeff -c {{ pf_bb_cfg[fec_dev][intel_flexran_type] }}"
   when:
     - fec_dev == "acc200"
     - intel_flexran_type == "pod"
+
+- ansible.builtin.debug:
+    msg: "pf_bb_cfg_cmd: {{ pf_bb_cfg_cmd }}"
+
+- name: configure FEC device with pf_bb tool
+  ansible.builtin.command:
+    cmd: "{{ pf_bb_cfg_cmd }}"
+    chdir: "{{ pf_bb_download_dir }}"
+  register: pf_bb_config
+  changed_when: false
+
+- ansible.builtin.debug:
+    msg: "{{ pf_bb_config.stdout }}"
+
+- name: copy FEC setup script to /usr/local/bin
+  copy:
+    src: "{{ role_path }}/files/cek_sriov_fec_init.sh"
+    dest: /usr/local/bin/cek_sriov_fec_init.sh
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+  when:
+    - not (intel_sriov_fec_operator_enabled | default(false) | bool)
+
+- name: create systemd unit file
+  template:
+    src: cek_sriov_fec_init.service.j2
+    dest: /lib/systemd/system/cek_sriov_fec_init.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - not (intel_sriov_fec_operator_enabled | default(false) | bool)
+
+- name: ensure that systemd service is enabled on startup and restarted to apply the configuration
+  systemd:
+    name: cek_sriov_fec_init
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  become: yes
+  when:
+    - not (intel_sriov_fec_operator_enabled | default(false) | bool)

@@ -1,0 +1,13 @@
+diff --git a/plugins/module_utils/client/discovery.py b/plugins/module_utils/client/discovery.py
+index 848d4bd..aaff2e6 100644
+--- a/plugins/module_utils/client/discovery.py
++++ b/plugins/module_utils/client/discovery.py
+@@ -113,7 +113,7 @@ class Discoverer(kubernetes.dynamic.discovery.Discoverer):
+             filter(lambda resource: "/" in resource["name"], resources_response)
+         )
+         for subresource in subresources_raw:
+-            resource, name = subresource["name"].split("/")
++            resource, name = subresource["name"].split("/")[:2]
+             subresources[resource][name] = subresource
+
+         for resource in resources_raw:

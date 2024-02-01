@@ -15,82 +15,90 @@
 ##
 ---
 - name: install dependencies for QAT
-  include_role:
+  ansible.builtin.include_role:
     name: install_dependencies
 
 - name: install libudev-dev package on Ubuntu
-  apt:
+  ansible.builtin.apt:
     name: libudev-dev
   when: ansible_distribution == "Ubuntu"
 
 - name: create directory {{ qat_drivers_dir }} for all QAT dependencies
-  file:
+  ansible.builtin.file:
     path: "{{ qat_drivers_dir }}"
     state: directory
-    mode: "u=rwx,g=rx,o=rx"
+    mode: '0755'
 
 - name: block for QAT 1.x
   block:
     - name: download QAT drivers package {{ qat_drivers_version }}
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ qat_drivers_download_url }}"
         checksum: "{{ qat_drivers_pkg_checksum }}"
         dest: "{{ qat_drivers_dir }}"
-        mode: 0755
+        mode: '0755'
       register: qat_driver_sw
       until: qat_driver_sw is not failed
       retries: 5
 
     - name: unarchive QAT drivers package
-      unarchive:
+      ansible.builtin.unarchive:
         src: "{{ qat_drivers_dir }}/{{ qat_drivers_version }}.tar.gz"
         dest: "{{ qat_drivers_dir }}"
         remote_src: yes
-        mode: 0755
+        mode: '0755'
   when:
-    - configured_arch not in ["spr", "emr"]
+    - configured_arch not in ["spr", "emr", "gnr"]
 
 - name: block for QAT 2.x
   block:
     - name: download QAT drivers package {{ qat_spr_drivers_version }}
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ qat_spr_drivers_download_url }}"
         checksum: "{{ qat_spr_drivers_pkg_checksum }}"
         dest: "{{ qat_drivers_dir }}"
-        mode: 0755
+        mode: '0755'
       register: qat_driver_sw
       until: qat_driver_sw is not failed
       retries: 5
 
     - name: unarchive QAT drivers package
-      unarchive:
+      ansible.builtin.unarchive:
         src: "{{ qat_drivers_dir }}/{{ qat_spr_drivers_version }}.tar.gz"
         dest: "{{ qat_drivers_dir }}"
         remote_src: yes
-        mode: 0755
+        mode: '0755'
   when:
     - configured_arch in ["spr"]
 
-# Due to EMR is not lauched yet, EMR QAT driver temporally copy from ansible host
-# When external driver offically support the EMR platform, converge w/ upper task
-- name: block for EMR QAT driver package
+# When new platforms are not lauched yet, NDA QAT driver is temporally copied from ansible host
+# When external driver for new platform is officially available, platform is moved to the upper task
+- name: block for NDA QAT driver package
   block:
-    - name: copy EMR QAT driver package
+    - name: switch NDA QAT driver package for Rocky 9.2
+      ansible.builtin.set_fact:
+        nda_qat_driver_package: "{{ nda_qat_driver_package_rocky }}"
+        nda_qat_driver_pkg_checksum: "{{ nda_qat_driver_pkg_checksum_rocky }}"
+      when:
+        - ansible_distribution == "Rocky" and ansible_distribution_version is version('9.2', '==')
+        - configured_arch in ['gnr']
+
+    - name: copy NDA QAT driver package
       ansible.builtin.copy:
-        src: "{{ (emr_qat_driver_staging_folder, emr_qat_driver_package) | path_join }}"
-        dest: "{{ (qat_drivers_dir, emr_qat_driver_package) | path_join }}"
-        mode: 0644
-    - name: unarchive EMR QAT driver package
+        src: "{{ (nda_qat_driver_folder, nda_qat_driver_package) | path_join }}"
+        dest: "{{ (qat_drivers_dir, nda_qat_driver_package) | path_join }}"
+        mode: '0644'
+    - name: unarchive NDA QAT driver package
       ansible.builtin.unarchive:
-        src: "{{ (qat_drivers_dir, emr_qat_driver_package) | path_join }}"
+        src: "{{ (qat_drivers_dir, nda_qat_driver_package) | path_join }}"
         dest: "{{ qat_drivers_dir }}"
         remote_src: yes
-        mode: 0755
+        mode: '0755'
   when:
-    - configured_arch == "emr"
+    - configured_arch in ['emr', 'gnr']
 
 - name: check all packages are present for QAT drivers installation
-  command: ./configure
+  ansible.builtin.command: ./configure
   args:
     chdir: "{{ qat_drivers_dir }}"
   register: qat_requirements
@@ -98,7 +106,7 @@
   changed_when: true
 
 - name: playbook terminated packages for QAT drivers installation are missing
-  fail:
+  ansible.builtin.fail:
     msg:
       - "Missing requirements for QAT drivers (i.e. kernel sources)"
       - "If failure persists, consider setting update_kernel: true in group_vars"
@@ -119,12 +127,12 @@
         line: "***/"
   when:
     - on_vms | default(false)
-    - configured_arch not in ["spr", "emr"]
+    - configured_arch not in ["spr", "emr", "gnr"]
 
 - name: block for QAT 1.x drivers and samples compilation
   block:
     - name: make install QAT drivers
-      command: "make -j install"
+      ansible.builtin.command: "make -j install"
       args:
         chdir: "{{ qat_drivers_dir }}"
       become: yes
@@ -133,15 +141,15 @@
         - reboot server
 
     - name: make performance sample application after QAT drivers
-      make:
+      community.general.make:
         chdir: "{{ qat_drivers_dir }}"
         target: samples-install
       become: yes
   when:
-    - configured_arch not in ["spr", "emr"]
+    - configured_arch not in ["spr", "emr", "gnr"]
 
 - name: set QAT OOT 2.x driver build status
-  set_fact:
+  ansible.builtin.set_fact:
     qat_oot_driver_build_failed: false
   when: not qat_oot_driver_build_failed | default(false)
 
@@ -149,32 +157,48 @@
 - name: block for QAT 2.x drivers and samples compilation
   block:
     - name: make install QAT drivers
-      command: "make -j install"
+      ansible.builtin.command: "make -j install"
       args:
         chdir: "{{ qat_drivers_dir }}"
       become: yes
       changed_when: true
 
     - name: make performance sample application after QAT drivers
-      make:
+      community.general.make:
         chdir: "{{ qat_drivers_dir }}"
         target: samples-install
       become: yes
+
+    - name: create WA to fix QAT driver issue after reboot
+      block:
+        - name: add ExecStartPre commands to qat.service
+          ansible.builtin.lineinfile:
+            path: "/usr/lib/systemd/system/qat.service"
+            line: "{{ item }}"
+            regexp: "^{{ item }}"
+            insertbefore: "^ExecStart=.*"
+          with_items:
+            - "ExecStartPre=sleep 20"
+            - "ExecStartPre=/etc/init.d/qat_service shutdown"
+        - name: systemd daemon_reload to take qat.service changes
+          ansible.builtin.systemd:
+            daemon_reload: yes
+          become: yes
   rescue:
     - name: QAT 2.x OOT driver build error
-      debug:
+      ansible.builtin.debug:
         msg: "QAT 2.x OOT driver build or installation failed. Rolling back to use inbox driver - functionality might be limited"
 
     - name: set QAT OOT 2.x driver build status
-      set_fact:
+      ansible.builtin.set_fact:
         qat_oot_driver_build_failed: true
         update_qat_drivers: false
   when:
-    - configured_arch in ["spr", "emr"]
+    - configured_arch in ["spr", "emr", "gnr"]
     - not qat_oot_driver_build_failed | default(false)
 
 - name: confirm QAT module installed
-  shell: "set -o pipefail && lsmod | grep qat"
+  ansible.builtin.shell: "set -o pipefail && lsmod | grep qat"
   args:
     executable: /bin/bash
   register: qat_confirm
@@ -182,7 +206,7 @@
   changed_when: false
 
 - name: enable SRIOV QAT devices on VMs
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "/etc/default/qat"
     line: "SRIOV_ENABLE=1"
     regexp: "^#SRIOV_ENABLE=1"
@@ -194,13 +218,13 @@
     - on_vms is defined and on_vms
 
 - name: make sure {{ disabled_qat_service }} service is stopped and disabled
-  service:
+  ansible.builtin.service:
     state: stopped
     name: "{{ disabled_qat_service }}"
     enabled: no
 
 - name: make sure {{ enabled_qat_service }} service is started and enabled
-  service:
+  ansible.builtin.service:
     state: started
     name: "{{ enabled_qat_service }}"
     enabled: yes
@@ -209,15 +233,15 @@
 - name: configuration for QAT Shared Virtual Memory (SVM)
   block:
     - name: set QAT SVM is enabled
-      set_fact:
+      ansible.builtin.set_fact:
         svm_value: 1
 
     - name: enable address translation services for QAT Shared Virtual Memory (SVM)
-      replace:
+      ansible.builtin.replace:
         path: "{{ item }}"
         regexp: '(^SVMEnabled\s)(.*)$'
         replace: 'SVMEnabled = {{ svm_value }}'
-        mode: 0600
+        mode: '0600'
       with_items:
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.vm"
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.sym.vm"
@@ -225,5 +249,5 @@
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.asym.vm"
         - "{{ qat_drivers_dir }}/quickassist/utilities/adf_ctl/conf_files/4xxxvf_dev0.conf.dc.sym.vm"
   when:
-    - configured_arch in ["spr", "emr"]
+    - configured_arch in ["spr", "emr", "gnr"]
     - enable_qat_svm | default(false)

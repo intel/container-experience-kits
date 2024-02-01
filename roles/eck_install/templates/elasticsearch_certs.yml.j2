@@ -1,0 +1,64 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-elasticsearch-tls-issuer-ca
+  namespace: "{{ eck_namespace }}"
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elasticsearch-tls-ca
+  namespace: "{{ eck_namespace }}"
+spec:
+  isCA: true
+  commonName: elasticsearch-tls-ca
+  secretName: elasticsearch-tls-ca
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: selfsigned-elasticsearch-tls-issuer-ca
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: elasticsearch-tls-ca-issuer
+  namespace: "{{ eck_namespace }}"
+spec:
+  ca:
+    secretName: elasticsearch-tls-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elasticsearch-tls
+  namespace: "{{ eck_namespace }}"
+spec:
+  secretName: elasticsearch-tls
+  dnsNames:
+  - elasticsearch-main-es-http.monitoring.svc.cluster.local
+  - elasticsearch-main-es-http.monitoring.svc
+  - elasticsearch-main-es-http.monitoring
+  - elasticsearch-main-es-http
+  - elasticsearch
+  - kibana-kibana.monitoring.svc.cluster.local
+  - kibana-kibana.monitoring.svc
+  - kibana-kibana.monitoring
+  - kibana-kibana
+  - kibana
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: elasticsearch-tls-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  usages:
+  - server auth
+  - digital signature
+  - key encipherment

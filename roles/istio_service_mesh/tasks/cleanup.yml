@@ -28,7 +28,7 @@
   command: |
     kubectl exec \
     --namespace {{ istio_service_mesh.istio_namespace }} \
-    {{ istioctl_pod.stdout }} -- istioctl x uninstall --purge -y
+    {{ istioctl_pod.stdout }} -- istioctl uninstall --purge -y
   failed_when: false
   changed_when: true
   when:

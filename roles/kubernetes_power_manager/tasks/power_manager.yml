@@ -124,7 +124,7 @@
         state: present
         src: "{{ (kubernetes_power_manager_dir, 'config', 'rbac', 'rbac.yaml') | path_join }}"
 
-    # WA: go mod tidy is needed, until upstream issue is fixed.
+    # WA: go mod tidy is needed, until upstream issue is fixed. Checked 10. 01. 2024
     - name: run go mod tidy
       ansible.builtin.command: "go mod tidy -v"
       args:

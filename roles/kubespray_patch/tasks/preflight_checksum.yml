@@ -19,6 +19,7 @@
 - name: Load checksum from applied patch
   set_fact:
     applied_patch_checksum: "{{ lookup('file', patch_checksum_file, errors='ignore') }}"
+    applied_kube_patch_checksum: "{{ lookup('file', kube_patch_checksum_file, errors='ignore') }}"
 
 - name: Check if checksum of applied patch exists
   ansible.builtin.assert:
@@ -34,3 +35,18 @@
     fail_msg: |-
       Code of kubespray patch checksum is different from currently applied patch checksum.
       Please re-install the kubespray module and apply new kubespray patch."
+
+- name: Check if checksum of applied patch exists
+  ansible.builtin.assert:
+    that:
+      - applied_kube_patch_checksum is defined
+      - applied_kube_patch_checksum
+    fail_msg: |-
+      Patch for Kubernetes module is not applied. Please apply patch before running playbooks"
+
+- name: Compare checksums
+  ansible.builtin.assert:
+    that: patch_checksum == applied_kube_patch_checksum
+    fail_msg: |-
+      Code of kubernetes module patch checksum is different from currently applied patch checksum.
+      Please re-install the kubernetes module and apply new patch for kubernetes."

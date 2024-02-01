@@ -10,13 +10,13 @@
 - name: Add MTL deb repo
   ansible.builtin.apt_repository:
     filename: "intel-mtl"
-    repo: "deb https://download.01.org/intel-linux-overlay/ubuntu jammy main non-free multimedia"
+    repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/mtl.gpg] https://download.01.org/intel-linux-overlay/ubuntu jammy main non-free multimedia"
     state: present
 
 - name: Add MTL deb-src repo
   ansible.builtin.apt_repository:
     filename: "intel-mtl"
-    repo: "deb-src https://download.01.org/intel-linux-overlay/ubuntu jammy main non-free multimedia"
+    repo: "deb-src [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/mtl.gpg] https://download.01.org/intel-linux-overlay/ubuntu jammy main non-free multimedia"
     state: present
     update_cache: true
 
@@ -26,7 +26,7 @@
     mode: '0644'
     content: |
       Package: *
-      Pin: release o= intel-iot-linux-overlay
+      Pin: release o=intel-iot-linux-overlay
       Pin-Priority: 2000
 
 - name: Force probe for MTL GPU and enable GUC
@@ -36,8 +36,11 @@
   register: boot_entry_cmdline
 
 - name: Update boot configure
+  # noqa: no-handler
   ansible.builtin.command: "update-grub"
   changed_when: false
+  when:
+    - boot_entry_cmdline.changed
 
 - name: Install gpu kmd and firmware packages
   ansible.builtin.apt:
@@ -62,7 +65,7 @@
 
 - name: Install gpu test packages
   ansible.builtin.apt:
-    name: "{{ gpu_test_packages }}"
+    name: "{{ gpu_ubuntu_test_packages }}"
     allow_downgrade: true
 
 - name: allow dmesg for normal account

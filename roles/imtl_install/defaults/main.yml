@@ -29,3 +29,9 @@ imtl_min_fw_version_supported: "4.20"
 
 imtl_dpdk_patches_strip: 1
 imtl_ice_patches_strip: 1
+
+# Update following ranges based on patches available and testing
+imtl_min_ice_version: "1.9.11"
+imtl_max_ice_version: "1.11.14"
+imtl_min_dpdk_version: "21.05"
+imtl_max_dpdk_version: "23.03"

@@ -203,6 +203,7 @@
     executable: /bin/bash
   register: nvmupdate_result
   when: continue_nvmupdate | bool
+  changed_when: true
   failed_when: false
 
 - name: show additional message on unsupported platforms

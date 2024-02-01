@@ -20,3 +20,10 @@
     msg:
       - Deployment profile '{{ profile_name }}' has no collectd plugins selection defined.
       - Please define collectd plugins selection for the current profile in {{ role_name }} role defaults.
+
+- name: Check that telegraf is disabled
+  ansible.builtin.assert:
+    that:
+      - not telegraf_enabled | default(false)
+    fail_msg: |
+      When Collectd is enabled then Telegraf must be disabled.

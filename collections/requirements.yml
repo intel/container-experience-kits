@@ -1,4 +1,8 @@
 collections:
   - name: https://github.com/kubernetes-sigs/kubespray
     type: git
-    version: d646053c0e7fdc0dc95661d1b5ab72dd61ab0576
+    version: 6b1188e3dcce4b1afa10c79cd23bf86fbc987e0a
+
+  - name: https://github.com/ansible-collections/kubernetes.core
+    type: git
+    version: 2.4.0

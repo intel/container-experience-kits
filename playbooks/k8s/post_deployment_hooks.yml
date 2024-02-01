@@ -20,73 +20,84 @@
     - name: check if remote hooks dir present on ansible host
       delegate_to: localhost
       become: false
-      stat:
+      ansible.builtin.stat:
         path: "{{ hooks_remote }}"
       register: remote_hooks_dir
     - when: remote_hooks_dir.stat.present
       block:
         - name: delete hooks dir on remote
-          file:
+          ansible.builtin.file:
             state: absent
             path: "{{ hooks_remote }}"
         - name: copy remote hooks dir to remote
           become: true
-          copy:
+          ansible.builtin.copy:
             src: "{{ hooks_remote }}/"
             dest: "{{ hooks_remote }}"
             owner: root
             group: root
             mode: 0644
         - name: read .sh files in remote hooks dir
-          find:
+          ansible.builtin.find:
             paths: "{{ hooks_remote }}"
             patterns: "*.sh"
           register: sh_remote_files_found
-        - debug: msg="{{ sh_remote_files_found.files }}"
+        - ansible.builtin.debug:
+            msg: "{{ sh_remote_files_found.files }}"
         - name: execute .sh scripts from hooks dir
-          command: "sh {{ item.path }}"
+          ansible.builtin.command: "sh {{ item.path }}"
           with_items: "{{ sh_remote_files_found.files }}"
+          changed_when: true
           when: sh_remote_files_found.files | length > 0
         - name: read .py files in remote hooks dir
-          find:
+          ansible.builtin.find:
             paths: "{{ hooks_remote }}"
             patterns: "*.py"
           register: py_remote_files_found
-        - debug: msg="{{ py_remote_files_found.files }}"
+        - ansible.builtin.debug:
+            msg: "{{ py_remote_files_found.files }}"
         - name: execute .py scripts from hooks dir
-          command: "python3 {{ item.path }}"
+          ansible.builtin.command: "python3 {{ item.path }}"
+          changed_when: true
           with_items: "{{ py_remote_files_found.files }}"
           when: py_remote_files_found.files | length > 0
 - name: execute .sh, .py scripts and ansible playbooks on localhost
   hosts: localhost
   tasks:
     - name: read .sh files in local hooks dir
-      find:
+      ansible.builtin.find:
         paths: "{{ hooks_local }}"
         patterns: "*.sh"
       register: sh_local_files_found
-    - debug: msg="{{ sh_local_files_found.files }}"
+    - ansible.builtin.debug:
+        msg: "{{ sh_local_files_found.files }}"
     - name: execute .sh scripts from local hooks dir
-      command: "sh {{ item.path }}"
+      ansible.builtin.command: "sh {{ item.path }}"
+      changed_when: true
       with_items: "{{ sh_local_files_found.files }}"
       when: sh_local_files_found.files | length > 0
     - name: read .py files in local hooks dir
-      find:
+      ansible.builtin.find:
         paths: "{{ hooks_local }}"
         patterns: "*.py"
       register: py_local_files_found
-    - debug: msg="{{ py_local_files_found.files }}"
+    - ansible.builtin.debug:
+        msg: "{{ py_local_files_found.files }}"
     - name: execute .py scripts from hooks dir
-      command: "python3 {{ item.path }}"
+      ansible.builtin.command: "python3 {{ item.path }}"
+      changed_when: true
       with_items: "{{ py_local_files_found.files }}"
       when: py_local_files_found.files | length > 0
     - name: read .yml and .yaml files in local hooks dir
-      find:
+      ansible.builtin.find:
         paths: "{{ hooks_local }}"
         patterns: "*.yaml,*.yml"
       register: playbooks_local_files_found
-    - debug: msg="{{ playbooks_local_files_found.files }}"
+    - ansible.builtin.debug:
+        msg: "{{ playbooks_local_files_found.files }}"
     - name: execute ansible playbooks from hooks dir
-      command: ansible-playbook -i ../../inventory.ini "{{ item.path }}"
+      ansible.builtin.command:
+        cmd: ansible-playbook -i ../../inventory.ini "{{ item.path }}"
+      changed_when: true
       with_items: "{{ playbooks_local_files_found.files }}"
       when: playbooks_local_files_found.files | length > 0

@@ -16,15 +16,14 @@
 kube_prometheus_stack_directory: "{{ (project_root_dir, 'kube-prometheus-stack') | path_join }}"
 kube_prometheus_stack_namespace: monitoring
 
-prometheus_operator_version: 0.68.0
-kube_state_metrics_version: 2.10.0
+prometheus_operator_version: 0.69.1
+kube_state_metrics_version: 2.10.1
 
 tas_demo_policy_dir: "{{ (project_root_dir, 'tas-demo-policy') | path_join }}"
 
 # expose prometheus server API
 prometheus_srv_expose: false
 prometheus_srv_proxy_port: 9443
-prometheus_srv_node_port: 30443
 prometheus_srv_address: 127.0.0.1
 prometheus_srv_nginx_image: "docker.io/library/nginx:1.24.0-alpine"
 prometheus_srv_nginx_ssl_ciphers:
@@ -33,7 +32,6 @@ prometheus_srv_nginx_ssl_ciphers:
 prometheus_srv_nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
 prometheus_srv_location_exposed: "/prometheus/"
 prometheus_srv_user: prometheus
-prometheus_srv_password: prometheus
 
 prometheus_stack_version_files:
   - "{{ kube_prometheus_stack_directory }}/kube-prometheus-storage-class.yml"

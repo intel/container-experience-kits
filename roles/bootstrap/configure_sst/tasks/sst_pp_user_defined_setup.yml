@@ -47,7 +47,7 @@
 
 - name: set user defined online CPUs values for turbo-freq configuration
   shell:
-    cmd: "turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59"
+    cmd: "set -o pipefail && turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 | head -n 59"
   args:
     executable: /bin/bash
   register: read_turbostat_values
@@ -64,8 +64,11 @@
     mode: "u=rwx,g=rx,o=rx"
 
 - name: save turbostat output for user defined online CPUs to SST-PP dir path
-  shell:
-    cmd: "turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 2>&1 | head -n 59 > sst_pp_user_defined_turbostat_output.txt"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      turbostat -c {{ sst_tf_online_cpus }} --show Package,Core,CPU,Bzy_MHz -i 1 2>&1
+      | head -n 59 > sst_pp_user_defined_turbostat_output.txt
   args:
     executable: /bin/bash
     chdir: "{{ project_root_dir }}/sst_pp_config"

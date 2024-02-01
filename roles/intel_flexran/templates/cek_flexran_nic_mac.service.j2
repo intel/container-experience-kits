@@ -1,0 +1,14 @@
+[Unit]
+Description=Intel Container Experience Kits NIC VF MAC configuration for FlexRAN
+AssertPathExists=/usr/local/bin/cek_flexran_nic_mac.sh
+After=cek_sriov_nic_init.service
+Requires=cek_sriov_nic_init.service
+
+[Service]
+Environment=SRIOV_NUMVFS_MAPPINGS={{ sriov_config_path }}/cek_sriov_numvfs
+Type=oneshot
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/local/bin/cek_flexran_nic_mac.sh
+
+[Install]
+WantedBy=multi-user.target

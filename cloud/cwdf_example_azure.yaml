@@ -14,7 +14,7 @@ azureConfig:
   sg_whitelist_cidr_blocks: []
   enable_proximity_placement: true
   aks:
-    kubernetes_version: "1.27"
+    kubernetes_version: "1.28"
     cni: "kubenet" # Possible values are: kubenet, cilium, cilium-ebpf
     enable_sgx: false # Requires DCsv series instances in one of node pools
     default_node_pool:

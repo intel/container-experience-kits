@@ -21,57 +21,48 @@
     - inventory_hostname == groups['kube_node'][0]
 
 # docker is used as container runtime:
-- name: Prepare containers images
+- name: Build and push Intel SGX Device Plugin images - docker
   when:
     - inventory_hostname == groups['kube_node'][0]
     - container_runtime == "docker"
+    - sgx_dp_build_image_locally
   block:
     - name: Build Intel SGX Device Plugin images
-      make:
+      community.general.make:
         target: "{{ item }}"
         chdir: "{{ intel_dp_dir }}"
       loop:
         - intel-sgx-plugin
         - intel-sgx-initcontainer
-      when: sgx_dp_build_image_locally
 
-    - name: Tag Intel SGX Device Plugin images
-      command: docker tag intel/{{ item }}:{{ intel_dp_version }} {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
+    - name: Push Intel SGX Device Plugin images
+      community.docker.docker_image:
+        name: "intel/{{ item }}:{{ intel_dp_version }}"
+        repository: "{{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}"
+        push: true
+        source: local
       loop:
         - intel-sgx-plugin
         - intel-sgx-initcontainer
-      when: sgx_dp_build_image_locally
 
-    - name: Push Intel SGX Device Plugin images to local registry
-      command: docker push {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
-      loop:
-        - intel-sgx-plugin
-        - intel-sgx-initcontainer
-      when: sgx_dp_build_image_locally
 
 # containerd/cri-o is used as container runtime:
-- name: Prepare containers images
+- name: Build and push Intel SGX Device Plugin images - podman
+  containers.podman.podman_image:
+    name: "{{ registry_local_address }}/{{ item }}"
+    tag: "{{ intel_dp_version }}"
+    path: "{{ intel_dp_dir }}"
+    build:
+      file: "build/docker/{{ item }}.Dockerfile"
+    push: true
+    state: build
+  loop:
+    - intel-sgx-plugin
+    - intel-sgx-initcontainer
   when:
     - inventory_hostname == groups['kube_node'][0]
-    - '"docker" not in container_runtime'
-  block:
-    - name: Build and tag Intel SGX Device Plugin images
-      command: podman build -f build/docker/{{ item.file }} -t {{ registry_local_address }}/{{ item.name }}:{{ intel_dp_version }}
-      args:
-        chdir: "{{ intel_dp_dir }}"
-      changed_when: true
-      with_items:
-        - {file: intel-sgx-initcontainer.Dockerfile, name: intel-sgx-initcontainer}
-        - {file: intel-sgx-plugin.Dockerfile, name: intel-sgx-plugin}
-      when: sgx_dp_build_image_locally
-
-    - name: Push Intel SGX Device Plugin images to local registry
-      command: podman push {{ registry_local_address }}/{{ item }}:{{ intel_dp_version }}
-      changed_when: true
-      loop:
-        - intel-sgx-initcontainer
-        - intel-sgx-plugin
-      when: sgx_dp_build_image_locally
+    - container_runtime in ['containerd', 'crio']
+    - sgx_dp_build_image_locally | default(false)
 
 - name: Prepare and deploy Intel SGX Device Plugin
   when:
@@ -107,14 +98,14 @@
         sgx_plugin_info.resources | length != 0 and
         (sgx_plugin_info.resources[0].status.numberReady | int) == (sgx_plugin_info.resources[0].status.desiredNumberScheduled | int)
 
-- name: Build Intel sgx-aesmd demo image Docker engine
+- name: Build and push Intel sgx-aesmd demo image - docker
   when:
     - sgx_aesmd_demo_enable | default(false) | bool
     - inventory_hostname == groups['kube_node'][0]
     - container_runtime == "docker"
   block:
     - name: Build Intel sgx-aesmd image
-      make:
+      community.general.make:
         target: sgx-aesmd-demo
         chdir: "{{ intel_dp_dir }}"
       retries: 5
@@ -122,29 +113,27 @@
       register: build_aesmd
       until: build_aesmd is not failed
 
-    - name: Tag Intel sgx-aesmd image
-      command: docker tag intel/sgx-aesmd-demo:{{ intel_dp_version }} {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
-      changed_when: true
+    - name: Push Intel sgx-aesmd image
+      community.docker.docker_image:
+        name: "intel/sgx-aesmd-demo:{{ intel_dp_version }}"
+        repository: "{{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}"
+        push: true
+        source: local
 
-    - name: Push Intel sgx-aesmd image to local registry
-      command: docker push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
-      changed_when: true
 
-- name: Build Intel sgx-aesmd demo image non-Docker engine
+- name: Build and push Intel sgx-aesmd demo image - podman
+  containers.podman.podman_image:
+    name: "{{ registry_local_address }}/intel-sgx-aesmd-demo"
+    tag: "{{ intel_dp_version }}"
+    path: "{{ intel_dp_dir }}"
+    build:
+      file: "demo/sgx-aesmd-demo/Dockerfile"
+    push: true
+    state: build
   when:
     - sgx_aesmd_demo_enable | default(false) | bool
     - inventory_hostname == groups['kube_node'][0]
-    - '"docker" not in container_runtime'
-  block:
-    - name: Build and tag Intel sgx-aesmd image
-      command: podman build -f demo/sgx-aesmd-demo/Dockerfile -t {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
-      args:
-        chdir: "{{ intel_dp_dir }}"
-      changed_when: true
-
-    - name: Push Intel sgx-aesmd image to local registry
-      command: podman push {{ registry_local_address }}/intel-sgx-aesmd-demo:{{ intel_dp_version }}
-      changed_when: true
+    - container_runtime in ['containerd', 'crio']
 
 - name: Prepare and deploy Intel SGX aesmd demo
   when:
@@ -171,13 +160,12 @@
         mode: 0755
 
     - name: Install Intel SGX aesmd Helm chart
-      command: >-
-        helm upgrade -i intel-sgx-aesmd
-        -f {{ (project_root_dir, 'charts', 'intel-sgx-aesmd-demo-values.yml') | path_join }}
-        --namespace {{ sgx_aesmd_namespace }}
-        --create-namespace
-        {{ (project_root_dir, 'charts', 'intel-sgx-aesmd') | path_join }}
-      changed_when: true
+      kubernetes.core.helm:
+        chart_ref: "{{ (project_root_dir, 'charts', 'intel-sgx-aesmd') | path_join }}"
+        release_name: "intel-sgx-aesmd"
+        release_namespace: "{{ sgx_aesmd_namespace }}"
+        values_files: "{{ (project_root_dir, 'charts', 'intel-sgx-aesmd-demo-values.yml') | path_join }}"
+        create_namespace: true
 
     - name: Wait for SGX aesmd DaemonSet
       kubernetes.core.k8s_info:

@@ -11,6 +11,20 @@ Kubernetes cluster with properly configured SR-IOV Device Plugin, configMap and 
 ### For Docker-based version
 
 Docker accessible for user.
+From RA 24.01 release, default container management tool changed as podman based on default runtime change as containerd. User need to install docker based on BMRA access profile for stack validation. Reference steps to install and configure docker as below. 
+
+Docker installation 
+```
+curl -fsSL https://get.docker.com | bash -s docker
+```
+Configure user group and restart service
+```
+groupadd docker  
+systemctl daemon-reload
+systemctl start docker
+systemctl enable docker
+```
+Configure proxy for docker if needed.
 
 ### For Linux-based version
 

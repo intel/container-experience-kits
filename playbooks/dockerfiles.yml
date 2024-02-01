@@ -19,20 +19,40 @@
   vars:
     dockerfiles_dir: "{{ (playbook_dir, '..', '.dockerfiles') | path_join }}"
   tasks:
+    - name: Remove dockerfiles directory content
+      ansible.builtin.file:
+        path: "{{ dockerfiles_dir }}"
+        state: absent
+
     - name: Ensure dockerfiles directory exists
       ansible.builtin.file:
         path: "{{ dockerfiles_dir }}"
         state: directory
-        mode: 0755
-    - name: Template media analytics Dockerfile
+        mode: '0755'
+
+    - name: Generate media analytics Dockerfile
       ansible.builtin.include_role:
         name: intel_media_analytics
         tasks_from: template_dockerfile
-    - name: Generate media analytics Dockerfile
+
+    - name: Generate vss base Dockerfiles
       vars:
-        base_container_path: "{{ dockerfiles_dir }}"
-        base_container_dockerfile_path: "{{ dockerfiles_dir }}"
-        base_container_test_path: "{{ dockerfiles_dir }}"
+        base_container_path: "{{ (dockerfiles_dir, 'media_analytics') | path_join }}"
+        base_container_dockerfile_path: "{{ (dockerfiles_dir, 'media_analytics') | path_join }}"
+        base_container_test_path: "{{ (dockerfiles_dir, 'media_analytics') | path_join }}"
+        base_container_sudo: false
+        profile_name: "on_prem_vss"
+        prc_network: false
+        gpu_type: "Flex"
+      ansible.builtin.include_role:
+        name: intel_base_container
+        tasks_from: main
+
+    - name: Generate aibox Dockerfiles
+      vars:
+        base_container_path: "{{ (dockerfiles_dir, 'aibox') | path_join }}"
+        base_container_dockerfile_path: "{{ (dockerfiles_dir, 'aibox') | path_join }}"
+        base_container_test_path: "{{ (dockerfiles_dir, 'aibox') | path_join }}"
         base_container_sudo: false
         profile_name: "on_prem_aibox"
         prc_network: false

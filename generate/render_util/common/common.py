@@ -65,7 +65,6 @@ def add_nic_parameter(profiles: dict, args: argparse.Namespace) -> None:
 def add_mirrors_parameter(profiles: dict, args: argparse.Namespace) -> None:
     """Add mirrors information to profiles config"""
     for p in profiles.values():
-        print(args.mirrors)
         p['mirrors'] = args.mirrors
 
 

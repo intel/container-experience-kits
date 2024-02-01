@@ -21,31 +21,32 @@
     versions_parsing_errors_file: "{{ playbook_dir }}/../versions_parsing_errors"
   tasks:
     - name: Check if required source files exist
-      stat:
+      ansible.builtin.stat:
         path: '../examples/k8s/full_nfv/host_vars/node1.yml'
       register: examples
 
     - name: Create required source files
-      make:
+      community.general.make:
         chdir: "{{ playbook_dir }}/.."
       when: not examples.stat.exists
 
     - name: Show versions_output_file name
-      debug:
+      ansible.builtin.debug:
         msg: "versions_output_file is: {{ versions_output_file }}"
     - name: Show versions_parsing_errors_file name
-      debug:
+      ansible.builtin.debug:
         msg: "versions_parsing_errors_file is: {{ versions_parsing_errors_file }}"
 
     - name: Show variable values
       block:
         - name: Extract versions
-          shell: "echo -n '{{ item.description }}', && scripts/yaml_version_reader {{ item.var_file_path }} {{ item.shortname }}"
+          ansible.builtin.shell: "echo -n '{{ item.description }}', && scripts/yaml_version_reader {{ item.var_file_path }} {{ item.shortname }}"
           changed_when: false
           args:
             chdir: ".."
           register: item_value
-          loop: # noqa yaml[colons] yaml[indentation]
+          # yamllint disable rule:colons rule:indentation
+          loop:
             - { 'description'   : 'Telegraf',
                 'shortname'     : 'telegraf_image_tag',
                 'var_file_path' : 'roles/telegraf_install/defaults/main.yml'
@@ -96,25 +97,25 @@
                 'shortname'     : 'rancher_version',
                 'var_file_path' : 'roles/rke2_kubernetes_apps/rancher/defaults/main.yml'
               }
-            - { 'description'   : 'k8s node-exporter',
+            - { 'description'   : 'Node Exporter',
                 'var_file_path' : 'roles/prometheus_install/defaults/main.yml',
                 'shortname'     : 'node_exporter_version'
               }
-            - { 'description'   : 'k8s prometheus-operator',
+            - { 'description'   : 'Prometheus Operator',
                 'var_file_path' : 'roles/prometheus_install/kube_prometheus/defaults/main.yml',
                 'shortname'     : "prometheus_operator_version"
               }
-            - { 'description'   : 'k8s prometheus-adapter',
+            - { 'description'   : 'Prometheus Adapter',
                 'var_file_path' : 'roles/prometheus_install/kube_prometheus/files/kube-prometheus-stack/prometheusAdapter-clusterRole.yaml',
                 'shortname'     :  "metadata\\'\\]\\[\\'labels\\'\\]\\[\\'app.kubernetes.io/version"
               }
-            - { 'description'   : 'k8s kube-rbac-proxy',
+            - { 'description'   : 'Kubernetes RBAC proxy',
                 'var_file_path' : 'roles/cluster_defaults/defaults/main.yml',
                 'shortname'     : 'kube_rbac_proxy_image_tag'
               }
             - { 'description'   : 'Node Feature Discovery',
                 'var_file_path' : 'roles/nfd_install/defaults/main.yml',
-                'shortname'     : 'nfd_image_tag'
+                'shortname'     : 'nfd_version'
               }
             - { 'description'   : 'Vector Packet Processing',
                 'var_file_path' : 'roles/userspace_cni_install/defaults/main.yml',
@@ -122,31 +123,31 @@
               }
             - { 'description'   : 'CNI plugins',
                 'shortname'     : 'cni_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml'
               }
-            - { 'description'   : 'calico',
+            - { 'description'   : 'Calico',
                 'shortname'     : 'calico_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml'
               }
-            - { 'description'   : 'calico vpp dataplane',
+            - { 'description'   : 'Calico (VPP dataplane)',
                 'shortname'     : 'k8s_calico_vpp_version',
                 'var_file_path' : 'roles/calico_vpp_install/defaults/main.yml'
               }
             - { 'description'   : 'flannel',
                 'shortname'     : 'flannel_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml'
               }
             - { 'description'   : 'coredns',
                 'shortname'     : 'coredns_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml'
               }
             - { 'description'   : 'krew',
                 'shortname'     : 'krew_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml'
               }
             - { 'description'   : 'helm',
                 'shortname'     : 'helm_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml'
               }
             - { 'description'   : 'helm on rke2',
                 'shortname'     : 'helm_version',
@@ -234,7 +235,7 @@
               }
             - { 'description'   : 'Intel® QATlib',
                 'shortname'     : 'intel_qatlib_download_url_version',
-                'var_file_path' : 'roles/bootstrap/configure_openssl/defaults/main.yml'
+                'var_file_path' : 'roles/bootstrap/install_qatlibs/defaults/main.yml'
               }
             - { 'description'   : 'OpenSSL QAT Engine',
                 'var_file_path' : 'roles/openssl_engine_install/defaults/main.yml',
@@ -253,29 +254,29 @@
                 'shortname'     : 'sgx_sdk_version_rhel'
               }
             - { 'description'   : 'Intel® KMRA',
-                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'var_file_path' : 'roles/kmra_install/defaults/main/main.yml',
                 'shortname'     : "kmra_defaults\\'\\]\\[\\'image_tag"
               }
             - { 'description'   : 'Intel® KMRA AppHSM',
-                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'var_file_path' : 'roles/kmra_install/defaults/main/main.yml',
                 'shortname'     : "kmra_defaults\\'\\]\\[\\'apphsm\\'\\]\\[\\'image_tag",
                 'optional'      : 'true',
                 'reason'        : 'version is the same as for Intel® KMRA'
               }
             - { 'description'   : 'Intel® KMRA PCCS',
-                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'var_file_path' : 'roles/kmra_install/defaults/main/main.yml',
                 'shortname'     : "kmra_defaults\\'\\]\\[\\'pccs\\'\\]\\[\\'image_tag",
                 'optional'      : 'true',
                 'reason'        : 'version is the same as for Intel® KMRA'
               }
             - { 'description'   : 'Intel® KMRA CTK',
-                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'var_file_path' : 'roles/kmra_install/defaults/main/main.yml',
                 'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'image_tag",
                 'optional'      : 'true',
                 'reason'        : 'version is the same as for Intel® KMRA'
               }
             - { 'description'   : 'Intel® KMRA CTK nginx',
-                'var_file_path' : 'roles/kmra_install/defaults/main.yml',
+                'var_file_path' : 'roles/kmra_install/defaults/main/main.yml',
                 'shortname'     : "kmra_defaults\\'\\]\\[\\'ctk_loadkey_demo\\'\\]\\[\\'nginx_image_tag",
                 'optional'      : 'true',
                 'reason'        : 'version is the same as for Intel® KMRA'
@@ -332,9 +333,9 @@
                 'var_file_path' : 'roles/minio_install/defaults/main.yaml',
                 'shortname'     : "minio_git_tag"
               }
-            - { 'description'   : 'Power Manager Operator',
-                'var_file_path' : 'roles/intel_power_manager/defaults/main.yml',
-                'shortname'     : 'intel_power_manager_git_ref'
+            - { 'description'   : 'Kubernetes Power Manager',
+                'var_file_path' : 'roles/kubernetes_power_manager/defaults/main.yml',
+                'shortname'     : 'kubernetes_power_manager_git_ref'
               }
             - { 'description'   : 'Intel SR-IOV FEC Operator',
                 'var_file_path' : 'roles/intel_sriov_fec_operator/defaults/main.yml',
@@ -344,7 +345,7 @@
                 'var_file_path' : 'roles/intel_sriov_fec_operator/defaults/main.yml',
                 'shortname'     : 'intel_sriov_fec_operator_img_ver'
               }
-            - { 'description'   : 'FEC Operator SDK',
+            - { 'description'   : 'Operator SDK',
                 'var_file_path' : 'roles/operator_framework/defaults/main.yml',
                 'shortname'     : 'operator_sdk_git_ref'
               }
@@ -361,8 +362,8 @@
                 'shortname'     : 'dpdk_version'
               }
             - { 'description'   : 'Open vSwitch with DPDK',
-                'var_file_path' : 'examples/k8s/full_nfv/host_vars/node1.yml',
-                'shortname'     : 'ovs_version'
+                'var_file_path' : 'roles/userspace_cni_install/defaults/main.yml',
+                'shortname'     : 'default_ovs_version'
               }
             - { 'description'   : 'Intel® QAT Drivers',
                 'var_file_path' : 'roles/bootstrap/install_qat_drivers_services/defaults/main.yml',
@@ -380,28 +381,24 @@
                 'var_file_path' : 'roles/linkerd_service_mesh/defaults/main.yml',
                 'shortname'     : 'linkerd_version'
               }
-            - { 'description'   : 'cAdvisor helm chart',
-                'var_file_path' : 'roles/cadvisor_install/defaults/main.yaml',
-                'shortname'     : 'cadvisor_helm_chart_version'
-              }
             - { 'description'   : 'cAdvisor',
                 'var_file_path' : 'roles/cadvisor_install/defaults/main.yaml',
-                'shortname'     : 'cadvisor_image_version'
+                'shortname'     : 'cadvisor_version'
               }
-            - { 'description'   : 'Intel® adq dp',
+            - { 'description'   : 'Intel® ADQ Device Plugins',
                 'var_file_path' : 'roles/adq_dp_install/defaults/main.yml',
                 'shortname'     : 'intel_adq_dp_version'
               }
-            - { 'description'   : 'adq ice fw',
+            - { 'description'   : 'ADQ ICE firmware',
                 'var_file_path' : 'roles/bootstrap/update_nic_firmware/defaults/main.yml',
                 'shortname'     : 'adq_ice_fw_required_version'
               }
             - { 'description'   : 'cilium',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml',
                 'shortname'     : 'cilium_version'
               }
             - { 'description'   : 'cert manager',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml',
                 'shortname'     : 'cert_manager_version'
               }
             - { 'description'   : 'cert manager on rke2',
@@ -428,11 +425,11 @@
                 'var_file_path' : 'roles/container_engine/crio/defaults/main.yml',
                 'shortname'     : 'crio_version'
               }
-            - { 'description'   : 'registry',
+            - { 'description'   : 'container registry',
                 'shortname'     : 'registry_version',
                 'var_file_path' : 'roles/container_registry/defaults/main.yml'
               }
-            - { 'description'   : 'nginx',
+            - { 'description'   : 'nginx web server for container registry',
                 'shortname'     : 'registry_nginx_version',
                 'var_file_path' : 'roles/container_registry/defaults/main.yml'
               }
@@ -448,16 +445,12 @@
                 'shortname'     : 'golang_version',
                 'var_file_path' : 'roles/bootstrap/golang_install/defaults/main.yml'
               }
-            - { 'description'   : 'cluster_name',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/kubespray-defaults/defaults/main.yaml',
-                'shortname'     : 'cluster_name'
-              }
             - { 'description'   : 'containerd',
                 'var_file_path' : 'roles/container_engine/containerd/defaults/main.yml',
                 'shortname'     : 'containerd_version'
               }
             - { 'description'   : 'multus',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml',
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml',
                 'shortname'     : 'multus_version'
               }
             - { 'description'   : 'nfd',
@@ -466,31 +459,23 @@
               }
             - { 'description'   : 'weave',
                 'shortname'     : 'weave_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main/main.yml'
               }
-            - { 'description'   : 'kube-vip',
-                'shortname'     : 'kube_vip_image_tag',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
-              }
-            - { 'description'   : 'nginx-ingress',
-                'shortname'     : 'kubernetes_ingress_helm_chart_version',
-                'var_file_path' : 'roles/kubernetes_ingress_install/defaults/main.yml'
-              }
-            - { 'description'   : 'argocd',
-                'shortname'     : 'argocd_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/kubernetes-apps/argocd/defaults/main.yml'
-              }
-            - { 'description'   : 'metallb',
-                'shortname'     : 'metallb_version',
-                'var_file_path' : 'collections/ansible_collections/kubernetes_sigs/kubespray/roles/download/defaults/main.yml'
+            - { 'description'   : 'ingress_nginx_helm_chart',
+                'shortname'     : 'ingress_nginx_helm_version',
+                'var_file_path' : 'roles/ingress_nginx_install/defaults/main.yml'
               }
             - { 'description'   : 'kibana',
                 'shortname'     : 'kibana_chart_version',
                 'var_file_path' : 'roles/kibana_install/defaults/main.yml'
               }
-            - { 'description'   : 'Rook/Ceph',
+            - { 'description'   : 'Rook/Ceph-Rook',
                 'var_file_path' : 'roles/rook_install/defaults/main.yml',
                 'shortname'     : "rook_git_tag"
+              }
+            - { 'description'   : 'Rook/Ceph-Ceph',
+                'var_file_path' : 'roles/rook_install/defaults/main.yml',
+                'shortname'     : "ceph_version"
               }
             - { 'description'   : 'FFmpeg',
                 'var_file_path' : 'roles/ffmpeg_install/defaults/main.yml',
@@ -520,8 +505,29 @@
                 'var_file_path' : 'roles/imtl_install/defaults/main.yml',
                 'shortname'     : 'imtl_version'
               }
+            - { 'description'   : 'KubeVirt',
+                'var_file_path' : 'roles/kubevirt_install/defaults/main.yml',
+                'shortname'     : 'kubevirt_version'
+              }
+            - { 'description'   : 'Infrastructure Power Manager DPDK patches',
+                'var_file_path' : 'roles/infrastructure_power_manager/defaults/main.yml',
+                'shortname'     : 'ipm_dpdk_patches_commit'
+              }
+            - { 'description'   : 'ECK (Elasticsearch on Kubernetes) cluster version',
+                'var_file_path' : 'roles/eck_install/defaults/main.yml',
+                'shortname'     : 'eck_version'
+              }
+            - { 'description'   : 'Elasticsearch',
+                'var_file_path' : 'roles/eck_install/defaults/main.yml',
+                'shortname'     : 'eck_elasticsearch_version'
+              }
+            - { 'description'   : 'Intel In-Band Manageability Framework',
+                'var_file_path' : 'roles/intel_inband_manageability/defaults/main.yml',
+                'shortname'     : 'intel_inbm_git_tag'
+              }
+            # yamllint enable rule:colons rule:indentation
         - name: Remove old version parsing results
-          file:
+          ansible.builtin.file:
             path: "{{ item }}"
             state: absent
           failed_when: false
@@ -529,7 +535,7 @@
             - "{{ versions_output_file }}"
             - "{{ versions_parsing_errors_file }}"
         - name: Write versions into output file
-          lineinfile:
+          ansible.builtin.lineinfile:
             path: "{{ versions_output_file }}"
             line: >-
               "{{ item.stdout }}{% if (item.stderr and item.item.optional | default(false)) or (item.stdout and item.item.optional | default(false) and
@@ -538,7 +544,7 @@
             create: yes
           loop: "{{ item_value.results }}"
         - name: Write version parsing errors into errors file
-          lineinfile:
+          ansible.builtin.lineinfile:
             path: '{{ versions_parsing_errors_file }}'
             line: "{{ item.stdout }}\nParameter {{ item.item.shortname }} in file {{ item.item.var_file_path }} was not found\n{{ item.stderr }}\n"
             mode: 0644
@@ -548,10 +554,12 @@
             - item.stderr
             - not item.item.optional | default(false)
     - name: Add ddp_profile variable
-      shell: set -o pipefail | grep ddp_profile ../examples/k8s/full_nfv/host_vars/node1.yml |head -n1| awk '{print $3}'
+      ansible.builtin.shell:
+        cmd: set -o pipefail && grep ddp_profile ../examples/k8s/full_nfv/host_vars/node1.yml |head -n1| awk '{print $3}'
+        executable: /bin/bash
       changed_when: false
       register: ddp_profile
     - name: Add ddp_profile variable
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: "{{ versions_output_file }}"
         line: "ddp_profile,{{ ddp_profile.stdout }}"
