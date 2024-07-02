@@ -20,7 +20,7 @@
 
 - name: get available NIC VF devices
   ansible.builtin.shell:
-    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ nic_supported_vf_dev_ids | join('|') }}'"
+    cmd: "set -o pipefail && lspci -nnm | grep -i Ethernet | egrep -i '{{ nic_supported_vf_dev_ids | join('|') }}'"
     executable: /bin/bash
   register: nic_pci_vf_devices
   changed_when: false

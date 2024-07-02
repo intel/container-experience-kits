@@ -60,7 +60,6 @@
           Incorrect configuration !!
           Intel CPU Control Plane requires a container registry.
           Please enable with registry_enable: true in group_vars
-      when: not on_cloud | default(false)
 
   when:
     - kubernetes

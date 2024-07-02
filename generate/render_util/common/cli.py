@@ -40,7 +40,7 @@ def parse_cli() -> argparse.Namespace:
     parser.add_argument('--arch', '-a', type=str, default='spr',
                         choices={"atom", "core", "skl", "clx", "icx", "spr", "emr", "gnr", "ultra"})  # please add arch acronyms here
     parser.add_argument('--nic', '-n', type=str, default='cvl', choices={"cvl", "fvl"})  # please add new NICs here
-    parser.add_argument('--mode', type=str, default='k8s', choices={"k8s", "vm", "cloud"},
+    parser.add_argument('--mode', type=str, default='k8s', choices={"k8s", "vm"},
                         help='generate configuration files for selected mode')  # please add new modes' name here
     parser.add_argument('--mirrors', '-m', type=str, default="false", choices=["true", "false"], help='include parameters for setting mirror links')
 

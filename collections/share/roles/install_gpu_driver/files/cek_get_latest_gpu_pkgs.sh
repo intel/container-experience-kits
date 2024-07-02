@@ -51,3 +51,4 @@ apt-cache madison libvpl-dev | head -n 1
 
 echo "gpu_tool_packages :"
 apt-cache madison xpu-smi | head -n 1
+apt-cache madison libmetee | head -n 1

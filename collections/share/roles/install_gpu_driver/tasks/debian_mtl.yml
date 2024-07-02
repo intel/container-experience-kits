@@ -7,6 +7,15 @@
     force: true
     mode: '0644'
 
+- name: Add MTL repo preference file
+  ansible.builtin.copy:
+    dest: /etc/apt/preferences.d/intel-mtl
+    mode: '0644'
+    content: |
+      Package: *
+      Pin: release o=intel-iot-linux-overlay
+      Pin-Priority: 2000
+
 - name: Add MTL deb repo
   ansible.builtin.apt_repository:
     filename: "intel-mtl"
@@ -19,15 +28,6 @@
     repo: "deb-src [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/mtl.gpg] https://download.01.org/intel-linux-overlay/ubuntu jammy main non-free multimedia"
     state: present
     update_cache: true
-
-- name: Add MTL repo preference file
-  ansible.builtin.copy:
-    dest: /etc/apt/preferences.d/intel-mtl
-    mode: '0644'
-    content: |
-      Package: *
-      Pin: release o=intel-iot-linux-overlay
-      Pin-Priority: 2000
 
 - name: Force probe for MTL GPU and enable GUC
   ansible.builtin.lineinfile:
@@ -46,27 +46,41 @@
   ansible.builtin.apt:
     name: "{{ gpu_kmd_packages_u2204_mtl }}"
     allow_downgrade: true
+    # MTL BKC kernel and user mode component versions are always changing, we can't fix the version here.
+    # We have to use the latest version because :
+    # 1) Avoid user and kernel version mismatch, as user may install a new version kernel.
+    # 2) OS default version package can't support new hardware, like the firmware, we have to install the latest version
+    # noqa: package-latest
+    state: latest
   register: gpu_kmd
 
 - name: Install gpu user mode driver and runtime packages
   ansible.builtin.apt:
     name: "{{ gpu_umd_rt_packages_u2204_mtl }}"
     allow_downgrade: true
+    # noqa: package-latest
+    state: latest
 
 - name: Install gpu dev packages
   ansible.builtin.apt:
     name: "{{ gpu_dev_packages_u2204_mtl }}"
     allow_downgrade: true
+    # noqa: package-latest
+    state: latest
 
 - name: Install gpu system packages
   ansible.builtin.apt:
     name: "{{ gpu_system_packages_u2204_mtl }}"
     allow_downgrade: true
+    # noqa: package-latest
+    state: latest
 
 - name: Install gpu test packages
   ansible.builtin.apt:
     name: "{{ gpu_ubuntu_test_packages }}"
     allow_downgrade: true
+    # noqa: package-latest
+    state: latest
 
 - name: allow dmesg for normal account
   sysctl:

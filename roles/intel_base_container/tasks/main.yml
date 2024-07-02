@@ -53,6 +53,8 @@
     container_adduser: "{{ item.adduser }}"
     container_gpu_stack: "{{ item.gpu_stack }}"
     container_gpu_stack_version: "{{ item.gpu_stack_version }}"
+    container_npu_stack: "{{ item.npu_stack }}"
+    container_npu_stack_version: "{{ item.npu_stack_version }}"
     container_oneapi_base: "{{ item.oneapi_base }}"
     container_oneapi_ai: "{{ item.oneapi_ai }}"
     container_openvino: "{{ item.openvino }}"
@@ -84,20 +86,36 @@
   with_items: "{{ base_container_set }}"
   become: "{{ base_container_sudo }}"
 
-- name: copy feature installation scripts
-  copy:
-    src: "{{ item }}"
-    dest: "{{ base_container_dockerfile_path }}"
+- name: Generate feature installation scripts
+  ansible.builtin.template:
+    src: "templates/{{ item.src }}"
+    dest: "{{ (base_container_dockerfile_path, item.dest ) | path_join }}"
     mode: 0755
-    force: true
   with_items:
-    - 'install_gpu_stack.sh'
-    - 'install_openvino.sh'
-    - 'install_openvino_dev.sh'
-    - 'install_dlstreamer.sh'
-    - 'install_ffmpeg.sh'
-    - 'install_opencv.sh'
+    - { src: 'install_gpu_stack.j2', dest: 'install_gpu_stack.sh' }
+    - { src: 'install_npu_stack.j2', dest: 'install_npu_stack.sh' }
+    - { src: 'install_openvino.j2', dest: 'install_openvino.sh' }
+    - { src: 'install_openvino_dev.j2', dest: 'install_openvino_dev.sh' }
+    - { src: 'install_dlstreamer.j2', dest: 'install_dlstreamer.sh' }
+    - { src: 'install_ffmpeg.j2', dest: 'install_ffmpeg.sh' }
+    - { src: 'install_opencv.j2', dest: 'install_opencv.sh' }
   become: "{{ base_container_sudo }}"
+
+# - name: Copy feature installation scripts
+#   copy:
+#     src: "{{ item }}"
+#     dest: "{{ base_container_dockerfile_path }}"
+#     mode: 0755
+#     force: true
+#   with_items:
+#     - 'install_gpu_stack.sh'
+#     - 'install_npu_stack.sh'
+#     - 'install_openvino.sh'
+#     - 'install_openvino_dev.sh'
+#     - 'install_dlstreamer.sh'
+#     - 'install_ffmpeg.sh'
+#     - 'install_opencv.sh'
+#   become: "{{ base_container_sudo }}"
 
 - name: Generate base container test Dockerfiles
   vars:
@@ -126,21 +144,48 @@
   with_items: "{{ base_container_test_set }}"
   become: "{{ base_container_sudo }}"
 
-- name: copy test entry scripts
+- name: Copy test entry scripts and data
   copy:
     src: "{{ item }}"
     dest: "{{ base_container_test_path }}"
     mode: 0755
     force: true
   with_items:
-    - 'test_gpu_entry.sh'
-    - 'test_openvino_entry.sh'
-    - 'test_dlstreamer_entry.sh'
-    - 'test_ffmpeg_entry.sh'
-    - 'test_opencv_entry.sh'
-    - 'test_openvino_dev_entry.sh'
     - 'test_data'
   become: "{{ base_container_sudo }}"
+
+- name: Generate test entry scripts
+  ansible.builtin.template:
+    src: "templates/{{ item.src }}"
+    dest: "{{ (base_container_test_path, item.dest ) | path_join }}"
+    mode: 0755
+  with_items:
+    - { src: 'test_gpu_entry.j2', dest: 'test_gpu_entry.sh'}
+    - { src: 'test_openvino_entry.j2', dest: 'test_openvino_entry.sh'}
+    - { src: 'test_openvino_dev_entry.j2', dest: 'test_openvino_dev_entry.sh'}
+    - { src: 'test_openvino_npu_entry.j2', dest: 'test_openvino_npu_entry.sh'}
+    - { src: 'test_dlstreamer_entry.j2', dest: 'test_dlstreamer_entry.sh' }
+    - { src: 'test_ffmpeg_entry.j2', dest: 'test_ffmpeg_entry.sh'}
+    - { src: 'test_opencv_entry.j2', dest: 'test_opencv_entry.sh'}
+  become: "{{ base_container_sudo }}"
+
+# - name: Copy test entry scripts and data
+#   copy:
+#     src: "{{ item }}"
+#     dest: "{{ base_container_test_path }}"
+#     mode: 0755
+#     force: true
+#   with_items:
+#     - 'test_gpu_entry.sh'
+#     - 'test_openvino_entry.sh'
+#     - 'test_openvino_dev_entry.sh'
+#     - 'test_openvino_npu_entry.sh'
+#     - 'test_dlstreamer_entry.sh'
+#     - 'test_ffmpeg_entry.sh'
+#     - 'test_opencv_entry.sh'
+#     - 'test_data'
+#   become: "{{ base_container_sudo }}"
+
 
 - name: Build base container images with docker
   community.docker.docker_image:

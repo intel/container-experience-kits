@@ -1,0 +1,60 @@
+#!/bin/bash
+
+TEST_POSTFIX="$1"
+
+source /opt/intel/openvino/setupvars.sh
+
+echo "---------------- Build benchmark_app ----------------"
+cd /opt/intel/openvino/samples/cpp || exit
+./build_samples.sh
+
+cd "$HOME"/openvino_cpp_samples_build/intel64/Release || exit
+
+
+result="Failed"
+pass_count=0
+
+echo "---------------- Check Avaliable OpenVINO devices ----------------"
+./benchmark_app -h | grep Available | grep NPU
+if ./benchmark_app -h | grep Available | grep NPU
+then
+    (( pass_count+=1 )) || true
+else
+    result_failed_txt="benchmark_app gets NPU device failed."
+    echo "benchmark_app gets NPU device failed."
+fi
+
+
+echo "---------------- Check Resnet50 Performance  ----------------"
+openvino_npu_output_path="$HOME"/data/openvino_npu_output_"$TEST_POSTFIX"
+if [[ -d ${openvino_npu_output_path} ]]
+then
+    rm -rf "${openvino_npu_output_path}"
+fi
+mkdir -p "${openvino_npu_output_path}"
+
+
+timeout 1800 omz_downloader --name resnet-50-tf -o "${openvino_npu_output_path}"/models
+omz_converter --name resnet-50-tf -d "${openvino_npu_output_path}"/models
+
+output_result="${openvino_npu_output_path}"/openvino_test_output.txt
+benchmark_app -m "${openvino_npu_output_path}"/models/public/resnet-50-tf/FP16/resnet-50-tf.xml -d NPU | tee "${output_result}"
+
+if [[ $(grep -n "Throughput:" "${output_result}" | awk '{if($(NF-1)>0) {print "Passed"} else {print "Failed"}}') == "Passed" ]]
+then
+    (( pass_count+=1 )) || true
+else
+    result_failed_txt="No Throughput value."
+    echo "benchmark_app run resnet50 failed."
+fi
+
+
+echo "---------------- Check Final Result  ----------------"
+if [[ ${pass_count} -eq 2 ]]
+then
+    result="Passed"
+else
+    result="Failed: ${result_failed_txt}"
+fi
+
+echo "${result}" | tee "${HOME}"/data/test_openvino_npu_result_"$TEST_POSTFIX"

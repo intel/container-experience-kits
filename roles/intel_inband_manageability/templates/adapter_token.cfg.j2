@@ -1,0 +1,40 @@
+{ "cloud": "thingsboard", "config": {
+    "mqtt": {
+        "username": "{{ intel_inband_manageability.thingsboard_config.access_token }}",
+        "password": "",
+        "hostname": "{{ intel_inband_manageability.thingsboard_config.ip }}",
+        "port": {{ intel_inband_manageability.thingsboard_config.port }}
+    },
+    "event": {
+        "pub": "v1/devices/me/telemetry",
+        "format": "{ \"ts\": \"{ts}\", \"values\": {\"event\": \"{value}\"}}"
+    },
+    "telemetry": {
+        "pub": "v1/devices/me/telemetry",
+        "format": "{ \"ts\": \"{ts}\", \"values\": {\"{key}\": \"{value}\"}}"
+    },
+    "attribute": {
+        "pub": "v1/devices/me/attributes",
+        "format": "{ \"{key}\": \"{value}\" }"
+    },
+    "method": {
+        "pub": "v1/devices/me/rpc/response/{request_id}",
+        "format": "\"{timestamp}: {message}\"",
+        "sub": "v1/devices/me/rpc/request/+",
+        "parse": {
+            "single": {
+                "request_id": {
+                    "regex": "v1\\/devices\\/me\\/rpc\\/request\\/([0-9]+)",
+                    "group": 1
+                },
+                "method": {
+                    "path": "method"
+                },
+                "args": {
+                    "path": "params"
+                }
+            }
+        }
+    }
+}
+}

@@ -15,11 +15,6 @@ configured_arch: {{ arch }}
 vm_enabled: {% if vm_mode == 'on' %}true{% else %}false{% endif %}
 
 
-{% if cloud_mode == 'on' %}
-# on_cloud is used when deploying Cloud RA
-on_cloud: true
-
-{% endif %}
 #########################
 ## Misc. Configuration ##
 #########################
@@ -28,7 +23,7 @@ on_cloud: true
 # It is NOT recommended to disable preflight, unless it is a conscious decision
 preflight_enabled: true
 
-unconfirmed_cpu_models: {% if cloud_mode == 'on' %}['8259C', '8175M', '8259CL', '8171M', '2673', '8370C']{% else %}[]{% endif %} # Update list if required, e.g. ['$0000%@', '8490H']
+unconfirmed_cpu_models: [] # Update list if required, e.g. ['$0000%@', '8490H']
 
 # CEK project directory on all nodes
 project_root_dir: /opt/cek/
@@ -79,9 +74,9 @@ update_all_packages: false
 
 {% if arch in ['ultra'] %}
 update_kernel: true
-nda_kernel_path: "/tmp/linux-kernel-overlay"
-nda_firmware_path: "/tmp/firmware"
-nda_driver_path: "/tmp/driver"
+custom_kernel_path: "/tmp/kernel"
+custom_firmware_path: "/tmp/firmware"
+custom_driver_path: "/tmp/driver"
 {% else %}
 update_kernel: false
 {% endif %}
@@ -107,9 +102,12 @@ firewall_enabled: {% if firewall == "on" %}true{% else %}false{% endif %}
 {% if name == 'on_prem_aibox' %}
 dns_disable_stub_listener: false
 prc_network: false
+prc_github_mirror: "https://hub.gitmirror.com"
+prc_dockerhub_mirror: "https://docker.m.daocloud.io"
 {% else %}
 dns_disable_stub_listener: true
 prc_network: false
+prc_dockerhub_mirror: ""
 {% endif %}
 
 
@@ -537,11 +535,6 @@ sgx_memory_size: 16
 ## Operators ##
 ###############
 
-{% if cloud_mode == 'on' %}
-# OpenShift SRIOV Network Operator
-# Do not change the value of sriov_network_operator_enabled, as it will cause Cloud RA to fail
-sriov_network_operator_enabled: false
-{% else %}
 {% if sriov_operator in ['on', 'optional'] %}
 # OpenShift SRIOV Network Operator
 sriov_network_operator_enabled: {% if sriov_operator == 'on' %}true{% else %}false{% endif %}
@@ -551,7 +544,6 @@ sriov_network_operator_enabled: {% if sriov_operator == 'on' %}true{% else %}fal
 # are not created before VM creation
 {% endif %}
 sriov_network_operator_namespace: "sriov-network-operator"
-{% endif %}
 
 {% endif %}
 {% if intel_ethernet_operator.enabled in ['on', 'optional'] %}
@@ -892,8 +884,8 @@ always_pull_enabled: false
 # Realtime kernel
 rt_kernel_enabled: {% if rt_kernel == 'on' %}true{% else %}false{% endif %} # if true, install realtime kernel
 ubuntu_pro_token: "ffffffffffffffffffffffffffffff" # need to attach Ubuntu Pro free token to download RT kernel(please apply it firstly)
-{% endif %}
 
+{% endif %}
 {% if intel_flexran in ['on', 'optional'] %}
 # Intel FlexRAN
 intel_flexran_enabled: {% if intel_flexran == 'on' %}true{% else %}false{% endif %}    # Enable deployment of FlexRAN
@@ -923,8 +915,8 @@ adq_dp:
   # IP address of CVL interface located on the control plane
   interface_address: "192.168.0.10"
   interface_name: "ens107"
-{% endif %}
 
+{% endif %}
 {% if calico_vpp in ['on', 'optional'] %}
 # Calico VPP dataplane is in beta and should not be used in production clusters.
 # It requires the used interface must be the name of a Linux interface, up and configured with an address.
@@ -932,16 +924,17 @@ adq_dp:
 # In inventory.ini set "ip=" to IP address of CVL interface.
 # Additional requirements and details can be found in docs/calico_vpp.md
 calico_vpp:
-  enabled: {% if calico_vpp == 'on' %}true{% else %}false{% endif %} 
-  interface_name: "enxcalicovpp001"
-{% endif %}
+  enabled: {% if calico_vpp == 'on' %}true{% else %}false{% endif %}
 
+  interface_name: "enxcalicovpp001"
+
+{% endif %}
 {% if intel_eci and (intel_eci.values() | reject('eq', 'off')) | list | length() > 0 %}
 # Please contact eci-support@intel.com on how to access this repo.
 # Also refer to ESH (https://www.intel.com/content/www/us/en/edge-computing/edge-software-hub.html)
 intel_eci_repo: <link_to_eci_apt_repo_from_ESH>
-{% endif %}
 
+{% endif %}
 {% if intel_csl_excat in ['on', 'optional'] %}
 # Please contact eci-support@intel.com on how to get the csl_excat release
 # Also refer to ESH (https://www.intel.com/content/www/us/en/edge-computing/edge-software-hub.html)
@@ -1032,11 +1025,23 @@ build_base_images: false
 {% endif %}
 
 {% if inbm in ['on', 'optional'] %}
-intel_inband_manageability_enabled: {% if inbm == 'on' %}true{% else %}false{% endif %}
-
-# Supported values for mode are 'inbc', 'cloud'.
-# If local inbc option is chosen then provisioning will be performed automatically, otherwise provisioning should be run manually using provision-tc command.
+intel_inband_manageability:
+# Supported values for mode are: ['inbc', 'thingsboard, 'cloud'].
+# If inbc or thingsboard option is chosen then provisioning will be performed automatically, otherwise provisioning should be run manually using provision-tc command.
 # For more information please refer to
 # https://github.com/intel/intel-inb-manageability/blob/develop/docs/In-Band%20Manageability%20Installation%20Guide%20Ubuntu.md
-intel_inband_manageability_mode: 'inbc'
+  enabled: {% if inbm == 'on' %}true{% else %}false{% endif %}
+
+  mode: 'inbc'
+  # The below configuration options are only relevant when mode is 'thingsboard'
+  thingsboard_config:
+    ip: 127.0.0.1 # IP of the ThingsBoard instance
+    port: 1883 # Port of the ThingsBoard instance
+    # If credential_mode "x509" is used, the certificate needed by ThingsBoard will be available in
+    # '/opt/intel/inbm_device_certs/device-cert.pem' once deployment is complete
+    # For credential_mode "x509" the inbm-cloudadapter service must be restarted after the certificate has been added to ThingsBoard.
+    # This step must be done manually using `service inbm-cloudadapter restart`
+    credential_mode: "token" # Supported values are ["token", "x509"]
+    access_token: "xyz" # Replace with ThingsBoard token when credential_mode: "token"
+    server_cert: "/path/to/server.pem" # Path to ThingsBoard CA on target machine(s). Needed when credential_mode: "x509"
 {% endif %}

@@ -34,14 +34,41 @@
   retries: 4
   delay: 3
   with_items: "{{ docker_repo_key_info.repo_keys }}"
-  when: ansible_distribution == 'Ubuntu'
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - not prc_network | bool
 
 - name: ensure docker-ce repository is enabled
   apt_repository:
     repo: "{{ item }}"
     state: present
   with_items: "{{ docker_repo_info.repos }}"
-  when: ansible_distribution == 'Ubuntu'
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - not prc_network | bool
+
+- name: ensure docker-ce repository public key is installed
+  apt_key:
+    id: "{{ item }}"
+    url: "{{ docker_repo_key_info_prc.url }}"
+    state: present
+  register: keyserver_task_result
+  until: keyserver_task_result is succeeded
+  retries: 4
+  delay: 3
+  with_items: "{{ docker_repo_key_info_prc.repo_keys }}"
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - prc_network | bool
+
+- name: ensure docker-ce repository is enabled
+  apt_repository:
+    repo: "{{ item }}"
+    state: present
+  with_items: "{{ docker_repo_info_prc.repos }}"
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - prc_network | bool
 
 - name: Configure docker repository on RedHat / Rocky
   template:
@@ -93,9 +120,20 @@
   until: docker_task_result is succeeded
   retries: 4
   delay: 3
-  notify: restart docker
+  notify: Restart docker
   when:
     - docker_package_info.pkgs|length > 0
+
+- name: Hold current version packages
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  when: ansible_distribution == 'Ubuntu'
+  changed_when: false
+  with_items:
+    - "{{ containerd_package }}"
+    - docker-ce
+    - docker-ce-cli
 
 - name: ensure docker started, remove config if docker start failed and try again
   block:
@@ -114,7 +152,7 @@
       with_items:
         - /etc/systemd/system/docker.service.d/http-proxy.conf
         - /etc/systemd/system/docker.service.d/docker-options.conf
-      notify: restart docker
+      notify: Restart docker
 
 - name: flush handlers so we can wait for docker to come up
   meta: flush_handlers

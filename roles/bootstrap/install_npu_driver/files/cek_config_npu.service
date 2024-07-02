@@ -1,0 +1,12 @@
+[Unit]
+Description=CEK Config NPU Service
+AssertPathExists=/usr/local/bin/cek_config_npu.sh
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+#ExecStartPre=/bin/sleep 10
+ExecStart=/usr/local/bin/cek_config_npu.sh
+
+[Install]
+WantedBy=multi-user.target

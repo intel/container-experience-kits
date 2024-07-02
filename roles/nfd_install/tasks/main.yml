@@ -37,20 +37,6 @@
     mode: preserve
   when: inventory_hostname == groups['kube_control_plane'][0]
 
-- name: wait for cert-manager-webhook to be available
-  k8s_info:
-    kind: Deployment
-    name: cert-manager-webhook
-    namespace: cert-manager
-    wait: yes
-    wait_condition:
-      reason: MinimumReplicasAvailable
-      type: Available
-    wait_timeout: 240
-  when:
-    - inventory_hostname == groups['kube_control_plane'][0]
-    - on_cloud is defined and on_cloud
-
 - name: Deploy NFD
   kubernetes.core.helm:
     name: node-feature-discovery
@@ -68,7 +54,6 @@
     delay: 10
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
-    - on_cloud is not defined or not on_cloud
 
 - name: NodeFeatureRules for DPs
   block:

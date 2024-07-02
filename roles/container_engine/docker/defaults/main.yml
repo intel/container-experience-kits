@@ -64,3 +64,6 @@ docker_rh_repo_gpgkey: 'https://download.docker.com/linux/centos/gpg'
 docker_ubuntu_repo_base_url: "https://download.docker.com/linux/ubuntu"
 docker_ubuntu_repo_gpgkey: 'https://download.docker.com/linux/ubuntu/gpg'
 docker_ubuntu_repo_repokey: '9DC858229FC7DD38854AE2D88D81803C0EBFCD88'
+
+docker_ubuntu_repo_base_url_prc: "https://mirrors.aliyun.com/docker-ce/linux/ubuntu"
+docker_ubuntu_repo_gpgkey_prc: 'https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg'

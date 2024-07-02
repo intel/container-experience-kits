@@ -14,11 +14,11 @@
 ##   limitations under the License.
 ##
 ---
-- name: assert intel_inband_manageability_mode is set correctly
+- name: assert intel_inband_manageability.mode is set correctly
   ansible.builtin.assert:
-    that: intel_inband_manageability_mode in ['inbc', 'cloud']
+    that: intel_inband_manageability.mode in ['inbc', 'thingsboard', 'cloud']
     fail_msg:
-      "intel_inband_manageability_mode should be one of the following: inbc, cloud."
+      "intel_inband_manageability.mode should be one of the following: inbc, thingsboard, cloud."
 
 - name: Intel In-Band Manageability OS check
   ansible.builtin.assert:
@@ -27,3 +27,10 @@
       - ansible_distribution_version in ['20.04', '22.04']
     msg: >-
       Currently Intel In-Band Manageability is only supported on Ubuntu 20.04 and 22.04.
+
+- name: assert credential_mode for intel_inband_manageability with thingsboard
+  ansible.builtin.assert:
+    that: intel_inband_manageability.thingsboard_config.credential_mode in ['token', 'x509']
+    fail_msg:
+      "intel_inband_manageability.thingsboard_config.credential_mode must be either 'token' or 'x509'"
+  when: intel_inband_manageability.mode == 'thingsboard'

@@ -4,6 +4,12 @@ Intel Container Experience Kits Setup Scripts provide a simplified mechanism for
 
 The software provided here is for reference only and not intended for production environments.
 
+## Information About Release v24.01.1
+
+The most recent patch release, v24.01.1, is mainly for supporting the `on_prem_aibox` profile.
+
+If any issues are observed when using this release for other profiles, please revert to using v24.01 instead.
+
 ## Quickstart guide
 
 **_NOTE:_** Instruction provided bellow are prepared for deployment done under root user by default. If you want to do deployment under non-root user then read [this](docs/rootless_deployment.md) file first and then continue with following steps under that non-root user.
@@ -136,8 +142,6 @@ The software provided here is for reference only and not intended for production
     cp examples/vm/${PROFILE}/inventory.ini .
     ```
 
-    > **_NOTE:_** For cloud profiles no inventory.ini file is created, as it will be generated during machine provisioning. As a result, step 6 can be skipped.
-
 7. Update inventory file with your environment details.
 
     For VM case: update details relevant for vm_host
@@ -162,12 +166,6 @@ The software provided here is for reference only and not intended for production
     cp -r examples/vm/${PROFILE}/group_vars examples/vm/${PROFILE}/host_vars .
     ```
 
-    or, for Cloud case:
-
-    ```bash
-    cp -r examples/cloud/${PROFILE}/group_vars examples/cloud/${PROFILE}/host_vars .
-    ```
-
 9. Update group and host vars to match your desired configuration. Refer to [this section](#configuration) for more details.
 
     > **_NOTE:_** Please pay special attention to the `http_proxy`, `https_proxy` and `additional_no_proxy` vars if you're behind proxy.
@@ -190,8 +188,6 @@ The software provided here is for reference only and not intended for production
 
 11. Execute `ansible-playbook`.
 
-    > **_NOTE:_** For Cloud case this step is not used. See the [cloud/](cloud/) directory for more details
-    
     > **_NOTE:_** It is recommended to use "--flush-cache" (e.g. "ansible-playbook -i --flush-cache inventory.ini playbooks/remote_fp.yml") when executing ansible-playbook in order to avoid unknown issues such as skip of tasks/roles, unable to update previous run inventory details, etc.
               
     ```bash

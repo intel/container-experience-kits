@@ -8,7 +8,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 
 USER root
-RUN apt-get update -y; apt-get -y --no-install-recommends install sudo net-tools \
+RUN apt-get update -y && apt-get -y --no-install-recommends install sudo net-tools \
 gpg-agent curl wget apt-utils python3-venv python3-pip software-properties-common \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
@@ -17,6 +17,7 @@ gpg-agent curl wget apt-utils python3-venv python3-pip software-properties-commo
 RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simple
 {% endif %}
 
+{% if configure_gpu %}
 {% if container_gpu_stack %}
 # Dockerfile template may generate consecutive RUN commands belongs
 # to different feature group, ignore hadolint DL3059
@@ -27,6 +28,23 @@ WORKDIR /opt/intel/nep
 # hadolint ignore=DL3059
 RUN chmod +x install_gpu_stack.sh && ./install_gpu_stack.sh {{ container_gpu_stack_version }} {{ gpu_type }}
 {% endif %}
+{% endif %}
+
+
+{% if configured_arch in ['ultra'] %}
+{% if container_npu_stack %}
+
+# Dockerfile template may generate consecutive RUN commands belongs
+# to different feature group, ignore hadolint DL3059
+# hadolint ignore=DL3059
+RUN mkdir -p /opt/intel/nep
+COPY install_npu_stack.sh /opt/intel/nep/
+WORKDIR /opt/intel/nep
+# hadolint ignore=DL3059
+RUN chmod +x install_npu_stack.sh && ./install_npu_stack.sh {{ container_npu_stack_version }}
+{% endif %}
+{% endif %}
+
 
 {% if container_oneapi_base %}
 
@@ -53,12 +71,11 @@ RUN chmod +x install_openvino.sh && ./install_openvino.sh {{ container_openvino_
 RUN mkdir -p /opt/intel/nep
 COPY install_dlstreamer.sh /opt/intel/nep/
 WORKDIR /opt/intel/nep
-{% if prc_network %}
 # hadolint ignore=DL3059
-RUN chmod +x install_dlstreamer.sh && ./install_dlstreamer.sh {{ container_dlstreamer_version }} {{ gpu_type }} prc_network
-{% else %}
-# hadolint ignore=DL3059
+{% if configure_gpu %}
 RUN chmod +x install_dlstreamer.sh && ./install_dlstreamer.sh {{ container_dlstreamer_version }} {{ gpu_type }}
+{% else %}
+RUN chmod +x install_dlstreamer.sh && ./install_dlstreamer.sh {{ container_dlstreamer_version }} "Unknown"
 {% endif %}
 {% endif %}
 
@@ -70,13 +87,8 @@ COPY install_ffmpeg.sh /opt/intel/nep/
 WORKDIR /opt/intel/nep
 # hadolint ignore=DL3059
 RUN chmod +x install_ffmpeg.sh
-{% if prc_network %}
-# hadolint ignore=DL3059
-RUN ./install_ffmpeg.sh {{ container_ffmpeg_version }} prc_network
-{% else %}
 # hadolint ignore=DL3059
 RUN ./install_ffmpeg.sh {{ container_ffmpeg_version }}
-{% endif %}
 {% endif %}
 
 
@@ -87,13 +99,8 @@ COPY install_opencv.sh /opt/intel/nep/
 WORKDIR /opt/intel/nep
 # hadolint ignore=DL3059
 RUN chmod +x install_opencv.sh
-{% if prc_network %}
-# hadolint ignore=DL3059
-RUN ./install_opencv.sh {{ container_opencv_version }} prc_network
-{% else %}
 # hadolint ignore=DL3059
 RUN ./install_opencv.sh {{ container_opencv_version }}
-{% endif %}
 {% endif %}
 
 

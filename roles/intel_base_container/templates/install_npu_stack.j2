@@ -1,0 +1,55 @@
+#!/bin/bash
+
+NPU_STACK_VERSION="$1"
+
+set -e
+
+echo "npu stack version is : $NPU_STACK_VERSION"
+
+NPU_PKG_DIR=npu_pkg
+
+mkdir -p $NPU_PKG_DIR
+cd $NPU_PKG_DIR || exit
+
+
+if [ "${NPU_STACK_VERSION}" = "default" ]; then
+    kernel_version_major=`uname -r | awk -F'.' '{print $1}'`
+    kernel_version_minor=`uname -r | awk -F'.' '{print $2}'`
+    echo "kernel version : $kernel_version_major.$kernel_version_minor"
+    if [[ "${kernel_version_major}" -eq 6 && "${kernel_version_minor}" -ge 7 ]]; then
+        NPU_STACK_VERSION="1.2.0"
+    else
+        NPU_STACK_VERSION="1.1.0"
+    fi
+fi
+
+if [ "${NPU_STACK_VERSION}" = "1.2.0" ]; then
+
+    echo "Install NPU 1.2.0"
+{% if prc_network %}
+    curl -L -o ./intel-driver-compiler-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb    https://hub.gitmirror.com/github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-driver-compiler-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb   https://hub.gitmirror.com/github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-level-zero-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb   https://hub.gitmirror.com/github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-level-zero-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb
+{% else %}
+    curl -L -o ./intel-driver-compiler-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb    https://github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-driver-compiler-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb   https://github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-level-zero-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb   https://github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-level-zero-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb
+{% endif %}
+
+else
+
+    echo "Install NPU 1.1.0"
+{% if prc_network %}
+    curl -L -o ./intel-driver-compiler-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb  https://hub.gitmirror.com/github.com/intel/linux-npu-driver/releases/download/v1.1.0/intel-driver-compiler-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-fw-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb   https://hub.gitmirror.com/github.com/intel/linux-npu-driver/releases/download/v1.1.0/intel-fw-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-level-zero-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb   https://hub.gitmirror.com/github.com/intel/linux-npu-driver/releases/download/v1.1.0/intel-level-zero-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb
+    curl -L -o ./level-zero_1.10.0+u22.04_amd64.deb  https://hub.gitmirror.com/github.com/oneapi-src/level-zero/releases/download/v1.10.0/level-zero_1.10.0+u22.04_amd64.deb
+{% else %}
+    curl -L -o ./intel-driver-compiler-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb  https://github.com/intel/linux-npu-driver/releases/download/v1.1.0/intel-driver-compiler-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-fw-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb   https://github.com/intel/linux-npu-driver/releases/download/v1.1.0/intel-fw-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb
+    curl -L -o ./intel-level-zero-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb   https://github.com/intel/linux-npu-driver/releases/download/v1.1.0/intel-level-zero-npu_1.1.0.20231117-6904283384_ubuntu22.04_amd64.deb
+    curl -L -o ./level-zero_1.10.0+u22.04_amd64.deb  https://github.com/oneapi-src/level-zero/releases/download/v1.10.0/level-zero_1.10.0+u22.04_amd64.deb
+{% endif %}
+fi
+
+apt-get install -y --allow-downgrades ./*.deb

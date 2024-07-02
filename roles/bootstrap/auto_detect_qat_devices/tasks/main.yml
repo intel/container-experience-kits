@@ -23,7 +23,7 @@
 
 - name: get supported QAT PF devices
   ansible.builtin.shell:
-    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ qat_supported_pf_dev_ids | join('|') }}'"
+    cmd: "set -o pipefail && lspci -nnm | grep -i Co-processor | egrep -i '{{ qat_supported_pf_dev_ids | join('|') }}'"
     executable: /bin/bash
   register: qat_pci_pf_devices
   changed_when: false
@@ -32,7 +32,7 @@
 
 - name: get supported QAT VF devices
   ansible.builtin.shell:
-    cmd: "set -o pipefail && lspci -nnm | egrep -i '{{ qat_supported_vf_dev_ids | join('|') }}'"
+    cmd: "set -o pipefail && lspci -nnm | grep -i Co-processor | egrep -i '{{ qat_supported_vf_dev_ids | join('|') }}'"
     executable: /bin/bash
   register: qat_pci_vf_devices
   changed_when: false

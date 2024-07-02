@@ -54,13 +54,12 @@ make examples
 ```
 
 After successful profiles generation, the results might be investigated in the `examples` directory.
-The three directories should be visible:
+The two directories should be visible:
 
 * k8s - contains profiles deployable on the bare metal machines
 * vm - contains profiles deployable on the virtual machines
-* cloud - contains profiles deployable on public clouds (Azure, AWS)
 
-These three directories represent available modes of the CEK project.
+These two directories represent available modes of the CEK project.
 
 ## Discover Supported Architectures
 
@@ -130,13 +129,6 @@ To generate the same profile as above, but for `vm` mode, run:
 
 ```bash
 make vm-profile PROFILE=remote_fp ARCH=spr NIC=cvl
-```
-
-For Cloud RA, the architecture must be set according to the target machine types. In most cases, machines will be either `SkyLake` or `CascadeLake`. If different machine types are being used, the earliest architecture must be selected. At this time, changing the value of the Ethernet Network Adapter does not have an impact for Cloud RA.
-To generate the `remote_fp` profile for `cloud` mode, targeting a mix of `SkyLake` and `CascadeLake` machines, run:
-
-```bash
-make cloud-profile PROFILE=remote_fp ARCH=skl
 ```
 
 The values of `PROFILE`, `ARCH` and `NIC` parameters are up to you. Please update accordingly.

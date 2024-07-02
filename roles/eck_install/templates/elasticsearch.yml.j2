@@ -33,11 +33,7 @@ spec:
                     - key: kubernetes.io/hostname
                       operator: In
                       values:
-{% if on_cloud|d(false) %}
-                        - {{ hostvars[groups['kube_node'][0]]['ansible_nodename'] }}
-{% else %}
                         - {{ hostvars[groups['kube_node'][0]]['ansible_hostname'] }}
-{% endif %}
         containers:
         - name: elasticsearch
           resources:

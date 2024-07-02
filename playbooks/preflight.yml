@@ -466,7 +466,6 @@
         msg:
           - Linux distribution {{ ansible_distribution }} {{ ansible_distribution_version }} on target '{{ inventory_hostname }}' is NOT supported
           - Must be one of {{ cek_supported_distros }} and version {{ cek_supported_distros_versions }}
-      when: on_cloud is not defined or not on_cloud
 
 #    - name: Check Linux Across Cluster
 # TODO ?? Linux OS must be the same on all targets (no mix-n-match)
@@ -1110,7 +1109,7 @@
         name: intel_inband_manageability
         tasks_from: preflight
       when:
-        - intel_inband_manageability_enabled | d(false)
+        - intel_inband_manageability.enabled | d(false)
 
     - name: Check GPU device plugin state
       ansible.builtin.assert:
@@ -1401,7 +1400,6 @@
             - iommu_groups_out.rc != 0
       when:
         - on_vms is not defined or not on_vms
-        - on_cloud is not defined or not on_cloud
         - profile_name != "on_prem_aibox"
 
 # STORY: Intel Virtualization Technology should be enabled in BIOS
@@ -1428,7 +1426,6 @@
             - "'VT-x' not in virtualization_tech.stdout"
       when:
         - vm_enabled | default(false)
-        - on_cloud is not defined or not on_cloud
         - not configure_tdx | default(false)
 
 # STORY: CPU Hyper-Threading should be enabled in BIOS
@@ -1440,7 +1437,6 @@
         msg: "Warning: Intel Hyper-Threading Tech is DISABLED on target. Please check BIOS under 'Advanced > Processor Configuration' and Enable if necessary"
       when:
         - ansible_processor_threads_per_core != 2
-        - on_cloud is not defined or not on_cloud
         - configured_arch not in ['atom', 'core', 'ultra']
         - profile_name not in ['on_prem_sw_defined_factory']
 

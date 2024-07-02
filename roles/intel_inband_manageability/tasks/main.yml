@@ -14,6 +14,11 @@
 ##   limitations under the License.
 ##
 ---
+- name: ensure INBM base directory is clean
+  ansible.builtin.file:
+    path: "{{ intel_inbm_path }}"
+    state: absent
+
 - name: create INBM base directory
   ansible.builtin.file:
     path: "{{ intel_inbm_path }}"
@@ -33,6 +38,47 @@
     repo: "{{ intel_inbm_git_repo }}"
     dest: "{{ intel_inbm_path }}"
     version: "{{ intel_inbm_git_tag }}"
+
+- name: patch INBM for prc network
+  block:
+    # - name: copy patches to INBM path
+    #   copy:
+    #     src: "{{ item }}"
+    #     dest: "{{ intel_inbm_path }}"
+    #     mode: 0644
+    #   with_items:
+    #     - '0001-inbm-prc-network.patch'
+
+    - name: patch INBM sources
+      ansible.posix.patch:
+        src: "{{ item }}"
+        basedir: "{{ intel_inbm_path }}"
+        strip: 1
+      with_items:
+        - '0001-inbm-prc-network.patch'
+  when:
+    - prc_network | bool
+
+- name: disable windows package build and check build
+  block:
+    - name: disable windows package build
+      ansible.builtin.replace:
+        path: "{{ (intel_inbm_path, 'inbm', 'build.sh') | path_join }}"
+        regexp: 'build_windows=true'
+        replace: 'build_windows=false'
+    - name: disable check build
+      ansible.builtin.replace:
+        path: "{{ (intel_inbm_path, 'inbm', 'build.sh') | path_join }}"
+        regexp: 'build_check=true'
+        replace: 'build_check=false'
+    - name: remove fpm version restriction
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: 'fpm -v 1.14.0'
+        replace: 'fpm'
+      with_items:
+        - "{{ (intel_inbm_path, 'inbm/dockerfiles/commands.base-setup.m4') | path_join }}"
+        - "{{ (intel_inbm_path, 'inbm/tpm2-simulator/Dockerfile') | path_join }}"
 
 - name: build INBM
   ansible.builtin.shell:
@@ -56,7 +102,7 @@
   register: install_result
   environment:
     ACCEPT_INTEL_LICENSE: "true"
-    NO_CLOUD: "{{ 'x' if intel_inband_manageability_mode == 'inbc' else '' }}"
+    NO_CLOUD: "{{ 'x' if intel_inband_manageability.mode == 'inbc' else '' }}"
   changed_when: false
   failed_when: install_result.rc != 0
 
@@ -73,6 +119,9 @@
     state: directory
     mode: '0710'
 
+# The NO_CLOUD provision is done for both INBC and ThingsBoard.
+# For Thingsboard, the configuration is added after initial provisioning.
+# Once configured, the provision is re-run to restart INBM services.
 - name: provision INBM with local INBC
   ansible.builtin.shell:
     cmd: "set -o pipefail && /usr/bin/provision-tc"
@@ -85,4 +134,99 @@
     NO_OTA_CERT: "1"
   changed_when: false
   failed_when: provision_result.rc != 0
-  when: intel_inband_manageability_mode == 'inbc'
+  when: intel_inband_manageability.mode in ['inbc', 'thingsboard']
+
+- name: Prepare client cert for INBM
+  block:
+    - name: Create directory for INBM client cert
+      ansible.builtin.file:
+        path: "{{ inbm_certs_dir }}"
+        state: directory
+        mode: '0644'
+
+    - name: Generate client cert and key for INBM
+      ansible.builtin.command: >-
+        openssl req -x509 -newkey rsa:4096
+        -keyout {{ (inbm_certs_dir, 'device-key.pem') | path_join }}
+        -out {{ (inbm_certs_dir, 'device-cert.pem') | path_join }}
+        -days 365
+        -nodes
+        -subj "/O=''/OU=''/CN=''"
+      changed_when: true
+
+    - name: Add cert to combined file
+      ansible.builtin.copy:
+        remote_src: true
+        force: true
+        mode: preserve
+        src: "{{ (inbm_certs_dir, 'device-cert.pem') | path_join }}"
+        dest: "{{ (inbm_certs_dir, 'device-combined.pem') | path_join }}"
+
+    - name: Append key to combined file
+      ansible.builtin.shell:
+        cmd: cat {{ (inbm_certs_dir, 'device-key.pem') | path_join }} >> {{ (inbm_certs_dir, 'device-combined.pem') | path_join }}
+
+    - name: Copy combined file to cloudadapter-agent
+      ansible.builtin.copy:
+        remote_src: true
+        force: true
+        mode: 0640
+        src: "{{ (inbm_certs_dir, 'device-combined.pem') | path_join }}"
+        dest: "{{ (adapter_path, 'device.nopass.pem') | path_join }}"
+
+    - name: Change owner and group of combined file
+      ansible.builtin.file:
+        path: "{{ (adapter_path, 'device.nopass.pem') | path_join }}"
+        owner: root
+        group: cloudadapter-agent
+
+  when:
+    - intel_inband_manageability.mode == 'thingsboard'
+    - intel_inband_manageability.thingsboard_config.credential_mode == 'x509'
+
+- name: Copy ThingsBoard cert to cloudadapter-agent
+  ansible.builtin.copy:
+    remote_src: true
+    force: true
+    mode: 0640
+    src: "{{ intel_inband_manageability.thingsboard_config.server_cert }}"
+    dest: "{{ (adapter_path, 'thingsboard.pub.pem') | path_join }}"
+  when:
+    - intel_inband_manageability.mode == 'thingsboard'
+    - intel_inband_manageability.thingsboard_config.credential_mode == 'x509'
+
+- name: Template adapter config for x509 mode
+  ansible.builtin.template:
+    src: "adapter_cert.cfg.j2"
+    dest: "{{ (adapter_path, 'adapter.cfg') | path_join }}"
+    owner: root
+    group: cloudadapter-agent
+    mode: 0640
+  when:
+    - intel_inband_manageability.mode == 'thingsboard'
+    - intel_inband_manageability.thingsboard_config.credential_mode == 'x509'
+
+- name: Template adapter config for token mode
+  ansible.builtin.template:
+    src: "adapter_token.cfg.j2"
+    dest: "{{ (adapter_path, 'adapter.cfg') | path_join }}"
+    owner: root
+    group: cloudadapter-agent
+    mode: 0640
+  when:
+    - intel_inband_manageability.mode == 'thingsboard'
+    - intel_inband_manageability.thingsboard_config.credential_mode == 'token'
+
+- name: provision INBM with ThingsBoard config
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && /usr/bin/provision-tc"
+    executable: /bin/bash
+  become: true
+  register: provision_result
+  environment:
+    NO_CLOUD: "x"
+    PROVISION_TPM: "auto"
+    NO_OTA_CERT: "1"
+  changed_when: false
+  failed_when: provision_result.rc != 0
+  when: intel_inband_manageability.mode == 'thingsboard'

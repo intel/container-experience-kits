@@ -20,8 +20,12 @@ intel_inbm_git_repo: >-
       if prc_network
       else
       'https://github.com/intel/intel-inb-manageability' }}
-intel_inbm_git_tag: "v4.1.4"
+intel_inbm_git_tag: "v4.2.2"
 
 mqtt_ssl_ciphers:
   "AES128-CCM-SHA256:CHACHA20-POLY1305-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE\
   -ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256"
+
+inbm_certs_dir: "{{ ('/opt/intel', 'inbm_device_certs') | path_join }}"
+
+adapter_path: "/etc/intel-manageability/secret/cloudadapter-agent/"

@@ -1,0 +1,41 @@
+#!/bin/bash
+
+TEST_POSTFIX="$1"
+
+source /opt/intel/openvino/setupvars.sh
+
+openvino_dev_output_path="$HOME"/data/openvino_dev_output_"$TEST_POSTFIX"
+model_path=${openvino_dev_output_path}/models/public/resnet-50-pytorch
+result="Failed"
+
+if [[ -d ${openvino_dev_output_path} ]]
+then
+    rm -rf "${openvino_dev_output_path}"
+fi
+mkdir -p "${openvino_dev_output_path}"
+
+# Download and convert mtcnn models, which is also the input for opencv_ffmpeg test.
+if [[ -d ${model_path} ]]
+then
+    rm -rf "${model_path}"
+fi
+
+timeout 1800 omz_downloader --name resnet-50-pytorch -o "${openvino_dev_output_path}"/models
+cd "${model_path}" || exit
+if [[ $(find . -name "*pth" -size +100k | wc -l) -ne 1 ]]
+then
+    echo ""
+    echo "[Warning] !!!The models download failed, please rerun the case."
+    exit 1
+fi
+
+omz_converter --name resnet-50-pytorch -d "${openvino_dev_output_path}"/models
+cd "${model_path}" || exit
+if [[ $(find . -name "*bin" -size +100k | wc -l) -eq 2 ]]
+then
+    result="Passed"
+else
+    result="Failed: The converted file does not match expectations."
+    find . -name "*bin" -exec ls -l {} \;
+fi
+echo "${result}" | tee "$HOME"/data/test_openvino_dev_result_"$TEST_POSTFIX"

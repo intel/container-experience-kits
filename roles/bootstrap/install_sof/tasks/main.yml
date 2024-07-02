@@ -14,17 +14,58 @@
 ##   limitations under the License.
 ##
 ---
+
+- name: Check NDA firmware path exits
+  ansible.builtin.stat:
+    path: "{{ custom_firmware_path }}"
+  delegate_to: localhost
+  register: check_nda_firmware_result
+  when:
+    - inventory_hostname != "localhost"
+
+- name: create NDA firmware path on target
+  ansible.builtin.file:
+    path: "{{ custom_firmware_path }}"
+    state: directory
+    mode: '0755'
+  when:
+    - inventory_hostname != "localhost"
+    - check_nda_firmware_result.stat.exists
+
+- name: copy NDA firmware from localhost to target
+  ansible.builtin.copy:
+    src: "{{ custom_firmware_path }}/"
+    dest: "{{ custom_firmware_path }}"
+    mode: '0644'
+  when:
+    - inventory_hostname != "localhost"
+    - check_nda_firmware_result.stat.exists
+
+- name: Check SOF firmware path exits
+  ansible.builtin.stat:
+    path: "{{ src_sof_firmware_path }}"
+  register: check_src_firmware_result
+
 - name: Copy SOF firmware to target
   ansible.builtin.copy:
     src: "{{ src_sof_firmware_path }}/"
     dest: "{{ dst_sof_firmware_path }}/"
     mode: '0644'
+  when:
+    - check_src_firmware_result.stat.exists
+
+- name: Check SOF topology path exits
+  ansible.builtin.stat:
+    path: "{{ src_sof_topology_path }}"
+  register: check_src_topology_result
 
 - name: Copy SOF topology to target
   ansible.builtin.copy:
     src: "{{ src_sof_topology_path }}/"
     dest: "{{ dst_sof_topology_path }}/"
     mode: '0644'
+  when:
+    - check_src_topology_result.stat.exists
 
 - name: Disable HDA as it conflicts with SOF
   ansible.builtin.copy:

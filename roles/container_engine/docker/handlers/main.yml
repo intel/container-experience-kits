@@ -14,27 +14,24 @@
 ##   limitations under the License.
 ##
 ---
-- name: restart docker
-  command: /bin/true
-  changed_when: false
-  notify:
-    - reload systemd
-    - reload docker
-    - wait for docker
-
-- name: reload systemd
+- name: Docker | reload systemd
   systemd:
+    name: docker
     daemon_reload: true
+    masked: no
+  listen: Restart docker
 
-- name: reload docker
+- name: Docker | reload docker
   service:
     name: docker
     state: restarted
+  listen: Restart docker
 
-- name: wait for docker
+- name: Docker | wait for docker
   command: "{{ docker_bin_dir }}/docker images"
   changed_when: false
   register: docker_ready
   retries: 20
   delay: 1
   until: docker_ready.rc == 0
+  listen: Restart docker

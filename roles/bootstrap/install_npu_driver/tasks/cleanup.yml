@@ -14,22 +14,7 @@
 ##   limitations under the License.
 ##
 ---
-- name: Check whether NPU driver path existing
-  ansible.builtin.stat:
-    path: "{{ dst_npu_driver_path }}"
-  register: check_path_result
-
-- name: Uninstall NPU driver
-  ansible.builtin.command:
-    cmd: "./vpu-drv-installer -u"
-    chdir: "{{ dst_npu_driver_path }}"
-  become: true
-  register: uninstall_result
-  changed_when: uninstall_result.rc == 0
-  when:
-    - check_path_result.stat.exists
-
 - name: Remvoe NPU driver path
   ansible.builtin.file:
-    path: "{{ src_npu_driver_path }}"
+    path: "{{ npu_driver_path }}"
     state: absent

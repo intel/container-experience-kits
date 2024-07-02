@@ -105,12 +105,14 @@ spec:
         ]
         startupProbe:
           httpGet:
+            host: 127.0.0.1
             path: /metrics
             port: 29999
           failureThreshold: 10
           periodSeconds: 10
         livenessProbe:
           httpGet:
+            host: 127.0.0.1
             path: /healtz
             port: 29999
           initialDelaySeconds: 60

@@ -209,7 +209,7 @@
 {% endif %}
   environment:
     - "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
-    - REGISTRY_AUTH_FILE: {% raw %}"{% if on_cloud | default(false) %}/home/ubuntu/.crauth{% else %}{{ registry_containerd }}{% endif %}"{% endraw %}
+    - REGISTRY_AUTH_FILE: "{{ '{{' }} registry_containerd {{ '}}' }}"
 
   any_errors_fatal: true
 
@@ -243,7 +243,7 @@
       tags:
         - intel_inband_manageability
       when:
-        - intel_inband_manageability_enabled | default(false) | bool
+        - intel_inband_manageability.enabled | default(false) | bool
 {% endif %}
   environment: "{{ '{{' }} proxy_env | d({}) {{ '}}' }}"
   any_errors_fatal: true
@@ -293,6 +293,7 @@
       tags: xpumanager
       when:
         - intel_xpumanager_enabled | default(false) | bool
+        - configure_gpu is defined and configure_gpu | default(false) | bool
         - inventory_hostname == groups["kube_control_plane"][0]
     - role: wait_for_kubernetes_ready
       vars:

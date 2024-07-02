@@ -14,5 +14,4 @@
 ##   limitations under the License.
 ##
 ---
-src_npu_driver_path: "/tmp/intel_npu_driver"
-dst_npu_driver_path: "/opt/intel/vpu-linux-driver"
+npu_driver_path: "{{ (project_root_dir, 'npu') | path_join }}"

@@ -10,7 +10,7 @@ USERNAME = 'root'
 # set default target available with simple 'make' command
 .DEFAULT_GOAL := examples
 
-.PHONY: shellcheck ansible-lint all-profiles clean clean-playbooks help k8s-profile vm-profile cloud-profile auto-k8s-profile auto-vm-profile auto-cloud-profile
+.PHONY: shellcheck ansible-lint all-profiles clean clean-playbooks help k8s-profile vm-profile auto-k8s-profile auto-vm-profile
 
 shellcheck:
 	find $(CEK_DIRECTORIES_WITH_SHELL_FILES) -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.ksh' -o -name '*.bashrc' -o -name '*.bash_profile' -o -name '*.bash_login' -o -name '*.bash_logout' \) \
@@ -26,13 +26,13 @@ endif
 
 # make sure PROFILE is defined for mode-related targets
 ifndef PROFILE
-ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),k8s-profile vm-profile cloud-profile auto-k8s-profile auto-vm-profile auto-cloud-profile))
+ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),k8s-profile vm-profile auto-k8s-profile auto-vm-profile ))
 $(error please specify which profile should be generated, e.g. PROFILE=basic. Run 'make help' for more information.)
 endif
 endif
 
 ifdef MAKECMDGOALS
-ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),auto-k8s-profile auto-vm-profile auto-cloud-profile auto-examples))
+ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),auto-k8s-profile auto-vm-profile auto-examples))
 ifndef HOSTS
 $(error please set machines IPs for auto-detection, e.g. HOSTS=a.a.a.a,b.b.b.b. Run 'make help' for more information.)
 endif
@@ -43,9 +43,9 @@ $(info Autodetected ARCH=$(ARCH) NIC=$(NIC))
 endif
 endif
 
-examples: k8s-profile vm-profile cloud-profile
+examples: k8s-profile vm-profile
 
-auto-examples: auto-k8s-profile auto-vm-profile auto-cloud-profile
+auto-examples: auto-k8s-profile auto-vm-profile
 
 k8s-profile: clean-playbooks
 	python3 generate/render.py \
@@ -78,21 +78,6 @@ vm-profile: clean-playbooks
 
 auto-vm-profile: vm-profile
 
-cloud-profile: clean-playbooks
-	python3 generate/render.py \
-	--config generate/profiles_templates/cloud/profiles.yml \
-	--host generate/profiles_templates/common/host_vars.j2 \
-	--group generate/profiles_templates/common/group_vars.j2 \
-	--inventory generate/profiles_templates/cloud/inventory.j2 \
-	--output examples/cloud \
-	--mode cloud \
-	-p $(PROFILE) \
-	-a $(ARCH) \
-	-n ${NIC} \
-	-m ${MIRRORS}
-
-auto-cloud-profile: cloud-profile
-
 clean: clean-playbooks clean-project-root-dir
 
 clean-backups:
@@ -122,10 +107,6 @@ help:
 	@echo "Generating VM profile:"
 	@echo "    vm-profile PROFILE=<profile_name>           - generate files required for deployment of specific profile in vm mode."
 	@echo "    auto-vm-profile PROFILE=<profile_name>"
-	@echo ""
-	@echo "Generating Cloud profile:"
-	@echo "    cloud-profile PROFILE=<profile_name>        - generate files required for deployment of specific profile in cloud mode."
-	@echo "    auto-cloud-profile PROFILE=<profile_name>"
 	@echo ""
 	@echo "For more information about:"
 	@echo "		- architecture and ethernet network adapter auto-detection"

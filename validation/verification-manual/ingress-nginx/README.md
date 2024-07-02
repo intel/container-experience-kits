@@ -18,7 +18,7 @@ Ingress resources enable the following functionality:
 
 For additional information, please read the official Kubernetes Ingress Documentation.
 
-## Ingress-Nginx as controller in RA deployment (Not applicable to CloudRA)
+## Ingress-Nginx as controller in RA deployment
 
 The deployment of ingress-nginx on reference architecture cluster has following specifics:
 

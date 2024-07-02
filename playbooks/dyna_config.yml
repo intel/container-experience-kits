@@ -107,6 +107,7 @@
       profile_name: "{{ container_set | default('on_prem_aibox') }}"
       gpu_type: "Arc"
       prc_network: false
+      prc_github_mirror: ""
       tags:
         - base_container
 

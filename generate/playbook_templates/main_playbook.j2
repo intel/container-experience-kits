@@ -10,19 +10,18 @@
   import_playbook: infra/container_runtime_deployment.yml
   when:
     - not kubernetes | default(true) and container_runtime_only_deployment | default(false)
-    - not on_cloud | default(false)
+{% if playbook_name != 'on_prem_aibox' %}
 - name: provision Kubernetes cluster using kubespray
   import_playbook: k8s/k8s.yml
   when:
     - kubernetes | default(true)
-    - not on_cloud | default(false)
     - kube_provisioner == "kubespray"
 - name: provision Kubernetes cluster using rke2
   import_playbook: k8s/rke2.yml
   when:
     - kubernetes | default(true)
-    - not on_cloud | default(false)
     - kube_provisioner == "rke2"
+{% endif %}
 {% if playbook_name == 'on_prem_sw_defined_factory' %}
 - name: install Intel ECI for non-k8s vm nodes
   import_playbook: intel/eci_basic.yml

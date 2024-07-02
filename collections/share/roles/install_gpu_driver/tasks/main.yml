@@ -38,10 +38,10 @@
 - name: Set repo and packages for client GPU installation on Ubuntu 22.04
   set_fact:
     gpu_repo_spec: "{{ gpu_repo_spec_u2204_client }}"
-    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20230912_client }}"
-    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20231219_client }}"
-    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20231219_client }}"
-    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20231219_client }}"
+    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20240430_client }}"
+    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20240430_client }}"
+    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20240430_client }}"
+    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20240430_client }}"
   when:
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '=='))
     - gpu_type == "Arc" or gpu_type == "iGPU"
@@ -51,14 +51,6 @@
   when:
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '=='))
     - gpu_type != "Unknown"
-    - configured_arch not in ['ultra']
-
-- name: Install MTL GPU drivers on Ubuntu
-  include_tasks: debian_mtl.yml
-  when:
-    - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '=='))
-    - gpu_type != "Unknown"
-    - configured_arch in ['ultra']
 
 - name: Set repo and packages for server GPU installation on RHEL/Rocky 9.2
   set_fact:

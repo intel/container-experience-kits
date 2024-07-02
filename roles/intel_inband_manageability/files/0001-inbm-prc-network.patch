@@ -1,0 +1,368 @@
+From 6f0b7ad6ee2abb6061a191983338237c3374e440 Mon Sep 17 00:00:00 2001
+From: "Long, Zhifang" <zhifang.long@intel.com>
+Date: Mon, 17 Jun 2024 17:57:01 +0800
+Subject: [PATCH] inbm : make inbm can pass build in prc networkwq
+
+Signed-off-by: Long, Zhifang <zhifang.long@intel.com>
+---
+ .../fpm-template/usr/bin/provision-tc         |  8 +++---
+ inbm/dockerfiles/Dockerfile-Windows.m4        | 10 +++----
+ inbm/dockerfiles/Dockerfile-Yocto-tgz-ehl.m4  |  2 +-
+ inbm/dockerfiles/Dockerfile-Yocto-tgz-kmb.m4  |  2 +-
+ inbm/dockerfiles/Dockerfile-check.m4          |  2 +-
+ inbm/dockerfiles/commands.base-setup.m4       |  5 ++++
+ inbm/dockerfiles/image.ehl.m4                 |  2 +-
+ inbm/dockerfiles/image.main.m4                | 28 +++++++++++++------
+ inbm/installer/install-tc.sh                  |  4 +--
+ .../simple-compose-rename/nginx/Dockerfile    |  2 +-
+ .../simple-compose/nginx/Dockerfile           |  2 +-
+ .../test/aota/TC16_SUCCESS_PULL_IMAGE.sh      |  2 +-
+ .../test/aota/TC17_AOTA_DOCKER_STATS.sh       |  2 +-
+ .../test/general/SETUP_SERVERS.sh             |  4 +--
+ .../docker-sample-container/docker/Dockerfile |  2 +-
+ inbm/tpm2-simulator/Dockerfile                |  2 +-
+ 16 files changed, 48 insertions(+), 31 deletions(-)
+
+diff --git a/inbm/cloudadapter-agent/fpm-template/usr/bin/provision-tc b/inbm/cloudadapter-agent/fpm-template/usr/bin/provision-tc
+index 8df19cd6..71d1d0d7 100755
+--- a/inbm/cloudadapter-agent/fpm-template/usr/bin/provision-tc
++++ b/inbm/cloudadapter-agent/fpm-template/usr/bin/provision-tc
+@@ -176,17 +176,17 @@ function configure_docker {
+   systemctl restart docker
+ 
+   echo "Docker proxies set. Running self test."
+-  if docker pull registry.hub.docker.com/library/hello-world && docker run registry.hub.docker.com/library/hello-world ; then
++  if docker pull hello-world && docker run hello-world ; then
+     echo "Docker confirmed good."
+   else
+-    echo "Problem running docker run registry.hub.docker.com/library/hello-world; exiting."
++    echo "Problem running docker run hello-world; exiting."
+     exit 1
+   fi
+ 
+   echo "Pulling Docker-Bench-Security"
+-  if docker pull registry.hub.docker.com/docker/docker-bench-security@sha256:ddbdf4f86af4405da4a8a7b7cc62bb63bfeb75e85bf22d2ece70c204d7cfabb8; then
++  if docker pull docker/docker-bench-security@sha256:ddbdf4f86af4405da4a8a7b7cc62bb63bfeb75e85bf22d2ece70c204d7cfabb8; then
+        echo "Setting Docker-Bench-Security"
+-       docker tag registry.hub.docker.com/docker/docker-bench-security@sha256:ddbdf4f86af4405da4a8a7b7cc62bb63bfeb75e85bf22d2ece70c204d7cfabb8 docker-bench-security
++       docker tag docker/docker-bench-security@sha256:ddbdf4f86af4405da4a8a7b7cc62bb63bfeb75e85bf22d2ece70c204d7cfabb8 docker-bench-security
+        if test -f /usr/share/intel-manageability/system_is_Yocto; then
+           sed -i 's/<dbs>\(off\|OFF\)<\/dbs>/<dbs>WARN<\/dbs>/' /etc/intel_manageability.conf
+        fi
+diff --git a/inbm/dockerfiles/Dockerfile-Windows.m4 b/inbm/dockerfiles/Dockerfile-Windows.m4
+index ccfb1df5..263d8569 100644
+--- a/inbm/dockerfiles/Dockerfile-Windows.m4
++++ b/inbm/dockerfiles/Dockerfile-Windows.m4
+@@ -1,7 +1,7 @@
+ include(`image.main.m4')
+ 
+ # base windows/wine build image
+-FROM registry.hub.docker.com/library/ubuntu:22.04 as base-windows
++FROM ubuntu:22.04 as base-windows
+ RUN echo Refresh docker cache 20240212
+ 
+ ENV DEBIAN_FRONTEND noninteractive
+@@ -107,23 +107,23 @@ RUN pyinstaller inbm-cloudadapter-windows.spec && \
+     wine ../cloudadapter-agent/dist/inbm-cloudadapter/inbm-cloudadapter.exe install && \
+     cp -r ../cloudadapter-agent/dist/inbm-cloudadapter /output
+ 
+-FROM registry.hub.docker.com/library/golang:1.20-bookworm as inb-provision-certs-windows
++FROM golang:1.20-bookworm as inb-provision-certs-windows
+ COPY inbm/fpm/inb-provision-certs /inb-provision-certs
+ RUN cd /inb-provision-certs && GOOS=windows GOARCH=386 CGO_ENABLED=0 go build . && \
+     rm -rf /output/ && mkdir /output && cp /inb-provision-certs/inb-provision-certs.exe /output/inb-provision-certs.exe
+ 
+-FROM registry.hub.docker.com/library/golang:1.20-bookworm as inb-provision-cloud-windows
++FROM golang:1.20-bookworm as inb-provision-cloud-windows
+ COPY inbm/fpm/inb-provision-cloud /inb-provision-cloud
+ RUN cd /inb-provision-cloud && GOOS=windows GOARCH=386 CGO_ENABLED=0 go build . && \
+     rm -rf /output/ && mkdir /output && cp /inb-provision-cloud/inb-provision-cloud.exe /output/inb-provision-cloud.exe
+ 
+-FROM registry.hub.docker.com/library/golang:1.20-bookworm as inb-provision-ota-cert-windows
++FROM golang:1.20-bookworm as inb-provision-ota-cert-windows
+ COPY inbm/fpm/inb-provision-ota-cert /inb-provision-ota-cert
+ RUN cd /inb-provision-ota-cert && GOOS=windows GOARCH=386 CGO_ENABLED=0 go build . && \
+     rm -rf /output/ && mkdir /output && cp /inb-provision-ota-cert/inb-provision-ota-cert.exe /output/inb-provision-ota-cert.exe
+ 
+ # output container
+-FROM registry.hub.docker.com/library/ubuntu:20.04 as output-windows
++FROM ubuntu:20.04 as output-windows
+ RUN apt-get update && apt-get install -y -q wget
+ COPY --from=windows-cloudadapter-py3 /output/ /windows-cloudadapter-py3
+ COPY --from=inb-provision-certs-windows /output /windows-inb-provision-certs
+diff --git a/inbm/dockerfiles/Dockerfile-Yocto-tgz-ehl.m4 b/inbm/dockerfiles/Dockerfile-Yocto-tgz-ehl.m4
+index edbdc643..f949696e 100644
+--- a/inbm/dockerfiles/Dockerfile-Yocto-tgz-ehl.m4
++++ b/inbm/dockerfiles/Dockerfile-Yocto-tgz-ehl.m4
+@@ -3,7 +3,7 @@
+ 
+ include(`image.ehl.m4')
+ 
+-FROM registry.hub.docker.com/library/ubuntu:20.04 as output-yocto
++FROM ubuntu:20.04 as output-yocto
+ COPY --from=output-ehl /output /ehl
+ RUN mkdir -p /output && \
+     cp -rv \
+diff --git a/inbm/dockerfiles/Dockerfile-Yocto-tgz-kmb.m4 b/inbm/dockerfiles/Dockerfile-Yocto-tgz-kmb.m4
+index 0a7ca149..f857e540 100644
+--- a/inbm/dockerfiles/Dockerfile-Yocto-tgz-kmb.m4
++++ b/inbm/dockerfiles/Dockerfile-Yocto-tgz-kmb.m4
+@@ -3,7 +3,7 @@
+ 
+ include(`image.kmb.m4')
+ 
+-FROM registry.hub.docker.com/library/ubuntu:20.04 as output-yocto
++FROM ubuntu:20.04 as output-yocto
+ COPY --from=output-kmb /output /kmb
+ RUN mkdir -p /output && \
+     cp -rv \
+diff --git a/inbm/dockerfiles/Dockerfile-check.m4 b/inbm/dockerfiles/Dockerfile-check.m4
+index a9a21d77..2191e605 100644
+--- a/inbm/dockerfiles/Dockerfile-check.m4
++++ b/inbm/dockerfiles/Dockerfile-check.m4
+@@ -2,7 +2,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ 
+ # base image with all dependencies for running unit tests/lints
+-FROM registry.hub.docker.com/library/ubuntu:20.04 as base
++FROM ubuntu:20.04 as base
+ include(`commands.base-setup.m4')
+ 
+ 
+diff --git a/inbm/dockerfiles/commands.base-setup.m4 b/inbm/dockerfiles/commands.base-setup.m4
+index c79e289a..009797ff 100644
+--- a/inbm/dockerfiles/commands.base-setup.m4
++++ b/inbm/dockerfiles/commands.base-setup.m4
+@@ -15,6 +15,9 @@ RUN apt-get update && \
+     unzip \
+     git && \
+     apt-get clean
++
++RUN gem sources --add https://gems.ruby-china.com/ --remove https://rubygems.org
++
+ RUN gem install dotenv -v 2.8.1
+ RUN gem install --no-document fpm -v 1.14.0
+ RUN apt-get update && \
+@@ -38,3 +41,5 @@ RUN apt-get update && \
+     && \
+     apt-get clean
+ 
++RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simple
++
+diff --git a/inbm/dockerfiles/image.ehl.m4 b/inbm/dockerfiles/image.ehl.m4
+index 1eda8cf8..38ddc694 100644
+--- a/inbm/dockerfiles/image.ehl.m4
++++ b/inbm/dockerfiles/image.ehl.m4
+@@ -1,7 +1,7 @@
+ # build x86 assets
+ include(`image.main.m4')
+ 
+-FROM registry.hub.docker.com/library/ubuntu:20.04 as base-x86_64
++FROM ubuntu:20.04 as base-x86_64
+ include(`commands.base-setup.m4')
+ 
+ FROM base-x86_64 as output-ehl
+diff --git a/inbm/dockerfiles/image.main.m4 b/inbm/dockerfiles/image.main.m4
+index 5a811391..63c107e0 100644
+--- a/inbm/dockerfiles/image.main.m4
++++ b/inbm/dockerfiles/image.main.m4
+@@ -1,5 +1,5 @@
+ # base image with all dependencies for building
+-FROM registry.hub.docker.com/library/ubuntu:20.04 as base
++FROM ubuntu:20.04 as base
+ RUN echo 'force cache refresh 20240212'
+ include(`commands.base-setup.m4')
+ 
+@@ -150,12 +150,14 @@ RUN source /venv-py3/bin/activate && \
+ 
+ # ---trtl---
+ 
+-FROM registry.hub.docker.com/library/golang:1.20-bookworm as trtl-build
++FROM golang:1.20-bookworm as trtl-build
+ WORKDIR /
+ ENV GOPATH /build/go
+ ENV PATH $PATH:$GOROOT/bin:$GOPATH/bin
++ENV GO111MODULE on
++ENV GOPROXY https://goproxy.cn
+ RUN mkdir -p /build/go/bin && \
+-    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
++    curl https://raw.gitmirror.com/golang/dep/master/install.sh | sh
+ # TODO run realdocker tests later in integration or reloaded
+ COPY inbm/trtl /src/trtl
+ WORKDIR /repo
+@@ -178,25 +180,33 @@ RUN rm -rf /output/ && mv ./output/ /output/
+ 
+ # --inb-provision-certs-
+ 
+-FROM registry.hub.docker.com/library/golang:1.20-bookworm as inb-provision-certs
++FROM golang:1.20-bookworm as inb-provision-certs
+ COPY inbm/fpm/inb-provision-certs /inb-provision-certs
++ENV GO111MODULE on
++ENV GOPROXY https://goproxy.cn
+ RUN cd /inb-provision-certs && CGO_ENABLED=0 go build -trimpath -mod=readonly -gcflags="all=-spectre=all -N -l" -asmflags="all=-spectre=all" -ldflags="all=-s -w" . &&  rm -rf /output/ && mkdir /output && cp /inb-provision-certs/inb-provision-certs /output/inb-provision-certs
+ 
+ # --inb-provision-cloud-
+ 
+-FROM registry.hub.docker.com/library/golang:1.20-bookworm as inb-provision-cloud
++FROM golang:1.20-bookworm as inb-provision-cloud
+ COPY inbm/fpm/inb-provision-cloud /inb-provision-cloud
++ENV GO111MODULE on
++ENV GOPROXY https://goproxy.cn
+ RUN cd /inb-provision-cloud && go test . && CGO_ENABLED=0 go build -trimpath -mod=readonly -gcflags="all=-spectre=all -N -l" -asmflags="all=-spectre=all" -ldflags="all=-s -w" . &&  rm -rf /output/ && mkdir /output && cp /inb-provision-cloud/inb-provision-cloud /output/inb-provision-cloud
+ 
+ # --inb-provision-ota-cert-
+ 
+-FROM registry.hub.docker.com/library/golang:1.20-bookworm as inb-provision-ota-cert
++FROM golang:1.20-bookworm as inb-provision-ota-cert
+ COPY inbm/fpm/inb-provision-ota-cert /inb-provision-ota-cert
++ENV GO111MODULE on
++ENV GOPROXY https://goproxy.cn
+ RUN cd /inb-provision-ota-cert && CGO_ENABLED=0 go build -trimpath -mod=readonly -gcflags="all=-spectre=all -N -l" -asmflags="all=-spectre=all" -ldflags="all=-s -w" . &&  rm -rf /output/ && mkdir /output && cp /inb-provision-ota-cert/inb-provision-ota-cert /output/inb-provision-ota-cert
+ 
+ # --packaging--
+ 
+ FROM base as packaging
++ENV GO111MODULE on
++ENV GOPROXY https://goproxy.cn
+ COPY inbm/packaging /src/packaging
+ WORKDIR /src/packaging
+ RUN rm -rf output/ && \
+@@ -215,7 +225,7 @@ RUN cp -v docker-sample-container/docker/certs/succeed_rpm_key.pem /output
+ 
+ FROM base as fpm
+ WORKDIR /
+-RUN wget https://github.com/certifi/python-certifi/archive/refs/tags/2023.07.22.zip -O python-certifi-src-2023.07.22.zip
++RUN curl -L -o python-certifi-src-2023.07.22.zip https://hub.gitmirror.com/github.com/certifi/python-certifi/archive/refs/tags/2023.07.22.zip
+ COPY inbm/fpm /src/fpm
+ WORKDIR /src/fpm
+ COPY --from=inb-provision-certs /output/inb-provision-certs /src/fpm/mqtt/template/usr/bin/inb-provision-certs
+@@ -237,7 +247,9 @@ RUN make build && \
+     mv output/* /output
+ 
+ # output container
+-FROM registry.hub.docker.com/library/ubuntu:20.04 as output-main
++FROM ubuntu:20.04 as output-main
++ENV GO111MODULE on
++ENV GOPROXY https://goproxy.cn
+ COPY --from=packaging /output /packaging
+ COPY --from=inbc-py3 /output /inbc
+ COPY --from=diagnostic-py3 /output /diagnostic
+diff --git a/inbm/installer/install-tc.sh b/inbm/installer/install-tc.sh
+index 264b43a1..af8f49be 100755
+--- a/inbm/installer/install-tc.sh
++++ b/inbm/installer/install-tc.sh
+@@ -134,10 +134,10 @@ EOF
+     systemctl enable docker
+     systemctl restart docker
+     echo "Docker installed. Running self test."
+-    if docker run registry.hub.docker.com/library/hello-world ; then
++    if docker run hello-world ; then
+       echo "Docker confirmed good."
+     else
+-      echo "Problem running docker run registry.hub.docker.com/library/hello-world; exiting."
++      echo "Problem running docker run hello-world; exiting."
+       exit 1
+     fi
+   fi
+diff --git a/inbm/integration-common/simple-compose-rename/nginx/Dockerfile b/inbm/integration-common/simple-compose-rename/nginx/Dockerfile
+index 9b89c47d..f14e955b 100644
+--- a/inbm/integration-common/simple-compose-rename/nginx/Dockerfile
++++ b/inbm/integration-common/simple-compose-rename/nginx/Dockerfile
+@@ -1,7 +1,7 @@
+ # Copyright (c) 2021-2024 Intel Corporation
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-FROM registry.hub.docker.com/library/nginx:latest
++FROM nginx:latest
+ 
+ COPY content.txt /usr/share/nginx/html
+ 
+diff --git a/inbm/integration-common/simple-compose/nginx/Dockerfile b/inbm/integration-common/simple-compose/nginx/Dockerfile
+index 9b89c47d..f14e955b 100644
+--- a/inbm/integration-common/simple-compose/nginx/Dockerfile
++++ b/inbm/integration-common/simple-compose/nginx/Dockerfile
+@@ -1,7 +1,7 @@
+ # Copyright (c) 2021-2024 Intel Corporation
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-FROM registry.hub.docker.com/library/nginx:latest
++FROM nginx:latest
+ 
+ COPY content.txt /usr/share/nginx/html
+ 
+diff --git a/inbm/integration-reloaded/test/aota/TC16_SUCCESS_PULL_IMAGE.sh b/inbm/integration-reloaded/test/aota/TC16_SUCCESS_PULL_IMAGE.sh
+index 2c58b714..996fdd2e 100755
+--- a/inbm/integration-reloaded/test/aota/TC16_SUCCESS_PULL_IMAGE.sh
++++ b/inbm/integration-reloaded/test/aota/TC16_SUCCESS_PULL_IMAGE.sh
+@@ -14,7 +14,7 @@ trap test_failed ERR
+ 
+ echo "Starting TC16 test." | systemd-cat
+ 
+-GOOD_XML='<?xml version="1.0" encoding="utf-8"?><manifest><type>ota</type><ota><header><type>aota</type><repo>remote</repo></header><type><aota name="sample-rpm"><cmd>pull</cmd><app>docker</app><version>0</version><containerTag>registry.hub.docker.com/library/nginx</containerTag><dockerRegistry>None</dockerRegistry></aota></type></ota></manifest>'
++GOOD_XML='<?xml version="1.0" encoding="utf-8"?><manifest><type>ota</type><ota><header><type>aota</type><repo>remote</repo></header><type><aota name="sample-rpm"><cmd>pull</cmd><app>docker</app><version>0</version><containerTag>nginx</containerTag><dockerRegistry>None</dockerRegistry></aota></type></ota></manifest>'
+ 
+ test_echo TC16 Succeed Pull Public Image
+ test_echo
+diff --git a/inbm/integration-reloaded/test/aota/TC17_AOTA_DOCKER_STATS.sh b/inbm/integration-reloaded/test/aota/TC17_AOTA_DOCKER_STATS.sh
+index 9a0d17b3..5191ac14 100755
+--- a/inbm/integration-reloaded/test/aota/TC17_AOTA_DOCKER_STATS.sh
++++ b/inbm/integration-reloaded/test/aota/TC17_AOTA_DOCKER_STATS.sh
+@@ -14,7 +14,7 @@ trap test_failed ERR
+ 
+ echo "Starting TC17 test." | systemd-cat
+ 
+-docker run registry.hub.docker.com/library/hello-world
++docker run hello-world
+ 
+ test_echo Checking that docker stats are shown.
+ trtl -type=docker -cmd=stats | grep ContainerStats
+diff --git a/inbm/integration-reloaded/test/general/SETUP_SERVERS.sh b/inbm/integration-reloaded/test/general/SETUP_SERVERS.sh
+index 2524706e..1e0e9b93 100755
+--- a/inbm/integration-reloaded/test/general/SETUP_SERVERS.sh
++++ b/inbm/integration-reloaded/test/general/SETUP_SERVERS.sh
+@@ -118,7 +118,7 @@ setup_docker_registry() {
+ 
+     sudo -H docker run \
+       --entrypoint htpasswd \
+-      registry.hub.docker.com/library/registry:2.7.0 -Bbn testuser testpass > auth/htpasswd
++      registry:2.7.0 -Bbn testuser testpass > auth/htpasswd
+ 
+     sudo -H docker run -d \
+       -p 5000:443 \
+@@ -132,7 +132,7 @@ setup_docker_registry() {
+       -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+       -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+       -e REGISTRY_HTTP_ADDR=0.0.0.0:443 \
+-      registry.hub.docker.com/library/registry:2.7.0
++      registry:2.7.0
+     
+     docker stop registry
+ }
+diff --git a/inbm/packaging/docker-sample-container/docker/Dockerfile b/inbm/packaging/docker-sample-container/docker/Dockerfile
+index 378e4d4a..1f878ad8 100644
+--- a/inbm/packaging/docker-sample-container/docker/Dockerfile
++++ b/inbm/packaging/docker-sample-container/docker/Dockerfile
+@@ -1,6 +1,6 @@
+ # Copyright (c) 2021-2024 Intel Corporation
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-FROM registry.hub.docker.com/library/ubuntu:20.04
++FROM ubuntu:20.04
+ 
+ ENTRYPOINT sleep infinity
+diff --git a/inbm/tpm2-simulator/Dockerfile b/inbm/tpm2-simulator/Dockerfile
+index 7cf26327..f38116d6 100644
+--- a/inbm/tpm2-simulator/Dockerfile
++++ b/inbm/tpm2-simulator/Dockerfile
+@@ -1,7 +1,7 @@
+ # Copyright (c) 2021-2024 Intel Corporation
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-FROM registry.hub.docker.com/curlimages/curl:7.74.0  as ibmtpm1332
++FROM curlimages/curl:7.74.0  as ibmtpm1332
+ RUN curl -L https://downloads.sourceforge.net/project/ibmswtpm2/ibmtpm1332.tar.gz >/tmp/ibmtpm1332.tar.gz && \
+     sha256sum /tmp/ibmtpm1332.tar.gz | grep -q 8e8193af3d11d9ff6a951dda8cd1f4693cb01934a8ad7876b84e92c6148ab0fd
+ 
+-- 
+2.34.1
+

@@ -17,7 +17,6 @@
   ansible.builtin.assert:
     that:
       - not on_vms | default(false)
-      - not on_cloud | default(false)
     fail_msg:
       cAdvisor perf events counting can only be enabled on BMRA.
       Please disable perf events counting in group_vars.

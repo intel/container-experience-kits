@@ -14,51 +14,72 @@
 ##   limitations under the License.
 ##
 ---
-- name: create NDA driver path on target
+- name: Create NPU driver folder
   ansible.builtin.file:
-    path: "{{ nda_driver_path }}"
+    path: "{{ npu_driver_path }}"
     state: directory
-    mode: '0755'
-  when:
-    - inventory_hostname != "localhost"
+    mode: 0755
 
-- name: copy NDA driver packages from localhost to target
-  ansible.builtin.copy:
-    src: "{{ nda_driver_path }}/"
-    dest: "{{ nda_driver_path }}"
+- name: Set default NPU package URLs
+  set_fact:
+    npu_fw_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb"
+  when: not prc_network | bool
+
+- name: Set NPU package URLs for PRC network
+  set_fact:
+    npu_fw_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb"
+  when: prc_network | bool
+
+- name: Download NPU package
+  ansible.builtin.get_url:
+    url: "{{ item }}"
+    dest: "{{ npu_driver_path }}"
     mode: '0644'
+  with_items:
+    - "{{ npu_fw_url }}"
+
+- name: Find NPU packages
+  find:
+    paths: "{{ npu_driver_path }}"
+    patterns: "*.deb"
+  register: npu_packages
+
+- name: Install NPU packages
+  apt:
+    deb: "{{ item.path }}"
+  with_items:
+    - "{{ npu_packages.files }}"
   when:
-    - inventory_hostname != "localhost"
-
-- name: Find NPU driver package in NDA driver path
-  ansible.builtin.find:
-    paths: "{{ nda_driver_path }}/"
-    patterns: "vpu-linux-drivers-ubuntu2204-release*.tar.gz"
-  register: npu_driver_packages
-
-- name: Clean old NPU driver
-  include_tasks: cleanup.yml
-
-- name: Create new NPU driver unarchive path
-  ansible.builtin.file:
-    path: "{{ src_npu_driver_path }}"
-    state: directory
-    mode: '0755'
-
-- name: Unarchive new NPU driver package
-  ansible.builtin.unarchive:
-    src: "{{  npu_driver_packages.files[0].path }}"
-    dest: "{{ src_npu_driver_path }}"
-    mode: '0755'
-    extra_opts: "--strip-components=1"
-    remote_src: yes
-
-- name: Install new NPU driver
-  ansible.builtin.command:
-    cmd: "./vpu-drv-installer"
-    chdir: "{{ src_npu_driver_path }}"
-  become: true
-  register: install_result
-  changed_when: install_result.rc == 0
+    - ansible_kernel is version('6.7', '>') or
+      configured_arch in ['ultra']
   notify:
     - reboot server
+
+- name: Install config NPU scripts to /usr/local/bin
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/"
+    mode: '0700'
+    owner: root
+    group: root
+    force: true
+  with_items:
+    - 'cek_config_npu.sh'
+  become: true
+
+- name: Install config NPU service to /lib/systemd/system
+  copy:
+    src: "cek_config_npu.service"
+    dest: /lib/systemd/system/
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: Enable the service which will config NPU after reboot
+  systemd:
+    name: cek_config_npu
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true

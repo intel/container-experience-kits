@@ -69,7 +69,6 @@ spec:
             - name: hostkdebug
               mountPath: /sys/kernel/debug
               readOnly: true
-            {{- if not .Values.on_cloud }}
             - name: hostresctrl
             {{- if .Values.on_vms }}
               mountPath: /root/resctrl
@@ -77,7 +76,6 @@ spec:
               mountPath: /sys/fs/resctrl
             {{- end }}
               readOnly: false
-            {{- end }}
             - name: hostudev
               mountPath: /run/udev
               readOnly: true
@@ -135,14 +133,12 @@ spec:
         - name: hostkdebug
           hostPath:
             path: /sys/kernel/debug
-        {{- if not .Values.on_cloud }}
         - name: hostresctrl
           hostPath:
         {{- if .Values.on_vms }}
             path: /root/resctrl
         {{- else }}
             path: /sys/fs/resctrl
-        {{- end }}
         {{- end }}
         - name: hostudev
           hostPath:

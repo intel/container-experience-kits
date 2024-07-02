@@ -27,13 +27,8 @@ hugepages_enabled: {% if hugepages == 'on' %}true{% else %}false{% endif %}
 default_hugepage_size: {% if vpp == 'on' %}2M{% else %}1G{% endif %}
 
 # Sets how many hugepages should be created
-{% if cloud_mode == 'on' %}
-number_of_hugepages_1G: 2
-number_of_hugepages_2M: 512
-{% else %}
 number_of_hugepages_1G: 4
 number_of_hugepages_2M: 1024
-{% endif %}
 {% endif %}
 
 {% if isolcpu in ["on", "optional"] %}
@@ -84,13 +79,11 @@ dpdk_version: {% if (intel_flexran == 'on' or ovs_dpdk == 'on' or infra_power_ma
 openssl_install: {% if openssl == 'on' %}true{% else %}false{% endif %}
 
 {% endif %}
-{% if not cloud_mode == 'on' %}
 # Useful if system loses IP after reboot. Note: make sure IP is stable / system gets same IP after reboot else will cause failures.
 # It is needed only in some lab environments. Default setting is false.
 # TODO: JP: This workaround should not be needed any longer. To be removed completely once it pass complete validation cycle
 enable_dhclient_systemd_service: false
 
-{% endif %}
 ##################################
 ## Network Device Configuration ##
 ##################################
@@ -224,11 +217,7 @@ update_nic_firmware: false
 #    supported_nvmupdate_tool_fw_version: "4.0"
 
 {% endif %}
-{% if cloud_mode == 'on' %}
-# install Intel x700 & x800 series NICs DDP packages (Legacy)
-# For Cloud RA, the install_ddp_packages option must be false
-install_ddp_packages: false
-{% elif ddp_legacy in ['on', 'optional'] %}
+{% if ddp_legacy in ['on', 'optional'] %}
 # install Intel x700 & x800 series NICs DDP packages (Legacy)
 install_ddp_packages: {% if ddp_legacy == 'on' and nic == 'fvl'%}true{% else %}false{% endif %}
 

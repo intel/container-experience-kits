@@ -3,6 +3,7 @@ Environment="DOCKER_OPTS={{ docker_options|default('') }} --iptables={{ docker_i
 --exec-opt native.cgroupdriver={{ docker_cgroup_driver }} \
 {% for i in docker_insecure_registries %}--insecure-registry={{ i }} {% endfor %} \
 {% for i in docker_registry_mirrors %}--registry-mirror={{ i }} {% endfor %} \
+{% if prc_network %}--registry-mirror={{ prc_dockerhub_mirror }} {% endif %} \
 --data-root={{ docker_daemon_graph }} \
 {{ docker_log_opts }} \
 "

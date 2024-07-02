@@ -142,6 +142,3 @@ ansible-playbook -i inventory.ini playbook/vm.yml
 
 ## Generic VMRA configuration
 No special configuration for GNR, please refer the [VMRA guide](https://networkbuilders.intel.com/solutionslibrary/network-and-edge-virtual-machine-reference-system-architecture-user-guide) for deployment.
-
-## Cloud RA configuration
-Not supported yet, to be done.

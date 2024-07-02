@@ -11,14 +11,24 @@ then
 fi
 
 XAUTHORITY=$(xauth info | grep "Authority file" | awk '{print $3}')
+
+{% if configure_gpu %}
 RENDER_GROUP_ID=$(stat -c '%g' /dev/dri/renderD128)
+{% endif %}
 
 INSTANCE_ID=0
 INSTANCE_NAME={{container_name}}-${INSTANCE_ID}
 
 docker run -ti --rm \
+{% if configure_gpu %}
     --device /dev/dri \
+{% endif %}
+{% if configured_arch in ['ultra'] %}
+    --device /dev/accel \
+{% endif %}
+{% if configure_gpu %}
     --group-add ${RENDER_GROUP_ID} \
+{% endif %}
     --volume /tmp/.X11-unix:/tmp/.X11-unix:ro \
     --volume ${HOME}/.Xauthority:/home/{{container_user}}/.Xauthority:ro \
     --volume ${HOME}/nep_validator_data:/home/{{container_user}}/data \

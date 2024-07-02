@@ -14,8 +14,8 @@
 ##   limitations under the License.
 ##
 ---
-src_sof_firmware_path: "{{ (nda_firmware_path, 'intel/sof-ipc4') | path_join }}"
-src_sof_topology_path: "{{ (nda_firmware_path, 'intel/sof-ace-tplg') | path_join }}"
+src_sof_firmware_path: "{{ (custom_firmware_path, 'intel/sof-ipc4') | path_join }}"
+src_sof_topology_path: "{{ (custom_firmware_path, 'intel/sof-ace-tplg') | path_join }}"
 
 dst_sof_firmware_path: "/lib/firmware/intel/sof-ipc4"
 dst_sof_topology_path: "/lib/firmware/intel/sof-ace-tplg"
