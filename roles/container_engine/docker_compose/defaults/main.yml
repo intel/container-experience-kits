@@ -17,4 +17,5 @@
 
 # According to https://docs.docker.com/engine/release-notes/20.10/
 # Docker compose 2.12.0 is aligned to docker 20.10.20
-docker_compose_plugin_version: "2.12.0~ubuntu-jammy"
+#docker_compose_plugin_version: "2.12.0~ubuntu-jammy"
+docker_compose_plugin_version: "{{ '2.29.2-1~ubuntu.24.04~noble' if ansible_facts['lsb']['release']  == '24.04' else '2.12.0~ubuntu-jammy' }}"
