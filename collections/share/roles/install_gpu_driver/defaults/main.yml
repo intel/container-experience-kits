@@ -150,7 +150,8 @@ gpu_dev_packages_u2404_client:
   - libigfxcmrt7=24.2.5-950~24.04
   - libigfxcmrt-dev=24.2.5-950~24.04
   - libze-dev=1.17.6-950~24.04
-#  - libvpl-dev=1:2.11.0.0-950~24.04
+  - libvpl-dev=1:2.11.0.0-950~24.04
+  - libva-dev=2.22.0.2-87~u24.04
 
 gpu_tool_packages_u2404_client:
   - xpu-smi=1.2.35-59~24.04
