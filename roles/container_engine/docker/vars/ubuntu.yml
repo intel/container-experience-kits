@@ -18,9 +18,11 @@
 containerd_versioned_pkg: "{{ containerd_package }}={{ containerd_version }}-1"
 
 # https://download.docker.com/linux/ubuntu/
-docker_versioned_pkg: "docker-ce=5:{{ docker_version }}~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
+#docker_versioned_pkg: "docker-ce=5:{{ docker_version }}~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
+docker_versioned_pkg: "docker-ce=5:{{ docker_version }}{{ '-1~ubuntu.24.04~' if ansible_facts['lsb']['release'] == '24.04' else '~3-0~ubuntu-' }}{{ ansible_distribution_release|lower }}"
 
-docker_cli_versioned_pkg: "docker-ce-cli=5:{{ docker_cli_version }}~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
+#docker_cli_versioned_pkg: "docker-ce-cli=5:{{ docker_cli_version }}~3-0~ubuntu-{{ ansible_distribution_release|lower }}"
+docker_cli_versioned_pkg: "docker-ce-cli=5:{{ docker_cli_version }}{{ '-1~ubuntu.24.04~' if ansible_facts['lsb']['release'] == '24.04' else '~3-0~ubuntu-' }}{{ ansible_distribution_release|lower }}"
 
 docker_package_info:
   pkgs:

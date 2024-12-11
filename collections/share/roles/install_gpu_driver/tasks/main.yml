@@ -46,10 +46,32 @@
     - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '=='))
     - gpu_type == "Arc" or gpu_type == "iGPU"
 
+- name: Set repo and packages for server GPU installation on Ubuntu 22.04
+  set_fact:
+    gpu_repo_spec: "{{ gpu_repo_spec_u2204_server }}"
+    gpu_kmd_packages: "{{ gpu_kmd_packages_u2204_20231219_server }}"
+    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2204_20231219_server }}"
+    gpu_dev_packages: "{{ gpu_dev_packages_u2204_20231219_server }}"
+    gpu_tool_packages: "{{ gpu_tool_packages_u2204_20231219_server }}"
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '=='))
+    - gpu_type == "Flex"
+
+- name: Set repo and packages for client GPU installation on Ubuntu 24.04
+  set_fact:
+    gpu_repo_spec: "{{ gpu_repo_spec_u2404_client }}"
+    gpu_kmd_packages: "{{ gpu_kmd_packages_u2404_client }}"
+    gpu_umd_rt_packages: "{{ gpu_umd_rt_packages_u2404_client }}"
+    gpu_dev_packages: "{{ gpu_dev_packages_u2404_client }}"
+    gpu_tool_packages: "{{ gpu_tool_packages_u2404_client }}"
+  when:
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('24.04', '=='))
+    - gpu_type == "Arc" or gpu_type == "iGPU"
+
 - name: Install GPU drivers on Ubuntu
   include_tasks: debian.yml
   when:
-    - (ansible_distribution == "Ubuntu" and ansible_distribution_version is version('22.04', '=='))
+    - (ansible_distribution == "Ubuntu" and ansible_distribution_version in ['22.04', '24.04'])
     - gpu_type != "Unknown"
 
 - name: Set repo and packages for server GPU installation on RHEL/Rocky 9.2

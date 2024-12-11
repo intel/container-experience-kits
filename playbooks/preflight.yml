@@ -277,7 +277,7 @@
   gather_facts: true
   vars:
     cek_supported_distros: [RedHat, Rocky, Ubuntu]
-    cek_supported_distros_versions: ['8.6', '9.0', '9.1', '9.2', '22.04']
+    cek_supported_distros_versions: ['8.6', '9.0', '9.1', '9.2', '22.04', '24.04']
     cpusets_ranges: []
     cpusets_discretes: []
     isolcpus_ranges: []

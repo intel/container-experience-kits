@@ -65,7 +65,7 @@
         allow_downgrade: true
       register: gpu_kmd
   when:
-    - ansible_kernel is version('6.5.0-35', '<=')
+    - ansible_kernel is version('6.8.0-41', '<=')
 
 - name: Install gpu firmware packages
   ansible.builtin.apt:
@@ -87,58 +87,58 @@
     msg: "current kernel is : {{ ansible_kernel }}"
 
 # workaround kernel 6.8+ gpu detect issue
-- block:
-    - name: Create GPU driver folder
-      ansible.builtin.file:
-        path: "{{ gpu_driver_path }}"
-        state: directory
-        mode: 0755
+#- block:
+#    - name: Create GPU driver folder
+#      ansible.builtin.file:
+#        path: "{{ gpu_driver_path }}"
+#        state: directory
+#        mode: 0755
 
-    - name: Set default GPU package URLs
-      set_fact:
-        igc_core_url: "https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-core_1.0.16510.2_amd64.deb"
-        igc_opencl_url: "https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-opencl_1.0.16510.2_amd64.deb"
-        level_zero_gpu_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-level-zero-gpu_1.3.29138.7_amd64.deb"
-        opencl_icd_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-opencl-icd_24.13.29138.7_amd64.deb"
-        igdgmm_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm12_22.3.18_amd64.deb"
-        igdgmm_dev_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm-dev_22.3.18_amd64.deb"
-      when: not prc_network | bool
+#    - name: Set default GPU package URLs
+#      set_fact:
+#        igc_core_url: "https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-core_1.0.16510.2_amd64.deb"
+#        igc_opencl_url: "https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-opencl_1.0.16510.2_amd64.deb"
+#        level_zero_gpu_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-level-zero-gpu_1.3.29138.7_amd64.deb"
+#        opencl_icd_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-opencl-icd_24.13.29138.7_amd64.deb"
+#        igdgmm_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm12_22.3.18_amd64.deb"
+#        igdgmm_dev_url: "https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm-dev_22.3.18_amd64.deb"
+#      when: not prc_network | bool
 
-    - name: Set GPU package URLs for PRC network
-      set_fact:
-        igc_core_url: "{{ prc_github_mirror }}/github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-core_1.0.16510.2_amd64.deb"
-        igc_opencl_url: "{{ prc_github_mirror }}/github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-opencl_1.0.16510.2_amd64.deb"
-        level_zero_gpu_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-level-zero-gpu_1.3.29138.7_amd64.deb"
-        opencl_icd_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-opencl-icd_24.13.29138.7_amd64.deb"
-        igdgmm_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm12_22.3.18_amd64.deb"
-        igdgmm_dev_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm-dev_22.3.18_amd64.deb"
-      when: prc_network | bool
+#    - name: Set GPU package URLs for PRC network
+#      set_fact:
+#        igc_core_url: "{{ prc_github_mirror }}/github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-core_1.0.16510.2_amd64.deb"
+#        igc_opencl_url: "{{ prc_github_mirror }}/github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-opencl_1.0.16510.2_amd64.deb"
+#        level_zero_gpu_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-level-zero-gpu_1.3.29138.7_amd64.deb"
+#        opencl_icd_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-opencl-icd_24.13.29138.7_amd64.deb"
+#        igdgmm_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm12_22.3.18_amd64.deb"
+#        igdgmm_dev_url: "{{ prc_github_mirror }}/github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm-dev_22.3.18_amd64.deb"
+#      when: prc_network | bool
 
-    - name: Download GPU packages
-      ansible.builtin.get_url:
-        url: "{{ item }}"
-        dest: "{{ gpu_driver_path }}"
-        mode: '0644'
-      with_items:
-        - "{{ igc_core_url }}"
-        - "{{ igc_opencl_url }}"
-        - "{{ level_zero_gpu_url }}"
-        - "{{ opencl_icd_url }}"
-        - "{{ igdgmm_url }}"
-        - "{{ igdgmm_dev_url }}"
+#    - name: Download GPU packages
+#      ansible.builtin.get_url:
+#        url: "{{ item }}"
+#        dest: "{{ gpu_driver_path }}"
+#        mode: '0644'
+#      with_items:
+#        - "{{ igc_core_url }}"
+#        - "{{ igc_opencl_url }}"
+#        - "{{ level_zero_gpu_url }}"
+#        - "{{ opencl_icd_url }}"
+#        - "{{ igdgmm_url }}"
+#        - "{{ igdgmm_dev_url }}"
 
-    - name: Find GPU packages
-      find:
-        paths: "{{ gpu_driver_path }}"
-        patterns: "*.deb"
-      register: gpu_packages
+#    - name: Find GPU packages
+#      find:
+#        paths: "{{ gpu_driver_path }}"
+#        patterns: "*.deb"
+#      register: gpu_packages
 
-    - name: Install GPU packages
-      apt:
-        deb: "{{ item.path }}"
-        force: true
-      with_items:
-        - "{{ gpu_packages.files }}"
+#    - name: Install GPU packages
+#      apt:
+#        deb: "{{ item.path }}"
+#        force: true
+#      with_items:
+#        - "{{ gpu_packages.files }}"
 
     # - name: Install GPU packages
     #   apt:
@@ -152,9 +152,9 @@
     #     - "{{ (gpu_driver_path, 'intel-level-zero-gpu_1.3.29138.7_amd64.deb') | path_join }}"
     #     - "{{ (gpu_driver_path, 'intel-opencl-icd_24.13.29138.7_amd64.deb') | path_join }}"
 
-  when:
-    - ansible_kernel is version('6.8', '>=') or
-      configured_arch in ['ultra']
+#  when:
+#    - ansible_kernel is version('6.9', '>=') or
+#      configured_arch in ['ultra']
 
 - name: Install gpu tool packages
   ansible.builtin.apt:

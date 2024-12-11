@@ -22,21 +22,46 @@
 
 - name: Set default NPU package URLs
   set_fact:
-    npu_fw_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb"
-  when: not prc_network | bool
+    npu_fw_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-fw-npu_1.8.0.20240916-10885588273_ubuntu22.04_amd64.deb"
+    npu_lz_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-driver-compiler-npu_1.8.0.20240916-10885588273_ubuntu22.04_amd64.deb"
+    npu_comipler_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-level-zero-npu_1.8.0.20240916-10885588273_ubuntu22.04_amd64.deb"
+  when: not prc_network | bool and ansible_distribution_version is version('22.04', '==')
 
 - name: Set NPU package URLs for PRC network
   set_fact:
-    npu_fw_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.2.0/intel-fw-npu_1.2.0.20240404-8553879914_ubuntu22.04_amd64.deb"
-  when: prc_network | bool
+    npu_fw_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-fw-npu_1.8.0.20240916-10885588273_ubuntu22.04_amd64.deb"
+    npu_lz_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-driver-compiler-npu_1.8.0.20240916-10885588273_ubuntu22.04_amd64.deb"
+    npu_comipler_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-level-zero-npu_1.8.0.20240916-10885588273_ubuntu22.04_amd64.deb"
+  when: prc_network | bool and ansible_distribution_version is version('22.04', '==')
+
+- name: Set NPU package URLs on ubuntu 24.04
+  set_fact:
+    npu_fw_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-fw-npu_1.8.0.20240916-10885588273_ubuntu24.04_amd64.deb"
+    npu_lz_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-level-zero-npu_1.8.0.20240916-10885588273_ubuntu24.04_amd64.deb"
+    npu_comipler_url: "https://github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-driver-compiler-npu_1.8.0.20240916-10885588273_ubuntu24.04_amd64.deb"
+  when: not prc_network | bool and ansible_distribution_version is version('24.04', '==')
+
+
+- name: Set NPU package URLs for PRC network on ubuntu 24.04
+  set_fact:
+    npu_fw_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-fw-npu_1.8.0.20240916-10885588273_ubuntu24.04_amd64.deb"
+    npu_lz_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-level-zero-npu_1.8.0.20240916-10885588273_ubuntu24.04_amd64.deb"
+    npu_comipler_url: "{{ prc_github_mirror }}/github.com/intel/linux-npu-driver/releases/download/v1.8.0/intel-driver-compiler-npu_1.8.0.20240916-10885588273_ubuntu24.04_amd64.deb"
+  when: prc_network | bool and ansible_distribution_version is version('24.04', '==')
 
 - name: Download NPU package
   ansible.builtin.get_url:
     url: "{{ item }}"
     dest: "{{ npu_driver_path }}"
     mode: '0644'
+  register: get_url_result
+  until: get_url_result is success
+  retries: 5
+  delay: 5
   with_items:
     - "{{ npu_fw_url }}"
+    - "{{ npu_lz_url }}"
+    - "{{ npu_comipler_url }}"
 
 - name: Find NPU packages
   find:
@@ -50,7 +75,7 @@
   with_items:
     - "{{ npu_packages.files }}"
   when:
-    - ansible_kernel is version('6.7', '>') or
+    - ansible_kernel is version('6.7', '>') and
       configured_arch in ['ultra']
   notify:
     - reboot server
@@ -83,3 +108,4 @@
     enabled: true
     daemon_reload: true
   become: true
+

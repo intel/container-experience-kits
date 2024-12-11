@@ -24,9 +24,9 @@
   ansible.builtin.assert:
     that:
       - ansible_distribution == "Ubuntu"
-      - ansible_distribution_version in ['20.04', '22.04']
+      - ansible_distribution_version in ['20.04', '22.04', '24.04']
     msg: >-
-      Currently Intel In-Band Manageability is only supported on Ubuntu 20.04 and 22.04.
+      Currently Intel In-Band Manageability is only supported on Ubuntu 20.04, 22.04 and 24.04.
 
 - name: assert credential_mode for intel_inband_manageability with thingsboard
   ansible.builtin.assert:

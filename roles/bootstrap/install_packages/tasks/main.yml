@@ -26,9 +26,9 @@
 - name: upgrade Python wheel and setuptools
   pip:
     name:
-      - wheel==0.34.2
-      - setuptools<=44
-    extra_args: --upgrade
+      - wheel==0.42.0
+      - setuptools<=77
+    extra_args: --upgrade --break-system-packages
 
 # pinned python packages versions
 - name: install Python packages
@@ -44,6 +44,7 @@
       - oauthlib==3.1.0
       - docker==6.1.3
       - requests==2.31.0
+    extra_args: --break-system-packages
     state: present
   register: pip_result
   retries: 5
